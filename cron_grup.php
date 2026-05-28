@@ -15,6 +15,17 @@ if (!isset($_GET['token']) || $_GET['token'] !== $secretToken) {
 
 date_default_timezone_set('Asia/Jakarta');
 
+// =========================================================================
+// FITUR PENDETEKSI DOMAIN OTOMATIS
+// Mengubah file hasil upload lokal (misal: uploads/foto.png) 
+// menjadi URL publik (misal: https://jawwada.com/uploads/foto.png)
+// =========================================================================
+$protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https://" : "http://";
+$domain = $_SERVER['HTTP_HOST'] ?? 'domain-anda.com';
+$script_path = str_replace(basename($_SERVER['SCRIPT_NAME']), '', $_SERVER['SCRIPT_NAME']);
+$baseUrl = $protocol . $domain . $script_path; 
+// =========================================================================
+
 // Ambil data yang statusnya pending dan waktunya sudah tiba atau lewat
 $query = "SELECT * FROM jadwal_pesan_grup WHERE status = 'pending' AND jadwal_kirim <= NOW() LIMIT 5";
 $result = $conn->query($query);
@@ -27,15 +38,36 @@ if (!$result) {
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         
-        // 1. Siapkan format data SESUAI DOKUMENTASI ONESENDER
-        $postData = [
-            "recipient_type" => "group",
-            "to" => $row['id_grup'],
-            "type" => "text",
-            "text" => [
-                "body" => $row['pesan']
-            ]
-        ];
+        // 1. LOGIKA GAMBAR VS TEKS
+        if (!empty($row['media_path'])) {
+            
+            // JIKA ADA GAMBAR HASIL UPLOAD
+            // Gabungkan URL Domain web Anda dengan lokasi file gambar
+            $fullImageUrl = $baseUrl . ltrim($row['media_path'], '/');
+            
+            $postData = [
+                "recipient_type" => "group",
+                "to" => $row['id_grup'],
+                "type" => "image",
+                "image" => [
+                    "link" => $fullImageUrl,     // Menggunakan 'link' alih-alih 'id'
+                    "caption" => $row['pesan']   // Pesan teks dijadikan caption di bawah gambar
+                ]
+            ];
+            
+        } else {
+            
+            // JIKA TIDAK ADA GAMBAR (Hanya teks biasa)
+            $postData = [
+                "recipient_type" => "group",
+                "to" => $row['id_grup'],
+                "type" => "text",
+                "text" => [
+                    "body" => $row['pesan']
+                ]
+            ];
+            
+        }
 
         // Ubah array PHP menjadi format JSON string
         $jsonData = json_encode($postData);
@@ -43,34 +75,31 @@ if ($result->num_rows > 0) {
         // 2. Eksekusi API via cURL
         $curl = curl_init();
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $apiUrl, // Diambil dari variabel $apiUrl di config.php
+            CURLOPT_URL => $apiUrl, 
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30, // Timeout aman
+            CURLOPT_TIMEOUT => 30, 
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $jsonData, // Kirim sebagai raw JSON
+            CURLOPT_POSTFIELDS => $jsonData, 
             CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer ' . $apiToken, // Wajib pakai awalan Bearer
-                'Content-Type: application/json'      // Wajib untuk format raw JSON
+                'Authorization: Bearer ' . $apiToken,
+                'Content-Type: application/json'      
             ),
         ));
 
         $response = curl_exec($curl);
         $err = curl_error($curl);
-        $httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE); // Ambil kode HTTP (200, 400, dll)
+        $httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE); 
         curl_close($curl);
 
         // 3. Update Status di Database sesuai hasil respon
-        // Jika cURL error ATAU API OneSender menolak (HTTP kode 400 ke atas)
         if ($err || $httpcode >= 400) {
             $conn->query("UPDATE jadwal_pesan_grup SET status = 'failed' WHERE id = " . $row['id']);
-            // Tulis error ke log untuk dicek jika gagal lagi
-            file_put_contents('cron_error.log', "ID: ".$row['id']." | Error: $err | HTTP Code: $httpcode | Response: $response\n", FILE_APPEND);
+            file_put_contents('cron_error.log', "ID: ".$row['id']." | Error: $err | HTTP: $httpcode | Payload: $jsonData | Resp: $response\n", FILE_APPEND);
         } else {
-            // Jika berhasil (HTTP 200 OK), update ke 'sent'
             $conn->query("UPDATE jadwal_pesan_grup SET status = 'sent' WHERE id = " . $row['id']);
         }
     }
