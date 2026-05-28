@@ -10,7 +10,7 @@ set_time_limit(0);
 
 $secretToken = "jwd_secure_cron_2026"; 
 if (!isset($_GET['token']) || $_GET['token'] !== $secretToken) {
-    die("Akses Ditolak.");
+    die("Akses Ditolak. Pastikan URL Cron Job membawa parameter ?token=...");
 }
 
 date_default_timezone_set('Asia/Jakarta');
@@ -21,28 +21,29 @@ $result = $conn->query($query);
 
 if (!$result) {
     file_put_contents('cron_error.log', "Error DB: " . $conn->error . "\n", FILE_APPEND);
-    die("Error DB");
+    die("Error Database saat mengambil antrean.");
 }
 
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         
-        // 1. Siapkan Parameter ke OneSender
-        $postData = array(
-            'target' => $row['id_grup'], 
-            'message' => $row['pesan']
-        );
+        // 1. Siapkan format data SESUAI DOKUMENTASI ONESENDER
+        $postData = [
+            "recipient_type" => "group",
+            "to" => $row['id_grup'],
+            "type" => "text",
+            "text" => [
+                "body" => $row['pesan']
+            ]
+        ];
 
-        // Jika tabel punya fitur kirim gambar/file
-        if (!empty($row['media_path'])) {
-             // Opsional: Sesuaikan dengan struktur form-data OneSender jika ada media
-             // $postData['file'] = new CURLFile($row['media_path']); 
-        }
+        // Ubah array PHP menjadi format JSON string
+        $jsonData = json_encode($postData);
 
         // 2. Eksekusi API via cURL
         $curl = curl_init();
         curl_setopt_array($curl, array(
-            CURLOPT_URL => $apiUrl,
+            CURLOPT_URL => $apiUrl, // Diambil dari variabel $apiUrl di config.php
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
@@ -50,23 +51,26 @@ if ($result->num_rows > 0) {
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $postData,
+            CURLOPT_POSTFIELDS => $jsonData, // Kirim sebagai raw JSON
             CURLOPT_HTTPHEADER => array(
-                'Authorization: ' . $apiToken // Memasukkan token sesuai config.php Anda
+                'Authorization: Bearer ' . $apiToken, // Wajib pakai awalan Bearer
+                'Content-Type: application/json'      // Wajib untuk format raw JSON
             ),
         ));
 
         $response = curl_exec($curl);
         $err = curl_error($curl);
+        $httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE); // Ambil kode HTTP (200, 400, dll)
         curl_close($curl);
 
         // 3. Update Status di Database sesuai hasil respon
-        if ($err) {
-            // Jika curl error, ubah jadi failed (opsional) atau biarkan pending
+        // Jika cURL error ATAU API OneSender menolak (HTTP kode 400 ke atas)
+        if ($err || $httpcode >= 400) {
             $conn->query("UPDATE jadwal_pesan_grup SET status = 'failed' WHERE id = " . $row['id']);
-            file_put_contents('cron_error.log', "CURL Error ID ".$row['id'].": " . $err . "\n", FILE_APPEND);
+            // Tulis error ke log untuk dicek jika gagal lagi
+            file_put_contents('cron_error.log', "ID: ".$row['id']." | Error: $err | HTTP Code: $httpcode | Response: $response\n", FILE_APPEND);
         } else {
-            // Jika berhasil tereksekusi, update ke 'sent' (sesuai enum DB)
+            // Jika berhasil (HTTP 200 OK), update ke 'sent'
             $conn->query("UPDATE jadwal_pesan_grup SET status = 'sent' WHERE id = " . $row['id']);
         }
     }
