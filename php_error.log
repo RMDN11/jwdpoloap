@@ -1,0 +1,17 @@
+[15-Dec-2025 00:44:49 UTC] PHP Notice:  session_start(): Ignoring session_start() because a session is already active (started from /home/digitalprofit.my.id/app.reqra.my.id/jwdpoloap/reminder.php on line 2) in /home/digitalprofit.my.id/app.reqra.my.id/jwdpoloap/auth_checkwa.php on line 2
+[15-Dec-2025 00:51:19 UTC] PHP Notice:  session_start(): Ignoring session_start() because a session is already active (started from /home/digitalprofit.my.id/app.reqra.my.id/jwdpoloap/reminder.php on line 8) in /home/digitalprofit.my.id/app.reqra.my.id/jwdpoloap/auth_checkwa.php on line 2
+[15-Dec-2025 01:04:38 UTC] PHP Notice:  session_start(): Ignoring session_start() because a session is already active (started from /home/digitalprofit.my.id/app.reqra.my.id/jwdpoloap/reminder.php on line 8) in /home/digitalprofit.my.id/app.reqra.my.id/jwdpoloap/auth_checkwa.php on line 2
+[15-Dec-2025 08:04:38 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:04:55 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:05:01 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:19:30 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:19:38 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:20:01 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:20:38 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:20:47 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:20:54 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:20:58 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:24:38 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:25:04 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:27:44 Asia/Jakarta] === REMINDER.PHP LOADED ===
+[15-Dec-2025 08:28:02 Asia/Jakarta] === REMINDER.PHP LOADED ===
