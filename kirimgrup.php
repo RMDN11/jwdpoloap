@@ -65,7 +65,7 @@ function kirimPesanGrupCanggih($groupId, $message, $imagePath, $apiUrl, $apiToke
             'text' => ['body' => $message]
         ];
 
-        $jsonData = json_encode($payload);
+        $jsonData = json_encode($payload, JSON_UNESCAPED_UNICODE);
         $ch = curl_init($textApiUrl);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -112,6 +112,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_grup'])) {
     $tipeJadwal = $_POST['tipe_jadwal'] ?? 'sekarang';
     $waktuJadwal = trim($_POST['waktu_jadwal'] ?? '');
     $jamHarian = trim($_POST['jam_harian'] ?? '');
+    $hariRutin = trim($_POST['hari_rutin'] ?? '');
 
     if (empty($groupId)) {
         echo json_encode(['status' => 'error', 'msg' => 'Grup kosong']); exit;
@@ -140,8 +141,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_grup'])) {
             }
         }
 
-        $stmt = $conn->prepare("INSERT INTO jadwal_pesan_grup (id_grup, pesan, media_path, tipe_jadwal, jadwal_kirim, jam_harian, status, terakhir_dikirim) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssssss", $groupId, $pesan, $savedImagePath, $tipeJadwal, $waktuKirimSekali, $waktuKirimHarian, $statusAwal, $terakhirDikirim);
+        $stmt = $conn->prepare("INSERT INTO jadwal_pesan_grup (id_grup, pesan, media_path, tipe_jadwal, jadwal_kirim, jam_harian, hari_rutin, status, terakhir_dikirim) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssssssss", $groupId, $pesan, $savedImagePath, $tipeJadwal, $waktuKirimSekali, $waktuKirimHarian, $hariRutin, $statusAwal, $terakhirDikirim);
         
         if ($stmt->execute()) {
             echo json_encode(['status' => 'success', 'msg' => 'Pesan berhasil dijadwalkan']);
@@ -196,6 +197,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_history'])) {
     }
     header("Location: " . $_SERVER['PHP_SELF']); exit;
 }
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['batalkan_jadwal'])) {
+    $idJadwal = $_POST['id_jadwal'];
+    // Hapus jadwal dari antrean
+    $conn->query("DELETE FROM jadwal_pesan_grup WHERE id = " . intval($idJadwal));
+    $_SESSION['notification'] = "Jadwal berhasil dibatalkan."; 
+    $_SESSION['notification_type'] = 'success';
+    header("Location: " . $_SERVER['PHP_SELF']); exit;
+}
+
+// AMBIL DATA JADWAL BERJALAN UNTUK DITAMPILKAN
+$jadwalBerjalan = [];
+$jadwalResult = $conn->query("SELECT j.*, w.nama_grup FROM jadwal_pesan_grup j LEFT JOIN wa_grup w ON j.id_grup = w.id_grup WHERE j.status = 'pending' ORDER BY j.id DESC");
+if ($jadwalResult) { $jadwalBerjalan = $jadwalResult->fetch_all(MYSQLI_ASSOC); }
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_message_history'])) {
     if ($conn->query("DELETE FROM log_wa WHERE message LIKE '%[GRUP]%'")) {
         $_SESSION['notification'] = "Semua riwayat isi pesan berhasil dihapus."; $_SESSION['notification_type'] = 'success';
@@ -354,9 +368,20 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
                                     <label for="waktu_jadwal" class="block text-xs text-blue-600 mb-1">Pilih Tanggal & Waktu Kirim:</label>
                                     <input type="datetime-local" id="waktu_jadwal" name="waktu_jadwal" class="w-full border-gray-300 rounded-lg p-2 text-sm bg-white">
                                 </div>
-                                <div id="input_harian" class="hidden mt-2">
-                                    <label for="jam_harian" class="block text-xs text-blue-600 mb-1">Kirim setiap hari pada jam:</label>
-                                    <input type="time" id="jam_harian" name="jam_harian" class="w-full border-gray-300 rounded-lg p-2 text-sm bg-white">
+                                <div id="input_harian" class="hidden mt-2 border-t border-blue-200 pt-3">
+                                    <label for="jam_harian" class="block text-xs text-blue-600 mb-1 font-bold">Kirim pada jam:</label>
+                                    <input type="time" id="jam_harian" name="jam_harian" class="w-full border-gray-300 rounded-lg p-2 text-sm bg-white mb-3">
+                                    
+                                    <label class="block text-xs text-blue-600 mb-1 font-bold">Pilih Hari Rutin:</label>
+                                    <div class="flex flex-wrap gap-3">
+                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="1" class="mr-1"> Sen</label>
+                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="2" class="mr-1"> Sel</label>
+                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="3" class="mr-1"> Rab</label>
+                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="4" class="mr-1"> Kam</label>
+                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="5" class="mr-1"> Jum</label>
+                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="6" class="mr-1"> Sab</label>
+                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="7" class="mr-1"> Min</label>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -434,7 +459,49 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
                     <?php endif; ?>
                 </div>
             </div>
-            
+            <div class="bg-card shadow-md rounded-2xl p-6 border border-card mt-8 col-span-1 lg:col-span-2">
+    <h2 class="text-lg font-semibold mb-4 flex items-center text-primary"><i class="fas fa-calendar-alt text-xl mr-2 text-accent"></i> Jadwal Sedang Berjalan</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+            <thead class="bg-gray-100 text-gray-600 text-xs uppercase text-left">
+                <tr>
+                    <th class="py-3 px-4 border-b">Grup</th>
+                    <th class="py-3 px-4 border-b">Pesan</th>
+                    <th class="py-3 px-4 border-b">Tipe Jadwal</th>
+                    <th class="py-3 px-4 border-b">Waktu Kirim</th>
+                    <th class="py-3 px-4 border-b text-center">Aksi</th>
+                </tr>
+            </thead>
+            <tbody class="text-sm">
+                <?php if(!empty($jadwalBerjalan)): ?>
+                    <?php foreach($jadwalBerjalan as $j): ?>
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-3 px-4 border-b"><?= htmlspecialchars($j['nama_grup'] ?? $j['id_grup']) ?></td>
+                        <td class="py-3 px-4 border-b max-w-xs truncate"><?= htmlspecialchars($j['pesan']) ?></td>
+                        <td class="py-3 px-4 border-b font-semibold text-blue-600 uppercase"><?= htmlspecialchars($j['tipe_jadwal']) ?></td>
+                        <td class="py-3 px-4 border-b text-xs">
+                            <?php if($j['tipe_jadwal'] == 'sekali'): ?>
+                                <?= date('d M Y, H:i', strtotime($j['jadwal_kirim'])) ?>
+                            <?php else: ?>
+                                Jam: <?= htmlspecialchars($j['jam_harian']) ?><br>
+                                Hari: <?= htmlspecialchars($j['hari_rutin']) ?> (1=Sen, 7=Min)
+                            <?php endif; ?>
+                        </td>
+                        <td class="py-3 px-4 border-b text-center">
+                            <form method="POST" onsubmit="return confirm('Batalkan dan hapus jadwal ini?');">
+                                <input type="hidden" name="id_jadwal" value="<?= $j['id'] ?>">
+                                <button type="submit" name="batalkan_jadwal" class="bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 text-xs font-bold">Batalkan</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr><td colspan="5" class="py-4 text-center text-gray-500">Tidak ada jadwal aktif.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
             <div class="bg-card shadow-md rounded-2xl p-6 border border-card">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-semibold flex items-center text-primary"><i class="fas fa-history text-xl mr-2 text-accent"></i> Riwayat Pengiriman</h2>
@@ -482,6 +549,13 @@ function toggleJadwal() {
     document.getElementById('input_sekali').style.display = (tipe === 'sekali') ? 'block' : 'none';
     document.getElementById('input_harian').style.display = (tipe === 'harian') ? 'block' : 'none';
 }
+// Kumpulkan array hari jika jadwal harian
+let hariTerpilih = [];
+if(tipeJadwal === 'harian') {
+    document.querySelectorAll('input[name="hari_rutin[]"]:checked').forEach(cb => hariTerpilih.push(cb.value));
+    if(hariTerpilih.length === 0) { alert("Pilih minimal 1 hari untuk jadwal rutin!"); return; }
+}
+formData.append('hari_rutin', hariTerpilih.join(','));
 
 document.addEventListener('DOMContentLoaded', function () {
     const mainForm = document.getElementById('main-form');
