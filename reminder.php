@@ -10,7 +10,7 @@ function kirimPesan($recipient, $message, $apiUrl, $apiToken) {
         "text" => ["body" => $message]
     ];
     
-    $jsonData = json_encode($data);
+    $jsonData = json_encode($data, JSON_UNESCAPED_UNICODE);
     $ch = curl_init($apiUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
