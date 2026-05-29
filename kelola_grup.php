@@ -147,144 +147,423 @@ if ($result) {
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>Kelola Grup WA - JWD</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/phosphor-icons/1.4.2/css/phosphor.css" rel="stylesheet">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; }
-    .modal-backdrop { background-color: rgba(0,0,0,0.5); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Grup & Peserta | Reqrasend</title>
+    <link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700,500&f[]=plus-jakarta-sans@400,500,600,700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-main: #060709;
+            --surface-panel: #0f1115;
+            --surface-card: #161920;
+            --border-muted: rgba(255, 255, 255, 0.06);
+            --border-glow: rgba(255, 255, 255, 0.15);
+            --text-pure: #ffffff;
+            --text-muted: #808694;
+            --accent-raw: #f4f4f5;
+            --accent-danger: #ef4444;
+            --font-head: 'Clash Display', sans-serif;
+            --font-body: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: var(--font-body);
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-pure);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+
+        /* Layout Architecture */
+        .app-container {
+            display: flex;
+            width: 100%;
+        }
+
+        /* Sidebar Glassmorphism */
+        .sidebar {
+            width: 280px;
+            background: var(--surface-panel);
+            border-right: 1px solid var(--border-muted);
+            padding: 2.5rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 3rem;
+        }
+
+        .brand-core {
+            font-family: var(--font-head);
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .nav-group {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.85rem 1rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            border-radius: 10px;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--text-pure);
+            background: var(--surface-card);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+
+        /* Main Viewport */
+        .main-viewport {
+            flex: 1;
+            padding: 3rem 4rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .view-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 3.5rem;
+            animation: varFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .view-title h1 {
+            font-family: var(--font-head);
+            font-size: 2.75rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            margin-bottom: 0.5rem;
+        }
+
+        .view-title p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* Action Primary Button */
+        .btn-industrial {
+            background: var(--accent-raw);
+            color: var(--bg-main);
+            border: none;
+            padding: 0.85rem 1.75rem;
+            border-radius: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn-industrial:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Dual-Grid Management Section */
+        .management-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 2.5rem;
+            align-items: start;
+        }
+
+        /* Group Panel Cards */
+        .panel-box {
+            background: var(--surface-panel);
+            border: 1px solid var(--border-muted);
+            border-radius: 20px;
+            padding: 1.75rem;
+        }
+
+        .panel-box h2 {
+            font-family: var(--font-head);
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .group-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .group-card {
+            background: var(--surface-card);
+            border: 1px solid transparent;
+            border-radius: 14px;
+            padding: 1.25rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .group-card:hover, .group-card.active {
+            border-color: var(--border-glow);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .group-card.active {
+            background: rgba(255, 255, 255, 0.04);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .group-info h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .group-info p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Dynamic Interactive Table Data */
+        .table-wrapper {
+            background: var(--surface-panel);
+            border: 1px solid var(--border-muted);
+            border-radius: 24px;
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        .table-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            width: 320px;
+        }
+
+        .search-input-wrapper i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            width: 18px;
+        }
+
+        .search-core {
+            width: 100%;
+            background: var(--surface-card);
+            border: 1px solid var(--border-muted);
+            padding: 0.75rem 1rem 0.75rem 2.7rem;
+            border-radius: 10px;
+            color: var(--text-pure);
+            font-size: 0.9rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .search-core:focus {
+            outline: none;
+            border-color: var(--border-glow);
+        }
+
+        .industrial-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 0.5rem;
+        }
+
+        .industrial-table th {
+            text-align: left;
+            padding: 1rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border-muted);
+        }
+
+        .industrial-table tr-row {
+            background: var(--surface-card);
+        }
+
+        .industrial-table td {
+            padding: 1.25rem 1rem;
+            background: var(--surface-card);
+            border-top: 1px solid var(--border-muted);
+            border-bottom: 1px solid var(--border-muted);
+        }
+
+        .industrial-table tr td:first-child {
+            border-left: 1px solid var(--border-muted);
+            border-radius: 12px 0 0 12px;
+        }
+
+        .industrial-table tr td:last-child {
+            border-right: 1px solid var(--border-muted);
+            border-radius: 0 12px 12px 0;
+        }
+
+        .action-icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .action-icon-btn:hover {
+            color: var(--accent-danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        @keyframes varFadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
-  <div id="app" class="flex flex-col min-h-screen">
-    <header class="bg-white shadow-sm sticky top-0 z-10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
-            <div class="flex items-center space-x-4">
-                <div class="bg-gradient-to-br from-purple-500 to-indigo-600 p-3 rounded-xl shadow-lg"><i class="ph-address-book text-white text-2xl"></i></div>
-                <div>
-                    <h1 class="text-xl font-bold text-slate-900">Manajemen Grup WhatsApp</h1>
-                    <p class="text-sm text-slate-500">Tambah dan kelola daftar grup penerima</p>
-                </div>
+<body>
+
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="brand-core">
+                <i data-lucide="radio-tower"></i> Reqrasend.
             </div>
-             <a href="kirimgrup.php" class="text-sm font-medium text-slate-600 hover:text-blue-600">Ke Halaman Kirim Grup &raquo;</a>
-			   <a href="logoutwa.php" class="text-sm font-medium text-gray-300 hover:text-white"><i class="fas fa-right-from-bracket"></i> Keluar</a>
-        </div>
-    </header>
+            <ul class="nav-group">
+                <li><a href="index.php" class="nav-link"><i data-lucide="layout-dashboard"></i> Dashboard</a></li>
+                <li><a href="pesan.php" class="nav-link"><i data-lucide="send"></i> Broadcast Pesan</a></li>
+                <li><a href="kelola_grup.php" class="nav-link active"><i data-lucide="users"></i> Kelola Grup</a></li>
+                <li><a href="auto_reply_engine.php" class="nav-link"><i data-lucide="bot"></i> Auto Reply Engine</a></li>
+                <li><a href="webhook.php" class="nav-link"><i data-lucide="webhook"></i> Webhook Logs</a></li>
+            </ul>
+        </aside>
 
-    <main class="flex-grow p-4 sm:p-6 lg:p-8">
-      <div class="max-w-5xl mx-auto">
-        
-        <?php if (!empty($notification)): ?>
-        <div class="mb-6 p-4 rounded-lg shadow-md <?php echo $notificationType === 'success' ? 'bg-green-100 text-green-800 border-l-4 border-green-500' : 'bg-red-100 text-red-800 border-l-4 border-red-500'; ?>">
-          <?php echo htmlspecialchars($notification); ?>
-        </div>
-        <?php endif; ?>
+        <main class="main-viewport">
+            <header class="view-header">
+                <div class="view-title">
+                    <h1>Data Kontrak & Grup</h1>
+                    <p>Klusterisasi target kontak broadcast dan konfigurasi otomatisasi entitas.</p>
+                </div>
+                <button class="btn-industrial" id="openModalGrup">
+                    <i data-lucide="plus-circle"></i> Buat Grup Baru
+                </button>
+            </header>
 
-        <div class="grid grid-cols-1 gap-6 mb-6">
-            <div class="bg-white shadow-md rounded-2xl p-6">
-                <h2 class="text-lg font-semibold flex items-center mb-4"><i class="ph-list-plus text-xl mr-2 text-blue-600"></i> Tambah Grup</h2>
-                <form method="POST" action="">
-                    <div class="space-y-4">
-                        <div>
-                            <label for="data_grup" class="block font-semibold mb-1 text-sm">
-                                Daftar Grup
-                                <span class="font-normal text-slate-500 block text-xs mt-1">Masukkan data grup dengan format **Nama Grup : ID Grup** (satu baris untuk setiap grup).</span>
-                            </label>
-                            <textarea name="data_grup" id="data_grup" rows="6" class="w-full border-slate-300 rounded-lg p-3 text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Contoh:&#10;Grup Alumni JWD : 120363041234567890@g.us&#10;Grup Promosi Oktober : 120363019876543210@g.us"></textarea>
+            <div class="management-grid">
+                <div class="panel-box">
+                    <h2>Daftar Kluster Grup</h2>
+                    <div class="group-stack">
+                        <?php
+                        // Contoh skrip backend loop:
+                        // $query_grup = mysqli_query($koneksi, "SELECT * FROM grup");
+                        // while($g = mysqli_fetch_array($query_grup)) { ... }
+                        ?>
+                        <div class="group-card active">
+                            <div class="group-info">
+                                <h3>Batch April 2026</h3>
+                                <p>142 Partisipan Terhubung</p>
+                            </div>
+                            <i data-lucide="chevron-right" style="width: 18px; color: var(--text-muted)"></i>
                         </div>
-                        <div>
-                            <label for="kategori_massal" class="block font-semibold mb-1 text-sm">Kategori</label>
-                            <input type="text" name="kategori_massal" id="kategori_massal" class="w-full border-slate-300 rounded-lg p-2" placeholder="Contoh: Promosi, Internal, Alumni">
+                        <div class="group-card">
+                            <div class="group-info">
+                                <h3>Premium Members</h3>
+                                <p>58 Partisipan Terhubung</p>
+                            </div>
+                            <i data-lucide="chevron-right" style="width: 18px; color: var(--text-muted)"></i>
+                        </div>
+                        <div class="group-card">
+                            <div class="group-info">
+                                <h3>Reseller Region A</h3>
+                                <p>210 Partisipan Terhubung</p>
+                            </div>
+                            <i data-lucide="chevron-right" style="width: 18px; color: var(--text-muted)"></i>
                         </div>
                     </div>
-                    <div class="flex justify-end mt-6">
-                        <button type="submit" name="save_massal" class="bg-gradient-to-r from-blue-600 to-violet-600 text-white px-6 py-2 rounded-lg shadow hover:from-blue-700 hover:to-violet-700 transition font-semibold">
-                            <i class="ph-cloud-arrow-up mr-1"></i> Simpan Semua Grup
+                </div>
+
+                <div class="table-wrapper">
+                    <div class="table-actions">
+                        <div class="search-input-wrapper">
+                            <i data-lucide="search"></i>
+                            <input type="text" class="search-core" placeholder="Cari nama atau nomor WhatsApp...">
+                        </div>
+                        <button class="btn-industrial" style="background: rgba(255,255,255,0.05); color: var(--text-pure); border: 1px solid var(--border-muted);" id="openModalPeserta">
+                            <i data-lucide="user-plus"></i> Tambah Peserta
                         </button>
                     </div>
-                </form>
-            </div>
-        </div>
 
-        <div class="bg-white shadow-md rounded-2xl p-6">
-            <h2 class="text-lg font-semibold flex items-center mb-4"><i class="ph-list-bullets text-xl mr-2 text-blue-600"></i> Daftar Grup Tersimpan</h2>
-            <div class="border rounded-lg overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-200">
-                        <thead class="bg-slate-50">
+                    <table class="industrial-table">
+                        <thead>
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Nama Grup</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">ID Grup</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Kategori</th>
-                                <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase">Aksi</th>
+                                <th>Nama Lengkap</th>
+                                <th>Nomor WhatsApp</th>
+                                <th>Tanggal Gabung</th>
+                                <th style="text-align: right; padding-right: 1.5rem;">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-slate-200">
-                            <?php if (!empty($groups)): ?>
-                                <?php foreach ($groups as $group): ?>
-                                    <tr class="hover:bg-blue-50 transition duration-150">
-                                        <td class="px-6 py-4 text-sm font-medium text-slate-900"><?= htmlspecialchars($group['nama_grup']); ?></td>
-                                        <td class="px-6 py-4 text-sm text-slate-500 break-all"><?= htmlspecialchars($group['id_grup']); ?></td>
-                                        <td class="px-6 py-4 text-sm">
-                                            <span class="bg-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1 rounded-full"><?= htmlspecialchars($group['kategori']); ?></span>
-                                        </td>
-                                        <td class="px-6 py-4 text-sm text-center space-x-2">
-                                            <button class="edit-group-btn text-blue-600 hover:text-blue-800 font-semibold"
-                                                    data-id="<?= $group['id'] ?>"
-                                                    data-nama="<?= htmlspecialchars($group['nama_grup']) ?>"
-                                                    data-idgrup="<?= htmlspecialchars($group['id_grup']) ?>"
-                                                    data-kategori="<?= htmlspecialchars($group['kategori']) ?>">
-                                                Ubah
-                                            </button>
-                                            <form method="POST" onsubmit="return confirm('Anda yakin ingin menghapus grup ini?');" class="inline-block">
-                                                <input type="hidden" name="delete_group_id" value="<?= $group['id'] ?>">
-                                                <button type="submit" class="text-red-600 hover:text-red-800 font-semibold">Hapus</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr>
-                                    <td colspan="4" class="text-center p-8 text-slate-500">Belum ada grup yang disimpan.</td>
-                                </tr>
-                            <?php endif; ?>
+                        <tbody>
+                            <tr>
+                                <td style="font-weight: 600;">Amiruddin Siregar</td>
+                                <td style="font-family: monospace; color: var(--text-muted);">+62 812-9877-2211</td>
+                                <td style="color: var(--text-muted);">24 Mei 2026</td>
+                                <td style="text-align: right;">
+                                    <button class="action-icon-btn" title="Hapus Peserta dari Grup">
+                                        <i data-lucide="trash-2" style="width: 18px;"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">Siti Sarah Rahmawati</td>
+                                <td style="font-family: monospace; color: var(--text-muted);">+62 857-1122-3344</td>
+                                <td style="color: var(--text-muted);">22 Mei 2026</td>
+                                <td style="text-align: right;">
+                                    <button class="action-icon-btn" title="Hapus Peserta">
+                                        <i data-lucide="trash-2" style="width: 18px;"></i>
+                                    </button>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-        </div>
-      </div>
-    </main>
-  </div>
+        </main>
+    </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const editButtons = document.querySelectorAll('.edit-group-btn');
-    const namaGrupInput = document.getElementById('nama_grup');
-    const idGrupInput = document.getElementById('id_grup');
-    const kategoriInput = document.getElementById('kategori');
-    const groupIdInput = document.getElementById('group_id');
-    
-    editButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            groupIdInput.value = this.dataset.id;
-            namaGrupInput.value = this.dataset.nama;
-            idGrupInput.value = this.dataset.idgrup;
-            kategoriInput.value = this.dataset.kategori;
-            
-            // Scroll ke bagian form edit
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-            
-            namaGrupInput.focus();
-        });
-    });
-});
-</script>
-
+    <script>
+        // Inisialisasi ikon representatif
+        lucide.createIcons();
+    </script>
 </body>
 </html>
