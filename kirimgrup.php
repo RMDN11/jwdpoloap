@@ -549,13 +549,6 @@ function toggleJadwal() {
     document.getElementById('input_sekali').style.display = (tipe === 'sekali') ? 'block' : 'none';
     document.getElementById('input_harian').style.display = (tipe === 'harian') ? 'block' : 'none';
 }
-// Kumpulkan array hari jika jadwal harian
-let hariTerpilih = [];
-if(tipeJadwal === 'harian') {
-    document.querySelectorAll('input[name="hari_rutin[]"]:checked').forEach(cb => hariTerpilih.push(cb.value));
-    if(hariTerpilih.length === 0) { alert("Pilih minimal 1 hari untuk jadwal rutin!"); return; }
-}
-formData.append('hari_rutin', hariTerpilih.join(','));
 
 document.addEventListener('DOMContentLoaded', function () {
     const mainForm = document.getElementById('main-form');
@@ -571,6 +564,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const tipeJadwal = document.querySelector('input[name="tipe_jadwal"]:checked').value;
         const waktuJadwal = document.getElementById('waktu_jadwal').value;
         const jamHarian = document.getElementById('jam_harian').value;
+
+        // --- PENEMPATAN LOGIKA HARI RUTIN YANG BENAR ---
+        let hariTerpilih = [];
+        if(tipeJadwal === 'harian') {
+            document.querySelectorAll('input[name="hari_rutin[]"]:checked').forEach(cb => hariTerpilih.push(cb.value));
+            if(hariTerpilih.length === 0) { alert("Pilih minimal 1 hari untuk jadwal rutin!"); return; }
+        }
+        const hariRutinString = hariTerpilih.join(',');
+        // -------------------------------------------------
 
         if (selectedGroupsCount === 0) { alert("Gagal! Anda belum memilih satupun grup penerima."); return; }
         if (pesanText === "" && fileInput.files.length === 0) { alert("Gagal! Isi pesan teks atau gambar tidak boleh kosong."); return; }
@@ -623,6 +625,9 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.append('tipe_jadwal', tipeJadwal);
             formData.append('waktu_jadwal', waktuJadwal);
             formData.append('jam_harian', jamHarian);
+            
+            // -- SISIPKAN DATA HARI KE PENGIRIMAN AJAX --
+            formData.append('hari_rutin', hariRutinString);
             
             if (fileInput.files.length > 0) {
                 formData.append('promo_image', fileInput.files[0]);
