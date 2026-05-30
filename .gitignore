@@ -1,4 +1,11 @@
+# Kredensial
 config.php
-manage_auto_reply.phpconfig.yaml
+manage_auto_reply.php
+config.yaml
+
+# Logs
 *.log
-auto_reply_log.txt
+*.txt
+
+# Media & Uploads
+uploads/
