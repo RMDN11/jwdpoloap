@@ -1,2 +1,4 @@
 config.php
-manage_auto_reply.php
+manage_auto_reply.phpconfig.yaml
+*.log
+auto_reply_log.txt
