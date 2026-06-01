@@ -198,17 +198,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_history'])) {
     header("Location: " . $_SERVER['PHP_SELF']); exit;
 }
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['batalkan_jadwal'])) {
-    $idJadwal = $_POST['id_jadwal'];
-    // Hapus jadwal dari antrean
-    $conn->query("DELETE FROM jadwal_pesan_grup WHERE id = " . intval($idJadwal));
+    $idJadwalList = $_POST['id_jadwal'];
+    // Karena id_jadwal sekarang bisa berisi kumpulan ID (misal: "12,13,14")
+    $ids = array_map('intval', explode(',', $idJadwalList));
+    $idsString = implode(',', $ids);
+    
+    // Hapus seluruh jadwal grup yang tergabung dari antrean
+    if (!empty($idsString)) {
+        $conn->query("DELETE FROM jadwal_pesan_grup WHERE id IN ($idsString)");
+    }
     $_SESSION['notification'] = "Jadwal berhasil dibatalkan."; 
     $_SESSION['notification_type'] = 'success';
     header("Location: " . $_SERVER['PHP_SELF']); exit;
 }
 
 // AMBIL DATA JADWAL BERJALAN UNTUK DITAMPILKAN
+// AMBIL DATA JADWAL BERJALAN UNTUK DITAMPILKAN (DIKELOMPOKKAN)
 $jadwalBerjalan = [];
-$jadwalResult = $conn->query("SELECT j.*, w.nama_grup FROM jadwal_pesan_grup j LEFT JOIN wa_grup w ON j.id_grup = w.id_grup WHERE j.status = 'pending' ORDER BY j.id DESC");
+$jadwalQuery = "
+    SELECT 
+        j.pesan, 
+        j.tipe_jadwal, 
+        j.jadwal_kirim, 
+        j.jam_harian, 
+        j.hari_rutin, 
+        j.media_path,
+        GROUP_CONCAT(COALESCE(w.nama_grup, j.id_grup) SEPARATOR ', ') as daftar_grup,
+        GROUP_CONCAT(j.id SEPARATOR ',') as id_jadwal_list,
+        COUNT(j.id) as total_grup
+    FROM jadwal_pesan_grup j 
+    LEFT JOIN wa_grup w ON j.id_grup = w.id_grup 
+    WHERE j.status = 'pending' 
+    GROUP BY j.pesan, j.tipe_jadwal, j.jadwal_kirim, j.jam_harian, j.hari_rutin, j.media_path 
+    ORDER BY MAX(j.id) DESC
+";
+$jadwalResult = $conn->query($jadwalQuery);
 if ($jadwalResult) { $jadwalBerjalan = $jadwalResult->fetch_all(MYSQLI_ASSOC); }
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_message_history'])) {
     if ($conn->query("DELETE FROM log_wa WHERE message LIKE '%[GRUP]%'")) {
@@ -476,8 +500,18 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
                 <?php if(!empty($jadwalBerjalan)): ?>
                     <?php foreach($jadwalBerjalan as $j): ?>
                     <tr class="hover:bg-gray-50">
-                        <td class="py-3 px-4 border-b"><?= htmlspecialchars($j['nama_grup'] ?? $j['id_grup']) ?></td>
-                        <td class="py-3 px-4 border-b max-w-xs truncate"><?= htmlspecialchars($j['pesan']) ?></td>
+                        <td class="py-3 px-4 border-b">
+                            <span class="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-xs"><?= $j['total_grup'] ?> Grup Target</span><br>
+                            <span class="text-xs text-gray-500 truncate block max-w-xs mt-1" title="<?= htmlspecialchars($j['daftar_grup']) ?>">
+                                <?= htmlspecialchars($j['daftar_grup']) ?>
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 border-b max-w-xs truncate" title="<?= htmlspecialchars($j['pesan']) ?>">
+                            <?php if(!empty($j['media_path'])): ?>
+                                <i class="fas fa-image text-gray-400 mr-1" title="Terdapat gambar"></i>
+                            <?php endif; ?>
+                            <?= htmlspecialchars($j['pesan']) ?>
+                        </td>
                         <td class="py-3 px-4 border-b font-semibold text-blue-600 uppercase"><?= htmlspecialchars($j['tipe_jadwal']) ?></td>
                         <td class="py-3 px-4 border-b text-xs">
                             <?php if($j['tipe_jadwal'] == 'sekali'): ?>
@@ -488,15 +522,17 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
                             <?php endif; ?>
                         </td>
                         <td class="py-3 px-4 border-b text-center">
-                            <form method="POST" onsubmit="return confirm('Batalkan dan hapus jadwal ini?');">
-                                <input type="hidden" name="id_jadwal" value="<?= $j['id'] ?>">
-                                <button type="submit" name="batalkan_jadwal" class="bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 text-xs font-bold">Batalkan</button>
+                            <form method="POST" onsubmit="return confirm('Batalkan dan hapus jadwal untuk <?= $j['total_grup'] ?> grup ini?');">
+                                <input type="hidden" name="id_jadwal" value="<?= $j['id_jadwal_list'] ?>">
+                                <button type="submit" name="batalkan_jadwal" class="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-200 text-xs font-bold transition flex items-center justify-center mx-auto">
+                                    <i class="fas fa-times mr-1"></i> Batalkan
+                                </button>
                             </form>
                         </td>
                     </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <tr><td colspan="5" class="py-4 text-center text-gray-500">Tidak ada jadwal aktif.</td></tr>
+                    <tr><td colspan="5" class="py-6 text-center text-gray-500">Tidak ada jadwal aktif.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
