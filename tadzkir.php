@@ -355,6 +355,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                 suggestionsList.classList.add('hidden');
                 selectedParticipants = [];
                 updateSelectedList();
+                
+                addAnotherBtn.disabled = false; // 👈 TAMBAHKAN INI: Tombol langsung aktif
             } else {
                 pesertaSection.classList.add('hidden');
                 pesertaSection.classList.remove('animate-reveal');
@@ -362,6 +364,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                 selectedParticipants = [];
                 updateSelectedList();
                 pesanSection.classList.add('hidden');
+                
+                addAnotherBtn.disabled = true; // 👈 TAMBAHKAN INI: Tombol mati kalau belum milih
             }
         });
 
@@ -415,10 +419,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
             if (query.length < 2 || !selectedHalaqoh) {
                 suggestionsList.classList.add('hidden');
                 suggestionsList.classList.remove('animate-reveal');
-                addAnotherBtn.disabled = (selectedParticipants.length === 0);
+                // Baris "addAnotherBtn.disabled = ..." DIHAPUS DARI SINI
                 return;
             }
             searchTimeout = setTimeout(() => performSearch(query, selectedHalaqoh), 250);
+        });
+
+        addAnotherBtn.addEventListener('click', function() {
+            searchInput.focus();
+            // Baris "addAnotherBtn.disabled = true;" DIHAPUS DARI SINI
         });
 
         suggestionsList.addEventListener('click', function(e) {
@@ -434,9 +443,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                 searchInput.value = '';
                 suggestionsList.innerHTML = '';
                 suggestionsList.classList.add('hidden');
-                addAnotherBtn.disabled = true;
+                
+                addAnotherBtn.disabled = false; // 👈 UBAH JADI FALSE: Biar siap nambah lagi
             }
-        });
+        }); 
 
         document.addEventListener('click', function(e) {
             if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
