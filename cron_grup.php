@@ -84,7 +84,7 @@ if ($result->num_rows > 0) {
             } else {
                 // Jika file fisik gambar hilang, lewati antrean ini
                 $conn->query("UPDATE jadwal_pesan_grup SET status = 'failed' WHERE id = " . $row['id']);
-                continue;
+                continue;await new Promise(r => setTimeout(r, 300));
             }
 
         } else {
