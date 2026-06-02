@@ -152,22 +152,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_grup'])) {
         $stmt->close();
         exit;
     }
-    // Contoh eksekusi query penyimpanan jadwal Anda
-$insertQuery = $conn->query("INSERT INTO jadwal_pesan_grup (...) VALUES (...)");
-
-if ($insertQuery) {
-    // --- KODE NOTIFIKASI BERHASIL ---
-    $_SESSION['notification'] = "Mantap! Pesan grup berhasil dijadwalkan.";
-    $_SESSION['notification_type'] = 'success';
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
-    // --------------------------------
-} else {
-    $_SESSION['notification'] = "Terjadi kesalahan sistem saat menjadwalkan pesan.";
-    $_SESSION['notification_type'] = 'error';
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
-}
 
     // JIKA KIRIM SEKARANG (REALTIME MENGGUNAKAN API ASLI)
     $namaGrupLog = "Grup ID: " . $groupId;
@@ -192,15 +176,7 @@ if ($insertQuery) {
     ]);
     exit;
 }
-// --- KODE VALIDASI UKURAN FILE ---
-    $maxFileSize = 2 * 1024 * 1024; // Batas maksimal 2MB (dalam satuan bytes)
-    
-    if ($_FILES['media_path']['size'] > $maxFileSize) {
-        $_SESSION['notification'] = "Gagal: Ukuran gambar terlalu besar! Maksimal 2MB.";
-        $_SESSION['notification_type'] = 'error'; // Gunakan 'danger' atau 'error' sesuai CSS Anda
-        header("Location: " . $_SERVER['PHP_SELF']);
-        exit;
-    }
+
 
 // =================================================================
 // PROSES FORM TRADISIONAL & LOGIKA HALAMAN LAINNYA
@@ -820,24 +796,6 @@ document.addEventListener('DOMContentLoaded', function () {
     imageInput.addEventListener('change', updatePreview);
     
     updatePreview();
-    function validasiSebelumKirim() {
-    // Pastikan ID ini sesuai dengan ID pada <input type="file"> Anda
-    let mediaInput = document.getElementById('media'); 
-
-    if (mediaInput && mediaInput.files.length > 0) {
-        let fileSize = mediaInput.files[0].size;
-        let maxSize = 2 * 1024 * 1024; // 2MB
-
-        if (fileSize > maxSize) {
-            // Memunculkan notifikasi browser instan
-            alert("Gagal: Ukuran gambar terlalu besar! Maksimal adalah 2MB.");
-            // Reset input file agar gambar dihapus dari form
-            mediaInput.value = ""; 
-            return false; // Menggagalkan form submit
-        }
-    }
-    return true; // Lanjutkan proses jika aman
-}
 });
 </script>
 </body>
