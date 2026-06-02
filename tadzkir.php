@@ -98,93 +98,117 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
 }
 ?>
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>Form Reminder - JWD</title>
   <?php $cache_buster = time(); ?>
   <link rel="icon" href="LOGOJWD.png?v=<?= $cache_buster ?>" type="image/png">
+  
+  <!-- Font Geist by Vercel -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.3/dist/fonts/geist-sans/style.css">
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/phosphor-icons/1.4.2/css/phosphor.css" rel="stylesheet">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f9fafb;
-    }
-    .card-minimal {
-      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-      border-radius: 1rem;
-    }
-    .btn-primary {
-      background-color: #4b5563;
-      transition: background-color 0.2s;
-    }
-    .btn-primary:hover {
-      background-color: #374151;
-    }
-    .btn-add {
-      background-color: #3b82f6;
-    }
-    .btn-add:hover {
-      background-color: #2563eb;
-    }
-    .btn-remove {
-      background-color: #ef4444;
-      padding: 0.25rem 0.75rem;
-      border-radius: 0.375rem;
-      font-size: 0.75rem;
-    }
-    .btn-remove:hover {
-      background-color: #dc2626;
-    }
-    #suggestions-list li {
-      transition: background-color 0.15s;
-    }
-    #suggestions-list li:active {
-      background-color: #e5e7eb;
-    }
-    #selected-participants-list {
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    button, .btn-remove, select, input, textarea {
-      touch-action: manipulation;
-    }
-    input, select, textarea {
-      font-size: 16px;
-    }
-    @media (max-width: 640px) {
-      .container-padding {
-        padding-left: 1rem;
-        padding-right: 1rem;
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Geist', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              lime: '#E6FF00', // Akses warna bold ala neo-brutalism/modern tech
+              dark: '#0A0A0A',
+              card: '#121212',
+              border: '#27272A'
+            }
+          },
+          animation: {
+            'reveal': 'reveal 250ms cubic-bezier(0.32, 0.72, 0, 1) forwards',
+          },
+          keyframes: {
+            reveal: {
+              '0%': { opacity: '0', transform: 'translateY(8px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
+          }
+        }
       }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: theme('colors.brand.dark');
+      color: #EDEDED;
+    }
+
+    /* Emil Kowalski's smooth interactions */
+    .smooth-trans {
+      transition: all 250ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    /* Accessibility: Instant focus for keyboard, no lag */
+    *:focus-visible {
+      transition: none !important;
+      outline: 2px solid theme('colors.brand.lime');
+      outline-offset: 2px;
+    }
+
+    /* Custom Scrollbar for list */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: theme('colors.zinc.800');
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: theme('colors.zinc.700');
+    }
+
+    input, select, textarea, button {
+      touch-action: manipulation;
     }
   </style>
 </head>
-<body class="bg-gray-50 flex items-center justify-center min-h-screen p-3 sm:p-4">
-  <div class="w-full max-w-lg md:max-w-2xl">
-    <div class="bg-white rounded-xl card-minimal p-5 sm:p-8">
-        <!-- Header dengan Logo dan Judul -->
-        <div class="flex items-center space-x-3 sm:space-x-4 mb-6 pb-2 border-b border-gray-100">
-            <img src="LOGOJWD.png?v=<?= $cache_buster ?>" alt="Logo JWD" class="w-10 h-10 sm:w-12 sm:h-12 object-contain rounded-full bg-gray-50 p-1">
+<body class="flex items-center justify-center min-h-screen p-4 sm:p-6 selection:bg-brand-lime selection:text-black">
+  
+  <div class="w-full max-w-lg md:max-w-xl">
+    <div class="bg-brand-card border border-brand-border rounded-2xl shadow-2xl p-6 sm:p-8 smooth-trans">
+        
+        <!-- Header -->
+        <div class="flex items-center space-x-4 mb-8 pb-4 border-b border-brand-border">
+            <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center p-2">
+                <img src="LOGOJWD.png?v=<?= $cache_buster ?>" alt="Logo JWD" class="w-full h-full object-contain">
+            </div>
             <div>
-                <h1 class="text-xl sm:text-2xl font-semibold text-gray-900 leading-tight">Pengingat untuk Peserta</h1>
-                <p class="text-xs sm:text-sm text-gray-500">Saling mengingatkan untuk kebaikan</p>
+                <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Pengingat Peserta</h1>
+                <p class="text-sm text-zinc-400 mt-0.5">Saling mengingatkan dalam kebaikan.</p>
             </div>
         </div>
 
+        <!-- Notification -->
         <?php if (!empty($notification)): ?>
-        <div class="mb-5 p-3 rounded-md text-sm <?php echo $notificationType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'; ?>">
+        <div class="mb-6 p-4 rounded-xl text-sm font-medium animate-reveal <?php echo $notificationType === 'success' ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'; ?>">
             <?php echo htmlspecialchars($notification); ?>
         </div>
         <?php endif; ?>
 
-        <form method="POST" action="" class="space-y-5" id="request-form">
-            <div>
-                <label for="halaqoh" class="block text-sm font-medium text-gray-700 mb-1">Halaqoh</label>
-                <select name="halaqoh" id="halaqoh" class="w-full border border-gray-300 rounded-md p-2.5 focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white text-sm" required>
+        <form method="POST" action="" class="space-y-6" id="request-form">
+            
+            <!-- Select Halaqoh -->
+            <div class="group">
+                <label for="halaqoh" class="block text-sm font-medium text-zinc-400 mb-2">Halaqoh</label>
+                <select name="halaqoh" id="halaqoh" class="w-full bg-zinc-900 border border-brand-border rounded-xl p-3.5 text-zinc-100 text-sm smooth-trans focus:border-brand-lime hover:border-zinc-700 appearance-none cursor-pointer" required>
                     <option value="" disabled selected>-- Pilih Halaqoh Anda --</option>
                     <?php foreach ($halaqohList as $halaqoh): ?>
                         <option value="<?= htmlspecialchars($halaqoh) ?>"><?= htmlspecialchars($halaqoh) ?></option>
@@ -192,40 +216,47 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                 </select>
             </div>
 
+            <!-- Peserta Section -->
             <div id="peserta-section" class="hidden">
-                <div class="relative mb-4">
-                    <label for="search-peserta" class="block text-sm font-medium text-gray-700 mb-1">Cari Nama Peserta</label>
-                    <input type="text" id="search-peserta" placeholder="Ketik minimal 2 huruf..." class="w-full border border-gray-300 rounded-md p-2.5 focus:outline-none focus:ring-1 focus:ring-gray-400 text-sm" autocomplete="off" disabled>
-                    <div id="suggestions-list" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-sm hidden max-h-52 overflow-y-auto"></div>
+                <div class="relative mb-6">
+                    <label for="search-peserta" class="block text-sm font-medium text-zinc-400 mb-2">Cari Nama Peserta</label>
+                    <input type="text" id="search-peserta" placeholder="Ketik minimal 2 huruf..." class="w-full bg-zinc-900 border border-brand-border rounded-xl p-3.5 text-zinc-100 text-sm smooth-trans focus:border-brand-lime placeholder-zinc-600" autocomplete="off" disabled>
+                    
+                    <div id="suggestions-list" class="absolute z-20 w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl hidden max-h-52 overflow-y-auto smooth-trans"></div>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Peserta Terpilih (<span id="selected-count">0</span>)</label>
-                    <div id="selected-participants-list" class="border border-gray-200 rounded-md p-3 bg-gray-50 text-sm space-y-2">
-                        <p class="text-gray-500 text-sm">Belum ada peserta dipilih.</p>
+                <div class="mb-6">
+                    <div class="flex justify-between items-end mb-2">
+                        <label class="block text-sm font-medium text-zinc-400">Peserta Terpilih</label>
+                        <span class="text-xs font-bold bg-zinc-800 text-zinc-300 px-2 py-1 rounded-md" id="selected-count">0</span>
+                    </div>
+                    <div id="selected-participants-list" class="border border-brand-border rounded-xl p-4 bg-zinc-900/50 text-sm space-y-2 min-h-[60px] max-h-48 overflow-y-auto">
+                        <p class="text-zinc-500 text-sm italic">Belum ada peserta dipilih.</p>
                     </div>
                 </div>
 
-                <div class="flex flex-wrap gap-2 mb-5">
-                    <button type="button" id="add-another-btn" class="btn-add px-4 py-2 rounded-md shadow-sm font-medium text-sm text-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center" disabled>
-                        <i class="ph-plus-bold text-sm mr-1"></i> Tambah Peserta
+                <div class="flex flex-wrap gap-3 mb-2">
+                    <button type="button" id="add-another-btn" class="smooth-trans px-4 py-2.5 rounded-xl text-sm font-medium flex items-center bg-zinc-800 text-brand-lime hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-800" disabled>
+                        <i class="ph-plus-bold mr-2 text-lg"></i> Tambah Peserta
                     </button>
-                    <button type="button" id="remove-all-btn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md shadow-sm font-medium text-sm transition flex items-center">
-                        <i class="ph-trash text-sm mr-1"></i> Hapus Semua
+                    <button type="button" id="remove-all-btn" class="smooth-trans px-4 py-2.5 rounded-xl text-sm font-medium flex items-center bg-rose-500/10 text-rose-500 hover:bg-rose-500/20">
+                        <i class="ph-trash mr-2 text-lg"></i> Hapus Semua
                     </button>
                 </div>
             </div>
 
+            <!-- Pesan Section -->
             <div id="pesan-section" class="hidden">
-                <div>
-                    <label for="pesan-pengajar" class="block text-sm font-medium text-gray-700 mb-1">Pesan Tambahan (Opsional)</label>
-                    <textarea id="pesan-pengajar" name="pesan_pengajar" rows="3" placeholder="Contoh: Sudah 4 hari tidak setoran" class="w-full border border-gray-300 rounded-md p-2.5 focus:outline-none focus:ring-1 focus:ring-gray-400 text-sm"></textarea>
+                <div class="pt-4 border-t border-brand-border">
+                    <label for="pesan-pengajar" class="block text-sm font-medium text-zinc-400 mb-2">Pesan Tambahan <span class="text-zinc-600">(Opsional)</span></label>
+                    <textarea id="pesan-pengajar" name="pesan_pengajar" rows="3" placeholder="Contoh: Sudah 4 hari tidak setoran..." class="w-full bg-zinc-900 border border-brand-border rounded-xl p-3.5 text-zinc-100 text-sm smooth-trans focus:border-brand-lime placeholder-zinc-600 resize-none"></textarea>
                 </div>
 
                 <input type="hidden" name="selected_peserta_json" id="selected-peserta-json" value="">
-                <div class="pt-2">
-                    <button type="submit" name="submit_all_requests" id="submit-all-btn" class="w-full btn-primary text-white px-4 py-2.5 rounded-md shadow-sm font-semibold text-base transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                        <i class="ph-paper-plane-tilt text-lg mr-2"></i> Kirim Semua Permintaan
+                
+                <div class="pt-6">
+                    <button type="submit" name="submit_all_requests" id="submit-all-btn" class="w-full bg-brand-lime text-black px-4 py-3.5 rounded-xl shadow-lg font-bold text-base smooth-trans flex items-center justify-center hover:bg-[#cce600] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100" disabled>
+                        <i class="ph-paper-plane-tilt-bold text-xl mr-2"></i> Kirim Permintaan
                     </button>
                 </div>
             </div>
@@ -250,26 +281,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         let selectedParticipants = [];
         let searchTimeout;
 
+        // Emil Kowalski style reveal logic
+        function smoothReveal(element) {
+            if (element.classList.contains('hidden')) {
+                element.classList.remove('hidden');
+                // Force reflow
+                void element.offsetWidth;
+                element.classList.add('animate-reveal');
+            }
+        }
+
         function updateSelectedList() {
             selectedParticipantsList.innerHTML = '';
             if (selectedParticipants.length === 0) {
-                selectedParticipantsList.innerHTML = '<p class="text-gray-500 text-sm">Belum ada peserta dipilih.</p>';
+                selectedParticipantsList.innerHTML = '<p class="text-zinc-500 text-sm italic">Belum ada peserta dipilih.</p>';
                 submitAllBtn.disabled = true;
                 pesanSection.classList.add('hidden');
+                pesanSection.classList.remove('animate-reveal');
                 selectedCountSpan.innerText = '0';
             } else {
                 selectedParticipants.forEach((peserta, index) => {
-                    const p = document.createElement('p');
-                    p.className = 'flex justify-between items-center bg-white p-2 rounded border border-gray-200';
-                    // Hanya menampilkan nama, tanpa nomor WA
+                    const p = document.createElement('div');
+                    p.className = 'flex justify-between items-center bg-zinc-800/50 p-2.5 rounded-lg border border-zinc-700/50 animate-reveal';
                     p.innerHTML = `
-                        <span class="text-gray-800 text-sm break-all pr-2">${escapeHtml(peserta.nama)}</span>
-                        <button type="button" class="btn-remove text-white font-medium" data-index="${index}">Hapus</button>
+                        <span class="text-zinc-200 text-sm break-all font-medium pr-2">${escapeHtml(peserta.nama)}</span>
+                        <button type="button" class="btn-remove smooth-trans text-zinc-400 hover:text-rose-400 p-1 rounded-md hover:bg-rose-500/10 focus-visible:ring-2 focus-visible:ring-rose-400" data-index="${index}">
+                            <i class="ph-x-bold pointer-events-none"></i>
+                        </button>
                     `;
                     selectedParticipantsList.appendChild(p);
                 });
                 submitAllBtn.disabled = false;
-                pesanSection.classList.remove('hidden');
+                smoothReveal(pesanSection);
                 selectedCountSpan.innerText = selectedParticipants.length;
             }
             selectedPesertaJsonInput.value = JSON.stringify(selectedParticipants);
@@ -291,8 +334,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         });
 
         selectedParticipantsList.addEventListener('click', function(e) {
-            if (e.target.classList.contains('btn-remove')) {
-                const index = parseInt(e.target.getAttribute('data-index'));
+            // Cek jika yang diklik adalah button atau icon di dalamnya
+            const btn = e.target.closest('.btn-remove');
+            if (btn) {
+                const index = parseInt(btn.getAttribute('data-index'));
                 if (!isNaN(index) && index >= 0 && index < selectedParticipants.length) {
                     selectedParticipants.splice(index, 1);
                     updateSelectedList();
@@ -303,7 +348,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         halaqohSelect.addEventListener('change', function() {
             const selectedHalaqoh = this.value;
             if (selectedHalaqoh) {
-                pesertaSection.classList.remove('hidden');
+                smoothReveal(pesertaSection);
                 searchInput.disabled = false;
                 searchInput.value = '';
                 suggestionsList.innerHTML = '';
@@ -312,6 +357,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                 updateSelectedList();
             } else {
                 pesertaSection.classList.add('hidden');
+                pesertaSection.classList.remove('animate-reveal');
                 searchInput.disabled = true;
                 selectedParticipants = [];
                 updateSelectedList();
@@ -320,22 +366,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         });
 
         function performSearch(query, halaqoh) {
-            suggestionsList.innerHTML = '<p class="text-sm text-gray-500 p-3 text-center">Mencari...</p>';
-            suggestionsList.classList.remove('hidden');
+            suggestionsList.innerHTML = '<p class="text-sm text-zinc-500 p-4 text-center animate-pulse">Mencari data...</p>';
+            smoothReveal(suggestionsList);
+            
             fetch(`search_peserta.php?term=${encodeURIComponent(query)}&halaqoh=${encodeURIComponent(halaqoh)}`)
                 .then(response => response.ok ? response.json() : Promise.reject())
                 .then(data => {
                     suggestionsList.innerHTML = '';
                     if (data.length > 0) {
                         const ul = document.createElement('ul');
-                        ul.className = 'p-1';
+                        ul.className = 'p-2 space-y-1';
                         let hasSelectable = false;
                         data.forEach(peserta => {
                             if (!selectedParticipants.some(p => p.id === peserta.id)) {
                                 const li = document.createElement('li');
-                                li.className = 'p-2 rounded-md cursor-pointer hover:bg-gray-100 active:bg-gray-200 transition';
-                                // Hanya menampilkan nama, tanpa nomor WA
-                                li.innerHTML = `<div class="font-medium text-gray-800 text-sm">${escapeHtml(peserta.nama_lengkap)}</div>`;
+                                li.className = 'p-3 rounded-lg cursor-pointer smooth-trans hover:bg-zinc-800 active:bg-zinc-700 text-zinc-300 hover:text-white';
+                                li.innerHTML = `<div class="font-medium text-sm">${escapeHtml(peserta.nama_lengkap)}</div>`;
                                 li.dataset.id = peserta.id;
                                 li.dataset.nama = peserta.nama_lengkap;
                                 li.dataset.nowa = peserta.nowa || '';
@@ -347,16 +393,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                             suggestionsList.appendChild(ul);
                             addAnotherBtn.disabled = false;
                         } else {
-                            suggestionsList.innerHTML = '<p class="text-sm text-gray-500 p-3 text-center">Semua peserta dari halaqoh ini sudah dipilih.</p>';
+                            suggestionsList.innerHTML = '<p class="text-sm text-zinc-500 p-4 text-center">Semua peserta dari halaqoh ini sudah dipilih.</p>';
                             addAnotherBtn.disabled = true;
                         }
                     } else {
-                        suggestionsList.innerHTML = '<p class="text-sm text-gray-500 p-3 text-center">Tidak ditemukan peserta.</p>';
+                        suggestionsList.innerHTML = '<p class="text-sm text-zinc-500 p-4 text-center">Tidak ada peserta yang cocok.</p>';
                         addAnotherBtn.disabled = true;
                     }
                 })
                 .catch(() => {
-                    suggestionsList.innerHTML = '<p class="text-sm text-red-500 p-3 text-center">Gagal memuat data.</p>';
+                    suggestionsList.innerHTML = '<p class="text-sm text-rose-500 p-4 text-center">Gagal memuat data.</p>';
                     addAnotherBtn.disabled = true;
                 });
         }
@@ -365,8 +411,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
             const query = this.value.trim();
             const selectedHalaqoh = halaqohSelect.value;
             clearTimeout(searchTimeout);
+            
             if (query.length < 2 || !selectedHalaqoh) {
                 suggestionsList.classList.add('hidden');
+                suggestionsList.classList.remove('animate-reveal');
                 addAnotherBtn.disabled = (selectedParticipants.length === 0);
                 return;
             }
@@ -393,6 +441,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         document.addEventListener('click', function(e) {
             if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
                 suggestionsList.classList.add('hidden');
+                suggestionsList.classList.remove('animate-reveal');
             }
         });
 
