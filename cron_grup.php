@@ -49,17 +49,48 @@ if ($result->num_rows > 0) {
         // ---------------------------
 
         if (!empty($row['media_path'])) {
-            $fullImageUrl = $baseUrl . ltrim($row['media_path'], '/');
-            $postData = [
-                "recipient_type" => "group",
-                "to" => $row['id_grup'],
-                "type" => "image",
-                "image" => [
-                    "link" => $fullImageUrl,     
-                    "caption" => $row['pesan']   
-                ]
-            ];
+            // ==========================================
+            // LOGIKA KIRIM GAMBAR (Sama dengan kirimgrup.php)
+            // ==========================================
+            $imagePathLocal = __DIR__ . '/' . ltrim($row['media_path'], '/');
+            
+            if (file_exists($imagePathLocal)) {
+                $mediaApiUrl = $apiUrl;
+                if (strpos($apiUrl, '/v1/messages') !== false) {
+                    $mediaApiUrl = str_replace('/v1/messages', '/message', $apiUrl);
+                } else {
+                    $mediaApiUrl = rtrim($apiUrl, '/') . '/message';
+                }
+
+                $mimeType = mime_content_type($imagePathLocal);
+                $cfile = new CURLFile($imagePathLocal, $mimeType, basename($imagePathLocal));
+                
+                $postData = [
+                    'type' => 'image', 
+                    'phone' => $row['id_grup'], 
+                    'message' => $row['pesan'], 
+                    'attachment' => $cfile
+                ];
+                
+                $curl = curl_init();
+                curl_setopt_array($curl, [
+                    CURLOPT_URL => $mediaApiUrl,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST => true,
+                    CURLOPT_POSTFIELDS => $postData,
+                    CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $apiToken],
+                    CURLOPT_TIMEOUT => 30,
+                ]);
+            } else {
+                // Jika file fisik gambar hilang, lewati antrean ini
+                $conn->query("UPDATE jadwal_pesan_grup SET status = 'failed' WHERE id = " . $row['id']);
+                continue;
+            }
+
         } else {
+            // ==========================================
+            // LOGIKA KIRIM TEKS MURNI (Pakai JSON)
+            // ==========================================
             $postData = [
                 "recipient_type" => "group",
                 "to" => $row['id_grup'],
@@ -68,25 +99,22 @@ if ($result->num_rows > 0) {
                     "body" => $row['pesan']
                 ]
             ];
+            
+            $jsonData = json_encode($postData, JSON_UNESCAPED_UNICODE);
+
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => $apiUrl, 
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CUSTOMREQUEST => 'POST',
+                CURLOPT_POSTFIELDS => $jsonData, 
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $apiToken,
+                    'Content-Type: application/json'      
+                ],
+                CURLOPT_TIMEOUT => 30,
+            ]);
         }
-
-        // PERBAIKAN EMOJI: Gunakan JSON_UNESCAPED_UNICODE
-        $jsonData = json_encode($postData, JSON_UNESCAPED_UNICODE);
-
-        $curl = curl_init();
-        curl_setopt_array($curl, array(
-            CURLOPT_URL => $apiUrl, 
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30, 
-            CURLOPT_CUSTOMREQUEST => 'POST',
-            CURLOPT_POSTFIELDS => $jsonData, 
-            CURLOPT_HTTPHEADER => array(
-                'Authorization: Bearer ' . $apiToken,
-                'Content-Type: application/json'      
-            ),
-        ));
 
         $response = curl_exec($curl);
         $err = curl_error($curl);
