@@ -156,56 +156,96 @@ $chartCounts = array_values($classificationCounts);
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Analytics Dashboard | Professional</title>
+    <title>Grafik Chat Tahfidz Private</title>
     <?php $cache_buster = time(); ?>
+    <link rel="icon" href="LOGOJWD.png?v=<?= $cache_buster ?>" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { font-family: 'Raleway', sans-serif; background: #FAFAFA; color: #1E293B; }
-        .stat-card { background: white; border: 1px solid #E2E8F0; padding: 2rem; border-radius: 0; }
-        .chart-box { background: white; border: 1px solid #E2E8F0; padding: 2rem; }
-        .nav-link { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748B; }
-        .nav-link:hover { color: #0F172A; }
-    </style>
-</head>
-<body class="min-h-screen py-10">
-    <div class="max-w-7xl mx-auto px-6">
-        <header class="flex justify-between items-center mb-12 border-b border-gray-200 pb-8">
-            <div>
-                <h1 class="text-4xl font-light tracking-tighter text-slate-900 italic">Data Visualizer</h1>
-                <p class="text-xs font-bold uppercase tracking-[0.3em] text-slate-400 mt-2">Chat Performance Metrics</p>
-            </div>
-            <nav class="flex gap-8">
-                <a href="analitikjwd.php" class="nav-link">Analytics</a>
-                <a href="manage_templates.php" class="nav-link">Templates</a>
-                <a href="logoutwa.php" class="nav-link text-red-400">Exit</a>
-            </nav>
-        </header>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-            <div class="stat-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Total Prospects</p>
-                <p class="text-5xl font-light text-slate-900"><?= $totalProspects ?></p>
-            </div>
-            <div class="stat-card border-l-4 border-l-slate-900">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Unregistered</p>
-                <p class="text-5xl font-light text-slate-900"><?= $unregisteredProspects ?></p>
-            </div>
-            <div class="stat-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Active Range</p>
-                <p class="text-sm font-semibold text-slate-700 mt-4"><?= $fromDate ?: 'Start' ?> — <?= $toDate ?: 'Now' ?></p>
-            </div>
-        </div>
-
-        <div class="chart-box">
-            <h2 class="text-lg font-bold text-slate-800 mb-10 uppercase tracking-widest">Message Distribution</h2>
-            <div class="h-[500px]">
-                <canvas id="pesanChart"></canvas>
-            </div>
-        </div>
-    </div>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #374151;
+            --secondary: #4b5563;
+            --accent: #9ca3af;
+            --card-bg: #f3f4f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background-color: #f9fafb;
+            color: #111827;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        /* Header Styles - Sama seperti analitik chat */
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+        
+        .title-section {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        
+        .logo-container {
+            width: 80px;
+            height: 80px;
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .logo-container i {
+            font-size: 2rem;
+            color: white;
+        }
+        
+        .title-content h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .title-content p {
+            color: #d1d5db;
+            font-size: 1.1rem;
+        }
         
         .header-actions {
             display: flex;
