@@ -98,134 +98,145 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
 }
 ?>
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="antialiased selection:bg-[#E6FF00] selection:text-black">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>Form Reminder - JWD</title>
   <?php $cache_buster = time(); ?>
   <link rel="icon" href="LOGOJWD.png?v=<?= $cache_buster ?>" type="image/png">
+  
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=cabinet-grotesk@400,500,700&display=swap" rel="stylesheet">
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/phosphor-icons/1.4.2/css/phosphor.css" rel="stylesheet">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f9fafb;
-    }
-    .card-minimal {
-      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-      border-radius: 1rem;
-    }
-    .btn-primary {
-      background-color: #4b5563;
-      transition: background-color 0.2s;
-    }
-    .btn-primary:hover {
-      background-color: #374151;
-    }
-    .btn-add {
-      background-color: #3b82f6;
-    }
-    .btn-add:hover {
-      background-color: #2563eb;
-    }
-    .btn-remove {
-      background-color: #ef4444;
-      padding: 0.25rem 0.75rem;
-      border-radius: 0.375rem;
-      font-size: 0.75rem;
-    }
-    .btn-remove:hover {
-      background-color: #dc2626;
-    }
-    #suggestions-list li {
-      transition: background-color 0.15s;
-    }
-    #suggestions-list li:active {
-      background-color: #e5e7eb;
-    }
-    #selected-participants-list {
-      max-height: 200px;
-      overflow-y: auto;
-    }
-    button, .btn-remove, select, input, textarea {
-      touch-action: manipulation;
-    }
-    input, select, textarea {
-      font-size: 16px;
-    }
-    @media (max-width: 640px) {
-      .container-padding {
-        padding-left: 1rem;
-        padding-right: 1rem;
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            clash: ['Clash Display', 'sans-serif'],
+            cabinet: ['Cabinet Grotesk', 'sans-serif'],
+          },
+          colors: {
+            matcha: '#E6FF00',
+            onyx: '#0a0a0a',
+            surface: '#171717',
+            surfaceborder: '#27272a'
+          },
+          transitionTimingFunction: {
+            // The Emil Kowalski snappy curve
+            'emil': 'cubic-bezier(0.32, 0.72, 0, 1)',
+          }
+        }
       }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: theme('colors.onyx');
+      color: theme('colors.zinc.300');
+      font-family: 'Cabinet Grotesk', sans-serif;
+    }
+    
+    /* Hide scrollbar for a cleaner look */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+    
+    #selected-participants-list { max-height: 250px; overflow-y: auto; }
+    button, select, input, textarea { touch-action: manipulation; }
+    input, select, textarea { font-size: 16px; }
+    
+    /* Custom glow effect */
+    .glow-bg {
+        position: absolute;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(230,255,0,0.05) 0%, rgba(10,10,10,0) 70%);
+        top: -100px;
+        right: -100px;
+        z-index: 0;
+        pointer-events: none;
     }
   </style>
 </head>
-<body class="bg-gray-50 flex items-center justify-center min-h-screen p-3 sm:p-4">
-  <div class="w-full max-w-lg md:max-w-2xl">
-    <div class="bg-white rounded-xl card-minimal p-5 sm:p-8">
-        <!-- Header dengan Logo dan Judul -->
-        <div class="flex items-center space-x-3 sm:space-x-4 mb-6 pb-2 border-b border-gray-100">
-            <img src="LOGOJWD.png?v=<?= $cache_buster ?>" alt="Logo JWD" class="w-10 h-10 sm:w-12 sm:h-12 object-contain rounded-full bg-gray-50 p-1">
+<body class="flex items-center justify-center min-h-screen p-4 sm:p-6 relative overflow-hidden">
+  
+  <div class="w-full max-w-lg md:max-w-2xl relative z-10">
+    <div class="bg-surface border border-surfaceborder rounded-3xl p-6 sm:p-10 relative overflow-hidden shadow-2xl">
+        <div class="glow-bg"></div>
+        
+        <div class="flex items-center space-x-4 mb-8 pb-6 border-b border-zinc-800/50 relative z-10">
+            <div class="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center p-2 shadow-inner">
+                <img src="LOGOJWD.png?v=<?= $cache_buster ?>" alt="Logo JWD" class="w-full h-full object-contain filter grayscale contrast-125">
+            </div>
             <div>
-                <h1 class="text-xl sm:text-2xl font-semibold text-gray-900 leading-tight">Pengingat untuk Peserta</h1>
-                <p class="text-xs sm:text-sm text-gray-500">Saling mengingatkan untuk kebaikan</p>
+                <h1 class="text-2xl sm:text-3xl font-clash font-semibold text-white tracking-tight">Pengingat Peserta</h1>
+                <p class="text-sm font-cabinet text-zinc-500 font-medium tracking-wide">Saling mengingatkan untuk kebaikan.</p>
             </div>
         </div>
 
         <?php if (!empty($notification)): ?>
-        <div class="mb-5 p-3 rounded-md text-sm <?php echo $notificationType === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'; ?>">
+        <div class="mb-6 p-4 rounded-xl text-sm font-medium border <?php echo $notificationType === 'success' ? 'bg-[#E6FF00]/10 text-[#E6FF00] border-[#E6FF00]/20' : 'bg-red-500/10 text-red-400 border-red-500/20'; ?> relative z-10">
             <?php echo htmlspecialchars($notification); ?>
         </div>
         <?php endif; ?>
 
-        <form method="POST" action="" class="space-y-5" id="request-form">
-            <div>
-                <label for="halaqoh" class="block text-sm font-medium text-gray-700 mb-1">Halaqoh</label>
-                <select name="halaqoh" id="halaqoh" class="w-full border border-gray-300 rounded-md p-2.5 focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white text-sm" required>
-                    <option value="" disabled selected>-- Pilih Halaqoh Anda --</option>
+        <form method="POST" action="" class="space-y-6 relative z-10" id="request-form">
+            
+            <div class="group">
+                <label for="halaqoh" class="block text-xs font-cabinet font-bold uppercase tracking-wider text-zinc-400 mb-2 group-focus-within:text-matcha transition-colors">Pilih Halaqoh</label>
+                <select name="halaqoh" id="halaqoh" class="w-full bg-onyx border border-surfaceborder text-white rounded-xl p-3.5 focus:outline-none focus:border-matcha focus:ring-1 focus:ring-matcha transition-all duration-[250ms] ease-emil appearance-none" required>
+                    <option value="" disabled selected>-- Tentukan halaqoh Anda --</option>
                     <?php foreach ($halaqohList as $halaqoh): ?>
                         <option value="<?= htmlspecialchars($halaqoh) ?>"><?= htmlspecialchars($halaqoh) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
 
-            <div id="peserta-section" class="hidden">
-                <div class="relative mb-4">
-                    <label for="search-peserta" class="block text-sm font-medium text-gray-700 mb-1">Cari Nama Peserta</label>
-                    <input type="text" id="search-peserta" placeholder="Ketik minimal 2 huruf..." class="w-full border border-gray-300 rounded-md p-2.5 focus:outline-none focus:ring-1 focus:ring-gray-400 text-sm" autocomplete="off" disabled>
-                    <div id="suggestions-list" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-sm hidden max-h-52 overflow-y-auto"></div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Peserta Terpilih (<span id="selected-count">0</span>)</label>
-                    <div id="selected-participants-list" class="border border-gray-200 rounded-md p-3 bg-gray-50 text-sm space-y-2">
-                        <p class="text-gray-500 text-sm">Belum ada peserta dipilih.</p>
+            <div id="peserta-section" class="hidden space-y-6">
+                
+                <div class="relative group">
+                    <label for="search-peserta" class="block text-xs font-cabinet font-bold uppercase tracking-wider text-zinc-400 mb-2 group-focus-within:text-matcha transition-colors">Cari Peserta</label>
+                    <div class="relative">
+                        <i class="ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-lg"></i>
+                        <input type="text" id="search-peserta" placeholder="Ketik minimal 2 huruf..." class="w-full bg-onyx border border-surfaceborder text-white rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:border-matcha focus:ring-1 focus:ring-matcha transition-all duration-[250ms] ease-emil" autocomplete="off" disabled>
                     </div>
+                    
+                    <div id="suggestions-list" class="absolute z-20 w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl hidden max-h-52 overflow-y-auto backdrop-blur-md"></div>
                 </div>
 
-                <div class="flex flex-wrap gap-2 mb-5">
-                    <button type="button" id="add-another-btn" class="btn-add px-4 py-2 rounded-md shadow-sm font-medium text-sm text-white transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center" disabled>
-                        <i class="ph-plus-bold text-sm mr-1"></i> Tambah Peserta
-                    </button>
-                    <button type="button" id="remove-all-btn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md shadow-sm font-medium text-sm transition flex items-center">
-                        <i class="ph-trash text-sm mr-1"></i> Hapus Semua
-                    </button>
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-xs font-cabinet font-bold uppercase tracking-wider text-zinc-400">Terpilih (<span id="selected-count" class="text-matcha">0</span>)</label>
+                        <button type="button" id="remove-all-btn" class="text-xs font-bold font-cabinet text-red-500 hover:text-red-400 uppercase tracking-wider transition-colors disabled:opacity-0 hidden">
+                            Bersihkan
+                        </button>
+                    </div>
+                    <div id="selected-participants-list" class="border border-surfaceborder rounded-xl p-4 bg-onyx space-y-2 min-h-[80px] flex flex-col justify-center">
+                        <p class="text-zinc-600 text-sm text-center font-medium">Belum ada target yang dipilih.</p>
+                    </div>
                 </div>
             </div>
 
-            <div id="pesan-section" class="hidden">
-                <div>
-                    <label for="pesan-pengajar" class="block text-sm font-medium text-gray-700 mb-1">Pesan Tambahan (Opsional)</label>
-                    <textarea id="pesan-pengajar" name="pesan_pengajar" rows="3" placeholder="Contoh: Sudah 4 hari tidak setoran" class="w-full border border-gray-300 rounded-md p-2.5 focus:outline-none focus:ring-1 focus:ring-gray-400 text-sm"></textarea>
+            <div id="pesan-section" class="hidden space-y-6 pt-2">
+                <div class="group">
+                    <label for="pesan-pengajar" class="block text-xs font-cabinet font-bold uppercase tracking-wider text-zinc-400 mb-2 group-focus-within:text-matcha transition-colors">Catatan Ekstra (Opsional)</label>
+                    <textarea id="pesan-pengajar" name="pesan_pengajar" rows="3" placeholder="Misal: Sudah 4 hari absen setoran hafalan..." class="w-full bg-onyx border border-surfaceborder text-white rounded-xl p-4 focus:outline-none focus:border-matcha focus:ring-1 focus:ring-matcha transition-all duration-[250ms] ease-emil resize-none"></textarea>
                 </div>
 
                 <input type="hidden" name="selected_peserta_json" id="selected-peserta-json" value="">
-                <div class="pt-2">
-                    <button type="submit" name="submit_all_requests" id="submit-all-btn" class="w-full btn-primary text-white px-4 py-2.5 rounded-md shadow-sm font-semibold text-base transition flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                        <i class="ph-paper-plane-tilt text-lg mr-2"></i> Kirim Semua Permintaan
+                
+                <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button type="button" id="add-another-btn" class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white p-4 rounded-xl font-clash font-semibold text-base transition-all duration-[250ms] ease-emil active:scale-[0.98] flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed border border-zinc-700" disabled>
+                        <i class="ph-plus-bold text-lg mr-2"></i> Tambah Target
+                    </button>
+                    
+                    <button type="submit" name="submit_all_requests" id="submit-all-btn" class="flex-[2] bg-matcha hover:bg-[#d4eb00] text-black p-4 rounded-xl font-clash font-semibold text-lg transition-all duration-[250ms] ease-emil active:scale-[0.98] flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(230,255,0,0.15)]" disabled>
+                        <i class="ph-paper-plane-tilt-bold text-xl mr-2"></i> Kirim Notifikasi
                     </button>
                 </div>
             </div>
@@ -253,20 +264,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         function updateSelectedList() {
             selectedParticipantsList.innerHTML = '';
             if (selectedParticipants.length === 0) {
-                selectedParticipantsList.innerHTML = '<p class="text-gray-500 text-sm">Belum ada peserta dipilih.</p>';
+                selectedParticipantsList.innerHTML = '<p class="text-zinc-600 text-sm text-center font-medium">Belum ada target yang dipilih.</p>';
+                selectedParticipantsList.classList.add('flex', 'flex-col', 'justify-center');
                 submitAllBtn.disabled = true;
                 pesanSection.classList.add('hidden');
+                removeAllBtn.classList.add('hidden');
                 selectedCountSpan.innerText = '0';
             } else {
+                selectedParticipantsList.classList.remove('flex', 'flex-col', 'justify-center');
+                removeAllBtn.classList.remove('hidden');
+                
                 selectedParticipants.forEach((peserta, index) => {
-                    const p = document.createElement('p');
-                    p.className = 'flex justify-between items-center bg-white p-2 rounded border border-gray-200';
-                    // Hanya menampilkan nama, tanpa nomor WA
-                    p.innerHTML = `
-                        <span class="text-gray-800 text-sm break-all pr-2">${escapeHtml(peserta.nama)}</span>
-                        <button type="button" class="btn-remove text-white font-medium" data-index="${index}">Hapus</button>
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-all duration-[250ms] ease-emil group';
+                    
+                    div.innerHTML = `
+                        <span class="text-zinc-200 text-sm font-medium tracking-wide break-all pr-3">${escapeHtml(peserta.nama)}</span>
+                        <button type="button" class="btn-remove text-zinc-500 hover:text-red-400 p-1.5 rounded-md hover:bg-red-500/10 transition-all duration-[250ms] ease-emil active:scale-[0.9]" data-index="${index}" title="Hapus">
+                            <i class="ph-x-bold pointer-events-none"></i>
+                        </button>
                     `;
-                    selectedParticipantsList.appendChild(p);
+                    selectedParticipantsList.appendChild(div);
                 });
                 submitAllBtn.disabled = false;
                 pesanSection.classList.remove('hidden');
@@ -320,22 +338,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         });
 
         function performSearch(query, halaqoh) {
-            suggestionsList.innerHTML = '<p class="text-sm text-gray-500 p-3 text-center">Mencari...</p>';
+            suggestionsList.innerHTML = '<p class="text-sm text-zinc-500 p-4 text-center">Mencari target...</p>';
             suggestionsList.classList.remove('hidden');
+            
             fetch(`search_peserta.php?term=${encodeURIComponent(query)}&halaqoh=${encodeURIComponent(halaqoh)}`)
                 .then(response => response.ok ? response.json() : Promise.reject())
                 .then(data => {
                     suggestionsList.innerHTML = '';
                     if (data.length > 0) {
                         const ul = document.createElement('ul');
-                        ul.className = 'p-1';
+                        ul.className = 'p-2 space-y-1';
                         let hasSelectable = false;
+                        
                         data.forEach(peserta => {
                             if (!selectedParticipants.some(p => p.id === peserta.id)) {
                                 const li = document.createElement('li');
-                                li.className = 'p-2 rounded-md cursor-pointer hover:bg-gray-100 active:bg-gray-200 transition';
-                                // Hanya menampilkan nama, tanpa nomor WA
-                                li.innerHTML = `<div class="font-medium text-gray-800 text-sm">${escapeHtml(peserta.nama_lengkap)}</div>`;
+                                li.className = 'p-3 rounded-lg cursor-pointer text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-[200ms] ease-out';
+                                li.innerHTML = `<div class="font-medium text-sm">${escapeHtml(peserta.nama_lengkap)}</div>`;
                                 li.dataset.id = peserta.id;
                                 li.dataset.nama = peserta.nama_lengkap;
                                 li.dataset.nowa = peserta.nowa || '';
@@ -343,20 +362,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                                 hasSelectable = true;
                             }
                         });
+                        
                         if (hasSelectable) {
                             suggestionsList.appendChild(ul);
                             addAnotherBtn.disabled = false;
                         } else {
-                            suggestionsList.innerHTML = '<p class="text-sm text-gray-500 p-3 text-center">Semua peserta dari halaqoh ini sudah dipilih.</p>';
+                            suggestionsList.innerHTML = '<p class="text-sm text-zinc-500 p-4 text-center">Semua peserta dari halaqoh ini sudah dipilih.</p>';
                             addAnotherBtn.disabled = true;
                         }
                     } else {
-                        suggestionsList.innerHTML = '<p class="text-sm text-gray-500 p-3 text-center">Tidak ditemukan peserta.</p>';
+                        suggestionsList.innerHTML = '<p class="text-sm text-zinc-500 p-4 text-center">Target tidak ditemukan.</p>';
                         addAnotherBtn.disabled = true;
                     }
                 })
                 .catch(() => {
-                    suggestionsList.innerHTML = '<p class="text-sm text-red-500 p-3 text-center">Gagal memuat data.</p>';
+                    suggestionsList.innerHTML = '<p class="text-sm text-red-400 p-4 text-center">Gagal memuat intel data.</p>';
                     addAnotherBtn.disabled = true;
                 });
         }
@@ -365,12 +385,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
             const query = this.value.trim();
             const selectedHalaqoh = halaqohSelect.value;
             clearTimeout(searchTimeout);
+            
             if (query.length < 2 || !selectedHalaqoh) {
                 suggestionsList.classList.add('hidden');
                 addAnotherBtn.disabled = (selectedParticipants.length === 0);
                 return;
             }
-            searchTimeout = setTimeout(() => performSearch(query, selectedHalaqoh), 250);
+            searchTimeout = setTimeout(() => performSearch(query, selectedHalaqoh), 300);
         });
 
         suggestionsList.addEventListener('click', function(e) {
@@ -379,10 +400,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                 const id = target.dataset.id;
                 const nama = target.dataset.nama;
                 const nowa = target.dataset.nowa;
+                
                 if (!selectedParticipants.some(p => p.id === id)) {
                     selectedParticipants.push({ id: id, nama: nama, nowa: nowa });
                     updateSelectedList();
                 }
+                
                 searchInput.value = '';
                 suggestionsList.innerHTML = '';
                 suggestionsList.classList.add('hidden');
@@ -390,6 +413,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
             }
         });
 
+        // Hide suggestions when clicking outside
         document.addEventListener('click', function(e) {
             if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
                 suggestionsList.classList.add('hidden');
