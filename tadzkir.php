@@ -98,7 +98,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
 }
 ?>
 <!DOCTYPE html>
-<html lang="id" class="antialiased selection:bg-[#E6FF00] selection:text-black">
+<html lang="id" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
@@ -106,28 +106,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
   <?php $cache_buster = time(); ?>
   <link rel="icon" href="LOGOJWD.png?v=<?= $cache_buster ?>" type="image/png">
   
-  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=cabinet-grotesk@400,500,700&display=swap" rel="stylesheet">
+  <!-- Font Geist by Vercel -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.3/dist/fonts/geist-sans/style.css">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/phosphor-icons/1.4.2/css/phosphor.css" rel="stylesheet">
   
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           fontFamily: {
-            clash: ['Clash Display', 'sans-serif'],
-            cabinet: ['Cabinet Grotesk', 'sans-serif'],
+            sans: ['Geist', 'sans-serif'],
           },
           colors: {
-            matcha: '#E6FF00',
-            onyx: '#0a0a0a',
-            surface: '#171717',
-            surfaceborder: '#27272a'
+            brand: {
+              lime: '#E6FF00', // Akses warna bold ala neo-brutalism/modern tech
+              dark: '#0A0A0A',
+              card: '#121212',
+              border: '#27272A'
+            }
           },
-          transitionTimingFunction: {
-            // The Emil Kowalski snappy curve
-            'emil': 'cubic-bezier(0.32, 0.72, 0, 1)',
+          animation: {
+            'reveal': 'reveal 250ms cubic-bezier(0.32, 0.72, 0, 1) forwards',
+          },
+          keyframes: {
+            reveal: {
+              '0%': { opacity: '0', transform: 'translateY(8px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
           }
         }
       }
@@ -136,107 +144,119 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
 
   <style>
     body {
-      background-color: theme('colors.onyx');
-      color: theme('colors.zinc.300');
-      font-family: 'Cabinet Grotesk', sans-serif;
+      background-color: theme('colors.brand.dark');
+      color: #EDEDED;
     }
-    
-    /* Hide scrollbar for a cleaner look */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
-    
-    #selected-participants-list { max-height: 250px; overflow-y: auto; }
-    button, select, input, textarea { touch-action: manipulation; }
-    input, select, textarea { font-size: 16px; }
-    
-    /* Custom glow effect */
-    .glow-bg {
-        position: absolute;
-        width: 300px;
-        height: 300px;
-        background: radial-gradient(circle, rgba(230,255,0,0.05) 0%, rgba(10,10,10,0) 70%);
-        top: -100px;
-        right: -100px;
-        z-index: 0;
-        pointer-events: none;
+
+    /* Emil Kowalski's smooth interactions */
+    .smooth-trans {
+      transition: all 250ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    /* Accessibility: Instant focus for keyboard, no lag */
+    *:focus-visible {
+      transition: none !important;
+      outline: 2px solid theme('colors.brand.lime');
+      outline-offset: 2px;
+    }
+
+    /* Custom Scrollbar for list */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: theme('colors.zinc.800');
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: theme('colors.zinc.700');
+    }
+
+    input, select, textarea, button {
+      touch-action: manipulation;
     }
   </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4 sm:p-6 relative overflow-hidden">
+<body class="flex items-center justify-center min-h-screen p-4 sm:p-6 selection:bg-brand-lime selection:text-black">
   
-  <div class="w-full max-w-lg md:max-w-2xl relative z-10">
-    <div class="bg-surface border border-surfaceborder rounded-3xl p-6 sm:p-10 relative overflow-hidden shadow-2xl">
-        <div class="glow-bg"></div>
+  <div class="w-full max-w-lg md:max-w-xl">
+    <div class="bg-brand-card border border-brand-border rounded-2xl shadow-2xl p-6 sm:p-8 smooth-trans">
         
-        <div class="flex items-center space-x-4 mb-8 pb-6 border-b border-zinc-800/50 relative z-10">
-            <div class="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center p-2 shadow-inner">
-                <img src="LOGOJWD.png?v=<?= $cache_buster ?>" alt="Logo JWD" class="w-full h-full object-contain filter grayscale contrast-125">
+        <!-- Header -->
+        <div class="flex items-center space-x-4 mb-8 pb-4 border-b border-brand-border">
+            <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center p-2">
+                <img src="LOGOJWD.png?v=<?= $cache_buster ?>" alt="Logo JWD" class="w-full h-full object-contain">
             </div>
             <div>
-                <h1 class="text-2xl sm:text-3xl font-clash font-semibold text-white tracking-tight">Pengingat Peserta</h1>
-                <p class="text-sm font-cabinet text-zinc-500 font-medium tracking-wide">Saling mengingatkan untuk kebaikan.</p>
+                <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Pengingat Peserta</h1>
+                <p class="text-sm text-zinc-400 mt-0.5">Saling mengingatkan dalam kebaikan.</p>
             </div>
         </div>
 
+        <!-- Notification -->
         <?php if (!empty($notification)): ?>
-        <div class="mb-6 p-4 rounded-xl text-sm font-medium border <?php echo $notificationType === 'success' ? 'bg-[#E6FF00]/10 text-[#E6FF00] border-[#E6FF00]/20' : 'bg-red-500/10 text-red-400 border-red-500/20'; ?> relative z-10">
+        <div class="mb-6 p-4 rounded-xl text-sm font-medium animate-reveal <?php echo $notificationType === 'success' ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'; ?>">
             <?php echo htmlspecialchars($notification); ?>
         </div>
         <?php endif; ?>
 
-        <form method="POST" action="" class="space-y-6 relative z-10" id="request-form">
+        <form method="POST" action="" class="space-y-6" id="request-form">
             
+            <!-- Select Halaqoh -->
             <div class="group">
-                <label for="halaqoh" class="block text-xs font-cabinet font-bold uppercase tracking-wider text-zinc-400 mb-2 group-focus-within:text-matcha transition-colors">Pilih Halaqoh</label>
-                <select name="halaqoh" id="halaqoh" class="w-full bg-onyx border border-surfaceborder text-white rounded-xl p-3.5 focus:outline-none focus:border-matcha focus:ring-1 focus:ring-matcha transition-all duration-[250ms] ease-emil appearance-none" required>
-                    <option value="" disabled selected>-- Tentukan halaqoh Anda --</option>
+                <label for="halaqoh" class="block text-sm font-medium text-zinc-400 mb-2">Halaqoh</label>
+                <select name="halaqoh" id="halaqoh" class="w-full bg-zinc-900 border border-brand-border rounded-xl p-3.5 text-zinc-100 text-sm smooth-trans focus:border-brand-lime hover:border-zinc-700 appearance-none cursor-pointer" required>
+                    <option value="" disabled selected>-- Pilih Halaqoh Anda --</option>
                     <?php foreach ($halaqohList as $halaqoh): ?>
                         <option value="<?= htmlspecialchars($halaqoh) ?>"><?= htmlspecialchars($halaqoh) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
 
-            <div id="peserta-section" class="hidden space-y-6">
-                
-                <div class="relative group">
-                    <label for="search-peserta" class="block text-xs font-cabinet font-bold uppercase tracking-wider text-zinc-400 mb-2 group-focus-within:text-matcha transition-colors">Cari Peserta</label>
-                    <div class="relative">
-                        <i class="ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-lg"></i>
-                        <input type="text" id="search-peserta" placeholder="Ketik minimal 2 huruf..." class="w-full bg-onyx border border-surfaceborder text-white rounded-xl py-3.5 pl-11 pr-4 focus:outline-none focus:border-matcha focus:ring-1 focus:ring-matcha transition-all duration-[250ms] ease-emil" autocomplete="off" disabled>
-                    </div>
+            <!-- Peserta Section -->
+            <div id="peserta-section" class="hidden">
+                <div class="relative mb-6">
+                    <label for="search-peserta" class="block text-sm font-medium text-zinc-400 mb-2">Cari Nama Peserta</label>
+                    <input type="text" id="search-peserta" placeholder="Ketik minimal 2 huruf..." class="w-full bg-zinc-900 border border-brand-border rounded-xl p-3.5 text-zinc-100 text-sm smooth-trans focus:border-brand-lime placeholder-zinc-600" autocomplete="off" disabled>
                     
-                    <div id="suggestions-list" class="absolute z-20 w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl hidden max-h-52 overflow-y-auto backdrop-blur-md"></div>
+                    <div id="suggestions-list" class="absolute z-20 w-full mt-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl hidden max-h-52 overflow-y-auto smooth-trans"></div>
                 </div>
 
-                <div>
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="block text-xs font-cabinet font-bold uppercase tracking-wider text-zinc-400">Terpilih (<span id="selected-count" class="text-matcha">0</span>)</label>
-                        <button type="button" id="remove-all-btn" class="text-xs font-bold font-cabinet text-red-500 hover:text-red-400 uppercase tracking-wider transition-colors disabled:opacity-0 hidden">
-                            Bersihkan
-                        </button>
+                <div class="mb-6">
+                    <div class="flex justify-between items-end mb-2">
+                        <label class="block text-sm font-medium text-zinc-400">Peserta Terpilih</label>
+                        <span class="text-xs font-bold bg-zinc-800 text-zinc-300 px-2 py-1 rounded-md" id="selected-count">0</span>
                     </div>
-                    <div id="selected-participants-list" class="border border-surfaceborder rounded-xl p-4 bg-onyx space-y-2 min-h-[80px] flex flex-col justify-center">
-                        <p class="text-zinc-600 text-sm text-center font-medium">Belum ada target yang dipilih.</p>
+                    <div id="selected-participants-list" class="border border-brand-border rounded-xl p-4 bg-zinc-900/50 text-sm space-y-2 min-h-[60px] max-h-48 overflow-y-auto">
+                        <p class="text-zinc-500 text-sm italic">Belum ada peserta dipilih.</p>
                     </div>
+                </div>
+
+                <div class="flex flex-wrap gap-3 mb-2">
+                    <button type="button" id="add-another-btn" class="smooth-trans px-4 py-2.5 rounded-xl text-sm font-medium flex items-center bg-zinc-800 text-brand-lime hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-800" disabled>
+                        <i class="ph-plus-bold mr-2 text-lg"></i> Tambah Peserta
+                    </button>
+                    <button type="button" id="remove-all-btn" class="smooth-trans px-4 py-2.5 rounded-xl text-sm font-medium flex items-center bg-rose-500/10 text-rose-500 hover:bg-rose-500/20">
+                        <i class="ph-trash mr-2 text-lg"></i> Hapus Semua
+                    </button>
                 </div>
             </div>
 
-            <div id="pesan-section" class="hidden space-y-6 pt-2">
-                <div class="group">
-                    <label for="pesan-pengajar" class="block text-xs font-cabinet font-bold uppercase tracking-wider text-zinc-400 mb-2 group-focus-within:text-matcha transition-colors">Catatan Ekstra (Opsional)</label>
-                    <textarea id="pesan-pengajar" name="pesan_pengajar" rows="3" placeholder="Misal: Sudah 4 hari absen setoran hafalan..." class="w-full bg-onyx border border-surfaceborder text-white rounded-xl p-4 focus:outline-none focus:border-matcha focus:ring-1 focus:ring-matcha transition-all duration-[250ms] ease-emil resize-none"></textarea>
+            <!-- Pesan Section -->
+            <div id="pesan-section" class="hidden">
+                <div class="pt-4 border-t border-brand-border">
+                    <label for="pesan-pengajar" class="block text-sm font-medium text-zinc-400 mb-2">Pesan Tambahan <span class="text-zinc-600">(Opsional)</span></label>
+                    <textarea id="pesan-pengajar" name="pesan_pengajar" rows="3" placeholder="Contoh: Sudah 4 hari tidak setoran..." class="w-full bg-zinc-900 border border-brand-border rounded-xl p-3.5 text-zinc-100 text-sm smooth-trans focus:border-brand-lime placeholder-zinc-600 resize-none"></textarea>
                 </div>
 
                 <input type="hidden" name="selected_peserta_json" id="selected-peserta-json" value="">
                 
-                <div class="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button type="button" id="add-another-btn" class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white p-4 rounded-xl font-clash font-semibold text-base transition-all duration-[250ms] ease-emil active:scale-[0.98] flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed border border-zinc-700" disabled>
-                        <i class="ph-plus-bold text-lg mr-2"></i> Tambah Target
-                    </button>
-                    
-                    <button type="submit" name="submit_all_requests" id="submit-all-btn" class="flex-[2] bg-matcha hover:bg-[#d4eb00] text-black p-4 rounded-xl font-clash font-semibold text-lg transition-all duration-[250ms] ease-emil active:scale-[0.98] flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(230,255,0,0.15)]" disabled>
-                        <i class="ph-paper-plane-tilt-bold text-xl mr-2"></i> Kirim Notifikasi
+                <div class="pt-6">
+                    <button type="submit" name="submit_all_requests" id="submit-all-btn" class="w-full bg-brand-lime text-black px-4 py-3.5 rounded-xl shadow-lg font-bold text-base smooth-trans flex items-center justify-center hover:bg-[#cce600] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100" disabled>
+                        <i class="ph-paper-plane-tilt-bold text-xl mr-2"></i> Kirim Permintaan
                     </button>
                 </div>
             </div>
@@ -261,33 +281,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         let selectedParticipants = [];
         let searchTimeout;
 
+        // Emil Kowalski style reveal logic
+        function smoothReveal(element) {
+            if (element.classList.contains('hidden')) {
+                element.classList.remove('hidden');
+                // Force reflow
+                void element.offsetWidth;
+                element.classList.add('animate-reveal');
+            }
+        }
+
         function updateSelectedList() {
             selectedParticipantsList.innerHTML = '';
             if (selectedParticipants.length === 0) {
-                selectedParticipantsList.innerHTML = '<p class="text-zinc-600 text-sm text-center font-medium">Belum ada target yang dipilih.</p>';
-                selectedParticipantsList.classList.add('flex', 'flex-col', 'justify-center');
+                selectedParticipantsList.innerHTML = '<p class="text-zinc-500 text-sm italic">Belum ada peserta dipilih.</p>';
                 submitAllBtn.disabled = true;
                 pesanSection.classList.add('hidden');
-                removeAllBtn.classList.add('hidden');
+                pesanSection.classList.remove('animate-reveal');
                 selectedCountSpan.innerText = '0';
             } else {
-                selectedParticipantsList.classList.remove('flex', 'flex-col', 'justify-center');
-                removeAllBtn.classList.remove('hidden');
-                
                 selectedParticipants.forEach((peserta, index) => {
-                    const div = document.createElement('div');
-                    div.className = 'flex justify-between items-center bg-zinc-900/80 p-3 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-all duration-[250ms] ease-emil group';
-                    
-                    div.innerHTML = `
-                        <span class="text-zinc-200 text-sm font-medium tracking-wide break-all pr-3">${escapeHtml(peserta.nama)}</span>
-                        <button type="button" class="btn-remove text-zinc-500 hover:text-red-400 p-1.5 rounded-md hover:bg-red-500/10 transition-all duration-[250ms] ease-emil active:scale-[0.9]" data-index="${index}" title="Hapus">
+                    const p = document.createElement('div');
+                    p.className = 'flex justify-between items-center bg-zinc-800/50 p-2.5 rounded-lg border border-zinc-700/50 animate-reveal';
+                    p.innerHTML = `
+                        <span class="text-zinc-200 text-sm break-all font-medium pr-2">${escapeHtml(peserta.nama)}</span>
+                        <button type="button" class="btn-remove smooth-trans text-zinc-400 hover:text-rose-400 p-1 rounded-md hover:bg-rose-500/10 focus-visible:ring-2 focus-visible:ring-rose-400" data-index="${index}">
                             <i class="ph-x-bold pointer-events-none"></i>
                         </button>
                     `;
-                    selectedParticipantsList.appendChild(div);
+                    selectedParticipantsList.appendChild(p);
                 });
                 submitAllBtn.disabled = false;
-                pesanSection.classList.remove('hidden');
+                smoothReveal(pesanSection);
                 selectedCountSpan.innerText = selectedParticipants.length;
             }
             selectedPesertaJsonInput.value = JSON.stringify(selectedParticipants);
@@ -309,8 +334,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         });
 
         selectedParticipantsList.addEventListener('click', function(e) {
-            if (e.target.classList.contains('btn-remove')) {
-                const index = parseInt(e.target.getAttribute('data-index'));
+            // Cek jika yang diklik adalah button atau icon di dalamnya
+            const btn = e.target.closest('.btn-remove');
+            if (btn) {
+                const index = parseInt(btn.getAttribute('data-index'));
                 if (!isNaN(index) && index >= 0 && index < selectedParticipants.length) {
                     selectedParticipants.splice(index, 1);
                     updateSelectedList();
@@ -321,7 +348,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         halaqohSelect.addEventListener('change', function() {
             const selectedHalaqoh = this.value;
             if (selectedHalaqoh) {
-                pesertaSection.classList.remove('hidden');
+                smoothReveal(pesertaSection);
                 searchInput.disabled = false;
                 searchInput.value = '';
                 suggestionsList.innerHTML = '';
@@ -330,6 +357,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                 updateSelectedList();
             } else {
                 pesertaSection.classList.add('hidden');
+                pesertaSection.classList.remove('animate-reveal');
                 searchInput.disabled = true;
                 selectedParticipants = [];
                 updateSelectedList();
@@ -338,8 +366,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
         });
 
         function performSearch(query, halaqoh) {
-            suggestionsList.innerHTML = '<p class="text-sm text-zinc-500 p-4 text-center">Mencari target...</p>';
-            suggestionsList.classList.remove('hidden');
+            suggestionsList.innerHTML = '<p class="text-sm text-zinc-500 p-4 text-center animate-pulse">Mencari data...</p>';
+            smoothReveal(suggestionsList);
             
             fetch(`search_peserta.php?term=${encodeURIComponent(query)}&halaqoh=${encodeURIComponent(halaqoh)}`)
                 .then(response => response.ok ? response.json() : Promise.reject())
@@ -349,11 +377,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                         const ul = document.createElement('ul');
                         ul.className = 'p-2 space-y-1';
                         let hasSelectable = false;
-                        
                         data.forEach(peserta => {
                             if (!selectedParticipants.some(p => p.id === peserta.id)) {
                                 const li = document.createElement('li');
-                                li.className = 'p-3 rounded-lg cursor-pointer text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all duration-[200ms] ease-out';
+                                li.className = 'p-3 rounded-lg cursor-pointer smooth-trans hover:bg-zinc-800 active:bg-zinc-700 text-zinc-300 hover:text-white';
                                 li.innerHTML = `<div class="font-medium text-sm">${escapeHtml(peserta.nama_lengkap)}</div>`;
                                 li.dataset.id = peserta.id;
                                 li.dataset.nama = peserta.nama_lengkap;
@@ -362,7 +389,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                                 hasSelectable = true;
                             }
                         });
-                        
                         if (hasSelectable) {
                             suggestionsList.appendChild(ul);
                             addAnotherBtn.disabled = false;
@@ -371,12 +397,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                             addAnotherBtn.disabled = true;
                         }
                     } else {
-                        suggestionsList.innerHTML = '<p class="text-sm text-zinc-500 p-4 text-center">Target tidak ditemukan.</p>';
+                        suggestionsList.innerHTML = '<p class="text-sm text-zinc-500 p-4 text-center">Tidak ada peserta yang cocok.</p>';
                         addAnotherBtn.disabled = true;
                     }
                 })
                 .catch(() => {
-                    suggestionsList.innerHTML = '<p class="text-sm text-red-400 p-4 text-center">Gagal memuat intel data.</p>';
+                    suggestionsList.innerHTML = '<p class="text-sm text-rose-500 p-4 text-center">Gagal memuat data.</p>';
                     addAnotherBtn.disabled = true;
                 });
         }
@@ -388,10 +414,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
             
             if (query.length < 2 || !selectedHalaqoh) {
                 suggestionsList.classList.add('hidden');
+                suggestionsList.classList.remove('animate-reveal');
                 addAnotherBtn.disabled = (selectedParticipants.length === 0);
                 return;
             }
-            searchTimeout = setTimeout(() => performSearch(query, selectedHalaqoh), 300);
+            searchTimeout = setTimeout(() => performSearch(query, selectedHalaqoh), 250);
         });
 
         suggestionsList.addEventListener('click', function(e) {
@@ -400,12 +427,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
                 const id = target.dataset.id;
                 const nama = target.dataset.nama;
                 const nowa = target.dataset.nowa;
-                
                 if (!selectedParticipants.some(p => p.id === id)) {
                     selectedParticipants.push({ id: id, nama: nama, nowa: nowa });
                     updateSelectedList();
                 }
-                
                 searchInput.value = '';
                 suggestionsList.innerHTML = '';
                 suggestionsList.classList.add('hidden');
@@ -413,10 +438,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit_all_requests'])
             }
         });
 
-        // Hide suggestions when clicking outside
         document.addEventListener('click', function(e) {
             if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
                 suggestionsList.classList.add('hidden');
+                suggestionsList.classList.remove('animate-reveal');
             }
         });
 
