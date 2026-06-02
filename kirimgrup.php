@@ -212,7 +212,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['batalkan_jadwal'])) {
     header("Location: " . $_SERVER['PHP_SELF']); exit;
 }
 
-// AMBIL DATA JADWAL BERJALAN UNTUK DITAMPILKAN
 // AMBIL DATA JADWAL BERJALAN UNTUK DITAMPILKAN (DIKELOMPOKKAN)
 $jadwalBerjalan = [];
 $jadwalQuery = "
@@ -222,14 +221,19 @@ $jadwalQuery = "
         j.jadwal_kirim, 
         j.jam_harian, 
         j.hari_rutin, 
-        j.media_path,
+        MAX(j.media_path) as media_path,
         GROUP_CONCAT(COALESCE(w.nama_grup, j.id_grup) SEPARATOR ', ') as daftar_grup,
         GROUP_CONCAT(j.id SEPARATOR ',') as id_jadwal_list,
         COUNT(j.id) as total_grup
     FROM jadwal_pesan_grup j 
     LEFT JOIN wa_grup w ON j.id_grup = w.id_grup 
     WHERE j.status = 'pending' 
-    GROUP BY j.pesan, j.tipe_jadwal, j.jadwal_kirim, j.jam_harian, j.hari_rutin, j.media_path 
+    GROUP BY 
+        j.pesan, 
+        j.tipe_jadwal, 
+        j.jadwal_kirim, 
+        j.jam_harian, 
+        j.hari_rutin 
     ORDER BY MAX(j.id) DESC
 ";
 $jadwalResult = $conn->query($jadwalQuery);
