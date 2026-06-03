@@ -41,6 +41,13 @@ class AutoReplyEngine {
     }
 
     private function sendReply($to, $message) {
+        // Pastikan nomor dalam format internasional
+        $to = preg_replace('/\D/', '', $to);
+        if (substr($to, 0, 1) === '0') {
+            $to = '62' . substr($to, 1);
+        }
+        $this->log("Preparing to send to: {$to}");
+
         $url = $this->apiUrl . '/api/v1/messages';
         $payload = [
             'recipient_type' => 'individual',
@@ -49,13 +56,16 @@ class AutoReplyEngine {
             'text' => ['body' => $message]
         ];
         
+        $jsonPayload = json_encode($payload);
+        $this->log("Payload: " . $jsonPayload);
+        
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $this->apiToken,
             'Content-Type: application/json'
         ]);
         curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         
@@ -69,7 +79,19 @@ class AutoReplyEngine {
             return false;
         }
         
-        $this->log("Send reply to {$to}: HTTP {$httpCode}, Response: {$response}");
+        $this->log("HTTP Code: {$httpCode}, Response: {$response}");
+        
+        // Cek apakah respons JSON mengandung error
+        $responseData = json_decode($response, true);
+        if ($responseData && isset($responseData['error'])) {
+            $this->log("API Error: " . json_encode($responseData['error']));
+            return false;
+        }
+        
         return ($httpCode >= 200 && $httpCode < 300);
+    }
+    
+    public function sendTestMessage($to, $message) {
+        return $this->sendReply($to, $message);
     }
 }
