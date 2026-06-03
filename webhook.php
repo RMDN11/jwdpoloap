@@ -119,19 +119,20 @@ $engineFile = $baseDir . '/auto_reply_engine.php';
 if (!file_exists($engineFile)) {
     logx("AUTO REPLY ENGINE FILE NOT FOUND: " . $engineFile);
 } else {
-    // Pastikan variabel API ada di config.php
-    if (!defined('ONESENDER_API_URL') || !defined('ONESENDER_API_TOKEN')) {
-        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN tidak ditemukan di config.php");
-    } elseif (empty(ONESENDER_API_URL) || empty(ONESENDER_API_TOKEN)) {
-        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN kosong di config.php");
+    // PERBAIKAN: Gunakan VARIABEL ($apiUrl, $apiToken), BUKAN konstanta
+    // Variabel ini sudah tersedia karena config.php sudah di-require di atas
+    if (empty($apiUrl) || empty($apiToken)) {
+        logx("ERROR: Variabel \$apiUrl atau \$apiToken kosong/tidak ditemukan di config.php");
     } else {
-        // HILANGKAN TANDA '$' KARENA INI ADALAH KONSTANTA
-        logx("API URL: " . ONESENDER_API_URL);
-        logx("API Token: " . substr(ONESENDER_API_TOKEN, 0, 10) . '...');
+        logx("API URL: " . $apiUrl);
+        logx("API Token: " . substr($apiToken, 0, 10) . '...');
 
         try {
             require_once $engineFile;
-            $autoReply = new AutoReplyEngine($conn, ONESENDER_API_URL, ONESENDER_API_TOKEN, $baseDir . '/auto_reply_log.txt');
+            // Inisialisasi menggunakan variabel $apiUrl dan $apiToken
+            $autoReply = new AutoReplyEngine($conn, $apiUrl, $apiToken, $baseDir . '/auto_reply_log.txt');
+            
+            // Proses pesan masuk
             $sent = $autoReply->processIncomingMessage($senderPhone, $messageText);
             $autoReplyStatus = $sent ? 'sent' : 'failed';
             logx("AUTO REPLY: {$autoReplyStatus}");
