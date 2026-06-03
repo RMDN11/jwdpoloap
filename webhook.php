@@ -52,11 +52,23 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     exit;
 }
 
-// === EKSTRAK DATA SESUAI DOKUMENTASI ONESENDER ===
-$senderPhone = trim($data['sender_phone'] ?? '');
-$messageText = trim($data['message_text'] ?? '');
-$senderName  = trim($data['from_name'] ?? 'Unknown');
-$isFromMe    = !empty($data['is_from_me']) && $data['is_from_me'] === true;
+// === // === EKSTRAK DATA (FLEKSIBEL UNTUK SEMUA VERSI ONESENDER) ===
+$senderPhone = trim($data['sender_phone'] ?? $data['from'] ?? $data['phone'] ?? $data['to'] ?? '');
+$senderName  = trim($data['from_name'] ?? $data['pushname'] ?? $data['name'] ?? 'Unknown');
+
+// Deteksi isi pesan dari berbagai kemungkinan letak array
+$messageText = '';
+if (isset($data['message_text'])) {
+    $messageText = $data['message_text'];
+} elseif (isset($data['text']['body'])) {
+    $messageText = $data['text']['body'];
+} elseif (isset($data['message'])) {
+    $messageText = is_array($data['message']) ? ($data['message']['text'] ?? '') : $data['message'];
+}
+$messageText = trim($messageText);
+
+$isFromMe = !empty($data['is_from_me']) || (isset($data['fromMe']) && $data['fromMe'] === true);
+// =============================================================
 
 // Abaikan pesan dari diri sendiri
 if ($isFromMe) {
