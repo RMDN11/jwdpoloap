@@ -177,7 +177,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_grup'])) {
     exit;
 }
 
-
 // =================================================================
 // PROSES FORM TRADISIONAL & LOGIKA HALAMAN LAINNYA
 // =================================================================
@@ -213,6 +212,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['batalkan_jadwal'])) {
     header("Location: " . $_SERVER['PHP_SELF']); exit;
 }
 
+// AMBIL DATA JADWAL BERJALAN UNTUK DITAMPILKAN
 // AMBIL DATA JADWAL BERJALAN UNTUK DITAMPILKAN (DIKELOMPOKKAN)
 $jadwalBerjalan = [];
 $jadwalQuery = "
@@ -222,19 +222,14 @@ $jadwalQuery = "
         j.jadwal_kirim, 
         j.jam_harian, 
         j.hari_rutin, 
-        MAX(j.media_path) as media_path,
+        j.media_path,
         GROUP_CONCAT(COALESCE(w.nama_grup, j.id_grup) SEPARATOR ', ') as daftar_grup,
         GROUP_CONCAT(j.id SEPARATOR ',') as id_jadwal_list,
         COUNT(j.id) as total_grup
     FROM jadwal_pesan_grup j 
     LEFT JOIN wa_grup w ON j.id_grup = w.id_grup 
     WHERE j.status = 'pending' 
-    GROUP BY 
-        j.pesan, 
-        j.tipe_jadwal, 
-        j.jadwal_kirim, 
-        j.jam_harian, 
-        j.hari_rutin 
+    GROUP BY j.pesan, j.tipe_jadwal, j.jadwal_kirim, j.jam_harian, j.hari_rutin, j.media_path 
     ORDER BY MAX(j.id) DESC
 ";
 $jadwalResult = $conn->query($jadwalQuery);
@@ -618,7 +613,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (selectedGroupsCount === 0) { alert("Gagal! Anda belum memilih satupun grup penerima."); return; }
         if (pesanText === "" && fileInput.files.length === 0) { alert("Gagal! Isi pesan teks atau gambar tidak boleh kosong."); return; }
         if (fileInput.files.length > 0) {
-            if (fileInput.files[0].size > (2 * 1024 * 1024)) { alert("Gagal! Ukuran gambar terlalu besar. Maksimal 2 MB."); return; }
+            if (fileInput.files[0].size > (5 * 1024 * 1024)) { alert("Gagal! Ukuran gambar terlalu besar. Maksimal 5 MB."); return; }
         }
         if (tipeJadwal === 'sekali' && !waktuJadwal) { alert("Pilih tanggal dan jam untuk jadwal sekali!"); return; }
         if (tipeJadwal === 'harian' && !jamHarian) { alert("Pilih jam pengiriman harian!"); return; }
