@@ -114,9 +114,8 @@ if (!file_exists($engineFile)) {
     } elseif (empty(ONESENDER_API_URL) || empty(ONESENDER_API_TOKEN)) {
         logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN kosong di config.php");
     } else {
-        logx("API URL: " . $ONESENDER_API_URL);
-        logx("API Token: " . substr($ONESENDER_API_TOKEN, 0, 10) . '...');
-
+        logx("API URL: " . ONESENDER_API_URL);
+        logx("API Token: " . substr(ONESENDER_API_TOKEN, 0, 10) . '...');
         try {
             require_once $engineFile;
 			$autoReply = new AutoReplyEngine($conn, ONESENDER_API_URL, ONESENDER_API_TOKEN, $baseDir . '/auto_reply_log.txt');
