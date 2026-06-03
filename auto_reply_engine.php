@@ -165,7 +165,7 @@ class AutoReplyEngine
         return null;
     }
 
-    private function sendViaOneSender($phone, $text)
+        private function sendViaOneSender($phone, $text)
     {
         $payload = json_encode([
             "recipient_type" => "individual",
@@ -189,19 +189,17 @@ class AutoReplyEngine
             ],
             CURLOPT_POSTFIELDS     => $payload,
             CURLOPT_TIMEOUT        => 30,
-            CURLOPT_SSL_VERIFYPEER => false,  // Untuk development
-            CURLOPT_SSL_VERIFYHOST => 0,       // Untuk development
+            CURLOPT_SSL_VERIFYPEER => false, 
+            CURLOPT_SSL_VERIFYHOST => 0,       
             CURLOPT_FAILONERROR    => false,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_USERAGENT      => 'AutoReplyEngine/1.0',
-            CURLOPT_HEADER         => true,
+            CURLOPT_HEADER         => false, // PERBAIKAN: Ubah jadi false agar tidak perlu parse header manual
         ]);
 
-        $response = curl_exec($ch);
-        
+        $body = curl_exec($ch);
         $curlErrNo = curl_errno($ch);
         $curlError = curl_error($ch);
-        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
@@ -210,12 +208,10 @@ class AutoReplyEngine
             return false;
         }
 
-        $header = substr($response, 0, $headerSize);
-        $body = substr($response, $headerSize);
-
         $this->logToFile("HTTP Code: {$httpCode}");
         $this->logToFile("Response Body: " . substr($body, 0, 500));
 
+        // Cek jika HTTP Code bukan 200/201
         if ($httpCode !== 200 && $httpCode !== 201) {
             $errorMsg = 'Unknown error';
             $responseData = json_decode($body, true);
@@ -235,7 +231,25 @@ class AutoReplyEngine
             return false;
         }
 
-        $this->logToFile("✅ OneSender API Success");
+        // =====================================================================
+        // PERBAIKAN KRITIS: Cek error di dalam body response (meskipun HTTP 200)
+        // Ini akan menangkap kasus "Typing... tapi pesan tidak masuk"
+        // =====================================================================
+        if (isset($data['status']) && $data['status'] === false) {
+            $this->logToFile("❌ OneSender API Error in Body: " . json_encode($data));
+            return false;
+        }
+        if (isset($data['error'])) {
+            $this->logToFile("❌ OneSender API Error in Body: " . json_encode($data));
+            return false;
+        }
+        if (isset($data['success']) && $data['success'] === false) {
+            $this->logToFile("❌ OneSender API Error in Body: " . json_encode($data));
+            return false;
+        }
+        // =====================================================================
+
+        $this->logToFile("✅ OneSender API Success. Response: " . substr($body, 0, 200));
         return true;
     }
 
