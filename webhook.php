@@ -2,64 +2,61 @@
 date_default_timezone_set('Asia/Jakarta');
 header('Content-Type: application/json');
 
-$baseDir = __DIR__;
-$logFile = $baseDir . '/webhook.log';
+$logFile = __DIR__ . '/webhook_debug.log';
 
-function logx($msg) {
-    global $logFile;
-    file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] " . $msg . "\n", FILE_APPEND);
-}
-
-// 1. Validasi HTTP Method
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(200);
-    echo json_encode(['status' => 'ignored']);
-    exit;
-}
-
-// 2. Tangkap JSON
+// 1. TANGKAP MENTAH-MENTAH (GARANSI LOG TERCATAT)
 $rawInput = file_get_contents('php://input');
-$data = json_decode($rawInput, true);
+file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] RAW INPUT: " . $rawInput . "\n", FILE_APPEND);
 
-if (!$data) {
-    http_response_code(200);
+// 2. CEK METODE POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['status' => 'ignored', 'reason' => 'not_post']);
     exit;
 }
 
-$phone   = $data['from'] ?? $data['sender_phone'] ?? $data['phone'] ?? '';
+// 3. DECODE JSON
+$data = json_decode($rawInput, true);
+if (!$data && !empty($_POST)) {
+    $data = $_POST; // Fallback jika format form-urlencoded
+}
+
+if (empty($data)) {
+    file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] ERROR: Data kosong / Gagal Decode JSON\n", FILE_APPEND);
+    echo json_encode(['status' => 'error', 'reason' => 'no_data']);
+    exit;
+}
+
+// 4. EKSTRAK DATA ONESENDER
+$phone   = $data['from'] ?? $data['sender_phone'] ?? $data['phone'] ?? $data['sender'] ?? '';
 $message = $data['text']['body'] ?? $data['message_text'] ?? $data['message'] ?? '';
 $isFromMe = $data['fromMe'] ?? $data['is_from_me'] ?? false;
 
-// 3. Normalisasi & Validasi Dasar
-if ($isFromMe || empty($phone) || empty($message)) {
-    http_response_code(200);
+// Bersihkan nomor
+$phone = preg_replace('/\D/', '', $phone);
+file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] PARSED: Phone={$phone}, Msg={$message}, FromMe=" . ($isFromMe ? 'true' : 'false') . "\n", FILE_APPEND);
+
+// 5. VALIDASI DASAR
+if ($isFromMe) {
+    echo json_encode(['status' => 'skipped', 'reason' => 'from_me']);
+    exit;
+}
+if (empty($phone) || empty($message)) {
+    echo json_encode(['status' => 'skipped', 'reason' => 'empty_data']);
     exit;
 }
 
-$phone = preg_replace('/\D/', '', $phone);
-logx("INCOMING: Phone={$phone}, Msg=" . substr($message, 0, 50));
+// 6. PROSES AUTO REPLY (LANGSUNG)
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/auto_reply_engine.php';
 
-// ====================================================================
-// 4. TRIGGER WORKER (MEMUTUS DEADLOCK SERVER)
-// ====================================================================
-$protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-$bgUrl = $protocol . "://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['REQUEST_URI']) . "/webhook_worker.php";
+try {
+    $engine = new AutoReplyEngine($conn, $apiUrl, $apiToken, __DIR__ . '/auto_reply_debug.log');
+    $sent = $engine->processIncomingMessage($phone, $message);
+    file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] RESULT: " . ($sent ? "SUCCESS" : "FAILED") . "\n", FILE_APPEND);
+} catch (Exception $e) {
+    file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] CRITICAL ERROR: " . $e->getMessage() . "\n", FILE_APPEND);
+}
 
-$ch = curl_init($bgUrl);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['phone' => $phone, 'message' => $message]));
-curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-
-// Trik agar PHP cURL tidak menunggu respon dari worker (Bypass server buffering)
-curl_setopt($ch, CURLOPT_NOSIGNAL, 1); 
-curl_setopt($ch, CURLOPT_TIMEOUT_MS, 200); // Batas waktu hanyak 200ms
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-curl_exec($ch);
-curl_close($ch);
-
-// 5. KEMBALIKAN HTTP 200 KE ONESENDER DENGAN INSTAN
-http_response_code(200);
-echo json_encode(['status' => 'success', 'note' => 'delegated_to_worker']);
+// 7. BERIKAN RESPON KE ONESENDER
+echo json_encode(['status' => 'success']);
 exit;
