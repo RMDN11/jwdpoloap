@@ -618,7 +618,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (selectedGroupsCount === 0) { alert("Gagal! Anda belum memilih satupun grup penerima."); return; }
         if (pesanText === "" && fileInput.files.length === 0) { alert("Gagal! Isi pesan teks atau gambar tidak boleh kosong."); return; }
         if (fileInput.files.length > 0) {
-            if (fileInput.files[0].size > (5 * 1024 * 1024)) { alert("Gagal! Ukuran gambar terlalu besar. Maksimal 5 MB."); return; }
+            if (fileInput.files[0].size > (2 * 1024 * 1024)) { alert("Gagal! Ukuran gambar terlalu besar. Maksimal 2 MB."); return; }
         }
         if (tipeJadwal === 'sekali' && !waktuJadwal) { alert("Pilih tanggal dan jam untuk jadwal sekali!"); return; }
         if (tipeJadwal === 'harian' && !jamHarian) { alert("Pilih jam pengiriman harian!"); return; }
