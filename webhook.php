@@ -7,20 +7,14 @@ $baseDir   = __DIR__;
 $logFile   = $baseDir . '/webhook.log';
 $pingFile  = $baseDir . '/ping.log';
 $debugFile = $baseDir . '/debug.log';
-$timestamp = date('Y-m-d H:i:s'); // Hanya satu kali deklarasi
+$timestamp = date('Y-m-d H:i:s');
 
-// PING — selalu dijalankan
 file_put_contents($pingFile, "{$timestamp} HIT\n", FILE_APPEND);
 
-// Hanya proses POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
     $fullUrl = $protocol . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-
-    $logData = "=== GET REQUEST at {$timestamp} ===\n";
-    $logData .= "URL yang dipanggil: {$fullUrl}\n";
-    $logData .= "Parameter GET: " . json_encode($_GET) . "\n\n";
-
+    $logData = "=== GET REQUEST at {$timestamp} ===\nURL: {$fullUrl}\nGET: " . json_encode($_GET) . "\n\n";
     file_put_contents($logFile, $logData, FILE_APPEND);
     echo json_encode(['status' => 'ok', 'note' => 'GET ignored']);
     exit;
@@ -33,114 +27,87 @@ function logx($msg) {
 
 logx("=== WEBHOOK CALLED (POST) at {$timestamp} ===");
 
-// Baca raw input
 $rawInput = file_get_contents('php://input');
-$inputLen = strlen($rawInput);
-
-logx("RAW INPUT LENGTH: {$inputLen}");
-
-if ($inputLen === 0) {
-    logx("EMPTY BODY");
-    echo json_encode(['status' => 'ignored', 'reason' => 'empty_body']);
-    exit;
-}
-
-// Simpan debug
 file_put_contents($debugFile, "[$timestamp]\n{$rawInput}\n\n", FILE_APPEND);
 
-// Parse JSON
 $data = json_decode($rawInput, true);
-
 if (json_last_error() !== JSON_ERROR_NONE) {
     logx("JSON ERROR: " . json_last_error_msg());
     echo json_encode(['status' => 'ignored', 'reason' => 'invalid_json']);
     exit;
 }
 
-// === EKSTRAK DATA SESUAI DOKUMENTASI ONESENDER ===
-$senderPhone = trim($data['sender_phone'] ?? '');
+// ✅ PERBAIKAN: Gunakan from_phone (bukan sender_phone)
+$senderPhone = trim($data['from_phone'] ?? '');
 $messageText = trim($data['message_text'] ?? '');
 $senderName  = trim($data['from_name'] ?? 'Unknown');
-$isFromMe    = !empty($data['is_from_me']) && $data['is_from_me'] === true;
+// ✅ PERBAIKAN: Gunakan from_me (bukan is_from_me)
+$isFromMe    = !empty($data['from_me']) && $data['from_me'] === true;
 
-// Abaikan pesan dari diri sendiri
 if ($isFromMe) {
     logx("MESSAGE FROM SELF — SKIPPED");
     echo json_encode(['status' => 'ignored', 'reason' => 'from_self']);
     exit;
 }
 
-// Validasi minimal
 if ($senderPhone === '' || $messageText === '') {
-    logx("INVALID PAYLOAD — sender_phone or message_text missing");
+    logx("INVALID PAYLOAD — from_phone or message_text missing");
     echo json_encode(['status' => 'ignored', 'reason' => 'invalid_payload']);
     exit;
 }
 
-// Normalisasi nomor (hapus non-digit)
 $senderPhone = preg_replace('/\D/', '', $senderPhone);
+logx("PHONE: {$senderPhone} | NAME: {$senderName} | MESSAGE: " . substr($messageText, 0, 100));
 
-logx("PHONE: {$senderPhone}");
-logx("NAME: {$senderName}");
-logx("MESSAGE: " . substr($messageText, 0, 100));
-
-// Koneksi DB
 require_once $baseDir . '/config.php';
 
-$dbConnected = isset($conn) && $conn instanceof mysqli && !$conn->connect_error;
-logx("DB CONNECTED: " . ($dbConnected ? 'YES' : 'NO'));
+$dbConnected = false;
+if (isset($conn) && $conn instanceof mysqli && !$conn->connect_error) {
+    $dbConnected = true;
+    logx("DB CONNECTED");
+} else {
+    logx("DB NOT CONNECTED");
+}
 
 $savedToDB = false;
 if ($dbConnected) {
     try {
         $stmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, ?)");
         $stmt->bind_param('ssss', $senderPhone, $senderName, $messageText, $timestamp);
-        if ($stmt->execute()) {
-            $savedToDB = true;
-            logx("SAVED TO log_wa");
-        }
+        if ($stmt->execute()) $savedToDB = true;
         $stmt->close();
     } catch (Throwable $e) {
         logx("DB ERROR: " . $e->getMessage());
     }
 }
 
-// Auto-reply
 $autoReplyStatus = 'skipped';
 $engineFile = $baseDir . '/auto_reply_engine.php';
 
-// Pastikan file engine ada
 if (!file_exists($engineFile)) {
-    logx("AUTO REPLY ENGINE FILE NOT FOUND: " . $engineFile);
+    logx("AUTO REPLY ENGINE FILE NOT FOUND: {$engineFile}");
+} elseif (!defined('ONESENDER_API_URL') || !defined('ONESENDER_API_TOKEN')) {
+    logx("ERROR: ONESENDER_API_URL or ONESENDER_API_TOKEN not defined in config.php");
+} elseif (empty(ONESENDER_API_URL) || empty(ONESENDER_API_TOKEN)) {
+    logx("ERROR: ONESENDER_API_URL or ONESENDER_API_TOKEN is empty");
 } else {
-    // Pastikan konstanta API ada di config.php
-    if (!defined('ONESENDER_API_URL') || !defined('ONESENDER_API_TOKEN')) {
-        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN tidak didefinisikan di config.php");
-    } elseif (empty(ONESENDER_API_URL) || empty(ONESENDER_API_TOKEN)) {
-        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN kosong");
-    } else {
-        // Gunakan konstanta langsung (bukan variabel $...)
-        logx("API URL: " . ONESENDER_API_URL);
-        logx("API Token: " . substr(ONESENDER_API_TOKEN, 0, 10) . '...');
-
-        try {
-            require_once $engineFile;
-            // Cek apakah class AutoReplyEngine ada
-            if (!class_exists('AutoReplyEngine')) {
-                throw new Exception("Class AutoReplyEngine tidak ditemukan di {$engineFile}");
-            }
-            $autoReply = new AutoReplyEngine($conn, ONESENDER_API_URL, ONESENDER_API_TOKEN, $baseDir . '/auto_reply_log.txt');
-            $sent = $autoReply->processIncomingMessage($senderPhone, $messageText);
-            $autoReplyStatus = $sent ? 'sent' : 'failed';
-            logx("AUTO REPLY: {$autoReplyStatus}");
-        } catch (Throwable $e) {
-            logx("AUTO REPLY ERROR: " . $e->getMessage());
-            $autoReplyStatus = 'error';
+    logx("API URL: " . ONESENDER_API_URL);
+    logx("API Token: " . substr(ONESENDER_API_TOKEN, 0, 10) . '...');
+    try {
+        require_once $engineFile;
+        if (!class_exists('AutoReplyEngine')) {
+            throw new Exception("Class AutoReplyEngine not found in {$engineFile}");
         }
+        $autoReply = new AutoReplyEngine($conn, ONESENDER_API_URL, ONESENDER_API_TOKEN, $baseDir . '/auto_reply_log.txt');
+        $sent = $autoReply->processIncomingMessage($senderPhone, $messageText);
+        $autoReplyStatus = $sent ? 'sent' : 'failed';
+        logx("AUTO REPLY: {$autoReplyStatus}");
+    } catch (Throwable $e) {
+        logx("AUTO REPLY ERROR: " . $e->getMessage());
+        $autoReplyStatus = 'error';
     }
 }
 
-// Respons
 echo json_encode([
     'status' => 'success',
     'time'   => $timestamp,
