@@ -9,7 +9,6 @@ $pingFile  = $baseDir . '/ping.log';        // Tambah ini
 $debugFile = $baseDir . '/debug.log';       // Tambah ini
 $timestamp = date('Y-m-d H:i:s');
 
-$timestamp = date('Y-m-d H:i:s');
 
 // PING — selalu dijalankan
 file_put_contents($pingFile, "{$timestamp} HIT\n", FILE_APPEND);
