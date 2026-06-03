@@ -16,7 +16,16 @@ file_put_contents($pingFile, "{$timestamp} HIT\n", FILE_APPEND);
 
 // Hanya proses POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    file_put_contents($logFile, "GET REQUEST at {$timestamp}\n", FILE_APPEND);
+    // Tangkap URL persis yang masuk
+    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+    $fullUrl = $protocol . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    
+    // Simpan ke log
+    $logData = "=== GET REQUEST at {$timestamp} ===\n";
+    $logData .= "URL yang dipanggil: {$fullUrl}\n";
+    $logData .= "Parameter GET: " . json_encode($_GET) . "\n\n";
+    
+    file_put_contents($logFile, $logData, FILE_APPEND);
     echo json_encode(['status' => 'ok', 'note' => 'GET ignored']);
     exit;
 }
