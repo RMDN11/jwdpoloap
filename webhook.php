@@ -54,10 +54,10 @@ if (empty($phone) || empty($message)) {
     exit;
 }
 
-// 5. Load Config dari Server (AMAN: Tidak ada hardcoded URL/Token di file ini)
+// 5. Load Config dari Server
 require_once $baseDir . '/config.php';
 
-// Validasi ketat: Jika config tidak ada, stop proses (Aman untuk GitHub public)
+// Validasi ketat config
 if (!isset($apiUrl) || !isset($apiToken) || empty($apiUrl) || empty($apiToken)) {
     logx("ERROR: \$apiUrl atau \$apiToken tidak ditemukan di config.php");
     http_response_code(200);
@@ -65,7 +65,31 @@ if (!isset($apiUrl) || !isset($apiToken) || empty($apiUrl) || empty($apiToken)) 
     exit;
 }
 
-// 6. Proses Auto Reply
+// =====================================================================
+// 6. BERIKAN RESPON HTTP 200 LEBIH DULU (MENCEGAH DEADLOCK)
+// =====================================================================
+$responseJson = json_encode(['status' => 'processing', 'note' => 'auto_reply_queued']);
+
+// Trik PHP untuk menutup koneksi HTTP ke OneSender namun tetap menjalankan script
+ignore_user_abort(true); // Pastikan script tidak berhenti meski koneksi ditutup
+set_time_limit(0);       // Cegah script timeout
+
+ob_start(); // Mulai output buffering
+echo $responseJson;
+header('Connection: close');
+header('Content-Length: ' . ob_get_length());
+ob_end_flush();
+@ob_flush();
+flush();
+
+// Jika server menggunakan PHP-FPM, ini cara paling ampuh untuk menutup koneksi
+if (function_exists('fastcgi_finish_request')) {
+    fastcgi_finish_request();
+}
+
+// =====================================================================
+// 7. SCRIPT DI BAWAH INI SEKARANG BERJALAN DI LATAR BELAKANG (BACKGROUND)
+// =====================================================================
 require_once $baseDir . '/auto_reply_engine.php';
 
 try {
@@ -75,14 +99,6 @@ try {
 
     logx("RESULT: " . ($sent ? "BERHASIL DIKIRIM" : "TIDAK ADA RULE YANG COCOK / GAGAL"));
 
-    http_response_code(200);
-    echo json_encode([
-        'status' => 'success',
-        'auto_reply' => $sent ? 'sent' : 'no_match'
-    ]);
-
 } catch (Exception $e) {
     logx("CRITICAL ERROR: " . $e->getMessage());
-    http_response_code(200);
-    echo json_encode(['status' => 'error', 'note' => 'exception']);
 }
