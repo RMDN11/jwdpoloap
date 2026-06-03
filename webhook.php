@@ -4,9 +4,12 @@ header('Content-Type: application/json');
 
 $logFile = __DIR__ . '/webhook_debug.log';
 
-// 1. TANGKAP MENTAH-MENTAH (GARANSI LOG TERCATAT)
+// TANGKAP SEMUA BUKTI
 $rawInput = file_get_contents('php://input');
-file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] RAW INPUT: " . $rawInput . "\n", FILE_APPEND);
+$method = $_SERVER['REQUEST_METHOD'];
+$postData = json_encode($_POST);
+
+file_put_contents($logFile, "[" . date('Y-m-d H:i:s') . "] METHOD: {$method} | RAW INPUT: '{$rawInput}' | POST: '{$postData}'\n", FILE_APPEND);
 
 // 2. CEK METODE POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
