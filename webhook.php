@@ -4,27 +4,23 @@ date_default_timezone_set('Asia/Jakarta');
 header('Content-Type: application/json');
 
 $baseDir   = __DIR__;
-$logFile   = $baseDir . '/webhook.log';     // Tambah ini
-$pingFile  = $baseDir . '/ping.log';        // Tambah ini  
-$debugFile = $baseDir . '/debug.log';       // Tambah ini
-$timestamp = date('Y-m-d H:i:s');
-
-$timestamp = date('Y-m-d H:i:s');
+$logFile   = $baseDir . '/webhook.log';
+$pingFile  = $baseDir . '/ping.log';
+$debugFile = $baseDir . '/debug.log';
+$timestamp = date('Y-m-d H:i:s'); // Hanya satu kali deklarasi
 
 // PING — selalu dijalankan
 file_put_contents($pingFile, "{$timestamp} HIT\n", FILE_APPEND);
 
 // Hanya proses POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    // Tangkap URL persis yang masuk
     $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
     $fullUrl = $protocol . "://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-    
-    // Simpan ke log
+
     $logData = "=== GET REQUEST at {$timestamp} ===\n";
     $logData .= "URL yang dipanggil: {$fullUrl}\n";
     $logData .= "Parameter GET: " . json_encode($_GET) . "\n\n";
-    
+
     file_put_contents($logFile, $logData, FILE_APPEND);
     echo json_encode(['status' => 'ok', 'note' => 'GET ignored']);
     exit;
@@ -117,18 +113,23 @@ $engineFile = $baseDir . '/auto_reply_engine.php';
 if (!file_exists($engineFile)) {
     logx("AUTO REPLY ENGINE FILE NOT FOUND: " . $engineFile);
 } else {
-    // Pastikan variabel API ada di config.php
+    // Pastikan konstanta API ada di config.php
     if (!defined('ONESENDER_API_URL') || !defined('ONESENDER_API_TOKEN')) {
-        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN tidak ditemukan di config.php");
+        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN tidak didefinisikan di config.php");
     } elseif (empty(ONESENDER_API_URL) || empty(ONESENDER_API_TOKEN)) {
-        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN kosong di config.php");
+        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN kosong");
     } else {
-        logx("API URL: " . $ONESENDER_API_URL);
-        logx("API Token: " . substr($ONESENDER_API_TOKEN, 0, 10) . '...');
+        // Gunakan konstanta langsung (bukan variabel $...)
+        logx("API URL: " . ONESENDER_API_URL);
+        logx("API Token: " . substr(ONESENDER_API_TOKEN, 0, 10) . '...');
 
         try {
             require_once $engineFile;
-			$autoReply = new AutoReplyEngine($conn, ONESENDER_API_URL, ONESENDER_API_TOKEN, $baseDir . '/auto_reply_log.txt');
+            // Cek apakah class AutoReplyEngine ada
+            if (!class_exists('AutoReplyEngine')) {
+                throw new Exception("Class AutoReplyEngine tidak ditemukan di {$engineFile}");
+            }
+            $autoReply = new AutoReplyEngine($conn, ONESENDER_API_URL, ONESENDER_API_TOKEN, $baseDir . '/auto_reply_log.txt');
             $sent = $autoReply->processIncomingMessage($senderPhone, $messageText);
             $autoReplyStatus = $sent ? 'sent' : 'failed';
             logx("AUTO REPLY: {$autoReplyStatus}");
