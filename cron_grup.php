@@ -4,7 +4,7 @@ require_once 'config.php';
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ignore_user_abort(true);
-set_time_limit(0);
+set_time_limit(0); // Meminta server jangan mematikan skrip
 
 $secretToken = "jwd_secure_cron_2026"; 
 if (!isset($_GET['token']) || $_GET['token'] !== $secretToken) {
@@ -18,7 +18,7 @@ $domain = $_SERVER['HTTP_HOST'] ?? 'domain-anda.com';
 $script_path = str_replace(basename($_SERVER['SCRIPT_NAME']), '', $_SERVER['SCRIPT_NAME']);
 $baseUrl = $protocol . $domain . $script_path; 
 
-// AMBIL SEMUA JADWAL YANG STATUS PENDING
+// 1. AMBIL SEMUA JADWAL YANG STATUS PENDING
 $query = "SELECT * FROM jadwal_pesan_grup WHERE status = 'pending'";
 $result = $conn->query($query);
 
@@ -29,29 +29,40 @@ if (!$result) {
 $hariIni = date('N'); // 1 = Senin, 7 = Minggu
 $jamIni = date('H:i');
 $tanggalIni = date('Y-m-d');
+$antreanSiapKirim = [];
 
+// 2. KUMPULKAN JADWAL YANG BENAR-BENAR SIAP DIKIRIM MENIT INI
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
-        
-        // --- LOGIKA FILTER WAKTU ---
         if ($row['tipe_jadwal'] === 'sekali') {
             if (strtotime($row['jadwal_kirim']) > time()) {
                 continue; // Belum waktunya
             }
         } elseif ($row['tipe_jadwal'] === 'harian') {
             $hariRutin = explode(',', $row['hari_rutin']);
-            
-            // Cek apakah hari ini termasuk dalam jadwal dan sudah jamnya, dan belum terkirim hari ini
             if (!in_array($hariIni, $hariRutin)) continue;
             if ($jamIni < substr($row['jam_harian'], 0, 5)) continue;
             if ($row['terakhir_dikirim'] === $tanggalIni) continue;
         }
-        // ---------------------------
+        
+        // Lolos filter waktu, masukkan ke keranjang siap kirim
+        $antreanSiapKirim[] = $row; 
+    }
+}
+
+// 3. PROSES PENGIRIMAN DENGAN BATAS (BATCHING)
+$batasKirimMaksimal = 15; // <-- MAKSIMAL KIRIM 15 GRUP PER MENIT (Sangat Aman)
+$totalDiproses = 0;
+
+if (count($antreanSiapKirim) > 0) {
+    foreach ($antreanSiapKirim as $row) {
+        
+        // Jika sudah mencapai 15 grup di menit ini, HENTIKAN. Sisanya lanjut menit depan.
+        if ($totalDiproses >= $batasKirimMaksimal) {
+            break; 
+        }
 
         if (!empty($row['media_path'])) {
-            // ==========================================
-            // LOGIKA KIRIM GAMBAR (Sama dengan kirimgrup.php)
-            // ==========================================
             $imagePathLocal = __DIR__ . '/' . ltrim($row['media_path'], '/');
             
             if (file_exists($imagePathLocal)) {
@@ -79,29 +90,22 @@ if ($result->num_rows > 0) {
                     CURLOPT_POST => true,
                     CURLOPT_POSTFIELDS => $postData,
                     CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $apiToken],
-                    CURLOPT_TIMEOUT => 30,
+                    CURLOPT_TIMEOUT => 20, // Timeout diturunkan jadi 20 detik agar lebih cepat responsnya
                 ]);
             } else {
-                // Jika file fisik gambar hilang, lewati antrean ini
                 $conn->query("UPDATE jadwal_pesan_grup SET status = 'failed' WHERE id = " . $row['id']);
-                continue;await new Promise(r => setTimeout(r, 300));
+                continue; // Lanjut ke grup berikutnya
             }
 
         } else {
-            // ==========================================
-            // LOGIKA KIRIM TEKS MURNI (Pakai JSON)
-            // ==========================================
             $postData = [
                 "recipient_type" => "group",
                 "to" => $row['id_grup'],
                 "type" => "text",
-                "text" => [
-                    "body" => $row['pesan']
-                ]
+                "text" => ["body" => $row['pesan']]
             ];
             
             $jsonData = json_encode($postData, JSON_UNESCAPED_UNICODE);
-
             $curl = curl_init();
             curl_setopt_array($curl, [
                 CURLOPT_URL => $apiUrl, 
@@ -112,7 +116,7 @@ if ($result->num_rows > 0) {
                     'Authorization: Bearer ' . $apiToken,
                     'Content-Type: application/json'      
                 ],
-                CURLOPT_TIMEOUT => 30,
+                CURLOPT_TIMEOUT => 15,
             ]);
         }
 
@@ -121,21 +125,21 @@ if ($result->num_rows > 0) {
         $httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE); 
         curl_close($curl);
 
-        // UPDATE DATABASE BERDASARKAN TIPE JADWAL
+        // UPDATE STATUS DATABASE
         if ($err || $httpcode >= 400) {
-            // Jika gagal, hentikan statusnya (bisa dimodifikasi jika ingin re-try)
             $conn->query("UPDATE jadwal_pesan_grup SET status = 'failed' WHERE id = " . $row['id']);
         } else {
             if ($row['tipe_jadwal'] === 'harian') {
-                // Untuk harian, tandai sudah terkirim hari ini, biarkan status tetap pending
                 $conn->query("UPDATE jadwal_pesan_grup SET terakhir_dikirim = '{$tanggalIni}' WHERE id = " . $row['id']);
             } else {
-                // Untuk jadwal sekali, set status ke sent
                 $conn->query("UPDATE jadwal_pesan_grup SET status = 'sent', terakhir_dikirim = '{$tanggalIni}' WHERE id = " . $row['id']);
             }
         }
+        
+        $totalDiproses++;
     }
-    echo "Pengiriman antrean selesai diproses.";
+    
+    echo "Pengiriman dicicil: $totalDiproses antrean berhasil diproses di menit ini.";
 } else {
     echo "Tidak ada antrean pesan grup saat ini.";
 }
