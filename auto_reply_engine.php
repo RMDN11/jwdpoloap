@@ -18,14 +18,32 @@ class AutoReplyEngine {
     }
 
     public function processIncomingMessage($phoneNumber, $messageText) {
-        $this->log("Processing message from {$phoneNumber}: {$messageText}");
-        $replyText = $this->getAutoReplyFromDB($messageText);
-        if ($replyText) {
-            return $this->sendReply($phoneNumber, $replyText);
-        }
-        $this->log("No matching rule found for message: {$messageText}");
-        return false;
+    $this->log("Processing message from {$phoneNumber}: {$messageText}");
+    
+    // 1. Ekstrak nama dari pesan user
+    $senderName = $this->extractNameFromMessage($messageText);
+    
+    // 2. Ambil template dari DB
+    $replyText = $this->getAutoReplyFromDB($messageText);
+    
+    if ($replyText) {
+        // 3. Ganti {nama} dengan hasil ekstraksi
+        $finalReply = str_replace('{nama}', $senderName, $replyText);
+        
+        return $this->sendReply($phoneNumber, $finalReply);
     }
+    
+    $this->log("No matching rule found for message: {$messageText}");
+    return false;
+}
+private function extractNameFromMessage($message) {
+    // Regex untuk mencari kata setelah "nama saya" 
+    // Mengasumsikan nama diikuti oleh spasi atau kata selanjutnya (seperti " (Akhwat)")
+    if (preg_match('/nama saya\s+([a-zA-Z\s]+?)(?=\s|\(|\,|$)/i', $message, $matches)) {
+        return trim($matches[1]);
+    }
+    return "Kak"; // Default jika nama tidak ditemukan
+}
     
 
     private function getAutoReplyFromDB($message) {
