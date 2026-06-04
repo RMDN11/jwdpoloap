@@ -46,11 +46,6 @@ $messageText = trim($data['message_text'] ?? '');
 $senderName  = trim($data['from_name'] ?? 'Unknown');
 $isFromMe    = !empty($data['from_me']) || !empty($data['is_from_me']);
 
-if ($isFromMe) {
-    logx("MESSAGE FROM SELF – SKIPPED");
-    echo json_encode(['status' => 'ignored', 'reason' => 'from_self']);
-    exit;
-}
 
 if ($senderPhone === '' || $messageText === '') {
     logx("INVALID PAYLOAD – missing from_phone or message_text");
