@@ -17,19 +17,21 @@ class AutoReplyEngine {
         file_put_contents($this->logFile, "[{$timestamp}] {$msg}\n", FILE_APPEND);
     }
 
-    public function processIncomingMessage($phoneNumber, $messageText) {
-    $this->log("Processing message from {$phoneNumber}: {$messageText}");
+    // Pastikan parameternya menangkap $senderName dari webhook
+public function processIncomingMessage($phoneNumber, $messageText, $senderName = 'Kak') {
+    $this->log("Processing message from {$phoneNumber}: {$messageText} (Name: {$senderName})");
     
-    // 1. Ekstrak nama dari pesan user
-    $senderName = $this->extractNameFromMessage($messageText);
+    // Gunakan senderName dari webhook jika tersedia, 
+    // jika webhook memberikan 'Unknown', baru gunakan hasil Regex Anda
+    $finalSenderName = ($senderName !== 'Unknown' && !empty($senderName)) 
+                        ? $senderName 
+                        : $this->extractNameFromMessage($messageText);
     
-    // 2. Ambil template dari DB
     $replyText = $this->getAutoReplyFromDB($messageText);
     
     if ($replyText) {
-        // 3. Ganti {nama} dengan hasil ekstraksi
-        $finalReply = str_replace('{nama}', $senderName, $replyText);
-        
+        // Ganti {nama} dengan nama yang sudah divalidasi
+        $finalReply = str_replace('{nama}', $finalSenderName, $replyText);
         return $this->sendReply($phoneNumber, $finalReply);
     }
     
