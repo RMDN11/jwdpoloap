@@ -106,7 +106,7 @@ if (!file_exists($engineFile)) {
             throw new Exception("Class AutoReplyEngine not found");
         }
         $autoReply = new AutoReplyEngine($conn, ONESENDER_API_URL, ONESENDER_API_TOKEN, $baseDir . '/auto_reply_log.txt');
-        $sent = $autoReply->processIncomingMessage($senderPhone, $messageText);
+        $sent = $autoReply->processIncomingMessage($senderPhone, $messageText, $senderName);
         $autoReplyStatus = $sent ? 'sent' : 'failed';
         logx("AUTO REPLY: {$autoReplyStatus}");
     } catch (Throwable $e) {
