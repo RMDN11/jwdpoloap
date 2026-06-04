@@ -8,6 +8,7 @@ $logFile   = $baseDir . '/webhook.log';
 $pingFile  = $baseDir . '/ping.log';
 $debugFile = $baseDir . '/debug.log';
 $timestamp = date('Y-m-d H:i:s');
+file_put_contents($baseDir . '/all_requests.log', date('Y-m-d H:i:s') . ' ' . $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI'] . ' ' . json_encode($_SERVER['HTTP_USER_AGENT'] ?? '') . "\n", FILE_APPEND);
 
 // PING setiap hit
 file_put_contents($pingFile, "{$timestamp} {$_SERVER['REQUEST_METHOD']} {$_SERVER['REQUEST_URI']}\n", FILE_APPEND);
