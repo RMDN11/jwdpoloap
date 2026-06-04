@@ -1,21 +1,29 @@
 <?php
-
 date_default_timezone_set('Asia/Jakarta');
 header('Content-Type: application/json');
 
 $baseDir   = __DIR__;
-$logFile   = $baseDir . '/webhook.log';     // Tambah ini
-$pingFile  = $baseDir . '/ping.log';        // Tambah ini  
-$debugFile = $baseDir . '/debug.log';       // Tambah ini
+$logFile   = $baseDir . '/webhook.log';     
+$debugFile = $baseDir . '/debug_super.log'; // File baru untuk menangkap semua bukti
 $timestamp = date('Y-m-d H:i:s');
 
-$timestamp = date('Y-m-d H:i:s');
+// 1. TANGKAP SEMUA DATA YANG MASUK APA PUN METODENYA
+$method = $_SERVER['REQUEST_METHOD'];
+$rawInput = file_get_contents('php://input');
+$getParams = json_encode($_GET);
+$postParams = json_encode($_POST);
 
-// PING — selalu dijalankan
-file_put_contents($pingFile, "{$timestamp} HIT\n", FILE_APPEND);
+$debugMsg = "=== REQUEST MASUK at {$timestamp} ===\n";
+$debugMsg .= "METHOD : {$method}\n";
+$debugMsg .= "GET    : {$getParams}\n";
+$debugMsg .= "POST   : {$postParams}\n";
+$debugMsg .= "BODY   : {$rawInput}\n";
+$debugMsg .= "======================================\n\n";
 
-// Hanya proses POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+file_put_contents($debugFile, $debugMsg, FILE_APPEND);
+
+// 2. CEK POST ATAU GET
+if ($method !== 'POST') {
     file_put_contents($logFile, "GET REQUEST at {$timestamp}\n", FILE_APPEND);
     echo json_encode(['status' => 'ok', 'note' => 'GET ignored']);
     exit;
@@ -27,6 +35,7 @@ function logx($msg) {
 }
 
 logx("=== WEBHOOK CALLED (POST) at {$timestamp} ===");
+// ... (Lanjutkan sisa kode webhook.php kamu yang lama ke bawah mulai dari "Baca raw input")
 
 // Baca raw input
 $rawInput = file_get_contents('php://input');
