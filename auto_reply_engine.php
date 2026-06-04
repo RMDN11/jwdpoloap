@@ -17,19 +17,17 @@ class AutoReplyEngine {
         file_put_contents($this->logFile, "[{$timestamp}] {$msg}\n", FILE_APPEND);
     }
 
-    public function processIncomingMessage($phoneNumber, $messageText, $senderName) {
-    $this->log("Processing message from {$phoneNumber}: {$messageText}");
-    $replyText = $this->getAutoReplyFromDB($messageText);
-    
-    if ($replyText) {
-        $finalReply = str_replace('{nama}', $senderName, $replyText);
-        return $this->sendReply($phoneNumber, $finalReply);
+    public function processIncomingMessage($phoneNumber, $messageText) {
+        $this->log("Processing message from {$phoneNumber}: {$messageText}");
+        $replyText = $this->getAutoReplyFromDB($messageText);
+        if ($replyText) {
+            return $this->sendReply($phoneNumber, $replyText);
+        }
+        $this->log("No matching rule found for message: {$messageText}");
+        return false;
     }
     
-    $this->log("No matching rule found for message: {$messageText}");
-    return false;
-}
-    
+
     private function getAutoReplyFromDB($message) {
         if (!$this->db || !($this->db instanceof mysqli) || $this->db->connect_error) {
             $this->log("Database not available");
