@@ -7,322 +7,148 @@ class AutoReplyEngine
     private $apiToken;
     private $logFile;
 
-    public function __construct($conn, $apiUrl, $apiToken, $logFile)
+    // Konstruktor disesuaikan dengan kebutuhan manage_auto_reply.php dan webhook.php
+    public function __construct($conn, $apiUrl, $apiToken, $logFile = null)
     {
         $this->conn     = $conn;
-        $this->apiUrl   = trim($apiUrl);
+        $this->apiUrl   = rtrim(trim($apiUrl), '/');
         $this->apiToken = $apiToken;
         $this->logFile  = $logFile;
     }
 
-    public function processIncomingMessage($contactId, $message)
+    /**
+     * Memproses pesan masuk dari Webhook (Sesuai Ilustrasi Panah No 2 & 3)
+     */
+    public function processIncomingMessage($contactPhone, $messageText)
     {
-        $this->logToFile("=== START AUTO-REPLY ===");
-        $this->logToFile("Contact: {$contactId}, Message: " . substr($message, 0, 100));
+        // 1. Validasi Input Dasar (Gaya Skrip 1)
+        $phone = $this->normalizePhone($contactPhone);
+        $message = trim(strtolower($messageText));
 
-        try {
-            if (empty($contactId) || empty($message)) {
-                $this->logToFile("Auto-reply skipped: empty contact or message");
-                return false;
-            }
-
-            $phone = $this->normalizePhoneNumber($contactId);
-            $message = trim($message);
-
-            $this->logToFile("Normalized phone: {$phone}");
-
-            // Cek koneksi DB
-            if (!$this->isDbConnected()) {
-                $this->logToFile("DB Connection failed, skipping auto-reply");
-                return false;
-            }
-
-            if ($this->isContactBlocked($phone)) {
-                $this->logToFile("Auto-reply skipped: contact is blocked");
-                $this->logAutoReply($phone, $message, null, 'blocked', null);
-                return false;
-            }
-
-            if ($this->isContactRegistered($phone)) {
-                $this->logToFile("Auto-reply: contact is already registered, but still send reply if rule matches");
-                // JANGAN return false - tetap proses auto-reply untuk user registered
-            }
-
-            $rule = $this->findMatchingRule($message);
-            if (!$rule) {
-                $this->logToFile("Auto-reply skipped: no matching rule found");
-                $this->logAutoReply($phone, $message, null, 'no_rule', null);
-                return false;
-            }
-
-            $this->logToFile("Rule found: ID={$rule['id']}, Keyword={$rule['keyword']}, Reply=" . substr($rule['reply'], 0, 50));
-
-            $replyText = trim($rule['reply'] ?? '');
-            if ($replyText === '') {
-                $this->logToFile("Auto-reply skipped: empty reply (rule ID {$rule['id']})");
-                $this->logAutoReply($phone, $message, null, 'empty_reply', $rule['id']);
-                return false;
-            }
-
-            // ==========================================================
-            // FITUR MAGIC: REPLACE [NAMA] DENGAN NAMA USER
-            // ==========================================================
-            $namaUser = ''; // Dikosongkan, jika nama gagal terdeteksi
-            
-            // Deteksi teks di antara "nama saya *" dan "("
-            if (preg_match('/nama saya\s+\*?([^\*\(]+)\*?\s*\(/i', $message, $matches)) {
-                $namaUser = trim($matches[1]);
-            }
-            
-            // Ganti tulisan [NAMA] di template dengan nama aslinya
-            $replyText = str_replace(['[NAMA]', '[nama]', '[Nama]', '{nama}', '{NAMA}', '{Nama}'], $namaUser, $replyText);
-            
-            // Merapikan spasi ganda (misal "kak  !" jadi "kak !") jika nama kosong
-            $replyText = str_replace('  ', ' ', $replyText);
-            // ==========================================================
-
-            $sent = $this->sendViaOneSender($phone, $replyText);
-            $status = $sent ? 'sent' : 'failed';
-
-            $this->logAutoReply($phone, $message, $replyText, $status, (int)($rule['id'] ?? 0));
-            $this->logToFile("Auto-reply {$status} (rule ID {$rule['id']})");
-
-            return $sent;
-        } catch (Throwable $e) {
-            $this->logToFile("ERROR: " . $e->getMessage());
-            $this->logToFile("FILE: " . $e->getFile() . " LINE: " . $e->getLine());
+        if (empty($phone) || empty($message)) {
+            $this->log("Diabaikan: Nomor atau pesan kosong.");
             return false;
         }
+
+        // 2. Pencocokan Trigger dari Database
+        $matchedReply = $this->matchTriggerFromDB($message);
+
+        if ($matchedReply === null) {
+            $this->log("Diabaikan: Tidak ada keyword yang cocok untuk '{$message}'.");
+            return false;
+        }
+
+        // 3. Kirim Balasan ke OneSender (Sesuai Ilustrasi Panah No 3)
+        $sent = $this->sendText($phone, $matchedReply);
+        
+        $this->log("Auto-reply ke {$phone} " . ($sent ? "BERHASIL" : "GAGAL"));
+        return $sent;
     }
 
+    /**
+     * Fitur Test Message dari Dashboard (Dipanggil oleh manage_auto_reply.php)
+     */
     public function sendTestMessage($phone, $text)
     {
-        $this->logToFile("=== TEST MESSAGE ===");
-        $phone = $this->normalizePhoneNumber($phone);
-        $this->logToFile("Sending test to: {$phone}");
-        return $this->sendViaOneSender($phone, $text);
+        $phone = $this->normalizePhone($phone);
+        return $this->sendText($phone, $text);
     }
 
-    private function isDbConnected()
+    /**
+     * Pencocokan Keyword (Trigger) dengan Data di MySQL
+     */
+    private function matchTriggerFromDB(string $message): ?string
     {
-        return isset($this->conn) && 
-               $this->conn instanceof mysqli && 
-               !$this->conn->connect_error &&
-               $this->conn->ping();
-    }
-
-    private function normalizePhoneNumber($phone)
-    {
-        $phone = preg_replace('/\D/', '', $phone);
-        if (substr($phone, 0, 2) === '08') {
-            $phone = '62' . substr($phone, 1);
-        } elseif (substr($phone, 0, 1) === '0') {
-            $phone = '62' . substr($phone, 1);
-        } elseif (substr($phone, 0, 3) === '620') {
-            $phone = '62' . substr($phone, 3);
-        } elseif (substr($phone, 0, 2) !== '62') {
-            $phone = '62' . $phone;
-        }
-        return $phone;
-    }
-
-    private function findMatchingRule($message)
-    {
-        if (!$this->isDbConnected()) {
-            $this->logToFile("DB Connection failed in findMatchingRule()");
+        if (!$this->conn || $this->conn->connect_error) {
+            $this->log("Error: Database tidak terkoneksi.");
             return null;
         }
 
-        $sql = "SELECT * FROM auto_reply_rules WHERE is_active = 1 ORDER BY priority DESC, id DESC";
+        // Ambil rules yang aktif, urutkan berdasarkan prioritas
+        $sql = "SELECT keyword, reply FROM auto_reply_rules WHERE is_active = 1 ORDER BY priority DESC, id DESC";
         $res = $this->conn->query($sql);
         
-        if (!$res) {
-            $this->logToFile("DB Query Error: " . $this->conn->error);
-            return null;
-        }
-
-        if ($res->num_rows === 0) {
-            $this->logToFile("No active rules found in database");
-            return null;
-        }
-
-        $message = strtolower($message);
-        $this->logToFile("Searching for keyword in message: '{$message}'");
+        if (!$res || $res->num_rows === 0) return null;
 
         while ($row = $res->fetch_assoc()) {
-            $keywords = explode('|', $row['keyword'] ?? '');
+            // Pecah keyword jika menggunakan tanda '|' (Contoh: harga|biaya)
+            $keywords = explode('|', strtolower($row['keyword']));
             
             foreach ($keywords as $kw) {
-                $kw = trim(strtolower($kw));
+                $kw = trim($kw);
+                // Jika keyword ada di dalam pesan (Contains Match)
                 if ($kw !== '' && strpos($message, $kw) !== false) {
-                    $this->logToFile("✓ Keyword match found: '{$kw}' in rule ID {$row['id']}");
-                    return $row;
+                    return $row['reply'];
                 }
             }
         }
         
-        $this->logToFile("✗ No matching keyword found");
-        return null;
+        return null; // Tidak ada yang cocok
     }
 
-    private function sendViaOneSender($phone, $text)
+    /**
+     * Eksekusi Pengiriman Pesan ke API OneSender (Mengadopsi kebersihan cURL Skrip 1)
+     */
+    private function sendText(string $to, string $message): bool
     {
         $payload = json_encode([
-            "recipient_type" => "individual",
-            "to" => $phone,
-            "type" => "text",
-            "text" => [
-                "body" => $text
+            'recipient_type' => 'individual',
+            'to'             => $to,
+            'type'           => 'text',
+            'text'           => [
+                'body' => $message
             ]
         ], JSON_UNESCAPED_UNICODE);
 
-        $this->logToFile("Sending to API: {$this->apiUrl}");
-        $this->logToFile("Payload: " . $payload);
-
-        $ch = curl_init($this->apiUrl);
+        $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_POST           => true,
+            CURLOPT_URL            => $this->apiUrl,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER     => [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $this->apiToken
-            ],
+            CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $payload,
-            CURLOPT_TIMEOUT        => 30,
-            CURLOPT_SSL_VERIFYPEER => false,  // Untuk development
-            CURLOPT_SSL_VERIFYHOST => 0,       // Untuk development
-            CURLOPT_FAILONERROR    => false,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_USERAGENT      => 'AutoReplyEngine/1.0',
-            CURLOPT_HEADER         => true,
+            CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $this->apiToken,
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($payload)
+            ],
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_TIMEOUT        => 15 // Dipercepat agar webhook tidak timeout
         ]);
 
         $response = curl_exec($ch);
-        
-        $curlErrNo = curl_errno($ch);
-        $curlError = curl_error($ch);
-        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err      = curl_error($ch);
         curl_close($ch);
 
-        if ($curlErrNo !== 0) {
-            $this->logToFile("❌ cURL Error ({$curlErrNo}): {$curlError}");
+        if ($err || ($httpCode !== 200 && $httpCode !== 201)) {
+            $this->log("API Error: HTTP {$httpCode} - {$err} - {$response}");
             return false;
         }
 
-        $header = substr($response, 0, $headerSize);
-        $body = substr($response, $headerSize);
-
-        $this->logToFile("HTTP Code: {$httpCode}");
-        $this->logToFile("Response Body: " . substr($body, 0, 500));
-
-        if ($httpCode !== 200 && $httpCode !== 201) {
-            $errorMsg = 'Unknown error';
-            $responseData = json_decode($body, true);
-            if ($responseData) {
-                $errorMsg = $responseData['message'] ?? 
-                           $responseData['error'] ?? 
-                           $responseData['description'] ?? 
-                           json_encode($responseData);
-            }
-            $this->logToFile("❌ OneSender API Error ({$httpCode}): {$errorMsg}");
-            return false;
-        }
-
-        $data = json_decode($body, true);
-        if ($data === null && $body !== '') {
-            $this->logToFile("❌ OneSender API returned invalid JSON");
-            return false;
-        }
-
-        $this->logToFile("✅ OneSender API Success");
         return true;
     }
 
-    private function isContactBlocked($phone)
+    /**
+     * Normalisasi nomor telepon ke format internasional (62)
+     */
+    private function normalizePhone($phone)
     {
-        if (!$this->isDbConnected()) {
-            $this->logToFile("DB Connection failed in isContactBlocked()");
-            return false;
+        $phone = preg_replace('/\D/', '', $phone);
+        if (str_starts_with($phone, '0')) {
+            $phone = '62' . substr($phone, 1);
         }
-
-        $stmt = $this->conn->prepare("SELECT 1 FROM blocked_peserta WHERE nowa = ? LIMIT 1");
-        if (!$stmt) {
-            $this->logToFile("DB Prepare Error (blocked): " . $this->conn->error);
-            return false;
-        }
-        
-        $stmt->bind_param("s", $phone);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $isBlocked = $result->num_rows > 0;
-        $stmt->close();
-        
-        return $isBlocked;
+        return $phone;
     }
 
-    private function isContactRegistered($phone)
+    /**
+     * Fungsi Log sederhana
+     */
+    private function log($msg)
     {
-        if (!$this->isDbConnected()) {
-            $this->logToFile("DB Connection failed in isContactRegistered()");
-            return false;
+        if ($this->logFile) {
+            $timestamp = date('Y-m-d H:i:s');
+            file_put_contents($this->logFile, "[{$timestamp}] {$msg}\n", FILE_APPEND);
         }
-
-        $stmt = $this->conn->prepare("
-            SELECT 1 FROM peserta WHERE nowa = ?
-            UNION
-            SELECT 1 FROM calon_peserta WHERE nowa = ?
-            LIMIT 1
-        ");
-        
-        if (!$stmt) {
-            $this->logToFile("DB Prepare Error (registered): " . $this->conn->error);
-            return false;
-        }
-        
-        $stmt->bind_param("ss", $phone, $phone);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $isRegistered = $result->num_rows > 0;
-        $stmt->close();
-        
-        return $isRegistered;
-    }
-
-    private function logAutoReply($contact, $incoming, $reply, $status, $ruleId)
-    {
-        if (!$this->isDbConnected()) {
-            $this->logToFile("DB Connection failed in logAutoReply()");
-            return;
-        }
-
-        $stmt = $this->conn->prepare("
-            INSERT INTO auto_reply_logs (contact_id, incoming_message, reply_message, status, rule_id, created_at)
-            VALUES (?, ?, ?, ?, ?, NOW())
-        ");
-        
-        if (!$stmt) {
-            $this->logToFile("DB Prepare Error (log): " . $this->conn->error);
-            return;
-        }
-        
-        $status = $status ?: 'unknown';
-        $ruleId = $ruleId ?: 0;
-        
-        $stmt->bind_param("ssssi", $contact, $incoming, $reply, $status, $ruleId);
-        $stmt->execute();
-        
-        if ($stmt->error) {
-            $this->logToFile("DB Log Error: " . $stmt->error);
-        }
-        
-        $stmt->close();
-    }
-
-    private function logToFile($msg)
-    {
-        $timestamp = date('Y-m-d H:i:s');
-        $logMsg = "[{$timestamp}] {$msg}" . PHP_EOL;
-        file_put_contents($this->logFile, $logMsg, FILE_APPEND);
     }
 }
