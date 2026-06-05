@@ -15,11 +15,11 @@ class AutoReplyEngine
         $this->logFile  = $logFile;
     }
 
-    public function processIncomingMessage($contactId, $message, $userName = 'Kak')
+    public function processIncomingMessage($contactId, $message)
     {
         $this->logToFile("=== START AUTO-REPLY ===");
         $this->logToFile("Contact: {$contactId}, Message: " . substr($message, 0, 100));
-        $replyText = str_ireplace(['[nama]', '{nama}'], $userName, $replyText);
+
         try {
             if (empty($contactId) || empty($message)) {
                 $this->logToFile("Auto-reply skipped: empty contact or message");
