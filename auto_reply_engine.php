@@ -62,7 +62,10 @@ class AutoReplyEngine
                 $this->logToFile("Auto-reply skipped: empty reply (rule ID {$rule['id']})");
                 $this->logAutoReply($phone, $message, null, 'empty_reply', $rule['id']);
                 return false;
+                $replyText = str_ireplace(['{nama}', '[nama]'], $userName, $replyText);
+                $sent = $this->sendViaOneSender($phone, $replyText);
             }
+            
 
             $sent = $this->sendViaOneSender($phone, $replyText);
             $status = $sent ? 'sent' : 'failed';

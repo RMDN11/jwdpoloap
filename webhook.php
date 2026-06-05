@@ -61,7 +61,10 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 $senderPhone = $data['sender_phone'] ?? $data['phone'] ?? $data['from'] ?? '';
 $messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';
 $senderName  = $data['from_name'] ?? $data['pushName'] ?? $data['name'] ?? 'Unknown';
-
+$extractedName = $senderName; // Default ke nama dari WA
+if (preg_match('/nama saya\s+([a-zA-Z\s]+?)(?:\s+|$)/i', $messageText, $matches)) {
+    $extractedName = trim($matches[1]);
+}
 $senderPhone = trim($senderPhone);
 $messageText = trim($messageText);
 
