@@ -4,6 +4,8 @@ date_default_timezone_set('Asia/Jakarta');
 header('Content-Type: application/json');
 
 $baseDir   = __DIR__;
+$allRequestLog = $baseDir . '/all_requests.log';
+
 $logFile   = $baseDir . '/webhook.log';     // Tambah ini
 $pingFile  = $baseDir . '/ping.log';        // Tambah ini  
 $debugFile = $baseDir . '/debug.log';       // Tambah ini
