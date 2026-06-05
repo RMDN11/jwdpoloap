@@ -61,17 +61,11 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 $senderPhone = $data['sender_phone'] ?? $data['phone'] ?? $data['from'] ?? '';
 $messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';
 $senderName  = $data['from_name'] ?? $data['pushName'] ?? $data['name'] ?? 'Unknown';
-$isFromMe    = !empty($data['is_from_me']) && $data['is_from_me'] === true;
 
 $senderPhone = trim($senderPhone);
 $messageText = trim($messageText);
 
-// Abaikan pesan jika dikirim oleh sistem kita sendiri
-if ($isFromMe) {
-    logx("PESAN DARI DIRI SENDIRI (is_from_me) — Dibatalkan");
-    echo json_encode(['status' => 'ignored', 'reason' => 'from_self']);
-    exit;
-}
+
 
 // Validasi jika Nomor WA atau Pesan ternyata kosong
 if ($senderPhone === '' || $messageText === '') {
