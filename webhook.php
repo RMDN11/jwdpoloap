@@ -5,94 +5,85 @@ header('Content-Type: application/json');
 
 $baseDir   = __DIR__;
 $allRequestLog = $baseDir . '/all_requests.log';
+$logFile   = $baseDir . '/webhook.log';
+$pingFile  = $baseDir . '/ping.log';
+$debugFile = $baseDir . '/debug.log';
+$timestamp = date('Y-m-d H:i:s');
 
-$logEntry = "=== " . date('Y-m-d H:i:s') . " ===\n";
+// 1. Catat semua HTTP Request mentah
+$logEntry = "=== {$timestamp} ===\n";
 $logEntry .= "Method: " . $_SERVER['REQUEST_METHOD'] . "\n";
 $logEntry .= "IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown') . "\n";
-$logEntry .= "User-Agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown') . "\n";
 $logEntry .= "Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'none') . "\n";
-$logEntry .= "Raw Input: " . file_get_contents('php://input') . "\n";
-$logEntry .= "Headers: " . json_encode(getallheaders()) . "\n\n";
-
+$logEntry .= "Raw Input: " . file_get_contents('php://input') . "\n\n";
 file_put_contents($allRequestLog, $logEntry, FILE_APPEND);
 
+// 2. Fungsi pembantu untuk log eksekusi internal
+function logx($msg) {
+    global $logFile;
+    file_put_contents($logFile, "[" . date('H:i:s') . "] " . $msg . "\n", FILE_APPEND);
+}
 
-$logFile   = $baseDir . '/webhook.log';     // Tambah ini
-$pingFile  = $baseDir . '/ping.log';        // Tambah ini  
-$debugFile = $baseDir . '/debug.log';       // Tambah ini
-$timestamp = date('Y-m-d H:i:s');
-
-$timestamp = date('Y-m-d H:i:s');
-
-// PING — selalu dijalankan
-file_put_contents($pingFile, "{$timestamp} HIT\n", FILE_APPEND);
-
-// Hanya proses POST
+// 3. Hanya memproses metode POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    file_put_contents($logFile, "GET REQUEST at {$timestamp}\n", FILE_APPEND);
+    file_put_contents($pingFile, "{$timestamp} HIT (GET)\n", FILE_APPEND);
     echo json_encode(['status' => 'ok', 'note' => 'GET ignored']);
     exit;
 }
 
-function logx($msg) {
-    global $logFile;
-    file_put_contents($logFile, $msg . "\n", FILE_APPEND);
-}
+logx("=== WEBHOOK CALLED (POST) ===");
 
-logx("=== WEBHOOK CALLED (POST) at {$timestamp} ===");
-
-// Baca raw input
+// 4. Baca Raw Input JSON
 $rawInput = file_get_contents('php://input');
-$inputLen = strlen($rawInput);
-
-logx("RAW INPUT LENGTH: {$inputLen}");
-
-if ($inputLen === 0) {
-    logx("EMPTY BODY");
+if (empty($rawInput)) {
+    logx("EMPTY BODY - Dibatalkan");
     echo json_encode(['status' => 'ignored', 'reason' => 'empty_body']);
     exit;
 }
 
-// Simpan debug
+// Simpan Raw Data untuk keperluan Debug
 file_put_contents($debugFile, "[$timestamp]\n{$rawInput}\n\n", FILE_APPEND);
 
-// Parse JSON
 $data = json_decode($rawInput, true);
-
 if (json_last_error() !== JSON_ERROR_NONE) {
     logx("JSON ERROR: " . json_last_error_msg());
     echo json_encode(['status' => 'ignored', 'reason' => 'invalid_json']);
     exit;
 }
 
-// === EKSTRAK DATA SESUAI DOKUMENTASI ONESENDER ===
-$senderPhone = trim($data['sender_phone'] ?? '');
-$messageText = trim($data['message_text'] ?? '');
-$senderName  = trim($data['from_name'] ?? 'Unknown');
+// 5. EKSTRAKSI DATA (Lebih tangguh menggunakan Fallback)
+// Jika parameter 'sender_phone' tidak ada, otomatis cari parameter 'phone' atau 'from'
+$senderPhone = $data['sender_phone'] ?? $data['phone'] ?? $data['from'] ?? '';
+$messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';
+$senderName  = $data['from_name'] ?? $data['pushName'] ?? $data['name'] ?? 'Unknown';
 $isFromMe    = !empty($data['is_from_me']) && $data['is_from_me'] === true;
 
-// Abaikan pesan dari diri sendiri
+$senderPhone = trim($senderPhone);
+$messageText = trim($messageText);
+
+// Abaikan pesan jika dikirim oleh sistem kita sendiri
 if ($isFromMe) {
-    logx("MESSAGE FROM SELF — SKIPPED");
+    logx("PESAN DARI DIRI SENDIRI (is_from_me) — Dibatalkan");
     echo json_encode(['status' => 'ignored', 'reason' => 'from_self']);
     exit;
 }
 
-// Validasi minimal
+// Validasi jika Nomor WA atau Pesan ternyata kosong
 if ($senderPhone === '' || $messageText === '') {
-    logx("INVALID PAYLOAD — sender_phone or message_text missing");
+    logx("INVALID PAYLOAD — Nomor atau pesan tidak ditemukan dari Webhook.");
+    logx("-> Terdeteksi: Phone='$senderPhone', Msg='$messageText'");
     echo json_encode(['status' => 'ignored', 'reason' => 'invalid_payload']);
     exit;
 }
 
-// Normalisasi nomor (hapus non-digit)
+// Normalisasi nomor HP (Hanya menyisakan angka)
 $senderPhone = preg_replace('/\D/', '', $senderPhone);
 
 logx("PHONE: {$senderPhone}");
 logx("NAME: {$senderName}");
-logx("MESSAGE: " . substr($messageText, 0, 100));
+logx("MESSAGE: " . substr($messageText, 0, 50) . "...");
 
-// Koneksi DB
+// 6. SIMPAN KE DATABASE (Tabel log_wa)
 require_once $baseDir . '/config.php';
 
 $dbConnected = isset($conn) && $conn instanceof mysqli && !$conn->connect_error;
@@ -103,39 +94,41 @@ if ($dbConnected) {
     try {
         $stmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, ?)");
         $stmt->bind_param('ssss', $senderPhone, $senderName, $messageText, $timestamp);
+        
         if ($stmt->execute()) {
             $savedToDB = true;
-            logx("SAVED TO log_wa");
+            logx("✅ BERHASIL SIMPAN KE TABEL log_wa");
+        } else {
+            // Jika gagal insert, catat pesan error aslinya dari MySQL
+            logx("❌ GAGAL SIMPAN DB (SQL Error): " . $stmt->error);
         }
         $stmt->close();
     } catch (Throwable $e) {
-        logx("DB ERROR: " . $e->getMessage());
+        logx("❌ GAGAL SIMPAN DB (Exception): " . $e->getMessage());
     }
 }
 
-// Auto-reply
+// 7. AUTO-REPLY ENGINE
 $autoReplyStatus = 'skipped';
 $engineFile = $baseDir . '/auto_reply_engine.php';
 
-// Pastikan file engine ada
 if (!file_exists($engineFile)) {
-    logx("AUTO REPLY ENGINE FILE NOT FOUND: " . $engineFile);
+    logx("AUTO REPLY ENGINE FILE NOT FOUND");
 } else {
-    // Pastikan variabel API ada di config.php
-    if (!defined('ONESENDER_API_URL') || !defined('ONESENDER_API_TOKEN')) {
-        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN tidak ditemukan di config.php");
-    } elseif (empty(ONESENDER_API_URL) || empty(ONESENDER_API_TOKEN)) {
-        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN kosong di config.php");
-    } else {
-        logx("API URL: " . $ONESENDER_API_URL);
-        logx("API Token: " . substr($ONESENDER_API_TOKEN, 0, 10) . '...');
+    // Membaca token dari config.php (Otomatis mendeteksi bentuk Define atau Variabel)
+    $apiUrl   = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : ($ONESENDER_API_URL ?? null);
+    $apiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : ($ONESENDER_API_TOKEN ?? null);
 
+    if (empty($apiUrl) || empty($apiToken)) {
+        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN tidak disetting di config.php");
+    } else {
+        logx("Menjalankan Auto Reply ke URL: " . $apiUrl);
         try {
             require_once $engineFile;
-			$autoReply = new AutoReplyEngine($conn, ONESENDER_API_URL, ONESENDER_API_TOKEN, $baseDir . '/auto_reply_log.txt');
+            $autoReply = new AutoReplyEngine($conn, $apiUrl, $apiToken, $baseDir . '/auto_reply_log.txt');
             $sent = $autoReply->processIncomingMessage($senderPhone, $messageText);
             $autoReplyStatus = $sent ? 'sent' : 'failed';
-            logx("AUTO REPLY: {$autoReplyStatus}");
+            logx("AUTO REPLY STATUS: {$autoReplyStatus}");
         } catch (Throwable $e) {
             logx("AUTO REPLY ERROR: " . $e->getMessage());
             $autoReplyStatus = 'error';
@@ -143,7 +136,7 @@ if (!file_exists($engineFile)) {
     }
 }
 
-// Respons
+// 8. RESPONSE AKHIR KE ONESENDER
 echo json_encode([
     'status' => 'success',
     'time'   => $timestamp,
