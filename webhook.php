@@ -6,6 +6,17 @@ header('Content-Type: application/json');
 $baseDir   = __DIR__;
 $allRequestLog = $baseDir . '/all_requests.log';
 
+$logEntry = "=== " . date('Y-m-d H:i:s') . " ===\n";
+$logEntry .= "Method: " . $_SERVER['REQUEST_METHOD'] . "\n";
+$logEntry .= "IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown') . "\n";
+$logEntry .= "User-Agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown') . "\n";
+$logEntry .= "Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'none') . "\n";
+$logEntry .= "Raw Input: " . file_get_contents('php://input') . "\n";
+$logEntry .= "Headers: " . json_encode(getallheaders()) . "\n\n";
+
+file_put_contents($allRequestLog, $logEntry, FILE_APPEND);
+
+
 $logFile   = $baseDir . '/webhook.log';     // Tambah ini
 $pingFile  = $baseDir . '/ping.log';        // Tambah ini  
 $debugFile = $baseDir . '/debug.log';       // Tambah ini
