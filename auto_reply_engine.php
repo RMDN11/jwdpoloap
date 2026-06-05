@@ -78,39 +78,6 @@ class AutoReplyEngine
         }
     }
 
-    /**
- * Fungsi untuk mengganti placeholder di dalam template
- */
-private function parseTemplate($content, $phone, $nama)
-{
-    $placeholders = [
-        '{nama}'   => $nama,
-        '{nomor}'  => $phone
-    ];
-    
-    return strtr($content, $placeholders);
-}
-
-/**
- * Fungsi tambahan untuk mendapatkan nama peserta berdasarkan nomor HP
- */
-private function getNamaByPhone($phone)
-{
-    // Sesuaikan query dengan struktur tabel database Anda
-    $stmt = $this->conn->prepare("
-        SELECT nama FROM peserta WHERE nowa = ? 
-        UNION 
-        SELECT nama FROM calon_peserta WHERE nowa = ? 
-        LIMIT 1
-    ");
-    $stmt->bind_param("ss", $phone, $phone);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $row = $result->fetch_assoc();
-    
-    return $row ? $row['nama'] : 'Kak'; // Default jika nama tidak ditemukan
-}
-
     public function sendTestMessage($phone, $text)
     {
         $this->logToFile("=== TEST MESSAGE ===");
