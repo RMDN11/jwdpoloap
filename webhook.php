@@ -24,10 +24,15 @@ function logx($msg) {
     file_put_contents($logFile, "[" . date('H:i:s') . "] " . $msg . "\n", FILE_APPEND);
 }
 
-// 3. Hanya memproses metode POST
+// 3. HANYA MEMPROSES METHOD POST (selain POST ditolak)
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    file_put_contents($pingFile, "{$timestamp} HIT (GET)\n", FILE_APPEND);
-    echo json_encode(['status' => 'ok', 'note' => 'GET ignored']);
+    file_put_contents($pingFile, "{$timestamp} HIT (" . $_SERVER['REQUEST_METHOD'] . ") - REJECTED\n", FILE_APPEND);
+    http_response_code(405); // Method Not Allowed
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Method not allowed. Only POST is accepted.',
+        'allowed_method' => 'POST'
+    ]);
     exit;
 }
 
