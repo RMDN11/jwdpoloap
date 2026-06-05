@@ -838,4 +838,3 @@ ob_start();
     </script>
 <?php
 $pageContent = ob_get_clean();
-require __DIR__ . '/layouts/app.php';
