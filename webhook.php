@@ -61,7 +61,6 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 $senderPhone = $data['sender_phone'] ?? $data['phone'] ?? $data['from'] ?? '';
 $messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';
 $senderName  = $data['from_name'] ?? $data['pushName'] ?? $data['name'] ?? 'Unknown';
-$extractedName = $senderName; // Default ke nama dari WA
 
 $senderPhone = trim($senderPhone);
 $messageText = trim($messageText);
@@ -115,21 +114,18 @@ $engineFile = $baseDir . '/auto_reply_engine.php';
 if (!file_exists($engineFile)) {
     logx("AUTO REPLY ENGINE FILE NOT FOUND");
 } else {
+    // Membaca token dari config.php (Otomatis mendeteksi bentuk Define atau Variabel)
+    $apiUrl   = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : ($ONESENDER_API_URL ?? null);
+    $apiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : ($ONESENDER_API_TOKEN ?? null);
+
+    if (empty($apiUrl) || empty($apiToken)) {
+        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN tidak disetting di config.php");
+    } else {
         logx("Menjalankan Auto Reply ke URL: " . $apiUrl);
         try {
             require_once $engineFile;
             $autoReply = new AutoReplyEngine($conn, $apiUrl, $apiToken, $baseDir . '/auto_reply_log.txt');
-            
-            // 1. Ekstraksi Nama
-            $targetName = $senderName; // Default
-            if (preg_match('/nama saya\s+([a-zA-Z\s]+?)(?:\s+|$)/i', $messageText, $matches)) {
-                $targetName = trim($matches[1]);
-            }
-            
-            // 2. Kirim ke Engine dengan membawa $targetName
-            // Pastikan Anda juga sudah update method di AutoReplyEngine untuk menerima parameter ini
-            $sent = $autoReply->processIncomingMessage($senderPhone, $messageText, $targetName);
-            
+            $sent = $autoReply->processIncomingMessage($senderPhone, $messageText);
             $autoReplyStatus = $sent ? 'sent' : 'failed';
             logx("AUTO REPLY STATUS: {$autoReplyStatus}");
         } catch (Throwable $e) {
@@ -137,6 +133,7 @@ if (!file_exists($engineFile)) {
             $autoReplyStatus = 'error';
         }
     }
+}
 
 // 8. RESPONSE AKHIR KE ONESENDER
 echo json_encode([
