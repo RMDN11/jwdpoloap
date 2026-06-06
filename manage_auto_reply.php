@@ -8,14 +8,13 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 // ================================
-// CONFIG API
+// CONFIG API (Mengambil dari config.php)
 // ================================
-$apiUrl   = $apiUrl   ?? "https://wa51024.oneapi.my.id/api/v1/messages";
-$apiToken = $apiToken ?? "u282a4673e74d4d1.b1025f245adf4371b4f7a220f30e3708";
+$apiUrl   = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : "URL_DEFAULT_ANDA";
+$apiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : "TOKEN_DEFAULT_ANDA";
 $logFile  = __DIR__ . '/auto_reply_log.txt';
 
 $autoReply = new AutoReplyEngine($conn, $apiUrl, $apiToken, $logFile);
-
 // ================================
 // HANDLE POST
 // ================================
