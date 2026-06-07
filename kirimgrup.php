@@ -219,13 +219,19 @@ $jadwalQuery = "
         j.jam_harian, 
         j.hari_rutin, 
         j.media_path,
-        GROUP_CONCAT(COALESCE(w.nama_grup, j.id_grup) SEPARATOR ', ') as daftar_grup,
-        GROUP_CONCAT(j.id SEPARATOR ',') as id_jadwal_list,
-        COUNT(j.id) as total_grup
+        GROUP_CONCAT(DISTINCT COALESCE(w.nama_grup, j.id_grup) ORDER BY COALESCE(w.nama_grup, j.id_grup) SEPARATOR ', ') as daftar_grup,
+        GROUP_CONCAT(DISTINCT j.id SEPARATOR ',') as id_jadwal_list,
+        COUNT(DISTINCT j.id_grup) as total_grup
     FROM jadwal_pesan_grup j 
     LEFT JOIN wa_grup w ON j.id_grup = w.id_grup 
     WHERE j.status = 'pending' 
-    GROUP BY j.pesan, j.tipe_jadwal, j.jadwal_kirim, j.jam_harian, j.hari_rutin, j.media_path 
+    GROUP BY 
+        j.pesan, 
+        COALESCE(j.jadwal_kirim, ''), 
+        COALESCE(j.jam_harian, ''), 
+        COALESCE(j.hari_rutin, ''), 
+        j.tipe_jadwal, 
+        COALESCE(j.media_path, '')
     ORDER BY MAX(j.id) DESC
 ";
 $jadwalResult = $conn->query($jadwalQuery);
