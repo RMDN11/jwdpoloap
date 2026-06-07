@@ -850,7 +850,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     updatePreview();
 });
- </script> <script>
+</script> <script>
         // Menyembunyikan header asli jika halaman ini dibuka di dalam iframe dashboard
         if (window.self !== window.top) {
             const headerElement = document.querySelector('header');
