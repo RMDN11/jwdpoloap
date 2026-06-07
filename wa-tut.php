@@ -1,18 +1,44 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// wa-tut.php
 
-require_once 'auth_checkwa.php';
+// 1. Aktifkan penanganan error agar tidak muncul Error 500 yang kosong
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// 2. Pastikan file konfigurasi ada sebelum di-load
+if (!file_exists('config.php')) {
+    die("Error: File config.php tidak ditemukan.");
+}
 require_once 'config.php';
-// Tambahkan pengecekan koneksi database di sini
-if (!isset($conn) || !$conn instanceof mysqli || $conn->connect_error) {
-    die("<h1>Error Koneksi Database</h1><p>Koneksi ke database gagal. Periksa apakah variabel \$conn di config.php sudah benar.</p>");
+
+// 3. Verifikasi koneksi sebelum menjalankan query
+// Kita cek variabel $conn yang didefinisikan di config.php
+if (!isset($conn) || $conn->connect_errno) {
+    die("Error: Koneksi database gagal: " . ($conn->connect_error ?? "Variabel \$conn tidak ada"));
 }
 
-// Tambahkan juga pengecekan untuk PDO jika Anda menggunakannya
-if (!isset($pdo)) {
-    die("<h1>Error Koneksi PDO</h1><p>Objek \$pdo tidak ditemukan.</p>");
+// 4. Pastikan session dimulai (jika diperlukan untuk auth)
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+try {
+    // [MASUKKAN LOGIKA KODE ANDA DI SINI]
+    // Contoh query yang aman:
+    $sql = "SELECT * FROM ..."; // Sesuaikan query Anda
+    $result = $conn->query($sql);
+    
+    if (!$result) {
+        throw new Exception("Query gagal: " . $conn->error);
+    }
+
+    // ... sisa kode aplikasi Anda ...
+
+} catch (Exception $e) {
+    // Jika ada error, catat di log dan tampilkan pesan yang informatif
+    error_log("WA-TUT Error: " . $e->getMessage());
+    echo "Terjadi kesalahan sistem: " . $e->getMessage();
+    exit();
 }
 
 // ==================================================================
