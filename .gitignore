@@ -1,10 +1,1 @@
-# Kredensial
-config.php
-config.yaml
-
-# Logs
-*.log
-*.txt
-
-# Media & Uploads
-uploads/
+Nothing should be ignored based on the provided file changes. The only modified file is `cron_grup.php`, which is a source code file and should not be added to .gitignore.
