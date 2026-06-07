@@ -1,9 +1,19 @@
 <?php
-ini_set('display_errors', 1);
+// wa-tut.php
 error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Cek keberadaan file sebelum di-require
+if (!file_exists('auth_checkwa.php')) die("File auth_checkwa.php tidak ditemukan!");
+if (!file_exists('config.php')) die("File config.php tidak ditemukan!");
+
 require_once 'auth_checkwa.php';
 require_once 'config.php';
 
+// Pastikan variabel $conn tersedia dari config.php
+if (!isset($conn) || $conn->connect_error) {
+    die("Koneksi Database Gagal: " . ($conn->connect_error ?? "Variabel \$conn tidak terdefinisi"));
+}
 // ==================================================================
 // FUNGSI UTAMA KIRIM WA
 // ==================================================================
