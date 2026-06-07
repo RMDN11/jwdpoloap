@@ -198,36 +198,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_history'])) {
     header("Location: " . $_SERVER['PHP_SELF']); exit;
 }
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['batalkan_jadwal'])) {
-    $idJadwal = (int)$_POST['id_jadwal']; // single ID sekarang
-    if ($idJadwal > 0) {
-        $conn->query("DELETE FROM jadwal_pesan_grup WHERE id = $idJadwal");
-        $_SESSION['notification'] = "Jadwal berhasil dibatalkan.";
-        $_SESSION['notification_type'] = 'success';
-    } else {
-        $_SESSION['notification'] = "ID jadwal tidak valid.";
-        $_SESSION['notification_type'] = 'error';
+    $idJadwalList = $_POST['id_jadwal']; // misal "12,13,14"
+    $ids = array_map('intval', explode(',', $idJadwalList));
+    $idsString = implode(',', $ids);
+    if (!empty($idsString)) {
+        $conn->query("DELETE FROM jadwal_pesan_grup WHERE id IN ($idsString)");
     }
+    $_SESSION['notification'] = "Semua jadwal dalam kelompok ini berhasil dibatalkan.";
+    $_SESSION['notification_type'] = 'success';
     header("Location: " . $_SERVER['PHP_SELF']); exit;
 }
 
-// AMBIL DATA JADWAL BERJALAN (TANPA GROUPING, 1 ROW PER JADWAL)
+// AMBIL DATA JADWAL BERJALAN (DIKELOMPOKKAN PER PESAN/JADWAL)
 $jadwalBerjalan = [];
 $jadwalQuery = "
     SELECT 
-        j.id,
-        j.id_grup,
-        COALESCE(w.nama_grup, j.id_grup) as nama_grup,
-        j.pesan,
-        j.tipe_jadwal,
-        j.jadwal_kirim,
-        j.jam_harian,
-        j.hari_rutin,
+        j.pesan, 
+        j.tipe_jadwal, 
+        j.jadwal_kirim, 
+        j.jam_harian, 
+        j.hari_rutin, 
         j.media_path,
-        j.status
+        GROUP_CONCAT(COALESCE(w.nama_grup, j.id_grup) SEPARATOR ', ') as daftar_grup,
+        GROUP_CONCAT(j.id SEPARATOR ',') as id_jadwal_list,
+        COUNT(j.id) as total_grup
     FROM jadwal_pesan_grup j 
     LEFT JOIN wa_grup w ON j.id_grup = w.id_grup 
     WHERE j.status = 'pending' 
-    ORDER BY j.id DESC
+    GROUP BY j.pesan, j.tipe_jadwal, j.jadwal_kirim, j.jam_harian, j.hari_rutin, j.media_path 
+    ORDER BY MAX(j.id) DESC
 ";
 $jadwalResult = $conn->query($jadwalQuery);
 if ($jadwalResult) { $jadwalBerjalan = $jadwalResult->fetch_all(MYSQLI_ASSOC); }
@@ -540,14 +539,14 @@ function formatHariRutin($hariString) {
             </div>
         </div>
 
-        <!-- TABEL JADWAL SEDANG BERJALAN - SATU PER BARIS (TIDAK GROUPING) DILETAKKAN DI BAWAH PREVIEW DAN RIWAYAT -->
+        <!-- TABEL JADWAL SEDANG BERJALAN (DIKELOMPOKKAN PER PESAN, DENGAN TOMBOL HAPUS SEMUA JADWAL DALAM SATU KELOMPOK) -->
         <div class="mt-8 bg-white shadow-md rounded-2xl p-6 border border-gray-100">
             <h2 class="text-lg font-semibold mb-4 flex items-center text-gray-800"><i class="fas fa-calendar-alt text-xl mr-2 text-blue-500"></i> Jadwal Sedang Berjalan</h2>
             <div class="overflow-x-auto">
                 <table class="min-w-full bg-white border border-gray-200 rounded-lg">
                     <thead class="bg-gray-100 text-gray-600 text-xs uppercase text-left">
                         <tr>
-                            <th class="py-3 px-4 border-b">Grup Tujuan</th>
+                            <th class="py-3 px-4 border-b">Grup Target</th>
                             <th class="py-3 px-4 border-b">Pesan</th>
                             <th class="py-3 px-4 border-b">Tipe Jadwal</th>
                             <th class="py-3 px-4 border-b">Waktu Kirim</th>
@@ -558,7 +557,12 @@ function formatHariRutin($hariString) {
                         <?php if(!empty($jadwalBerjalan)): ?>
                             <?php foreach($jadwalBerjalan as $j): ?>
                             <tr class="hover:bg-gray-50">
-                                <td class="py-3 px-4 border-b font-medium text-gray-800"><?= htmlspecialchars($j['nama_grup']) ?></td>
+                                <td class="py-3 px-4 border-b">
+                                    <span class="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-xs"><?= $j['total_grup'] ?> Grup Target</span><br>
+                                    <span class="text-xs text-gray-500 truncate block max-w-xs mt-1" title="<?= htmlspecialchars($j['daftar_grup']) ?>">
+                                        <?= htmlspecialchars($j['daftar_grup']) ?>
+                                    </span>
+                                 </td>
                                 <td class="py-3 px-4 border-b max-w-xs truncate" title="<?= htmlspecialchars($j['pesan']) ?>">
                                     <?php if(!empty($j['media_path'])): ?>
                                         <i class="fas fa-image text-blue-400 mr-1" title="Terdapat gambar"></i>
@@ -581,10 +585,10 @@ function formatHariRutin($hariString) {
                                     <?php endif; ?>
                                  </td>
                                 <td class="py-3 px-4 border-b text-center">
-                                    <form method="POST" onsubmit="return confirm('Batalkan jadwal untuk grup <?= htmlspecialchars($j['nama_grup']) ?>?');">
-                                        <input type="hidden" name="id_jadwal" value="<?= $j['id'] ?>">
+                                    <form method="POST" onsubmit="return confirm('Batalkan SEMUA jadwal untuk kelompok ini (<?= $j['total_grup'] ?> grup)?');">
+                                        <input type="hidden" name="id_jadwal" value="<?= $j['id_jadwal_list'] ?>">
                                         <button type="submit" name="batalkan_jadwal" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 text-xs font-bold transition flex items-center justify-center mx-auto">
-                                            <i class="fas fa-times mr-1"></i> Batalkan
+                                            <i class="fas fa-trash-alt mr-1"></i> Hapus Semua
                                         </button>
                                     </form>
                                  </td>
