@@ -3,12 +3,14 @@ session_start();
 
 // Cek apakah user sudah login
 if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
-    header("Location: loginwa.php");
+    // MENGHINDARI LOGIN DI DALAM IFRAME: Paksa seluruh halaman utama kembali ke login
+    echo "<script>window.top.location.href = 'loginwa.php';</script>";
     exit();
 }
 
 // Security headers for mobile
-header("X-Frame-Options: DENY");
+// UBAH 'DENY' MENJADI 'SAMEORIGIN' AGAR BISA DIMUAT DI IFRAME DASHBOARD (Domain yang sama)
+header("X-Frame-Options: SAMEORIGIN");
 header("X-Content-Type-Options: nosniff");
 
 // Optional: Tambahan security check
