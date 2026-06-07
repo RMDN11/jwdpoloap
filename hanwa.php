@@ -2,12 +2,12 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>WA Reqra | Dashboard Modern</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>ReqraWA | Dashboard</title>
     
-    <!-- Favicon LOGOJWD.png -->
+    <!-- Favicon (gunakan icon whatsapp jika ada, opsional) -->
     <link rel="icon" type="image/png" href="LOGOJWD.png">
-
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 6 -->
@@ -26,7 +26,6 @@
                     },
                     animation: {
                         'fade-in-up': 'fadeInUp 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) forwards',
-                        'spin-slow': 'spin 1.2s linear infinite',
                     },
                     keyframes: {
                         fadeInUp: {
@@ -40,45 +39,42 @@
     </script>
 
     <style>
-        /* custom scrollbar */
+        /* clean white background */
         body {
-            background: linear-gradient(135deg, #f1f5f9 0%, #e9eef3 100%);
+            background: #ffffff;
             overflow: hidden;
             font-family: 'Inter', system-ui, sans-serif;
         }
 
+        /* custom scrollbar ringan */
         .nav-menu::-webkit-scrollbar { width: 5px; }
-        .nav-menu::-webkit-scrollbar-track { background: #eef2f6; border-radius: 10px; }
+        .nav-menu::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
         .nav-menu::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .nav-menu::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        /* Style menu navigasi - TANPA BORDER, menggunakan box berwarna saat aktif */
+        
+        /* Style menu navigasi - tanpa border, box berwarna saat aktif */
         .nav-link {
-            position: relative;
             transition: all 0.2s ease;
             border-radius: 14px;
         }
         
-        /* Aktif: background solid berwarna + bayangan halus, tanpa border */
+        /* Aktif: background hijau lembut (seperti whatsapp light) tanpa border */
         .nav-link.active {
-            background: #e0f2fe !important;   /* warna biru lembut (sky-100) */
-            color: #0f172a !important;
+            background: #dcfce7 !important;  /* hijau very soft */
+            color: #166534 !important;
             font-weight: 600;
-            box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.05), 0 2px 2px -1px rgba(0, 0, 0, 0.02);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
         }
         
         .nav-link.active .icon-wrapper {
-            color: #0284c7 !important;  /* biru lebih tegas */
-            filter: drop-shadow(0 1px 1px rgba(2,132,199,0.2));
+            color: #059669 !important;
         }
         
-        /* Hover tanpa border */
         .nav-link:not(.active):hover {
             background-color: #f8fafc;
             transform: translateX(3px);
         }
 
-        /* iframe transitions */
+        /* iframe transitions smooth */
         .iframe-hidden {
             opacity: 0;
             transform: translateY(18px) scale(0.99);
@@ -90,25 +86,25 @@
             transition: opacity 0.45s ease-out, transform 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.1);
         }
 
-        /* loading overlay modern */
+        /* loading overlay clean */
         #loading-overlay {
-            backdrop-filter: blur(12px);
-            background-color: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            background-color: rgba(255, 255, 255, 0.85);
             transition: opacity 0.35s ease, visibility 0.35s;
         }
         .loader-spin {
             animation: spinModern 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
         }
         @keyframes spinModern {
-            0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
 
-        /* Sidebar mobile */
+        /* Sidebar mobile - clean white */
         .sidebar {
             transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
             z-index: 60;
-            box-shadow: 0 25px 40px -12px rgba(0, 0, 0, 0.08);
+            background: white;
+            box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.05);
         }
         @media (max-width: 768px) {
             .sidebar {
@@ -118,95 +114,85 @@
                 left: 0;
                 height: 100%;
                 width: 280px;
-                border-radius: 0 28px 28px 0;
+                border-radius: 0 24px 24px 0;
             }
             .sidebar.show {
                 transform: translateX(0);
             }
-            body::after {
+            body.sidebar-open::after {
                 content: '';
                 position: fixed;
                 inset: 0;
-                background: rgba(0,0,0,0.2);
-                backdrop-filter: blur(3px);
+                background: rgba(0,0,0,0.15);
+                backdrop-filter: blur(2px);
                 z-index: 45;
-                opacity: 0;
-                visibility: hidden;
-                transition: 0.3s;
-                pointer-events: none;
-            }
-            body.sidebar-open::after {
-                opacity: 1;
-                visibility: visible;
                 pointer-events: auto;
             }
         }
-
-        /* efek tambahan modern */
-        .glass-card {
-            background: rgba(255,255,255,0.85);
-            backdrop-filter: blur(4px);
-        }
-        .header-icon-glow {
-            transition: all 0.2s;
+        
+        /* clean card styles */
+        .clean-card {
+            background: white;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.03);
         }
     </style>
 </head>
-<body class="flex p-4 md:p-5 gap-5 h-screen w-screen text-gray-700">
+<body class="flex p-4 md:p-5 gap-5 h-screen w-screen">
 
     <!-- Overlay mobile -->
-    <div id="mobile-overlay" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-45 opacity-0 invisible transition-all duration-300 pointer-events-none md:hidden"></div>
+    <div id="mobile-overlay" class="fixed inset-0 bg-black/10 backdrop-blur-sm z-45 opacity-0 invisible transition-all duration-300 pointer-events-none md:hidden"></div>
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar bg-white/90 backdrop-blur-sm md:backdrop-blur-none md:bg-white w-72 rounded-3xl md:rounded-2xl flex flex-col h-full md:relative md:translate-x-0 shadow-xl" id="sidebar">
+    <!-- SIDEBAR dengan logo WhatsApp style & teks hijau -->
+    <aside class="sidebar w-72 rounded-3xl md:rounded-2xl flex flex-col h-full md:relative md:translate-x-0 shadow-md" id="sidebar">
         
-        <div class="px-6 pt-6 pb-5 mb-1 flex justify-between items-center border-b border-gray-100/80">
+        <div class="px-6 pt-6 pb-5 mb-1 flex justify-between items-center border-b border-gray-100">
             <div class="flex items-center gap-3">
-    <div class="w-9 h-9 rounded-xl bg-[#25D366] flex items-center justify-center shadow-sm">
-        <i class="fab fa-whatsapp text-white text-xl"></i>
-    </div>
-    <div>
-        <h2 class="font-display font-extrabold tracking-tight text-lg leading-tight">
-            <span class="text-gray-800">Reqra</span><span class="text-[#25D366]">WA</span>
-        </h2>
-        <p class="text-[11px] font-medium text-gray-400 -mt-0.5">Smart Messaging</p>
-    </div>
-</div>
+                <!-- Logo style WhatsApp: lingkaran hijau dengan ikon WA -->
+                <div class="w-9 h-9 rounded-xl bg-[#25D366] flex items-center justify-center shadow-sm">
+                    <i class="fab fa-whatsapp text-white text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="font-display font-extrabold tracking-tight text-lg leading-tight">
+                        <span class="text-gray-800">Reqra</span><span class="text-[#25D366]">WA</span>
+                    </h2>
+                    <p class="text-[11px] font-medium text-gray-400 -mt-0.5">Smart Messaging</p>
+                </div>
+            </div>
             <button class="md:hidden text-gray-400 hover:text-gray-700 text-xl bg-gray-50 w-8 h-8 rounded-full transition" id="close-sidebar"><i class="fas fa-times text-sm"></i></button>
         </div>
         
         <nav class="nav-menu flex flex-col gap-1.5 px-4 py-5 overflow-y-auto flex-1">
-            <a href="kirimgrup.php" target="main-frame" class="nav-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200 group"
-               data-title="Kirim Pesan Grup" data-subtitle="Promosi & broadcast ke grup WhatsApp" data-icon="fa-users" data-iconbg="bg-blue-100" data-icontext="text-blue-600">
-                <div class="icon-wrapper w-6 text-center transition"><i class="fas fa-users text-lg"></i></div>
+            <a href="kirimgrup.php" target="main-frame" class="nav-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
+               data-title="Kirim Pesan Grup" data-subtitle="Promosi & broadcast ke grup WhatsApp" data-icon="fa-users" data-iconbg="bg-green-100" data-icontext="text-green-700">
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-users text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Kirim Grup</span>
             </a>
             
-            <a href="reminder.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200 group"
+            <a href="reminder.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Reminder Pembayaran" data-subtitle="Jadwalkan & kelola pengingat otomatis" data-icon="fa-bell" data-iconbg="bg-amber-100" data-icontext="text-amber-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-bell text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Reminder</span>
             </a>
             
-            <a href="wa-tut.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200 group"
+            <a href="wa-tut.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Tutor WhatsApp" data-subtitle="Manajemen materi & tutorial WA" data-icon="fa-chalkboard-user" data-iconbg="bg-purple-100" data-icontext="text-purple-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-chalkboard-user text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">WA Tutor</span>
             </a>
             
-            <a href="promosi.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200 group"
+            <a href="promosi.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Promosi Broadcast" data-subtitle="Kirim promosi massal via WhatsApp" data-icon="fa-bullhorn" data-iconbg="bg-green-100" data-icontext="text-green-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-bullhorn text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Promosi</span>
             </a>
             
-            <a href="kelola_grup.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200 group"
+            <a href="kelola_grup.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Manajemen Grup" data-subtitle="Tambah, edit & hapus daftar grup target" data-icon="fa-address-book" data-iconbg="bg-indigo-100" data-icontext="text-indigo-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-address-book text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Kelola Grup</span>
             </a>
 
-            <a href="manage_auto_reply.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200 group"
+            <a href="manage_auto_reply.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Auto Reply" data-subtitle="Balasan otomatis cerdas" data-icon="fa-reply-all" data-iconbg="bg-rose-100" data-icontext="text-rose-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-reply-all text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Auto Reply</span>
@@ -214,55 +200,55 @@
         </nav>
 
         <div class="px-4 pb-6 mt-3 border-t border-gray-100 pt-4">
-            <a href="logoutwa.php" target="_top" class="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 font-medium group">
-                <i class="fas fa-sign-out-alt w-5 text-center text-red-400 group-hover:text-red-600"></i> 
+            <a href="logoutwa.php" target="_top" class="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 font-medium">
+                <i class="fas fa-sign-out-alt w-5 text-center text-red-400"></i> 
                 <span class="text-sm font-semibold">Keluar Akun</span>
             </a>
         </div>
     </aside>
 
-    <!-- MAIN WORKSPACE -->
+    <!-- MAIN WORKSPACE clean white -->
     <main class="flex-1 flex flex-col gap-5 min-w-0 relative">
         
-        <header class="bg-white/70 backdrop-blur-md md:backdrop-blur-none md:bg-white rounded-2xl md:rounded-3xl px-6 py-4 flex justify-between items-center shadow-sm border border-white/40 md:border-none">
+        <header class="bg-white rounded-2xl md:rounded-3xl px-6 py-4 flex justify-between items-center shadow-sm border border-gray-100">
             <div class="flex items-center space-x-4">
-                <button class="md:hidden text-gray-500 hover:text-blue-600 text-xl bg-gray-100 w-9 h-9 rounded-full flex items-center justify-center transition" id="menu-toggle"><i class="fas fa-bars"></i></button>
+                <button class="md:hidden text-gray-500 hover:text-[#25D366] text-xl bg-gray-100 w-9 h-9 rounded-full flex items-center justify-center transition" id="menu-toggle"><i class="fas fa-bars"></i></button>
                 
-                <div id="header-icon-box" class="bg-blue-100 p-3 rounded-2xl transition-all duration-300 flex items-center justify-center shadow-inner">
-                    <i id="header-icon" class="fas fa-users text-blue-600 text-xl transition-all duration-300"></i>
+                <div id="header-icon-box" class="bg-green-100 p-3 rounded-2xl transition-all duration-300 flex items-center justify-center shadow-sm">
+                    <i id="header-icon" class="fas fa-users text-green-700 text-xl transition-all duration-300"></i>
                 </div>
                 
                 <div id="text-container" class="animate-fade-in-up">
                     <h1 id="page-title" class="font-display text-xl font-extrabold text-gray-800 tracking-tight leading-tight">Kirim Pesan Grup</h1>
                     <div class="flex items-center gap-1.5 mt-0.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#25D366]"></span>
                         <p id="page-subtitle" class="text-xs font-medium text-gray-500">Promosi & broadcast ke grup WhatsApp</p>
                     </div>
                 </div>
             </div>
             
-            <div class="hidden sm:flex items-center gap-3 bg-gradient-to-r from-slate-50 to-white px-4 py-2 rounded-full shadow-sm border border-gray-100">
-                <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-sm">
-                    <i class="fas fa-user-shield text-xs"></i>
+            <div class="hidden sm:flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full shadow-sm">
+                <div class="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center text-white shadow-sm">
+                    <i class="fas fa-user-check text-xs"></i>
                 </div>
-                <span class="text-sm font-semibold text-gray-700">Admin <span class="font-normal text-gray-400">|</span> <span class="text-blue-600">Panel</span></span>
+                <span class="text-sm font-semibold text-gray-700">Admin <span class="font-normal text-gray-400">|</span> <span class="text-[#25D366]">Panel</span></span>
             </div>
         </header>
 
-        <!-- KONTEN IFRAME -->
-        <div class="flex-1 bg-white/90 backdrop-blur-sm md:backdrop-blur-none md:bg-white rounded-2xl md:rounded-3xl overflow-hidden shadow-xl border border-gray-100/60 relative iframe-wrapper">
+        <!-- KONTEN IFRAME white clean -->
+        <div class="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-hidden shadow-sm border border-gray-100 relative">
             
-            <div id="loading-overlay" class="absolute inset-0 z-20 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center gap-3">
+            <div id="loading-overlay" class="absolute inset-0 z-20 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
                 <div class="relative">
-                    <i class="fas fa-circle-notch text-5xl text-blue-500 loader-spin"></i>
+                    <i class="fab fa-whatsapp text-4xl text-[#25D366] loader-spin"></i>
                     <div class="absolute inset-0 flex items-center justify-center">
-                        <i class="fas fa-comment-dots text-blue-300 text-sm animate-pulse"></i>
+                        <i class="fas fa-circle-notch text-green-300 text-sm animate-pulse"></i>
                     </div>
                 </div>
-                <p class="text-sm font-bold text-gray-600 tracking-wider bg-white/60 px-4 py-1.5 rounded-full shadow-sm">Memuat konten...</p>
+                <p class="text-sm font-bold text-gray-500 tracking-wide bg-white px-4 py-1.5 rounded-full shadow-sm">Memuat konten...</p>
             </div>
 
-            <iframe src="kirimgrup.php" name="main-frame" id="main-frame" class="w-full h-full border-none bg-gray-50 iframe-hidden" title="Dashboard WhatsApp"></iframe>
+            <iframe src="kirimgrup.php" name="main-frame" id="main-frame" class="w-full h-full border-none bg-white iframe-hidden" title="Dashboard ReqraWA"></iframe>
         </div>
     </main>
 
@@ -291,7 +277,7 @@
                 return localStorage.getItem('wa_dashboard_active_menu');
             }
 
-            // Update tampilan header & class active (tanpa border)
+            // Update tampilan header & active class (tanpa border, box berwarna)
             function applyActiveState(linkElement) {
                 if (!linkElement) return;
                 navLinks.forEach(link => link.classList.remove('active'));
@@ -300,13 +286,13 @@
                 const title = linkElement.dataset.title || "Dashboard";
                 const subtitle = linkElement.dataset.subtitle || "";
                 const icon = linkElement.dataset.icon || "fa-users";
-                const iconBg = linkElement.dataset.iconbg || "bg-blue-100";
-                const iconText = linkElement.dataset.icontext || "text-blue-600";
+                const iconBg = linkElement.dataset.iconbg || "bg-green-100";
+                const iconText = linkElement.dataset.icontext || "text-green-700";
                 
                 pageTitle.textContent = title;
                 pageSubtitle.textContent = subtitle;
                 headerIcon.className = `fas ${icon} ${iconText} text-xl transition-all duration-300`;
-                headerIconBox.className = `${iconBg} p-3 rounded-2xl transition-all duration-300 flex items-center justify-center shadow-inner`;
+                headerIconBox.className = `${iconBg} p-3 rounded-2xl transition-all duration-300 flex items-center justify-center shadow-sm`;
                 
                 if (textContainer) {
                     textContainer.classList.remove('animate-fade-in-up');
@@ -422,7 +408,7 @@
                 }
             }
             
-            // Sidebar mobile
+            // Sidebar mobile handler
             function toggleSidebar(show) {
                 if (show) {
                     sidebar.classList.add('show');
