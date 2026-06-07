@@ -5,7 +5,15 @@ error_reporting(E_ALL);
 
 require_once 'auth_checkwa.php';
 require_once 'config.php';
+// Tambahkan pengecekan koneksi database di sini
+if (!isset($conn) || !$conn instanceof mysqli || $conn->connect_error) {
+    die("<h1>Error Koneksi Database</h1><p>Koneksi ke database gagal. Periksa apakah variabel \$conn di config.php sudah benar.</p>");
+}
 
+// Tambahkan juga pengecekan untuk PDO jika Anda menggunakannya
+if (!isset($pdo)) {
+    die("<h1>Error Koneksi PDO</h1><p>Objek \$pdo tidak ditemukan.</p>");
+}
 
 // ==================================================================
 // FUNGSI UTAMA KIRIM WA
