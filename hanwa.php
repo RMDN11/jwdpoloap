@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WA System Dashboard</title>
+    <title>WA Reqra Dashboard</title>
     
     <link rel="icon" type="image/png" href="LOGOJWD.png">
 
@@ -67,7 +67,7 @@
         <div class="px-6 pb-6 mb-2 flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <img src="LOGOJWD.png" alt="Logo" class="w-8 h-8 object-contain">
-                <h2 class="font-extrabold tracking-wide text-gray-800 text-lg m-0">WA SYSTEM</h2>
+                <h2 class="font-extrabold tracking-wide text-gray-800 text-lg m-0">WhatsApp Reqra</h2>
             </div>
             <button class="md:hidden text-gray-400 hover:text-gray-700 text-xl" id="close-sidebar"><i class="fas fa-times"></i></button>
         </div>
