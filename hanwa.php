@@ -162,14 +162,16 @@
         
         <div class="px-6 pt-6 pb-5 mb-1 flex justify-between items-center border-b border-gray-100/80">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-                    <img src="LOGOJWD.png" alt="Logo" class="w-6 h-6 object-contain filter brightness-0 invert">
-                </div>
-                <div>
-                    <h2 class="font-display font-extrabold tracking-tight text-gray-800 text-lg leading-tight">Reqra<span class="text-blue-600">WA</span></h2>
-                    <p class="text-[11px] font-medium text-gray-400 -mt-0.5">Smart Messaging</p>
-                </div>
-            </div>
+    <div class="w-9 h-9 rounded-xl bg-[#25D366] flex items-center justify-center shadow-sm">
+        <i class="fab fa-whatsapp text-white text-xl"></i>
+    </div>
+    <div>
+        <h2 class="font-display font-extrabold tracking-tight text-lg leading-tight">
+            <span class="text-gray-800">Reqra</span><span class="text-[#25D366]">WA</span>
+        </h2>
+        <p class="text-[11px] font-medium text-gray-400 -mt-0.5">Smart Messaging</p>
+    </div>
+</div>
             <button class="md:hidden text-gray-400 hover:text-gray-700 text-xl bg-gray-50 w-8 h-8 rounded-full transition" id="close-sidebar"><i class="fas fa-times text-sm"></i></button>
         </div>
         
