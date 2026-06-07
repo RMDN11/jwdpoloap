@@ -1429,6 +1429,17 @@ $templatePesanDefault = "";
                 'halaqoh-checkbox'
             );
         });
-    </script>
+    <script>
+    // Menyembunyikan header asli jika halaman ini dibuka di dalam iframe dashboard
+    if (window.self !== window.top) {
+        const headerElement = document.querySelector('header');
+        if (headerElement) {
+            headerElement.style.display = 'none';
+        }
+        
+        // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
+        document.body.style.backgroundColor = "transparent";
+    }
+</script>
 </body>
 </html>
