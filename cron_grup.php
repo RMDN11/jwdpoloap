@@ -6,10 +6,24 @@ ini_set('display_errors', 1);
 ignore_user_abort(true);
 set_time_limit(0);
 
+// LOG FILE UNTUK DEBUG
+$logFile = __DIR__ . '/cron_debug.log';
+function writeLog($message) {
+    global $logFile;
+    $timestamp = date('Y-m-d H:i:s');
+    $logEntry = "[$timestamp] $message\n";
+    file_put_contents($logFile, $logEntry, FILE_APPEND);
+}
+
+writeLog("=== CRON DIMULAI ===");
+
 $secretToken = "jwd_secure_cron_2026"; 
 if (!isset($_GET['token']) || $_GET['token'] !== $secretToken) {
+    writeLog("ERROR: Akses Ditolak - Token tidak valid atau tidak dikirim");
     die("Akses Ditolak.");
 }
+
+writeLog("Token valid - melanjutkan proses");
 
 date_default_timezone_set('Asia/Jakarta');
 
@@ -19,9 +33,14 @@ $script_path = str_replace(basename($_SERVER['SCRIPT_NAME']), '', $_SERVER['SCRI
 $baseUrl = $protocol . $domain . $script_path; 
 
 // AMBIL JADWAL PENDING
+writeLog("Mengecek jadwal_pesan_grup dengan status pending");
 $query = "SELECT * FROM jadwal_pesan_grup WHERE status = 'pending'";
 $result = $conn->query($query);
-if (!$result) die("Error Database.");
+if (!$result) {
+    writeLog("ERROR: Query database gagal - " . $conn->error);
+    die("Error Database.");
+}
+writeLog("Ditemukan " . $result->num_rows . " jadwal pending");
 
 $hariIni = date('N'); 
 $jamIni = date('H:i');
@@ -29,18 +48,36 @@ $tanggalIni = date('Y-m-d');
 $totalDiproses = 0;
 $batasMaksimal = 15; 
 
+writeLog("Waktu eksekusi: Hari=$hariIni, Jam=$jamIni, Tanggal=$tanggalIni"); 
+
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         if ($totalDiproses >= $batasMaksimal) break; 
         
+        writeLog("Memproses ID jadwal: " . $row['id'] . ", Tipe: " . $row['tipe_jadwal'] . ", Grup: " . $row['id_grup']);
+        
         // FILTER WAKTU
-        if ($row['tipe_jadwal'] === 'sekali' && strtotime($row['jadwal_kirim']) > time()) continue;
+        if ($row['tipe_jadwal'] === 'sekali' && strtotime($row['jadwal_kirim']) > time()) {
+            writeLog("SKIP (sekali): Jadwal belum tiba - " . $row['jadwal_kirim']);
+            continue;
+        }
         if ($row['tipe_jadwal'] === 'harian') {
             $hariRutin = explode(',', $row['hari_rutin']);
-            if (!in_array($hariIni, $hariRutin)) continue;
-            if ($jamIni < substr($row['jam_harian'], 0, 5)) continue;
-            if ($row['terakhir_dikirim'] === $tanggalIni) continue;
+            if (!in_array($hariIni, $hariRutin)) {
+                writeLog("SKIP (harian): Hari tidak cocok - Hari ini=$hariIni, Hari rutin=" . $row['hari_rutin']);
+                continue;
+            }
+            if ($jamIni < substr($row['jam_harian'], 0, 5)) {
+                writeLog("SKIP (harian): Jam belum tiba - Jam ini=$jamIni, Jadwal=" . $row['jam_harian']);
+                continue;
+            }
+            if ($row['terakhir_dikirim'] === $tanggalIni) {
+                writeLog("SKIP (harian): Sudah dikirim hari ini - " . $row['terakhir_dikirim']);
+                continue;
+            }
         }
+
+        writeLog("Jadwal lolos filter waktu, menyiapkan pengiriman...");
 
         $curl = curl_init();
 
@@ -105,15 +142,22 @@ if ($result->num_rows > 0) {
         }
 
         // EKSEKUSI API
+        writeLog("Mengirim request ke API: " . (empty($row['media_path']) ? 'TEXT' : 'IMAGE'));
         $response = curl_exec($curl);
         $err = curl_error($curl);
         $httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE); 
         curl_close($curl);
 
+        writeLog("Response API - HTTP Code: $httpcode, Error: " . ($err ?: 'none'));
+        if ($err) writeLog("cURL Error detail: $err");
+        writeLog("Response body: " . substr($response, 0, 200));
+
         // UPDATE STATUS
         if ($err || $httpcode >= 400) {
+            writeLog("GAGAL mengirim - Update status ke 'failed'");
             $conn->query("UPDATE jadwal_pesan_grup SET status = 'failed' WHERE id = " . $row['id']);
         } else {
+            writeLog("BERHASIL mengirim - Update status");
             if ($row['tipe_jadwal'] === 'harian') {
                 $conn->query("UPDATE jadwal_pesan_grup SET terakhir_dikirim = '{$tanggalIni}' WHERE id = " . $row['id']);
             } else {
@@ -122,8 +166,10 @@ if ($result->num_rows > 0) {
         }
         $totalDiproses++;
     }
+    writeLog("=== CRON SELESAI - Total diproses: $totalDiproses ===");
     echo "Pengiriman dicicil: $totalDiproses antrean diproses.";
 } else {
+    writeLog("=== CRON SELESAI - Tidak ada antrean ===");
     echo "Tidak ada antrean pesan grup saat ini.";
 }
 ?>
