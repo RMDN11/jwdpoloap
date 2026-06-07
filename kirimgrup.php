@@ -208,7 +208,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['batalkan_jadwal'])) {
     $_SESSION['notification_type'] = 'success';
     header("Location: " . $_SERVER['PHP_SELF']); exit;
 }
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['batalkan_jadwal'])) {
+    $idJadwalList = $_POST['id_jadwal']; // misal "12,13,14"
+    $ids = array_map('intval', explode(',', $idJadwalList));
+    $idsString = implode(',', $ids);
+    if (!empty($idsString)) {
+        $conn->query("DELETE FROM jadwal_pesan_grup WHERE id IN ($idsString)");
+    }
+    $_SESSION['notification'] = "Semua jadwal dalam kelompok ini berhasil dibatalkan.";
+    $_SESSION['notification_type'] = 'success';
+    header("Location: " . $_SERVER['PHP_SELF']); exit;
+}
 
+// HAPUS SEMUA JADWAL
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['hapus_semua_jadwal'])) {
+    $result = $conn->query("DELETE FROM jadwal_pesan_grup WHERE status = 'pending'");
+    if ($result) {
+        $affected = $conn->affected_rows;
+        $_SESSION['notification'] = "Berhasil menghapus {$affected} jadwal yang sedang berjalan.";
+        $_SESSION['notification_type'] = 'success';
+    } else {
+        $_SESSION['notification'] = "Gagal menghapus jadwal: " . $conn->error;
+        $_SESSION['notification_type'] = 'error';
+    }
+    header("Location: " . $_SERVER['PHP_SELF']); exit;
+}
 // AMBIL DATA JADWAL BERJALAN (DIKELOMPOKKAN PER PESAN/JADWAL)
 $jadwalBerjalan = [];
 $jadwalQuery = "
@@ -548,6 +572,14 @@ function formatHariRutin($hariString) {
         <!-- TABEL JADWAL SEDANG BERJALAN (DIKELOMPOKKAN PER PESAN, DENGAN TOMBOL HAPUS SEMUA JADWAL DALAM SATU KELOMPOK) -->
         <div class="mt-8 bg-white shadow-md rounded-2xl p-6 border border-gray-100">
             <h2 class="text-lg font-semibold mb-4 flex items-center text-gray-800"><i class="fas fa-calendar-alt text-xl mr-2 text-blue-500"></i> Jadwal Sedang Berjalan</h2>
+             <?php if(!empty($jadwalBerjalan)): ?>
+        <form method="POST" onsubmit="return confirm('⚠️ PERINGATAN! Anda yakin ingin menghapus SEMUA jadwal yang ada (<?= count($jadwalBerjalan) ?> kelompok jadwal)? Tindakan ini tidak dapat dibatalkan!');" class="inline-block">
+            <button type="submit" name="hapus_semua_jadwal" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center shadow-md">
+                <i class="fas fa-trash-alt mr-2"></i> Hapus Semua Jadwal
+            </button>
+        </form>
+        <?php endif; ?>
+    </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full bg-white border border-gray-200 rounded-lg">
                     <thead class="bg-gray-100 text-gray-600 text-xs uppercase text-left">
