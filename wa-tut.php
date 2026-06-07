@@ -26,11 +26,13 @@ try {
     // [MASUKKAN LOGIKA KODE ANDA DI SINI]
     // Contoh query yang aman:
     $sql = "SELECT * FROM ..."; // Sesuaikan query Anda
-    $result = $conn->query($sql);
-    
-    if (!$result) {
-        throw new Exception("Query gagal: " . $conn->error);
-    }
+// GANTI MENJADI:
+$result = $conn->query($sql);
+
+if (!$result) {
+    // Pesan ini akan muncul di layar browser jika query salah
+    die("ERROR SQL: " . $conn->error . "<br>QUERY: " . $sql);
+}
 
     // ... sisa kode aplikasi Anda ...
 
