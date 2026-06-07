@@ -23,54 +23,43 @@ function kirimPesan($recipient, $message, $apiUrl, $apiToken) {
         "text" => ["body" => $message]
     ];
     
-    $jsonData = json_encode($data);
     $ch = curl_init($apiUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/json', 
-        'Authorization: Bearer ' . $apiToken
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($data),
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $apiToken],
+        CURLOPT_TIMEOUT => 15
     ]);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
     curl_close($ch);
     
-    if ($curlError) return ['status' => 'GAGAL', 'message' => "cURL: " . $curlError];
-    
-    $responseData = json_decode($response, true);
     return ($httpCode >= 200 && $httpCode < 300) 
         ? ['status' => 'TERKIRIM', 'message' => "Berhasil dikirim."] 
-        : ['status' => 'GAGAL', 'message' => $responseData['message'] ?? "Unknown error."];
+        : ['status' => 'GAGAL', 'message' => "Error HTTP $httpCode"];
 }
 
 // ============================================
-// PROSES AJAX REQUEST
+// PROSES AJAX
 // ============================================
-
-// 1. AJAX: Ambil daftar pengajar untuk dikirim (Dengan Filter Aman)
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_get_pengajar'])) {
     header('Content-Type: application/json');
     $isAllFiltered = ($_POST['selected_all_filtered_mode'] ?? '') === 'true';
     
+    $sql = "SELECT nowa, nama, halaqoh FROM pengampu WHERE nowa IS NOT NULL AND nowa != ''";
+    $params = []; $types = "";
+    
     if ($isAllFiltered) {
         $search = $_POST['search_hidden'] ?? '';
         $filterJenis = $_POST['jenis_hidden'] ?? 'semua';
-        
-        $sql = "SELECT nowa, nama, halaqoh FROM pengampu WHERE nowa IS NOT NULL AND nowa != ''";
-        $params = [];
-        $types = "";
-        
         if ($search) { $sql .= " AND nama LIKE ?"; $types .= 's'; $params[] = '%' . $search . '%'; }
         if ($filterJenis !== 'semua') { $sql .= " AND halaqoh LIKE ?"; $types .= 's'; $params[] = $filterJenis . '%'; }
         
-        $sql .= " ORDER BY halaqoh ASC, nama ASC";
-        
         $stmt = $conn->prepare($sql);
         if ($stmt) {
-            if (!empty($params)) $stmt->bind_param($types, ...$params);
+            if ($types) $stmt->bind_param($types, ...$params);
             $stmt->execute();
             $result = $stmt->get_result();
             $data = [];
@@ -83,24 +72,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_get_pengajar'])) 
     exit;
 }
 
-// 2. AJAX: Kirim Pesan Satuan
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_satuan'])) {
     header('Content-Type: application/json');
-    $nowa = $_POST['nowa'] ?? '';
-    $pesanBody = str_replace(['{nama}', '{halaqoh}'], [$_POST['nama'], $_POST['halaqoh']], $_POST['template_pesan'] ?? '');
-    
-    $res = kirimPesan($nowa, $pesanBody, $apiUrl, $apiToken);
+    $res = kirimPesan($_POST['nowa'], str_replace(['{nama}', '{halaqoh}'], [$_POST['nama'], $_POST['halaqoh']], $_POST['template_pesan'] ?? ''), $apiUrl, $apiToken);
     
     $stmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, NOW())");
-    $stmt->bind_param("sss", $nowa, $_POST['nama'], $res['message']);
+    $stmt->bind_param("sss", $_POST['nowa'], $_POST['nama'], $res['message']);
     $stmt->execute();
-
     echo json_encode(['status' => ($res['status'] == 'TERKIRIM' ? 'success' : 'error'), 'msg' => $res['message']]);
     exit;
 }
 
 // ============================================
-// QUERY UTAMA PAGINATION
+// DATA UNTUK TAMPILAN
 // ============================================
 $search = $_GET['search'] ?? '';
 $filterJenis = $_GET['jenis'] ?? 'semua';
@@ -108,24 +92,26 @@ $page = (int)($_GET['page'] ?? 1);
 $itemsPerPage = 50;
 $offset = ($page - 1) * $itemsPerPage;
 
-// Query Data Utama
+// Query Data Pengajar
 $sql = "SELECT id, nama, nowa, halaqoh FROM pengampu WHERE nowa IS NOT NULL AND nowa != ''";
 $params = []; $types = "";
-
 if ($search) { $sql .= " AND nama LIKE ?"; $types .= 's'; $params[] = '%' . $search . '%'; }
 if ($filterJenis !== 'semua') { $sql .= " AND halaqoh LIKE ?"; $types .= 's'; $params[] = $filterJenis . '%'; }
 
-$countSql = "SELECT COUNT(*) as total FROM (" . $sql . ") as t";
 $sql .= " ORDER BY halaqoh ASC, nama ASC LIMIT ? OFFSET ?";
 $types .= 'ii'; $params[] = $itemsPerPage; $params[] = $offset;
 
-$pengajarData = [];
 $stmt = $conn->prepare($sql);
 if ($stmt) {
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
     $pengajarData = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
+
+// Query Log Khusus Pengajar (JOIN dengan pengampu)
+$logPesan = $conn->query("SELECT l.nama, l.message, l.created_at FROM log_wa l 
+                          INNER JOIN pengampu p ON l.nowa = p.nowa 
+                          ORDER BY l.created_at DESC LIMIT 20")->fetch_all(MYSQLI_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="id">
