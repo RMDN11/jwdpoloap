@@ -10,10 +10,10 @@
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome 6 (free) -->
+    <!-- FontAwesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     
-    <!-- Google Fonts: Inter + Raleway (modern & clean) -->
+    <!-- Google Fonts: Inter + Raleway -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Raleway:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script>
@@ -27,7 +27,6 @@
                     animation: {
                         'fade-in-up': 'fadeInUp 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1) forwards',
                         'spin-slow': 'spin 1.2s linear infinite',
-                        'pulse-subtle': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     },
                     keyframes: {
                         fadeInUp: {
@@ -41,42 +40,45 @@
     </script>
 
     <style>
-        /* custom scrollbar & modern touches */
+        /* custom scrollbar */
         body {
             background: linear-gradient(135deg, #f1f5f9 0%, #e9eef3 100%);
             overflow: hidden;
             font-family: 'Inter', system-ui, sans-serif;
         }
 
-        /* Sidebar scroll minimal */
         .nav-menu::-webkit-scrollbar { width: 5px; }
         .nav-menu::-webkit-scrollbar-track { background: #eef2f6; border-radius: 10px; }
         .nav-menu::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .nav-menu::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* Modern active link style: border-left + subtle gradient */
+        /* Style menu navigasi - TANPA BORDER, menggunakan box berwarna saat aktif */
         .nav-link {
             position: relative;
             transition: all 0.2s ease;
             border-radius: 14px;
         }
+        
+        /* Aktif: background solid berwarna + bayangan halus, tanpa border */
         .nav-link.active {
-            background: linear-gradient(95deg, #ffffff, #f8fafc);
-            color: #0f172a;
+            background: #e0f2fe !important;   /* warna biru lembut (sky-100) */
+            color: #0f172a !important;
             font-weight: 600;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02), inset 0 1px 0 rgba(255,255,255,0.8);
-            border-left: 3px solid #3b82f6;
+            box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.05), 0 2px 2px -1px rgba(0, 0, 0, 0.02);
         }
+        
         .nav-link.active .icon-wrapper {
-            color: #3b82f6;
-            filter: drop-shadow(0 1px 1px rgba(59,130,246,0.2));
+            color: #0284c7 !important;  /* biru lebih tegas */
+            filter: drop-shadow(0 1px 1px rgba(2,132,199,0.2));
         }
+        
+        /* Hover tanpa border */
         .nav-link:not(.active):hover {
-            background-color: #f1f5f9;
-            transform: translateX(2px);
+            background-color: #f8fafc;
+            transform: translateX(3px);
         }
 
-        /* iframe transitions glassy */
+        /* iframe transitions */
         .iframe-hidden {
             opacity: 0;
             transform: translateY(18px) scale(0.99);
@@ -91,7 +93,7 @@
         /* loading overlay modern */
         #loading-overlay {
             backdrop-filter: blur(12px);
-            background-color: rgba(255, 255, 255, 0.75);
+            background-color: rgba(255, 255, 255, 0.8);
             transition: opacity 0.35s ease, visibility 0.35s;
         }
         .loader-spin {
@@ -102,7 +104,7 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Sidebar mobile smooth */
+        /* Sidebar mobile */
         .sidebar {
             transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
             z-index: 60;
@@ -140,15 +142,10 @@
             }
         }
 
-        /* card glass effect on header & content */
+        /* efek tambahan modern */
         .glass-card {
             background: rgba(255,255,255,0.85);
             backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.5);
-        }
-        .iframe-wrapper {
-            background: #ffffff;
-            box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.08);
         }
         .header-icon-glow {
             transition: all 0.2s;
@@ -157,10 +154,10 @@
 </head>
 <body class="flex p-4 md:p-5 gap-5 h-screen w-screen text-gray-700">
 
-    <!-- Overlay untuk mobile sidebar -->
+    <!-- Overlay mobile -->
     <div id="mobile-overlay" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-45 opacity-0 invisible transition-all duration-300 pointer-events-none md:hidden"></div>
 
-    <!-- SIDEBAR MODERN -->
+    <!-- SIDEBAR -->
     <aside class="sidebar bg-white/90 backdrop-blur-sm md:backdrop-blur-none md:bg-white w-72 rounded-3xl md:rounded-2xl flex flex-col h-full md:relative md:translate-x-0 shadow-xl" id="sidebar">
         
         <div class="px-6 pt-6 pb-5 mb-1 flex justify-between items-center border-b border-gray-100/80">
@@ -229,7 +226,6 @@
             <div class="flex items-center space-x-4">
                 <button class="md:hidden text-gray-500 hover:text-blue-600 text-xl bg-gray-100 w-9 h-9 rounded-full flex items-center justify-center transition" id="menu-toggle"><i class="fas fa-bars"></i></button>
                 
-                <!-- Icon box dengan efek gradient modern -->
                 <div id="header-icon-box" class="bg-blue-100 p-3 rounded-2xl transition-all duration-300 flex items-center justify-center shadow-inner">
                     <i id="header-icon" class="fas fa-users text-blue-600 text-xl transition-all duration-300"></i>
                 </div>
@@ -238,7 +234,7 @@
                     <h1 id="page-title" class="font-display text-xl font-extrabold text-gray-800 tracking-tight leading-tight">Kirim Pesan Grup</h1>
                     <div class="flex items-center gap-1.5 mt-0.5">
                         <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                        <p id="page-subtitle" class="text-xs font-medium text-gray-500">Atur Promosi Ke Grup WhatsApp</p>
+                        <p id="page-subtitle" class="text-xs font-medium text-gray-500">Promosi & broadcast ke grup WhatsApp</p>
                     </div>
                 </div>
             </div>
@@ -251,10 +247,9 @@
             </div>
         </header>
 
-        <!-- KONTEN IFRAME dengan gaya modern -->
+        <!-- KONTEN IFRAME -->
         <div class="flex-1 bg-white/90 backdrop-blur-sm md:backdrop-blur-none md:bg-white rounded-2xl md:rounded-3xl overflow-hidden shadow-xl border border-gray-100/60 relative iframe-wrapper">
             
-            <!-- LOADING OVERLAY premium -->
             <div id="loading-overlay" class="absolute inset-0 z-20 bg-white/80 backdrop-blur-md flex flex-col items-center justify-center gap-3">
                 <div class="relative">
                     <i class="fas fa-circle-notch text-5xl text-blue-500 loader-spin"></i>
@@ -285,24 +280,21 @@
             const loadingOverlay = document.getElementById('loading-overlay');
             const textContainer = document.getElementById('text-container');
 
-            // Helper: menyimpan menu aktif ke localStorage
+            // Simpan menu aktif ke localStorage
             function saveActiveMenu(href) {
                 if (href) localStorage.setItem('wa_dashboard_active_menu', href);
             }
 
-            // Helper: mengambil menu aktif dari localStorage
             function getStoredMenu() {
                 return localStorage.getItem('wa_dashboard_active_menu');
             }
 
-            // Fungsi untuk mengupdate tampilan header dan active class berdasarkan elemen link
+            // Update tampilan header & class active (tanpa border)
             function applyActiveState(linkElement) {
                 if (!linkElement) return;
-                // Remove active class dari semua link
                 navLinks.forEach(link => link.classList.remove('active'));
                 linkElement.classList.add('active');
                 
-                // Update header dengan dataset yang modern
                 const title = linkElement.dataset.title || "Dashboard";
                 const subtitle = linkElement.dataset.subtitle || "";
                 const icon = linkElement.dataset.icon || "fa-users";
@@ -314,7 +306,6 @@
                 headerIcon.className = `fas ${icon} ${iconText} text-xl transition-all duration-300`;
                 headerIconBox.className = `${iconBg} p-3 rounded-2xl transition-all duration-300 flex items-center justify-center shadow-inner`;
                 
-                // Trigger reflow untuk animasi teks
                 if (textContainer) {
                     textContainer.classList.remove('animate-fade-in-up');
                     void textContainer.offsetWidth;
@@ -322,17 +313,15 @@
                 }
             }
             
-            // Fungsi untuk load halaman iframe sesuai menu aktif + simpan state
-            function loadIframeByLink(linkElement, pushToHistory = true) {
+            // Memuat iframe berdasarkan link
+            function loadIframeByLink(linkElement) {
                 if (!linkElement) return;
                 const targetUrl = linkElement.getAttribute('href');
                 if (!targetUrl) return;
                 
                 const currentSrc = iframe.src;
-                // Bandingkan (perlu relative path)
                 let currentPath = currentSrc.substring(currentSrc.lastIndexOf('/') + 1);
                 if (currentPath === targetUrl && iframe.classList.contains('iframe-visible')) {
-                    // Sudah sesuai, hanya pastikan active state & header
                     applyActiveState(linkElement);
                     if (loadingOverlay.style.visibility !== 'hidden') {
                         loadingOverlay.style.opacity = '0';
@@ -341,20 +330,15 @@
                     return;
                 }
                 
-                // Tampilkan loading & animasi iframe
                 loadingOverlay.style.opacity = '1';
                 loadingOverlay.style.visibility = 'visible';
                 iframe.classList.remove('iframe-visible');
                 iframe.classList.add('iframe-hidden');
                 
-                // Ubah src iframe
                 iframe.src = targetUrl;
-                // Update active style & header segera (UX responsif)
                 applyActiveState(linkElement);
-                // Simpan ke storage
                 saveActiveMenu(targetUrl);
                 
-                // Small trick: jika terjadi error load, tetap sembunyikan loading
                 iframe.onload = function() {
                     iframeLoaded();
                 };
@@ -366,7 +350,6 @@
                 };
             }
             
-            // Fungsi saat iframe selesai dimuat (dipanggil dari inline onload juga)
             window.iframeLoaded = function() {
                 loadingOverlay.style.opacity = '0';
                 setTimeout(() => {
@@ -376,17 +359,11 @@
                 iframe.classList.add('iframe-visible');
             };
             
-            // Event listener klik menu
+            // Event klik menu
             navLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
-                    const href = this.getAttribute('href');
-                    if (!href) return;
-                    
-                    // Update state & load
                     loadIframeByLink(this);
-                    
-                    // Tutup sidebar di mobile jika terbuka
                     if (window.innerWidth <= 768) {
                         sidebar.classList.remove('show');
                         document.body.classList.remove('sidebar-open');
@@ -395,15 +372,13 @@
                 });
             });
             
-            // Fungsi inisialisasi saat halaman dimuat (refresh handling)
+            // Inisialisasi saat refresh: memuat menu terakhir yang disimpan
             function initializeFromStorage() {
                 const storedHref = getStoredMenu();
                 let targetLink = null;
-                
                 if (storedHref) {
                     targetLink = Array.from(navLinks).find(link => link.getAttribute('href') === storedHref);
                 }
-                // Jika tidak ada atau tidak valid, pakai default (kirimgrup.php)
                 if (!targetLink) {
                     targetLink = document.querySelector('.nav-link[href="kirimgrup.php"]');
                     if (!targetLink && navLinks.length) targetLink = navLinks[0];
@@ -414,18 +389,14 @@
                     const currentIframeSrc = iframe.src;
                     let currentPage = currentIframeSrc.substring(currentIframeSrc.lastIndexOf('/') + 1);
                     
-                    // Cegah double load jika sudah sesuai
                     if (currentPage === targetUrl && iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
-                        // sudah benar, hanya set active & header, hilangkan loading
                         applyActiveState(targetLink);
                         iframe.classList.remove('iframe-hidden');
                         iframe.classList.add('iframe-visible');
                         loadingOverlay.style.opacity = '0';
                         loadingOverlay.style.visibility = 'hidden';
                     } else {
-                        // jika berbeda atau first load (masih kirimgrup.php default) tapi storage beda -> update
                         if (currentPage !== targetUrl) {
-                            // Tampilkan loading sebelum ganti src
                             loadingOverlay.style.opacity = '1';
                             loadingOverlay.style.visibility = 'visible';
                             iframe.classList.remove('iframe-visible');
@@ -433,40 +404,23 @@
                             iframe.src = targetUrl;
                             applyActiveState(targetLink);
                             saveActiveMenu(targetUrl);
-                            // jika iframe sudah di set, onload akan memanggil iframeLoaded
                         } else {
-                            // url sama, tapi mungkin masih loading, pastikan active state
                             applyActiveState(targetLink);
-                            // Jika iframe masih loading, kita tidak perlu double loading overlay biarkan onload handle
                             if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
                                 iframeLoaded();
                             } else {
-                                // tetap tampilkan loading sampai selesai
                                 loadingOverlay.style.opacity = '1';
                                 loadingOverlay.style.visibility = 'visible';
                             }
                         }
                     }
                 } else {
-                    // fallback aman
                     const firstLink = navLinks[0];
-                    if (firstLink) {
-                        loadIframeByLink(firstLink);
-                    }
+                    if (firstLink) loadIframeByLink(firstLink);
                 }
             }
             
-            // Pastikan jika iframe load dari awal sudah complete (cache) dipanggil
-            if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
-                // sedikit delay untuk memastikan overlay tertutup
-                setTimeout(() => {
-                    if (loadingOverlay.style.visibility !== 'hidden') {
-                        iframeLoaded();
-                    }
-                }, 100);
-            }
-            
-            // Sidebar mobile management + overlay
+            // Sidebar mobile
             function toggleSidebar(show) {
                 if (show) {
                     sidebar.classList.add('show');
@@ -485,35 +439,24 @@
                 }
             }
             
-            if (menuToggle) {
-                menuToggle.addEventListener('click', () => toggleSidebar(true));
-            }
-            if (closeSidebarBtn) {
-                closeSidebarBtn.addEventListener('click', () => toggleSidebar(false));
-            }
-            if (mobileOverlay) {
-                mobileOverlay.addEventListener('click', () => toggleSidebar(false));
-            }
+            if (menuToggle) menuToggle.addEventListener('click', () => toggleSidebar(true));
+            if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', () => toggleSidebar(false));
+            if (mobileOverlay) mobileOverlay.addEventListener('click', () => toggleSidebar(false));
             
-            // Resize: jika layar > md dan sidebar terbuka di mobile mode, tutup otomatis
             window.addEventListener('resize', function() {
-                if (window.innerWidth > 768) {
-                    if (sidebar.classList.contains('show')) {
-                        sidebar.classList.remove('show');
-                        document.body.classList.remove('sidebar-open');
-                        if (mobileOverlay) mobileOverlay.classList.remove('opacity-100', 'visible');
-                    }
+                if (window.innerWidth > 768 && sidebar.classList.contains('show')) {
+                    sidebar.classList.remove('show');
+                    document.body.classList.remove('sidebar-open');
+                    if (mobileOverlay) mobileOverlay.classList.remove('opacity-100', 'visible');
                 }
             });
             
-            // Inisialisasi utama : jalankan setelah DOM ready
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', initializeFromStorage);
             } else {
                 initializeFromStorage();
             }
             
-            // Jika iframe sudah di set ulang oleh storage, pastikan event onload selalu berfungsi.
             iframe.onload = function() {
                 window.iframeLoaded();
             };
