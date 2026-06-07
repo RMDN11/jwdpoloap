@@ -12,7 +12,7 @@ $success_message = '';
 
 // Cek jika sudah login
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
-    header("Location: reminder.php");
+    header("Location: hanwa.php");
     exit();
 }
 
@@ -43,7 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION['logged_in'] = true;
                     $_SESSION['role'] = 'user';
                     
-                    header("Location: reminder.php");
+                    header("Location: hanwa.php");
                     exit();
                 } else {
                     $error = "Password salah!";
