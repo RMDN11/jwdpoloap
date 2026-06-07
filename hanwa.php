@@ -4,250 +4,189 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WA System Dashboard</title>
-    <style>
-        /* --- Base Reset & Monochrome Palette --- */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        }
+    
+    <link rel="icon" type="image/png" href="LOGOJWD.png">
 
-        body {
-            /* Background gelap monokrom untuk menonjolkan efek glass */
-            background: linear-gradient(135deg, #121212 0%, #2b2b2b 100%);
-            color: #f1f1f1;
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-        }
-
-        /* --- Glassmorphism Utilities --- */
-        .glass {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-        }
-
-        /* --- Layout Structure --- */
-        .dashboard-container {
-            display: flex;
-            width: 100%;
-            height: 100%;
-            padding: 15px;
-            gap: 15px;
-        }
-
-        /* --- Sidebar --- */
-        .sidebar {
-            width: 260px;
-            border-radius: 20px;
-            display: flex;
-            flex-direction: column;
-            padding: 20px 0;
-            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            z-index: 10;
-        }
-
-        .sidebar-header {
-            padding: 0 25px 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            margin-bottom: 15px;
-        }
-
-        .sidebar-header h2 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            letter-spacing: 1px;
-            color: #ffffff;
-        }
-
-        .nav-menu {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            padding: 0 15px;
-            overflow-y: auto;
-        }
-
-        /* Custom Scrollbar untuk menu */
-        .nav-menu::-webkit-scrollbar { width: 4px; }
-        .nav-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
-
-        .nav-link {
-            text-decoration: none;
-            color: #a0a0a0;
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-size: 0.95rem;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-        }
-
-        .nav-link:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: #ffffff;
-            transform: translateX(5px);
-        }
-
-        .nav-link.active {
-            background: rgba(255, 255, 255, 0.12);
-            color: #ffffff;
-            border-left: 3px solid #ffffff;
-            font-weight: 500;
-        }
-
-        /* --- Main Content Area --- */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            min-width: 0; /* Mencegah overflow pada flexbox */
-        }
-
-        /* --- Top Bar --- */
-        .top-bar {
-            height: 60px;
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            justify-content: space-between;
-        }
-
-        .menu-toggle {
-            background: none;
-            border: none;
-            color: #fff;
-            font-size: 1.5rem;
-            cursor: pointer;
-            display: none; /* Disembunyikan di desktop */
-            transition: transform 0.3s ease;
-        }
-
-        .menu-toggle:active {
-            transform: scale(0.9);
-        }
-
-        /* --- Iframe Container --- */
-        .iframe-container {
-            flex: 1;
-            border-radius: 15px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: rgba(255, 255, 255, 0.02); /* Transparansi dasar untuk iframe */
-            transition: opacity 0.3s ease;
-        }
-
-        /* --- Responsive Design (Mobile Friendly) --- */
-        @media (max-width: 768px) {
-            .dashboard-container {
-                padding: 10px;
-                gap: 10px;
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Raleway', 'sans-serif'],
+                    }
+                }
             }
+        }
+    </script>
 
+    <style>
+        body {
+            /* Latar belakang abu-abu super terang agar elemen putih menonjol tanpa border */
+            background-color: #f8fafc; 
+            overflow: hidden;
+        }
+
+        /* Custom scrollbar super tipis & bersih */
+        .nav-menu::-webkit-scrollbar { width: 4px; }
+        .nav-menu::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+
+        /* Menu Aktif styling */
+        .nav-link.active {
+            background-color: #f1f5f9; /* slate-100 */
+            color: #0f172a; /* slate-900 */
+            font-weight: 700;
+        }
+        .nav-link.active .icon-wrapper {
+            color: #3b82f6; /* blue-500 */
+        }
+
+        iframe { transition: opacity 0.3s ease; }
+
+        /* Transisi Sidebar untuk Mobile */
+        .sidebar { transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); z-index: 50; }
+        
+        @media (max-width: 768px) {
             .sidebar {
                 position: absolute;
-                height: calc(100% - 20px);
                 transform: translateX(-120%);
-                background: rgba(30, 30, 30, 0.85); /* Lebih pekat di mobile agar terbaca */
+                box-shadow: 4px 0 24px rgba(0,0,0,0.05);
             }
-
-            .sidebar.show {
-                transform: translateX(0);
-            }
-
-            .menu-toggle {
-                display: block;
-            }
+            .sidebar.show { transform: translateX(0); }
         }
     </style>
 </head>
-<body>
+<body class="flex p-4 gap-4 h-screen w-screen text-gray-600">
 
-    <div class="dashboard-container">
+    <aside class="sidebar bg-white w-64 rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.03)] flex flex-col py-6 h-full absolute md:relative" id="sidebar">
         
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar glass" id="sidebar">
-            <div class="sidebar-header">
-                <h2>WA SYSTEM</h2>
+        <div class="px-6 pb-6 mb-2 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="LOGOJWD.png" alt="Logo" class="w-8 h-8 object-contain">
+                <h2 class="font-extrabold tracking-wide text-gray-800 text-lg m-0">WA SYSTEM</h2>
             </div>
-            <nav class="nav-menu">
-                <!-- Halaman Utama dijadikan default active -->
-                <a href="kirimgrup.php" target="main-frame" class="nav-link active">Kirim Grup</a>
-                <a href="reminder.php" target="main-frame" class="nav-link">Reminder</a>
-                <a href="wa-tut.php" target="main-frame" class="nav-link">WA Tut</a>
-                <a href="promosi.php" target="main-frame" class="nav-link">Promosi</a>
-                <a href="kelola_reminder.php" target="main-frame" class="nav-link">Kelola Reminder</a>
-                <a href="kelola_grup.php" target="main-frame" class="nav-link">Kelola Grup</a>
-                <a href="manage_auto_reply.php" target="main-frame" class="nav-link">Manage Auto Reply</a>
-                <a href="manage_templates.php" target="main-frame" class="nav-link">Manage Templates</a>
-            </nav>
-        </aside>
-
-        <!-- Main Workspace -->
-        <main class="main-content">
+            <button class="md:hidden text-gray-400 hover:text-gray-700 text-xl" id="close-sidebar"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <nav class="nav-menu flex flex-col gap-2 px-4 overflow-y-auto flex-1">
             
-            <!-- Header / Topbar -->
-            <header class="top-bar glass">
-                <button class="menu-toggle" id="menu-toggle">☰</button>
-                <div class="top-title" id="page-title">Kirim Grup</div>
-            </header>
+            <a href="kirimgrup.php" target="main-frame" class="nav-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-slate-50 hover:text-gray-800 transition-all"
+               data-title="Kirim Pesan Grup" data-subtitle="Atur Promosi Ke Grup WhatsApp" data-icon="fa-users" data-iconbg="bg-blue-100" data-icontext="text-blue-600">
+                <i class="fas fa-users w-5 text-center icon-wrapper"></i> <span class="text-sm font-medium">Kirim Grup</span>
+            </a>
+            
+            <a href="reminder.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-slate-50 hover:text-gray-800 transition-all"
+               data-title="Reminder Pembayaran" data-subtitle="Atur Reminder Pembayaran" data-icon="fa-bell" data-iconbg="bg-amber-100" data-icontext="text-amber-600">
+                <i class="fas fa-bell w-5 text-center icon-wrapper"></i> <span class="text-sm font-medium">Reminder</span>
+            </a>
+            
+            <a href="wa-tut.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-slate-50 hover:text-gray-800 transition-all"
+               data-title="Tutor WhatsApp" data-subtitle="Manajemen Tutor WA" data-icon="fa-chalkboard-teacher" data-iconbg="bg-purple-100" data-icontext="text-purple-600">
+                <i class="fas fa-chalkboard-teacher w-5 text-center icon-wrapper"></i> <span class="text-sm font-medium">WA Tut</span>
+            </a>
+            
+            <a href="promosi.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-slate-50 hover:text-gray-800 transition-all"
+               data-title="Promosi Broadcast" data-subtitle="Kirim Pesan Promosi Massal" data-icon="fa-bullhorn" data-iconbg="bg-green-100" data-icontext="text-green-600">
+                <i class="fas fa-bullhorn w-5 text-center icon-wrapper"></i> <span class="text-sm font-medium">Promosi</span>
+            </a>
+            
+            <a href="kelola_grup.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-slate-50 hover:text-gray-800 transition-all"
+               data-title="Manajemen Grup" data-subtitle="Tambah dan kelola daftar grup penerima" data-icon="fa-address-book" data-iconbg="bg-indigo-100" data-icontext="text-indigo-600">
+                <i class="fas fa-address-book w-5 text-center icon-wrapper"></i> <span class="text-sm font-medium">Kelola Grup</span>
+            </a>
 
-            <!-- Iframe Wrapper -->
-            <div class="iframe-container glass">
-                <iframe src="kirimgrup.php" name="main-frame" id="main-frame" onload="fadeInIframe()"></iframe>
+            <a href="manage_auto_reply.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-slate-50 hover:text-gray-800 transition-all"
+               data-title="Auto Reply" data-subtitle="Setting Balasan Otomatis" data-icon="fa-reply-all" data-iconbg="bg-rose-100" data-icontext="text-rose-600">
+                <i class="fas fa-reply-all w-5 text-center icon-wrapper"></i> <span class="text-sm font-medium">Auto Reply</span>
+            </a>
+            
+        </nav>
+
+        <div class="px-4 mt-2">
+            <a href="logoutwa.php" target="_top" class="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all font-medium">
+                <i class="fas fa-sign-out-alt w-5 text-center"></i> 
+                <span class="text-sm">Keluar Akun</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col gap-4 min-w-0">
+        
+        <header class="bg-white rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.02)] px-6 py-4 flex justify-between items-center z-10">
+            <div class="flex items-center space-x-4">
+                <button class="md:hidden text-gray-400 hover:text-gray-800 text-xl mr-1" id="menu-toggle"><i class="fas fa-bars"></i></button>
+                
+                <div id="header-icon-box" class="bg-blue-100 p-3 rounded-xl transition-all duration-300 flex items-center justify-center">
+                    <i id="header-icon" class="fas fa-users text-blue-600 text-xl transition-all duration-300"></i>
+                </div>
+                
+                <div>
+                    <h1 id="page-title" class="text-xl font-bold text-gray-800 m-0 tracking-tight">Kirim Pesan Grup</h1>
+                    <p id="page-subtitle" class="text-sm text-gray-500 m-0 font-medium">Atur Promosi Ke Grup WhatsApp</p>
+                </div>
             </div>
+            
+            <div class="hidden sm:flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl">
+                <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
+                    <i class="fas fa-user text-sm"></i>
+                </div>
+                <span class="text-sm font-semibold text-gray-700">Admin Panel</span>
+            </div>
+        </header>
 
-        </main>
-    </div>
+        <div class="flex-1 bg-white rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.02)] overflow-hidden relative">
+            <iframe src="kirimgrup.php" name="main-frame" id="main-frame" class="w-full h-full border-none bg-transparent" onload="fadeInIframe()"></iframe>
+        </div>
+
+    </main>
 
     <script>
-        // DOM Elements
         const sidebar = document.getElementById('sidebar');
         const menuToggle = document.getElementById('menu-toggle');
+        const closeSidebar = document.getElementById('close-sidebar');
         const navLinks = document.querySelectorAll('.nav-link');
-        const pageTitle = document.getElementById('page-title');
         const iframe = document.getElementById('main-frame');
 
-        // Toggle Sidebar on Mobile
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('show');
-        });
+        // Dynamic Header Elements
+        const pageTitle = document.getElementById('page-title');
+        const pageSubtitle = document.getElementById('page-subtitle');
+        const headerIcon = document.getElementById('header-icon');
+        const headerIconBox = document.getElementById('header-icon-box');
 
-        // Handle Active Class & Title Change
+        // Toggle Sidebar
+        menuToggle.addEventListener('click', () => sidebar.classList.add('show'));
+        closeSidebar.addEventListener('click', () => sidebar.classList.remove('show'));
+
+        // Handle Menu Clicks
         navLinks.forEach(link => {
             link.addEventListener('click', function() {
-                // Remove active from all
-                navLinks.forEach(l => l.classList.remove('active'));
+                // Reset semua active class
+                navLinks.forEach(l => l.classList.remove('active', 'text-gray-800'));
                 
-                // Add active to clicked
+                // Set class aktif pada yang diklik
                 this.classList.add('active');
                 
-                // Update Topbar Title
-                pageTitle.textContent = this.textContent;
+                // Update Dynamic Header Text
+                pageTitle.textContent = this.dataset.title;
+                pageSubtitle.textContent = this.dataset.subtitle;
+                
+                // Update Dynamic Icon & Colors
+                headerIcon.className = `fas ${this.dataset.icon} ${this.dataset.icontext} text-xl transition-all duration-300`;
+                headerIconBox.className = `${this.dataset.iconbg} p-3 rounded-xl transition-all duration-300 flex items-center justify-center`;
 
-                // Animasi fade out ringan sebelum halaman baru dimuat
+                // Fade animasi Iframe
                 iframe.style.opacity = '0.3';
-
-                // Auto-close sidebar on mobile after clicking a link
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.remove('show');
-                }
+                
+                // Tutup sidebar otomatis di mobile
+                if (window.innerWidth <= 768) sidebar.classList.remove('show');
             });
         });
 
-        // Fungsi dipanggil ketika iframe selesai memuat halaman (.php)
+        // Dipanggil saat iframe selesai loading
         function fadeInIframe() {
             iframe.style.opacity = '1';
         }
