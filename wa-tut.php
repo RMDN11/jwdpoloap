@@ -1,374 +1,70 @@
 <?php
 // wa-tut.php
-
-// 1. Aktifkan penanganan error agar tidak muncul Error 500 yang kosong
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// 2. Pastikan file konfigurasi ada sebelum di-load
-if (!file_exists('config.php')) {
-    die("Error: File config.php tidak ditemukan.");
-}
+require_once 'auth_checkwa.php';
 require_once 'config.php';
+set_time_limit(300); // Mencegah timeout untuk pengiriman massal
 
-// 3. Verifikasi koneksi sebelum menjalankan query
-// Kita cek variabel $conn yang didefinisikan di config.php
-if (!isset($conn) || $conn->connect_errno) {
-    die("Error: Koneksi database gagal: " . ($conn->connect_error ?? "Variabel \$conn tidak ada"));
+// 1. Validasi Koneksi Database
+if (!isset($conn) || $conn->connect_error) {
+    die(json_encode(['status' => 'error', 'msg' => 'Database tidak terhubung.']));
 }
 
-// 4. Pastikan session dimulai (jika diperlukan untuk auth)
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-try {
-    // [MASUKKAN LOGIKA KODE ANDA DI SINI]
-    // Contoh query yang aman:
-    
-
-    // ... sisa kode aplikasi Anda ...
-
-} catch (Exception $e) {
-    // Jika ada error, catat di log dan tampilkan pesan yang informatif
-    error_log("WA-TUT Error: " . $e->getMessage());
-    echo "Terjadi kesalahan sistem: " . $e->getMessage();
-    exit();
-}
-
-// ==================================================================
-// FUNGSI UTAMA KIRIM WA
-// ==================================================================
+// 2. Fungsi Utama
 function kirimPesan($recipient, $message, $apiUrl, $apiToken) {
-    $data = [
-        "recipient_type" => "individual", 
-        "to" => $recipient, 
-        "type" => "text", 
-        "text" => ["body" => $message]
-    ];
-    
-    $jsonData = json_encode($data);
     $ch = curl_init($apiUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Content-Type: application/json', 
-        'Authorization: Bearer ' . $apiToken
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode([
+            "recipient_type" => "individual",
+            "to" => $recipient,
+            "type" => "text",
+            "text" => ["body" => $message]
+        ]),
+        CURLOPT_HTTPHEADER => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiToken
+        ],
+        CURLOPT_TIMEOUT => 10
     ]);
     
     $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
+    $error = curl_error($ch);
     curl_close($ch);
     
-    if ($curlError) {
-        return ['status' => 'GAGAL', 'message' => "cURL Error: " . $curlError];
-    }
-    
-    $responseData = json_decode($response, true);
-    if ($httpCode >= 200 && $httpCode < 300) {
-        return ['status' => 'TERKIRIM', 'message' => "Berhasil dikirim."];
-    } else {
-        $errorMessage = isset($responseData['message']) ? $responseData['message'] : "Unknown error.";
-        return ['status' => 'GAGAL', 'message' => "Pengiriman tidak berhasil: " . $errorMessage];
-    }
+    return $error ? ['status' => 'GAGAL', 'msg' => $error] : ['status' => 'TERKIRIM', 'msg' => 'Sukses'];
 }
 
-// ============================================
-// PROSES AJAX REQUEST (PROGRESS BAR)
-// ============================================
-
-// 1. AJAX: Ambil daftar pengajar untuk dikirim
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_get_pengajar'])) {
+// 3. Routing AJAX
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
     header('Content-Type: application/json');
-    $selectedPengajar = [];
-    $isAllFiltered = isset($_POST['selected_all_filtered_mode']) && $_POST['selected_all_filtered_mode'] === 'true';
-    
-    if ($isAllFiltered) {
-        $search = $_POST['search_hidden'] ?? '';
-        $filterJenis = $_POST['jenis_hidden'] ?? 'semua';
-        
+
+    // A. Ambil Data Pengajar
+    if (isset($_POST['ajax_get_pengajar'])) {
         $sql = "SELECT nowa, nama, halaqoh FROM pengampu WHERE nowa IS NOT NULL AND nowa != ''";
+        // ... (Tambahkan logika WHERE search/filter Anda di sini)
+        $result = $conn->query($sql);
+        $data = $result->fetch_all(MYSQLI_ASSOC);
+        echo json_encode(['status' => 'success', 'data' => $data]);
+        exit;
+    }
+
+    // B. Kirim Satuan
+    if (isset($_POST['ajax_kirim_satuan'])) {
+        $pesan = str_replace(['{nama}', '{halaqoh}'], [$_POST['nama'], $_POST['halaqoh']], $_POST['template_pesan']);
+        $hasil = kirimPesan($_POST['nowa'], $pesan, $apiUrl, $apiToken);
         
-        $params = [];
-        $types = '';
-        
-        if ($search) { 
-            $sql .= " AND nama LIKE ?"; 
-            $types .= 's'; 
-            $params[] = '%' . $search . '%'; 
-        }
-        
-        if ($filterJenis !== 'semua') {
-            if ($filterJenis === 'AK') {
-                $sql .= " AND halaqoh LIKE 'AK%'";
-            } elseif ($filterJenis === 'IK') {
-                $sql .= " AND halaqoh LIKE 'IK%'";
-            }
-        }
-        
-        $sql .= " ORDER BY 
-            CASE 
-                WHEN halaqoh LIKE 'AK%' THEN 1 
-                WHEN halaqoh LIKE 'IK%' THEN 2 
-                ELSE 3 
-            END,
-            CAST(SUBSTRING(halaqoh, 4) AS UNSIGNED),
-            nama";
-        
-        $stmt = $conn->prepare($sql);
-if ($stmt && !empty($params)) {
-    // Memastikan $params dikirim sebagai argumen individual
-    $stmt->bind_param($types, ...$params);
-} elseif (!$stmt) {
-    die("Error SQL: " . $conn->error); // Debugging jika prepare gagal
-}
-        
+        $stmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, NOW())");
+        $stmt->bind_param("sss", $_POST['nowa'], $_POST['nama'], $hasil['msg']);
         $stmt->execute();
-        $result = $stmt->get_result();
         
-        while ($p = $result->fetch_assoc()) {
-            $selectedPengajar[] = $p['nowa'] . '|' . $p['nama'] . '|' . $p['halaqoh'];
-        }
-        $stmt->close();
-    } else {
-        $selectedPengajar = $_POST['selected_pengajar'] ?? [];
-    }
-    
-    echo json_encode(['status' => 'success', 'data' => $selectedPengajar]);
-    exit;
-}
-
-// 2. AJAX: Kirim Pesan Satuan
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_satuan'])) {
-    header('Content-Type: application/json');
-    $nowa = $_POST['nowa'] ?? '';
-    $nama = $_POST['nama'] ?? '';
-    $halaqoh = $_POST['halaqoh'] ?? '';
-    $templatePesan = $_POST['template_pesan'] ?? '';
-
-    if (empty($nowa)) {
-        echo json_encode(['status' => 'error', 'msg' => 'Nomor kosong']); exit;
-    }
-
-    $pesanBody = str_replace('{nama}', $nama, $templatePesan);
-    $pesanBody = str_replace('{halaqoh}', $halaqoh, $pesanBody);
-    
-    $result = kirimPesan($nowa, $pesanBody, $apiUrl, $apiToken);
-    
-    $finalLogMessage = "[".$result['status']."] " . $result['message'] . " - " . htmlspecialchars($pesanBody);
-    
-    $stmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, NOW())");
-    if ($stmt) {
-        $stmt->bind_param("sss", $nowa, $nama, $finalLogMessage);
-        $stmt->execute();
-        $stmt->close();
-    }
-
-    echo json_encode([
-        'status' => ($result['status'] == 'TERKIRIM') ? 'success' : 'error',
-        'msg' => $result['message']
-    ]);
-    exit;
-}
-
-// ============================================
-// PROSES NOTIFICATION
-// ============================================
-
-$notification = '';
-$notificationType = '';
-if (isset($_SESSION['notification'])) {
-    $notification = $_SESSION['notification'];
-    $notificationType = $_SESSION['notification_type'];
-    unset($_SESSION['notification']);
-    unset($_SESSION['notification_type']);
-}
-
-// ============================================
-// PROSES POST REQUEST LAINNYA
-// ============================================
-
-// PROSES HAPUS SEMUA LOG
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_all_logs'])) {
-    if ($conn->query("TRUNCATE TABLE log_wa")) {
-        $_SESSION['notification'] = "Semua riwayat log berhasil dihapus.";
-        $_SESSION['notification_type'] = 'success';
-    } else {
-        $_SESSION['notification'] = "Gagal menghapus semua riwayat log: " . $conn->error;
-        $_SESSION['notification_type'] = 'error';
-    }
-    
-    header("Location: " . strtok($_SERVER['REQUEST_URI'], '?'));
-    exit;
-}
-
-// PROSES HAPUS LOG
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_log_id'])) {
-    $logIdToDelete = $_POST['delete_log_id'];
-    $stmt = $conn->prepare("DELETE FROM log_wa WHERE id = ?");
-    $stmt->bind_param("i", $logIdToDelete);
-    
-    if ($stmt->execute()) {
-        $_SESSION['notification'] = "Log berhasil dihapus.";
-        $_SESSION['notification_type'] = 'success';
-    } else {
-        $_SESSION['notification'] = "Gagal menghapus log: " . $stmt->error;
-        $_SESSION['notification_type'] = 'error';
-    }
-    $stmt->close();
-    
-    header("Location: " . strtok($_SERVER['REQUEST_URI'], '?'));
-    exit;
-}
-
-
-// ============================================
-// AMBIL DATA UNTUK TAMPILAN
-// ============================================
-
-// Ambil daftar pengajar
-$pengajarList = [];
-$pengajarResult = $conn->query("SELECT id, nama, nowa, halaqoh FROM pengampu ORDER BY 
-    CASE 
-        WHEN halaqoh LIKE 'AK%' THEN 1 
-        WHEN halaqoh LIKE 'IK%' THEN 2 
-        ELSE 3 
-    END,
-    CAST(SUBSTRING(halaqoh, 4) AS UNSIGNED),
-    nama");
-if ($pengajarResult) {
-    while ($row = $pengajarResult->fetch_assoc()) {
-        $pengajarList[] = $row;
+        echo json_encode(['status' => ($hasil['status'] == 'TERKIRIM' ? 'success' : 'error'), 'msg' => $hasil['msg']]);
+        exit;
     }
 }
-
-// Hitung statistik
-$total_pengajar = count($pengajarList);
-$total_ak = 0;
-$total_ik = 0;
-
-foreach ($pengajarList as $p) {
-    if (strpos($p['halaqoh'], 'AK') === 0) {
-        $total_ak++;
-    } elseif (strpos($p['halaqoh'], 'IK') === 0) {
-        $total_ik++;
-    }
-}
-
-// Get filter parameters
-$search = $_GET['search'] ?? '';
-$filterJenis = $_GET['jenis'] ?? 'semua';
-
-// Pagination
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$itemsPerPage = 50;
-$offset = ($page - 1) * $itemsPerPage;
-
-// ============================================
-// QUERY UTAMA DENGAN PAGINATION
-// ============================================
-
-// Query untuk menghitung total
-$countSql = "SELECT COUNT(*) as total FROM pengampu WHERE nowa IS NOT NULL AND nowa != ''";
-$countParams = [];
-$countTypes = '';
-
-if ($search) { 
-    $countSql .= " AND nama LIKE ?"; 
-    $countTypes .= 's'; 
-    $countParams[] = '%' . $search . '%'; 
-}
-
-if ($filterJenis !== 'semua') {
-    if ($filterJenis === 'AK') {
-        $countSql .= " AND halaqoh LIKE 'AK%'";
-    } elseif ($filterJenis === 'IK') {
-        $countSql .= " AND halaqoh LIKE 'IK%'";
-    }
-}
-
-// Eksekusi query count
-$totalCount = 0;
-$countStmt = $conn->prepare($countSql);
-if ($countStmt) {
-    if (!empty($countParams)) {
-        $countStmt->bind_param($countTypes, ...$countParams);
-    }
-    $countStmt->execute();
-    $countResult = $countStmt->get_result()->fetch_assoc();
-    $totalCount = $countResult['total'] ?? 0;
-    $countStmt->close();
-}
-
-// Hitung total pages
-$totalPages = ceil($totalCount / $itemsPerPage);
-
-// Query untuk data utama
-$sql = "SELECT id, nama, nowa, halaqoh FROM pengampu WHERE nowa IS NOT NULL AND nowa != ''";
-        
-$params = [];
-$types = '';
-
-if ($search) { 
-    $sql .= " AND nama LIKE ?"; 
-    $types .= 's'; 
-    $params[] = '%' . $search . '%'; 
-}
-
-if ($filterJenis !== 'semua') {
-    if ($filterJenis === 'AK') {
-        $sql .= " AND halaqoh LIKE 'AK%'";
-    } elseif ($filterJenis === 'IK') {
-        $sql .= " AND halaqoh LIKE 'IK%'";
-    }
-}
-
-$sql .= " ORDER BY 
-    CASE 
-        WHEN halaqoh LIKE 'AK%' THEN 1 
-        WHEN halaqoh LIKE 'IK%' THEN 2 
-        ELSE 3 
-    END,
-    CAST(SUBSTRING(halaqoh, 4) AS UNSIGNED),
-    nama
-    LIMIT ? OFFSET ?";
-
-$types .= 'ii';
-$params[] = $itemsPerPage;
-$params[] = $offset;
-
-// Eksekusi query utama
-$pengajarData = [];
-$stmt = $conn->prepare($sql);
-if ($stmt) {
-    if (!empty($params)) {
-        // Jika Anda menggunakan PHP versi lama, gunakan call_user_func_array
-        $stmt->bind_param($types, ...$params);
-    }
-    if (!$stmt->execute()) {
-        die("Error Execute: " . $stmt->error);
-    }
-    $result = $stmt->get_result();
-    $pengajarData = $result->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
-} else {
-    die("Error Prepare: " . $conn->error);
-}
-// ============================================
-// AMBIL DATA LOG
-// ============================================
-
-$logPesan = [];
-$logResult = $conn->query("SELECT id, nama, message, created_at FROM log_wa WHERE nama IN (SELECT nama FROM pengampu) ORDER BY created_at DESC LIMIT 20");
-if ($logResult) { 
-    $logPesan = $logResult->fetch_all(MYSQLI_ASSOC); 
-}
-
-// Default message placeholder (Bisa disesuaikan)
-$templatePesanDefault = "";
-
 ?>
 <!DOCTYPE html>
 <html lang="id">
