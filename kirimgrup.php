@@ -198,42 +198,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_history'])) {
     header("Location: " . $_SERVER['PHP_SELF']); exit;
 }
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['batalkan_jadwal'])) {
-    $idJadwalList = $_POST['id_jadwal'];
-    // Karena id_jadwal sekarang bisa berisi kumpulan ID (misal: "12,13,14")
-    $ids = array_map('intval', explode(',', $idJadwalList));
-    $idsString = implode(',', $ids);
-    
-    // Hapus seluruh jadwal grup yang tergabung dari antrean
-    if (!empty($idsString)) {
-        $conn->query("DELETE FROM jadwal_pesan_grup WHERE id IN ($idsString)");
+    $idJadwal = (int)$_POST['id_jadwal']; // single ID sekarang
+    if ($idJadwal > 0) {
+        $conn->query("DELETE FROM jadwal_pesan_grup WHERE id = $idJadwal");
+        $_SESSION['notification'] = "Jadwal berhasil dibatalkan.";
+        $_SESSION['notification_type'] = 'success';
+    } else {
+        $_SESSION['notification'] = "ID jadwal tidak valid.";
+        $_SESSION['notification_type'] = 'error';
     }
-    $_SESSION['notification'] = "Jadwal berhasil dibatalkan."; 
-    $_SESSION['notification_type'] = 'success';
     header("Location: " . $_SERVER['PHP_SELF']); exit;
 }
 
-// AMBIL DATA JADWAL BERJALAN UNTUK DITAMPILKAN
-// AMBIL DATA JADWAL BERJALAN UNTUK DITAMPILKAN (DIKELOMPOKKAN)
+// AMBIL DATA JADWAL BERJALAN (TANPA GROUPING, 1 ROW PER JADWAL)
 $jadwalBerjalan = [];
 $jadwalQuery = "
     SELECT 
-        j.pesan, 
-        j.tipe_jadwal, 
-        j.jadwal_kirim, 
-        j.jam_harian, 
-        j.hari_rutin, 
+        j.id,
+        j.id_grup,
+        COALESCE(w.nama_grup, j.id_grup) as nama_grup,
+        j.pesan,
+        j.tipe_jadwal,
+        j.jadwal_kirim,
+        j.jam_harian,
+        j.hari_rutin,
         j.media_path,
-        GROUP_CONCAT(COALESCE(w.nama_grup, j.id_grup) SEPARATOR ', ') as daftar_grup,
-        GROUP_CONCAT(j.id SEPARATOR ',') as id_jadwal_list,
-        COUNT(j.id) as total_grup
+        j.status
     FROM jadwal_pesan_grup j 
     LEFT JOIN wa_grup w ON j.id_grup = w.id_grup 
     WHERE j.status = 'pending' 
-    GROUP BY j.pesan, j.tipe_jadwal, j.jadwal_kirim, j.jam_harian, j.hari_rutin, j.media_path 
-    ORDER BY MAX(j.id) DESC
+    ORDER BY j.id DESC
 ";
 $jadwalResult = $conn->query($jadwalQuery);
 if ($jadwalResult) { $jadwalBerjalan = $jadwalResult->fetch_all(MYSQLI_ASSOC); }
+
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_message_history'])) {
     if ($conn->query("DELETE FROM log_wa WHERE message LIKE '%[GRUP]%'")) {
         $_SESSION['notification'] = "Semua riwayat isi pesan berhasil dihapus."; $_SESSION['notification_type'] = 'success';
@@ -267,6 +265,14 @@ $pesanHistory = [];
 $historyResult = $conn->query("SELECT SUBSTRING_INDEX(message, ' :: ', -1) as sent_content FROM log_wa WHERE message LIKE '%[GRUP]%' GROUP BY sent_content ORDER BY MAX(id) DESC LIMIT 15");
 if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
 
+// Helper konversi hari
+function formatHariRutin($hariString) {
+    if(empty($hariString)) return '-';
+    $hariMap = [1=>'Sen',2=>'Sel',3=>'Rab',4=>'Kam',5=>'Jum',6=>'Sab',7=>'Min'];
+    $hariArr = explode(',', $hariString);
+    $hariNama = array_map(function($h) use ($hariMap) { return $hariMap[(int)$h] ?? $h; }, $hariArr);
+    return implode(', ', $hariNama);
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -281,24 +287,26 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', sans-serif; }
-    .whatsapp-chat-preview { background-image: url('https://i.ibb.co/7z3P8sW/wa-bg.png'); }
+    .whatsapp-chat-preview { background-image: url('https://i.ibb.co/7z3P8sW/wa-bg.png'); background-size: cover; }
     .chat-bubble { max-width: 80%; }
     .bg-primary { background-color: #374151; }
     .bg-secondary { background-color: #4b5563; }
-    .bg-card { background-color: #f3f4f6; }
+    .bg-card { background-color: #f8fafc; }
     .text-primary { color: #111827; }
     .text-secondary { color: #4b5563; }
-    .border-card { border-color: #e5e7eb; }
+    .border-card { border-color: #e2e8f0; }
     .bg-accent { background-color: #9ca3af; }
     .text-accent { color: #9ca3af; }
     .bg-success { background-color: #d1fae5; }
     .text-success { color: #065f46; }
     .bg-error { background-color: #fee2e2; }
     .text-error { color: #991b1b; }
-    .btn-primary { background: linear-gradient(to right, #6b7280, #4b5563); }
-    .btn-primary:hover { background: linear-gradient(to right, #4b5563, #374151); }
+    .btn-primary { background: linear-gradient(to right, #3b82f6, #2563eb); }
+    .btn-primary:hover { background: linear-gradient(to right, #2563eb, #1d4ed8); }
     @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     .animate-fade-in-down { animation: fadeInDown 0.4s ease-out forwards; }
+    .mode-card { transition: all 0.2s ease; }
+    .mode-card.active-mode { background-color: #eff6ff; border-color: #3b82f6; box-shadow: 0 2px 5px rgba(59,130,246,0.1); }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -357,11 +365,13 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
         <div class="mb-6 p-4 rounded-lg shadow-md <?php echo $notificationType === 'success' ? 'bg-success text-success border-l-4 border-success' : 'bg-error text-error border-l-4 border-error'; ?>"><?php echo htmlspecialchars($notification); ?></div>
         <?php endif; ?>
 
+        <!-- BARIS ATAS: FORM KIRIM + PREVIEW CHAT -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            <!-- KOLOM KIRI: FORM PENGIRIMAN -->
             <div class="space-y-6">
                 <form enctype="multipart/form-data" id="main-form">
-                    <div class="bg-card shadow-md rounded-2xl p-6 border border-card">
-                        <h2 class="text-lg font-semibold mb-4 flex items-center text-primary"><i class="fas fa-pencil-alt text-xl mr-2 text-accent"></i> Buat Pesan Anda</h2>
+                    <div class="bg-white shadow-md rounded-2xl p-6 border border-gray-100">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center text-gray-800"><i class="fas fa-pencil-alt text-xl mr-2 text-blue-500"></i> Buat Pesan Anda</h2>
                         <div class="space-y-4">
                             <div>
                                 <label for="pesan" class="block font-semibold text-sm text-gray-700 mb-1">Isi Pesan / Caption</label>
@@ -372,61 +382,68 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
                                 <input type="file" id="promo_image" name="promo_image" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer" accept="image/png, image/jpeg, image/gif">
                             </div>
 
-                            <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
-                                <label class="block font-bold text-sm text-blue-800 mb-2"><i class="fas fa-clock mr-1"></i> Mode Pengiriman</label>
-                                <div class="flex flex-wrap gap-4 mb-3">
-                                    <label class="flex items-center cursor-pointer">
-                                        <input type="radio" name="tipe_jadwal" value="sekarang" class="mr-2" checked onchange="toggleJadwal()">
-                                        <span class="text-sm font-semibold">Kirim Sekarang</span>
-                                    </label>
-                                    <label class="flex items-center cursor-pointer">
-                                        <input type="radio" name="tipe_jadwal" value="sekali" class="mr-2" onchange="toggleJadwal()">
-                                        <span class="text-sm font-semibold">Jadwal Sekali</span>
-                                    </label>
-                                    <label class="flex items-center cursor-pointer">
-                                        <input type="radio" name="tipe_jadwal" value="harian" class="mr-2" onchange="toggleJadwal()">
-                                        <span class="text-sm font-semibold">Rutin Harian</span>
-                                    </label>
+                            <!-- MODE PENGIRIMAN - TAMPILAN DIPERBARUI -->
+                            <div class="mt-4 p-5 bg-gradient-to-r from-slate-50 to-blue-50 border border-blue-200 rounded-2xl shadow-sm">
+                                <label class="block font-bold text-sm text-blue-800 mb-3"><i class="fas fa-clock mr-2"></i> Mode Pengiriman</label>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                                    <div class="mode-card border rounded-xl p-3 cursor-pointer text-center transition hover:shadow-md" data-mode="sekarang">
+                                        <input type="radio" name="tipe_jadwal" value="sekarang" id="mode_sekarang" class="hidden" checked>
+                                        <i class="fas fa-bolt text-2xl text-yellow-500 mb-1 block"></i>
+                                        <span class="font-semibold text-sm">Kirim Sekarang</span>
+                                        <p class="text-xs text-gray-500">Langsung terkirim</p>
+                                    </div>
+                                    <div class="mode-card border rounded-xl p-3 cursor-pointer text-center transition hover:shadow-md" data-mode="sekali">
+                                        <input type="radio" name="tipe_jadwal" value="sekali" id="mode_sekali" class="hidden">
+                                        <i class="fas fa-calendar-day text-2xl text-indigo-500 mb-1 block"></i>
+                                        <span class="font-semibold text-sm">Jadwal Sekali</span>
+                                        <p class="text-xs text-gray-500">Tgl & waktu tertentu</p>
+                                    </div>
+                                    <div class="mode-card border rounded-xl p-3 cursor-pointer text-center transition hover:shadow-md" data-mode="harian">
+                                        <input type="radio" name="tipe_jadwal" value="harian" id="mode_harian" class="hidden">
+                                        <i class="fas fa-clock text-2xl text-teal-500 mb-1 block"></i>
+                                        <span class="font-semibold text-sm">Rutin Harian</span>
+                                        <p class="text-xs text-gray-500">Setiap hari & jam</p>
+                                    </div>
                                 </div>
-                                <div id="input_sekali" class="hidden mt-2">
-                                    <label for="waktu_jadwal" class="block text-xs text-blue-600 mb-1">Pilih Tanggal & Waktu Kirim:</label>
+                                <div id="input_sekali" class="hidden mt-3 p-3 bg-white rounded-lg border">
+                                    <label for="waktu_jadwal" class="block text-xs text-blue-600 mb-1 font-bold">Pilih Tanggal & Waktu Kirim:</label>
                                     <input type="datetime-local" id="waktu_jadwal" name="waktu_jadwal" class="w-full border-gray-300 rounded-lg p-2 text-sm bg-white">
                                 </div>
-                                <div id="input_harian" class="hidden mt-2 border-t border-blue-200 pt-3">
+                                <div id="input_harian" class="hidden mt-3 p-3 bg-white rounded-lg border">
                                     <label for="jam_harian" class="block text-xs text-blue-600 mb-1 font-bold">Kirim pada jam:</label>
                                     <input type="time" id="jam_harian" name="jam_harian" class="w-full border-gray-300 rounded-lg p-2 text-sm bg-white mb-3">
-                                    
                                     <label class="block text-xs text-blue-600 mb-1 font-bold">Pilih Hari Rutin:</label>
                                     <div class="flex flex-wrap gap-3">
-                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="1" class="mr-1"> Sen</label>
-                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="2" class="mr-1"> Sel</label>
-                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="3" class="mr-1"> Rab</label>
-                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="4" class="mr-1"> Kam</label>
-                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="5" class="mr-1"> Jum</label>
-                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="6" class="mr-1"> Sab</label>
-                                        <label class="flex items-center text-xs"><input type="checkbox" name="hari_rutin[]" value="7" class="mr-1"> Min</label>
+                                        <label class="flex items-center text-xs bg-gray-100 px-2 py-1 rounded"><input type="checkbox" name="hari_rutin[]" value="1" class="mr-1"> Sen</label>
+                                        <label class="flex items-center text-xs bg-gray-100 px-2 py-1 rounded"><input type="checkbox" name="hari_rutin[]" value="2" class="mr-1"> Sel</label>
+                                        <label class="flex items-center text-xs bg-gray-100 px-2 py-1 rounded"><input type="checkbox" name="hari_rutin[]" value="3" class="mr-1"> Rab</label>
+                                        <label class="flex items-center text-xs bg-gray-100 px-2 py-1 rounded"><input type="checkbox" name="hari_rutin[]" value="4" class="mr-1"> Kam</label>
+                                        <label class="flex items-center text-xs bg-gray-100 px-2 py-1 rounded"><input type="checkbox" name="hari_rutin[]" value="5" class="mr-1"> Jum</label>
+                                        <label class="flex items-center text-xs bg-gray-100 px-2 py-1 rounded"><input type="checkbox" name="hari_rutin[]" value="6" class="mr-1"> Sab</label>
+                                        <label class="flex items-center text-xs bg-gray-100 px-2 py-1 rounded"><input type="checkbox" name="hari_rutin[]" value="7" class="mr-1"> Min</label>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="border-t pt-4">
-                                <h2 class="text-lg font-semibold mb-4 flex items-center text-primary"><i class="fas fa-check-square text-xl mr-2 text-accent"></i> Pilih Grup Penerima</h2>
+                            <!-- PILIH GRUP PENERIMA - TAMPILAN DIPERBARUI -->
+                            <div class="border-t pt-4 mt-2">
+                                <h2 class="text-lg font-semibold mb-3 flex items-center text-gray-800"><i class="fas fa-check-square text-xl mr-2 text-blue-500"></i> Pilih Grup Penerima</h2>
                                 <div class="relative">
-                                    <button type="button" id="group-filter-btn" class="w-full bg-white border border-gray-300 rounded-lg p-2.5 text-left flex justify-between items-center focus:ring-2 focus:ring-blue-400 transition">
-                                        <span id="group-filter-btn-text">Pilih Grup Penerima</span>
-                                        <i class="fas fa-caret-down"></i>
+                                    <button type="button" id="group-filter-btn" class="w-full bg-white border-2 border-gray-300 rounded-xl p-3 text-left flex justify-between items-center focus:ring-2 focus:ring-blue-400 transition hover:bg-gray-50">
+                                        <span id="group-filter-btn-text" class="font-medium">Pilih Grup Penerima</span>
+                                        <i class="fas fa-chevron-down text-gray-500"></i>
                                     </button>
-                                    <div id="group-filter-popup" class="hidden absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto p-2">
+                                    <div id="group-filter-popup" class="hidden absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-72 overflow-y-auto p-3">
                                         <?php if (!empty($groupsByCategory)): ?>
                                             <?php foreach($groupsByCategory as $kategori => $groups): ?>
-                                            <div class="category-group space-y-1 mb-2">
-                                                <label class="flex items-center space-x-3 cursor-pointer p-2 border-b">
+                                            <div class="category-group space-y-1 mb-3">
+                                                <label class="flex items-center space-x-3 cursor-pointer p-2 border-b bg-gray-50 rounded-t">
                                                     <input type="checkbox" class="category-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                                    <span class="text-sm font-semibold text-gray-700"><?= htmlspecialchars($kategori) ?></span>
+                                                    <span class="text-sm font-bold text-gray-700"><?= htmlspecialchars($kategori) ?></span>
                                                 </label>
-                                                <div class="pl-4 pt-1">
+                                                <div class="pl-4 pt-1 space-y-1">
                                                     <?php foreach($groups as $group): ?>
-                                                    <label class="flex items-center space-x-3 cursor-pointer p-1.5 rounded-md hover:bg-gray-50">
+                                                    <label class="flex items-center space-x-3 cursor-pointer p-1.5 rounded-md hover:bg-blue-50 transition">
                                                         <input type="checkbox" name="selected_groups[]" value="<?= htmlspecialchars($group['id_grup']) ?>" class="group-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                                         <span class="text-sm text-gray-700"><?= htmlspecialchars($group['nama_grup']) ?></span>
                                                     </label>
@@ -439,9 +456,10 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
                                         <?php endif; ?>
                                     </div>
                                 </div>
+                                <p class="text-xs text-gray-500 mt-2"><i class="fas fa-info-circle"></i> Centang grup tujuan, bisa lebih dari satu.</p>
                             </div>
                             <div class="border-t pt-4">
-                                <button type="submit" name="kirim_grup" class="w-full btn-primary text-white px-6 py-3 rounded-lg shadow-lg font-bold text-lg transition flex items-center justify-center transform hover:scale-105">
+                                <button type="submit" name="kirim_grup" class="w-full btn-primary text-white px-6 py-3 rounded-xl shadow-lg font-bold text-lg transition flex items-center justify-center transform hover:scale-[1.02]">
                                     <i class="fas fa-paper-plane text-2xl mr-2"></i> Proses
                                 </button>
                             </div>
@@ -450,11 +468,12 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
                 </form>
             </div>
             
+            <!-- KOLOM KANAN: PREVIEW CHAT -->
             <div class="space-y-6 lg:sticky top-24">
-                 <div class="bg-card shadow-md rounded-2xl p-6 border border-card">
-                     <h2 class="text-lg font-semibold mb-4 flex items-center text-primary"><i class="fas fa-mobile-alt text-xl mr-2 text-accent"></i> Preview Chat</h2>
+                 <div class="bg-white shadow-md rounded-2xl p-6 border border-gray-100">
+                     <h2 class="text-lg font-semibold mb-4 flex items-center text-gray-800"><i class="fab fa-whatsapp text-xl mr-2 text-green-500"></i> Preview Chat</h2>
                      <div class="w-full max-w-sm mx-auto bg-white rounded-2xl shadow-lg overflow-hidden border">
-                         <div class="whatsapp-chat-preview p-4 h-96 flex flex-col-reverse overflow-y-auto">
+                         <div class="whatsapp-chat-preview p-4 h-96 flex flex-col-reverse overflow-y-auto bg-cover">
                             <div id="chat-preview-container" class="flex flex-col items-end space-y-2">
                             </div>
                          </div>
@@ -463,10 +482,11 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
             </div>
         </div>
 
+        <!-- DUA ROW RIWAYAT: RIWAYAT ISI PESAN & RIWAYAT PENGIRIMAN -->
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            <div class="bg-card shadow-md rounded-2xl p-6 border border-card">
+            <div class="bg-white shadow-md rounded-2xl p-6 border border-gray-100">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold flex items-center text-primary"><i class="fas fa-comment-dots text-xl mr-2 text-accent"></i> Riwayat Isi Pesan</h2>
+                    <h2 class="text-lg font-semibold flex items-center text-gray-800"><i class="fas fa-comment-dots text-xl mr-2 text-blue-500"></i> Riwayat Isi Pesan</h2>
                     <form method="POST" onsubmit="return confirm('Anda yakin ingin menghapus semua riwayat isi pesan?');" class="inline-block">
                         <button type="submit" name="delete_message_history" class="text-xs bg-red-100 text-red-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-200 transition flex items-center"><i class="fas fa-trash text-sm mr-1.5"></i> Hapus Semua</button>
                     </form>
@@ -483,64 +503,9 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
                     <?php endif; ?>
                 </div>
             </div>
-            <div class="bg-card shadow-md rounded-2xl p-6 border border-card mt-8 col-span-1 lg:col-span-2">
-    <h2 class="text-lg font-semibold mb-4 flex items-center text-primary"><i class="fas fa-calendar-alt text-xl mr-2 text-accent"></i> Jadwal Sedang Berjalan</h2>
-    <div class="overflow-x-auto">
-        <table class="min-w-full bg-white border border-gray-200 rounded-lg">
-            <thead class="bg-gray-100 text-gray-600 text-xs uppercase text-left">
-                <tr>
-                    <th class="py-3 px-4 border-b">Grup</th>
-                    <th class="py-3 px-4 border-b">Pesan</th>
-                    <th class="py-3 px-4 border-b">Tipe Jadwal</th>
-                    <th class="py-3 px-4 border-b">Waktu Kirim</th>
-                    <th class="py-3 px-4 border-b text-center">Aksi</th>
-                </tr>
-            </thead>
-            <tbody class="text-sm">
-                <?php if(!empty($jadwalBerjalan)): ?>
-                    <?php foreach($jadwalBerjalan as $j): ?>
-                    <tr class="hover:bg-gray-50">
-                        <td class="py-3 px-4 border-b">
-                            <span class="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-xs"><?= $j['total_grup'] ?> Grup Target</span><br>
-                            <span class="text-xs text-gray-500 truncate block max-w-xs mt-1" title="<?= htmlspecialchars($j['daftar_grup']) ?>">
-                                <?= htmlspecialchars($j['daftar_grup']) ?>
-                            </span>
-                        </td>
-                        <td class="py-3 px-4 border-b max-w-xs truncate" title="<?= htmlspecialchars($j['pesan']) ?>">
-                            <?php if(!empty($j['media_path'])): ?>
-                                <i class="fas fa-image text-gray-400 mr-1" title="Terdapat gambar"></i>
-                            <?php endif; ?>
-                            <?= htmlspecialchars($j['pesan']) ?>
-                        </td>
-                        <td class="py-3 px-4 border-b font-semibold text-blue-600 uppercase"><?= htmlspecialchars($j['tipe_jadwal']) ?></td>
-                        <td class="py-3 px-4 border-b text-xs">
-                            <?php if($j['tipe_jadwal'] == 'sekali'): ?>
-                                <?= date('d M Y, H:i', strtotime($j['jadwal_kirim'])) ?>
-                            <?php else: ?>
-                                Jam: <?= htmlspecialchars($j['jam_harian']) ?><br>
-                                Hari: <?= htmlspecialchars($j['hari_rutin']) ?> (1=Sen, 7=Min)
-                            <?php endif; ?>
-                        </td>
-                        <td class="py-3 px-4 border-b text-center">
-                            <form method="POST" onsubmit="return confirm('Batalkan dan hapus jadwal untuk <?= $j['total_grup'] ?> grup ini?');">
-                                <input type="hidden" name="id_jadwal" value="<?= $j['id_jadwal_list'] ?>">
-                                <button type="submit" name="batalkan_jadwal" class="bg-red-100 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-200 text-xs font-bold transition flex items-center justify-center mx-auto">
-                                    <i class="fas fa-times mr-1"></i> Batalkan
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <tr><td colspan="5" class="py-6 text-center text-gray-500">Tidak ada jadwal aktif.</td></tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
-</div>
-            <div class="bg-card shadow-md rounded-2xl p-6 border border-card">
+            <div class="bg-white shadow-md rounded-2xl p-6 border border-gray-100">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold flex items-center text-primary"><i class="fas fa-history text-xl mr-2 text-accent"></i> Riwayat Pengiriman</h2>
+                    <h2 class="text-lg font-semibold flex items-center text-gray-800"><i class="fas fa-history text-xl mr-2 text-blue-500"></i> Riwayat Pengiriman</h2>
                     <form method="POST" onsubmit="return confirm('Anda yakin ingin menghapus semua riwayat pengiriman grup?');" class="inline-block">
                         <button type="submit" name="delete_history" class="text-xs bg-red-100 text-red-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-200 transition flex items-center"><i class="fas fa-trash text-sm mr-1.5"></i> Hapus Semua</button>
                     </form>
@@ -574,6 +539,64 @@ if ($historyResult) { $pesanHistory = $historyResult->fetch_all(MYSQLI_ASSOC); }
                 </div>
             </div>
         </div>
+
+        <!-- TABEL JADWAL SEDANG BERJALAN - SATU PER BARIS (TIDAK GROUPING) DILETAKKAN DI BAWAH PREVIEW DAN RIWAYAT -->
+        <div class="mt-8 bg-white shadow-md rounded-2xl p-6 border border-gray-100">
+            <h2 class="text-lg font-semibold mb-4 flex items-center text-gray-800"><i class="fas fa-calendar-alt text-xl mr-2 text-blue-500"></i> Jadwal Sedang Berjalan</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-100 text-gray-600 text-xs uppercase text-left">
+                        <tr>
+                            <th class="py-3 px-4 border-b">Grup Tujuan</th>
+                            <th class="py-3 px-4 border-b">Pesan</th>
+                            <th class="py-3 px-4 border-b">Tipe Jadwal</th>
+                            <th class="py-3 px-4 border-b">Waktu Kirim</th>
+                            <th class="py-3 px-4 border-b text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm">
+                        <?php if(!empty($jadwalBerjalan)): ?>
+                            <?php foreach($jadwalBerjalan as $j): ?>
+                            <tr class="hover:bg-gray-50">
+                                <td class="py-3 px-4 border-b font-medium text-gray-800"><?= htmlspecialchars($j['nama_grup']) ?></td>
+                                <td class="py-3 px-4 border-b max-w-xs truncate" title="<?= htmlspecialchars($j['pesan']) ?>">
+                                    <?php if(!empty($j['media_path'])): ?>
+                                        <i class="fas fa-image text-blue-400 mr-1" title="Terdapat gambar"></i>
+                                    <?php endif; ?>
+                                    <?= htmlspecialchars(mb_substr($j['pesan'], 0, 60)) . (strlen($j['pesan']) > 60 ? '...' : '') ?>
+                                 </td>
+                                <td class="py-3 px-4 border-b font-semibold uppercase text-xs">
+                                    <span class="px-2 py-1 rounded-full <?= $j['tipe_jadwal'] == 'sekali' ? 'bg-indigo-100 text-indigo-700' : ($j['tipe_jadwal'] == 'harian' ? 'bg-teal-100 text-teal-700' : 'bg-gray-100') ?>">
+                                        <?= $j['tipe_jadwal'] == 'sekali' ? 'Sekali' : ($j['tipe_jadwal'] == 'harian' ? 'Harian' : 'Sekarang') ?>
+                                    </span>
+                                 </td>
+                                <td class="py-3 px-4 border-b text-xs">
+                                    <?php if($j['tipe_jadwal'] == 'sekali'): ?>
+                                        <i class="far fa-calendar-alt mr-1"></i> <?= date('d M Y, H:i', strtotime($j['jadwal_kirim'])) ?>
+                                    <?php elseif($j['tipe_jadwal'] == 'harian'): ?>
+                                        <i class="fas fa-clock mr-1"></i> <?= htmlspecialchars($j['jam_harian']) ?><br>
+                                        <i class="fas fa-calendar-week mr-1"></i> <?= formatHariRutin($j['hari_rutin']) ?>
+                                    <?php else: ?>
+                                        -
+                                    <?php endif; ?>
+                                 </td>
+                                <td class="py-3 px-4 border-b text-center">
+                                    <form method="POST" onsubmit="return confirm('Batalkan jadwal untuk grup <?= htmlspecialchars($j['nama_grup']) ?>?');">
+                                        <input type="hidden" name="id_jadwal" value="<?= $j['id'] ?>">
+                                        <button type="submit" name="batalkan_jadwal" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 text-xs font-bold transition flex items-center justify-center mx-auto">
+                                            <i class="fas fa-times mr-1"></i> Batalkan
+                                        </button>
+                                    </form>
+                                 </td>
+                             </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr><td colspan="5" class="py-6 text-center text-gray-500">Tidak ada jadwal aktif.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
       </div>
     </main>
   </div>
@@ -586,7 +609,41 @@ function toggleJadwal() {
     document.getElementById('input_harian').style.display = (tipe === 'harian') ? 'block' : 'none';
 }
 
+// Highlight mode selection visual
+function initModeCards() {
+    const cards = document.querySelectorAll('.mode-card');
+    const radios = document.querySelectorAll('input[name="tipe_jadwal"]');
+    
+    function updateActive() {
+        const selectedVal = document.querySelector('input[name="tipe_jadwal"]:checked').value;
+        cards.forEach(card => {
+            const mode = card.dataset.mode;
+            if(mode === selectedVal) {
+                card.classList.add('active-mode', 'border-blue-400', 'bg-blue-50');
+                card.classList.remove('border-gray-200');
+            } else {
+                card.classList.remove('active-mode', 'border-blue-400', 'bg-blue-50');
+                card.classList.add('border-gray-200');
+            }
+        });
+        toggleJadwal();
+    }
+    
+    cards.forEach(card => {
+        card.addEventListener('click', () => {
+            const mode = card.dataset.mode;
+            const radio = card.querySelector(`input[value="${mode}"]`);
+            if(radio) radio.checked = true;
+            updateActive();
+        });
+    });
+    radios.forEach(r => r.addEventListener('change', updateActive));
+    updateActive();
+}
+
 document.addEventListener('DOMContentLoaded', function () {
+    initModeCards();
+    
     const mainForm = document.getElementById('main-form');
     
     mainForm.addEventListener('submit', async function(e) {
@@ -601,14 +658,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const waktuJadwal = document.getElementById('waktu_jadwal').value;
         const jamHarian = document.getElementById('jam_harian').value;
 
-        // --- PENEMPATAN LOGIKA HARI RUTIN YANG BENAR ---
         let hariTerpilih = [];
         if(tipeJadwal === 'harian') {
             document.querySelectorAll('input[name="hari_rutin[]"]:checked').forEach(cb => hariTerpilih.push(cb.value));
             if(hariTerpilih.length === 0) { alert("Pilih minimal 1 hari untuk jadwal rutin!"); return; }
         }
         const hariRutinString = hariTerpilih.join(',');
-        // -------------------------------------------------
 
         if (selectedGroupsCount === 0) { alert("Gagal! Anda belum memilih satupun grup penerima."); return; }
         if (pesanText === "" && fileInput.files.length === 0) { alert("Gagal! Isi pesan teks atau gambar tidak boleh kosong."); return; }
@@ -661,8 +716,6 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.append('tipe_jadwal', tipeJadwal);
             formData.append('waktu_jadwal', waktuJadwal);
             formData.append('jam_harian', jamHarian);
-            
-            // -- SISIPKAN DATA HARI KE PENGIRIMAN AJAX --
             formData.append('hari_rutin', hariRutinString);
             
             if (fileInput.files.length > 0) {
@@ -678,10 +731,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     pStat.innerHTML = `<span class="text-green-600 font-bold">✓ Sukses: ${groupName}</span>`;
                 } else {
                     failCount++;
-                    pStat.innerHTML = `<span class="text-red-600 font-bold">✗ Gagal: ${groupName}</span>`;
+                    pStat.innerHTML = `<span class="text-red-600 font-bold">✗ Gagal: ${groupName} - ${json.msg}</span>`;
                 }
             } catch (error) {
                 failCount++;
+                pStat.innerHTML = `<span class="text-red-600 font-bold">✗ Error: ${groupName}</span>`;
             }
 
             let pct = Math.round(((i + 1) / total) * 100);
