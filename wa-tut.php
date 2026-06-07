@@ -23,11 +23,12 @@ function kirimPesan($recipient, $message, $apiUrl, $apiToken) {
         "text" => ["body" => $message]
     ];
     
+    $jsonData = json_encode($data);
     $ch = curl_init($apiUrl);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($data),
+        CURLOPT_POSTFIELDS => $jsonData,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $apiToken],
         CURLOPT_TIMEOUT => 15
     ]);
@@ -56,6 +57,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_get_pengajar'])) 
         $filterJenis = $_POST['jenis_hidden'] ?? 'semua';
         if ($search) { $sql .= " AND nama LIKE ?"; $types .= 's'; $params[] = '%' . $search . '%'; }
         if ($filterJenis !== 'semua') { $sql .= " AND halaqoh LIKE ?"; $types .= 's'; $params[] = $filterJenis . '%'; }
+        
+        $sql .= " ORDER BY halaqoh ASC, nama ASC";
         
         $stmt = $conn->prepare($sql);
         if ($stmt) {
@@ -92,12 +95,12 @@ $page = (int)($_GET['page'] ?? 1);
 $itemsPerPage = 50;
 $offset = ($page - 1) * $itemsPerPage;
 
-// Query Data Pengajar
 $sql = "SELECT id, nama, nowa, halaqoh FROM pengampu WHERE nowa IS NOT NULL AND nowa != ''";
 $params = []; $types = "";
 if ($search) { $sql .= " AND nama LIKE ?"; $types .= 's'; $params[] = '%' . $search . '%'; }
 if ($filterJenis !== 'semua') { $sql .= " AND halaqoh LIKE ?"; $types .= 's'; $params[] = $filterJenis . '%'; }
 
+$countSql = "SELECT COUNT(*) as total FROM (" . $sql . ") as t";
 $sql .= " ORDER BY halaqoh ASC, nama ASC LIMIT ? OFFSET ?";
 $types .= 'ii'; $params[] = $itemsPerPage; $params[] = $offset;
 
@@ -108,10 +111,11 @@ if ($stmt) {
     $pengajarData = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
-// Query Log Khusus Pengajar (JOIN dengan pengampu)
+// Query Log Khusus Pengajar (INNER JOIN memastikan hanya log pengajar yang muncul)
 $logPesan = $conn->query("SELECT l.nama, l.message, l.created_at FROM log_wa l 
                           INNER JOIN pengampu p ON l.nowa = p.nowa 
                           ORDER BY l.created_at DESC LIMIT 20")->fetch_all(MYSQLI_ASSOC);
+
 ?>
 <!DOCTYPE html>
 <html lang="id">
