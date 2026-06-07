@@ -125,9 +125,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_get_pengajar'])) 
             nama";
         
         $stmt = $conn->prepare($sql);
-        if (!empty($params)) { 
-            $stmt->bind_param($types, ...$params); 
-        }
+if ($stmt && !empty($params)) {
+    // Memastikan $params dikirim sebagai argumen individual
+    $stmt->bind_param($types, ...$params);
+} elseif (!$stmt) {
+    die("Error SQL: " . $conn->error); // Debugging jika prepare gagal
+}
         
         $stmt->execute();
         $result = $stmt->get_result();
@@ -347,15 +350,19 @@ $params[] = $offset;
 $pengajarData = [];
 $stmt = $conn->prepare($sql);
 if ($stmt) {
-    if (!empty($params)) { 
-        $stmt->bind_param($types, ...$params); 
+    if (!empty($params)) {
+        // Jika Anda menggunakan PHP versi lama, gunakan call_user_func_array
+        $stmt->bind_param($types, ...$params);
     }
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        die("Error Execute: " . $stmt->error);
+    }
     $result = $stmt->get_result();
     $pengajarData = $result->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
+} else {
+    die("Error Prepare: " . $conn->error);
 }
-
 // ============================================
 // AMBIL DATA LOG
 // ============================================
