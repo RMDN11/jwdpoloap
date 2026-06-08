@@ -760,9 +760,6 @@ $savedUsername = isset($_COOKIE['remembered_username']) ? $_COOKIE['remembered_u
                 <div class="bubble bubble-6">
                     <i class="fas fa-file-alt"></i>
                 </div>
-                <div class="text-bubble">
-                    <p><i class="fas fa-check-circle"></i> Pesan terkirim otomatis</p>
-                </div>
             </div>
         </div>
     </div>
