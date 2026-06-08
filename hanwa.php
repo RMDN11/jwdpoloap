@@ -400,7 +400,48 @@
                 iframe.classList.remove('iframe-hidden');
                 iframe.classList.add('iframe-visible');
             };
+
+            // Memaksa semua halaman dalam iframe memiliki background putih dan warna teks yang sesuai
+function enforceWhiteBackgroundInIframe() {
+    try {
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        if (iframeDoc && iframeDoc.body) {
+            // Tambahkan style ke head iframe
+            const style = iframeDoc.createElement('style');
+            style.textContent = `
+                body, html {
+                    background-color: #ffffff !important;
+                    background: #ffffff !important;
+                }
+                body {
+                    background-color: #ffffff !important;
+                    background-image: none !important;
+                }
+                /* Pastikan semua container utama juga putih */
+                .container, .main-content, .content, [class*="bg-"], [class*="background"] {
+                    background-color: #ffffff !important;
+                }
+            `;
+            iframeDoc.head.appendChild(style);
             
+            // Langsung ubah background body
+            iframeDoc.body.style.backgroundColor = '#ffffff';
+            iframeDoc.body.style.background = '#ffffff';
+            iframeDoc.documentElement.style.backgroundColor = '#ffffff';
+        }
+    } catch(e) {
+        // CORS error - tidak bisa mengakses iframe lintas origin
+        console.log("Tidak dapat mengakses konten iframe (CORS protection)");
+    }
+}
+
+// Panggil fungsi ini setelah iframe selesai dimuat
+const originalIframeLoaded = window.iframeLoaded;
+window.iframeLoaded = function() {
+    if (originalIframeLoaded) originalIframeLoaded();
+    // Tunggu sebentar agar DOM iframe siap
+    setTimeout(enforceWhiteBackgroundInIframe, 100);
+};
             // Event klik menu
             navLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
