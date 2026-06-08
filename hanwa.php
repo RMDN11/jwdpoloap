@@ -197,6 +197,25 @@
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-reply-all text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Auto Reply</span>
             </a>
+
+            <!-- 🟢 TIGA HALAMAN BARU: pesan.php, grafik.php, manage_templates.php -->
+            <a href="pesan.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
+               data-title="Pesan & Broadcast" data-subtitle="Kirim pesan langsung dan broadcast" data-icon="fa-envelope" data-iconbg="bg-blue-100" data-icontext="text-blue-600">
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-envelope text-lg"></i></div>
+                <span class="text-sm font-semibold tracking-wide">Pesan</span>
+            </a>
+            
+            <a href="grafik.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
+               data-title="Grafik & Statistik" data-subtitle="Analisis data dan grafik pengiriman" data-icon="fa-chart-line" data-iconbg="bg-indigo-100" data-icontext="text-indigo-600">
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-chart-line text-lg"></i></div>
+                <span class="text-sm font-semibold tracking-wide">Grafik</span>
+            </a>
+            
+            <a href="manage_templates.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
+               data-title="Manajemen Template" data-subtitle="Kelola template pesan" data-icon="fa-file-alt" data-iconbg="bg-teal-100" data-icontext="text-teal-600">
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-file-alt text-lg"></i></div>
+                <span class="text-sm font-semibold tracking-wide">Template</span>
+            </a>
         </nav>
 
         <div class="px-4 pb-6 mt-3 border-t border-gray-100 pt-4">
