@@ -204,19 +204,19 @@
             <a href="kirimgrup.php" target="main-frame" class="nav-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Kirim Pesan Grup" data-subtitle="Promosi & broadcast ke grup WhatsApp" data-icon="fa-users" data-iconbg="bg-green-100" data-icontext="text-green-700">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-users text-lg"></i></div>
-                <span class="text-sm font-semibold tracking-wide">Kirim Grup</span>
+                <span class="text-sm font-semibold tracking-wide">Kirim Pesan Grup</span>
             </a>
             
             <a href="reminder.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Reminder Pembayaran" data-subtitle="Jadwalkan & kelola pengingat otomatis" data-icon="fa-bell" data-iconbg="bg-amber-100" data-icontext="text-amber-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-bell text-lg"></i></div>
-                <span class="text-sm font-semibold tracking-wide">Reminder</span>
+                <span class="text-sm font-semibold tracking-wide">Reminder Pembayaran</span>
             </a>
             
             <a href="wa-tut.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Tutor WhatsApp" data-subtitle="Manajemen materi & tutorial WA" data-icon="fa-chalkboard-user" data-iconbg="bg-purple-100" data-icontext="text-purple-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-chalkboard-user text-lg"></i></div>
-                <span class="text-sm font-semibold tracking-wide">WA Tutor</span>
+                <span class="text-sm font-semibold tracking-wide">Pesan Tutor</span>
             </a>
             
             <a href="promosi.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
@@ -224,24 +224,11 @@
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-bullhorn text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Promosi</span>
             </a>
-            
-            <a href="kelola_grup.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Manajemen Grup" data-subtitle="Tambah, edit & hapus daftar grup target" data-icon="fa-address-book" data-iconbg="bg-indigo-100" data-icontext="text-indigo-600">
-                <div class="icon-wrapper w-6 text-center"><i class="fas fa-address-book text-lg"></i></div>
-                <span class="text-sm font-semibold tracking-wide">Kelola Grup</span>
-            </a>
-
-            <a href="manage_auto_reply.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Auto Reply" data-subtitle="Balasan otomatis cerdas" data-icon="fa-reply-all" data-iconbg="bg-rose-100" data-icontext="text-rose-600">
-                <div class="icon-wrapper w-6 text-center"><i class="fas fa-reply-all text-lg"></i></div>
-                <span class="text-sm font-semibold tracking-wide">Auto Reply</span>
-            </a>
-
             <!-- TIGA HALAMAN BARU -->
             <a href="pesan.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Pesan & Broadcast" data-subtitle="Kirim pesan langsung dan broadcast" data-icon="fa-envelope" data-iconbg="bg-blue-100" data-icontext="text-blue-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-envelope text-lg"></i></div>
-                <span class="text-sm font-semibold tracking-wide">Pesan</span>
+                <span class="text-sm font-semibold tracking-wide">Pesan Baru</span>
             </a>
             
             <a href="grafik.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
@@ -254,6 +241,17 @@
                data-title="Manajemen Template" data-subtitle="Kelola template pesan" data-icon="fa-file-alt" data-iconbg="bg-teal-100" data-icontext="text-teal-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-file-alt text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Template</span>
+            </a>
+            <a href="kelola_grup.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
+               data-title="Manajemen Grup" data-subtitle="Tambah, edit & hapus daftar grup target" data-icon="fa-address-book" data-iconbg="bg-indigo-100" data-icontext="text-indigo-600">
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-address-book text-lg"></i></div>
+                <span class="text-sm font-semibold tracking-wide">Kelola Grup</span>
+            </a>
+
+            <a href="manage_auto_reply.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
+               data-title="Auto Reply" data-subtitle="Balasan otomatis cerdas" data-icon="fa-reply-all" data-iconbg="bg-rose-100" data-icontext="text-rose-600">
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-reply-all text-lg"></i></div>
+                <span class="text-sm font-semibold tracking-wide">Kelola Auto Reply</span>
             </a>
         </nav>
 
