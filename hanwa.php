@@ -51,20 +51,27 @@
         .nav-menu::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
         .nav-menu::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         
-        /* Style menu navigasi - tanpa warna tetap saat aktif, nanti diatur oleh JS */
+        /* Style menu navigasi - tanpa border, box berwarna saat aktif */
         .nav-link {
             transition: all 0.2s ease;
             border-radius: 14px;
         }
         
+        /* Aktif: background hijau lembut */
+        .nav-link.active {
+            background: #dcfce7 !important;
+            color: #166534 !important;
+            font-weight: 600;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+        }
+        
+        .nav-link.active .icon-wrapper {
+            color: #059669 !important;
+        }
+        
         .nav-link:not(.active):hover {
             background-color: #f8fafc;
             transform: translateX(3px);
-        }
-        
-        /* Warna icon wrapper dinamis mengikuti active */
-        .nav-link.active .icon-wrapper {
-            transition: color 0.2s;
         }
 
         /* iframe transitions */
@@ -92,7 +99,7 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* SIDEBAR - DESKTOP & MOBILE */
+        /* SIDEBAR - DESKTOP & MOBILE YANG LEBIH RAPIH */
         .sidebar {
             transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
             z-index: 60;
@@ -100,7 +107,7 @@
             box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.05);
         }
         
-        /* Mobile: sidebar flat di sisi kiri, rapi tanpa lengkungan */
+        /* Mobile: tampilan sidebar lebih rapi, border-radius, padding proporsional */
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
@@ -109,18 +116,20 @@
                 height: 100vh;
                 width: 280px;
                 transform: translateX(-110%);
-                border-radius: 0; /* tidak melengkung sama sekali, kotak sempurna */
-                box-shadow: 8px 0 24px rgba(0, 0, 0, 0.08);
+                border-radius: 0 28px 28px 0;
+                box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
                 display: flex;
                 flex-direction: column;
             }
             .sidebar.show {
                 transform: translateX(0);
             }
+            /* Konten sidebar agar scroll rapi */
             .sidebar .nav-menu {
                 padding-left: 1rem;
                 padding-right: 1rem;
             }
+            /* Header sidebar mobile lebih kompak */
             .sidebar > div:first-child {
                 padding-top: 1.25rem;
                 padding-bottom: 1rem;
@@ -136,12 +145,11 @@
             }
         }
         
-        /* Desktop: sidebar dengan lengkungan halus */
+        /* perbaikan untuk desktop */
         @media (min-width: 769px) {
             .sidebar {
                 position: relative;
                 transform: none !important;
-                border-radius: 1rem;
             }
         }
     </style>
@@ -151,8 +159,8 @@
     <!-- Overlay mobile -->
     <div id="mobile-overlay" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-45 opacity-0 invisible transition-all duration-300 pointer-events-none md:hidden"></div>
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar w-72 md:rounded-2xl flex flex-col h-full" id="sidebar">
+    <!-- SIDEBAR dengan logo WhatsApp style & teks hijau - lebih rapi di mobile -->
+    <aside class="sidebar w-72 rounded-3xl md:rounded-2xl flex flex-col h-full" id="sidebar">
         
         <div class="px-5 pt-5 pb-4 mb-1 flex justify-between items-center border-b border-gray-100">
             <div class="flex items-center gap-3">
@@ -171,56 +179,56 @@
         
         <nav class="nav-menu flex flex-col gap-1.5 px-4 py-4 overflow-y-auto flex-1">
             <a href="kirimgrup.php" target="main-frame" class="nav-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Kirim Pesan Grup" data-subtitle="Promosi & broadcast ke grup WhatsApp" data-icon="fa-users" data-iconbg="#dcfce7" data-icontext="#059669" data-iconwrapper="#059669">
+               data-title="Kirim Pesan Grup" data-subtitle="Promosi & broadcast ke grup WhatsApp" data-icon="fa-users" data-iconbg="bg-green-100" data-icontext="text-green-700">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-users text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Kirim Grup</span>
             </a>
             
             <a href="reminder.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Reminder Pembayaran" data-subtitle="Jadwalkan & kelola pengingat otomatis" data-icon="fa-bell" data-iconbg="#fef3c7" data-icontext="#d97706" data-iconwrapper="#d97706">
+               data-title="Reminder Pembayaran" data-subtitle="Jadwalkan & kelola pengingat otomatis" data-icon="fa-bell" data-iconbg="bg-amber-100" data-icontext="text-amber-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-bell text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Reminder</span>
             </a>
             
             <a href="wa-tut.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Tutor WhatsApp" data-subtitle="Manajemen materi & tutorial WA" data-icon="fa-chalkboard-user" data-iconbg="#f3e8ff" data-icontext="#9333ea" data-iconwrapper="#9333ea">
+               data-title="Tutor WhatsApp" data-subtitle="Manajemen materi & tutorial WA" data-icon="fa-chalkboard-user" data-iconbg="bg-purple-100" data-icontext="text-purple-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-chalkboard-user text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">WA Tutor</span>
             </a>
             
             <a href="promosi.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Promosi Broadcast" data-subtitle="Kirim promosi massal via WhatsApp" data-icon="fa-bullhorn" data-iconbg="#dcfce7" data-icontext="#16a34a" data-iconwrapper="#16a34a">
+               data-title="Promosi Broadcast" data-subtitle="Kirim promosi massal via WhatsApp" data-icon="fa-bullhorn" data-iconbg="bg-green-100" data-icontext="text-green-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-bullhorn text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Promosi</span>
             </a>
             
             <a href="kelola_grup.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Manajemen Grup" data-subtitle="Tambah, edit & hapus daftar grup target" data-icon="fa-address-book" data-iconbg="#e0e7ff" data-icontext="#4f46e5" data-iconwrapper="#4f46e5">
+               data-title="Manajemen Grup" data-subtitle="Tambah, edit & hapus daftar grup target" data-icon="fa-address-book" data-iconbg="bg-indigo-100" data-icontext="text-indigo-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-address-book text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Kelola Grup</span>
             </a>
 
             <a href="manage_auto_reply.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Auto Reply" data-subtitle="Balasan otomatis cerdas" data-icon="fa-reply-all" data-iconbg="#ffe4e6" data-icontext="#e11d48" data-iconwrapper="#e11d48">
+               data-title="Auto Reply" data-subtitle="Balasan otomatis cerdas" data-icon="fa-reply-all" data-iconbg="bg-rose-100" data-icontext="text-rose-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-reply-all text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Auto Reply</span>
             </a>
 
             <!-- TIGA HALAMAN BARU -->
             <a href="pesan.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Pesan & Broadcast" data-subtitle="Kirim pesan langsung dan broadcast" data-icon="fa-envelope" data-iconbg="#dbeafe" data-icontext="#2563eb" data-iconwrapper="#2563eb">
+               data-title="Pesan & Broadcast" data-subtitle="Kirim pesan langsung dan broadcast" data-icon="fa-envelope" data-iconbg="bg-blue-100" data-icontext="text-blue-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-envelope text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Pesan</span>
             </a>
             
             <a href="grafik.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Grafik & Statistik" data-subtitle="Analisis data dan grafik pengiriman" data-icon="fa-chart-line" data-iconbg="#e0e7ff" data-icontext="#4338ca" data-iconwrapper="#4338ca">
+               data-title="Grafik & Statistik" data-subtitle="Analisis data dan grafik pengiriman" data-icon="fa-chart-line" data-iconbg="bg-indigo-100" data-icontext="text-indigo-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-chart-line text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Grafik</span>
             </a>
             
             <a href="manage_templates.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Manajemen Template" data-subtitle="Kelola template pesan" data-icon="fa-file-alt" data-iconbg="#ccfbf1" data-icontext="#0f766e" data-iconwrapper="#0f766e">
+               data-title="Manajemen Template" data-subtitle="Kelola template pesan" data-icon="fa-file-alt" data-iconbg="bg-teal-100" data-icontext="text-teal-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-file-alt text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Template</span>
             </a>
@@ -304,49 +312,22 @@
                 return localStorage.getItem('wa_dashboard_active_menu');
             }
 
-            // Fungsi untuk mereset semua style inline pada link (saat tidak aktif)
-            function resetLinkStyle(link) {
-                link.style.backgroundColor = '';
-                link.style.color = '';
-                const iconWrapper = link.querySelector('.icon-wrapper');
-                if (iconWrapper) iconWrapper.style.color = '';
-            }
-
-            // Update tampilan header & active class dengan warna dinamis sesuai dataset
+            // Update tampilan header & active class
             function applyActiveState(linkElement) {
                 if (!linkElement) return;
-                
-                // Reset semua link ke style default
-                navLinks.forEach(link => {
-                    link.classList.remove('active');
-                    resetLinkStyle(link);
-                });
-                
-                // Aktifkan link yang dipilih
+                navLinks.forEach(link => link.classList.remove('active'));
                 linkElement.classList.add('active');
                 
-                // Ambil warna dari dataset
-                const bgColor = linkElement.dataset.iconbg || '#dcfce7';
-                const textColor = linkElement.dataset.icontext || '#059669';
-                const iconColor = linkElement.dataset.iconwrapper || '#059669';
-                
-                // Terapkan style inline pada link aktif
-                linkElement.style.backgroundColor = bgColor;
-                linkElement.style.color = textColor;
-                const iconWrapper = linkElement.querySelector('.icon-wrapper');
-                if (iconWrapper) iconWrapper.style.color = iconColor;
-                
-                // Update header
                 const title = linkElement.dataset.title || "Dashboard";
                 const subtitle = linkElement.dataset.subtitle || "";
                 const icon = linkElement.dataset.icon || "fa-users";
-                const iconBgHeader = bgColor; // gunakan warna yang sama untuk header icon box
-                const iconTextHeader = textColor;
+                const iconBg = linkElement.dataset.iconbg || "bg-green-100";
+                const iconText = linkElement.dataset.icontext || "text-green-700";
                 
                 pageTitle.textContent = title;
                 pageSubtitle.textContent = subtitle;
-                headerIcon.className = `fas ${icon} ${iconTextHeader} text-xl transition-all duration-300`;
-                headerIconBox.className = `${iconBgHeader} p-3 rounded-2xl transition-all duration-300 flex items-center justify-center shadow-sm`;
+                headerIcon.className = `fas ${icon} ${iconText} text-xl transition-all duration-300`;
+                headerIconBox.className = `${iconBg} p-3 rounded-2xl transition-all duration-300 flex items-center justify-center shadow-sm`;
                 
                 if (textContainer) {
                     textContainer.classList.remove('animate-fade-in-up');
@@ -400,7 +381,6 @@
                 iframe.classList.remove('iframe-hidden');
                 iframe.classList.add('iframe-visible');
             };
-
             
             // Event klik menu
             navLinks.forEach(link => {
