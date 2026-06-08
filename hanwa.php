@@ -152,6 +152,29 @@
                 transform: none !important;
             }
         }
+        /* Animasi gentle untuk icon smile */
+@keyframes gentleSmile {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.1) rotate(2deg); }
+}
+.animate-gentle {
+    animation: gentleSmile 2s ease-in-out infinite;
+    display: inline-block;
+}
+
+/* Animasi wave untuk icon peace */
+@keyframes waveHand {
+    0% { transform: rotate(0deg); }
+    25% { transform: rotate(12deg); }
+    50% { transform: rotate(0deg); }
+    75% { transform: rotate(8deg); }
+    100% { transform: rotate(0deg); }
+}
+.animate-wave {
+    animation: waveHand 1.8s ease-in-out infinite;
+    display: inline-block;
+    transform-origin: 70% 70%;
+}
     </style>
 </head>
 <body class="flex p-4 md:p-5 gap-5 h-screen w-screen">
@@ -262,14 +285,13 @@
                 </div>
             </div>
             
-            <div class="hidden sm:flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 px-5 py-2.5 rounded-full shadow-sm border border-green-100">
-    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#166534] to-[#15803d] flex items-center justify-center text-white shadow-md">
-        <i class="fas fa-smile-wink text-sm"></i>
+            <div class="hidden sm:flex items-center gap-3 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-gray-100">
+    <div class="w-8 h-8 rounded-full bg-[#166534] flex items-center justify-center text-white shadow-sm">
+        <i class="fas fa-smile-wink text-sm animate-gentle"></i>
     </div>
-    <span class="text-sm font-semibold text-gray-700">
-        <i class="fas fa-hand-peace text-[#166534] mr-1"></i>
-        Halo, <span class="text-[#166534] font-extrabold">Han!</span>
-        <span class="inline-block ml-1 animate-wave">👋</span>
+    <span class="text-sm font-medium text-gray-600">
+        Halo, <span class="text-[#166534] font-semibold">Han!</span>
+        <i class="fas fa-hand-peace text-[#166534] ml-1 text-xs animate-wave"></i>
     </span>
 </div>
         </header>
