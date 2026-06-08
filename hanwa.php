@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>ReqraWA | Dashboard</title>
     
-    <!-- Favicon (gunakan icon whatsapp jika ada, opsional) -->
+    <!-- Favicon -->
     <link rel="icon" type="image/png" href="LOGOJWD.png">
     
     <!-- Tailwind CSS -->
@@ -13,7 +13,7 @@
     <!-- FontAwesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     
-    <!-- Google Fonts: Inter + Raleway -->
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Raleway:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <script>
@@ -57,9 +57,9 @@
             border-radius: 14px;
         }
         
-        /* Aktif: background hijau lembut (seperti whatsapp light) tanpa border */
+        /* Aktif: background hijau lembut */
         .nav-link.active {
-            background: #dcfce7 !important;  /* hijau very soft */
+            background: #dcfce7 !important;
             color: #166534 !important;
             font-weight: 600;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
@@ -74,7 +74,7 @@
             transform: translateX(3px);
         }
 
-        /* iframe transitions smooth */
+        /* iframe transitions */
         .iframe-hidden {
             opacity: 0;
             transform: translateY(18px) scale(0.99);
@@ -86,7 +86,7 @@
             transition: opacity 0.45s ease-out, transform 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.1);
         }
 
-        /* loading overlay clean */
+        /* loading overlay */
         #loading-overlay {
             backdrop-filter: blur(8px);
             background-color: rgba(255, 255, 255, 0.85);
@@ -99,55 +99,71 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Sidebar mobile - clean white */
+        /* SIDEBAR - DESKTOP & MOBILE YANG LEBIH RAPIH */
         .sidebar {
             transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.4, 1.1);
             z-index: 60;
             background: white;
             box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.05);
         }
+        
+        /* Mobile: tampilan sidebar lebih rapi, border-radius, padding proporsional */
         @media (max-width: 768px) {
             .sidebar {
-                transform: translateX(-110%);
                 position: fixed;
                 top: 0;
                 left: 0;
-                height: 100%;
+                height: 100vh;
                 width: 280px;
-                border-radius: 0 24px 24px 0;
+                transform: translateX(-110%);
+                border-radius: 0 28px 28px 0;
+                box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+                display: flex;
+                flex-direction: column;
             }
             .sidebar.show {
                 transform: translateX(0);
+            }
+            /* Konten sidebar agar scroll rapi */
+            .sidebar .nav-menu {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            /* Header sidebar mobile lebih kompak */
+            .sidebar > div:first-child {
+                padding-top: 1.25rem;
+                padding-bottom: 1rem;
             }
             body.sidebar-open::after {
                 content: '';
                 position: fixed;
                 inset: 0;
-                background: rgba(0,0,0,0.15);
-                backdrop-filter: blur(2px);
+                background: rgba(0, 0, 0, 0.2);
+                backdrop-filter: blur(3px);
                 z-index: 45;
                 pointer-events: auto;
             }
         }
         
-        /* clean card styles */
-        .clean-card {
-            background: white;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.03);
+        /* perbaikan untuk desktop */
+        @media (min-width: 769px) {
+            .sidebar {
+                position: relative;
+                transform: none !important;
+            }
         }
     </style>
 </head>
 <body class="flex p-4 md:p-5 gap-5 h-screen w-screen">
 
     <!-- Overlay mobile -->
-    <div id="mobile-overlay" class="fixed inset-0 bg-black/10 backdrop-blur-sm z-45 opacity-0 invisible transition-all duration-300 pointer-events-none md:hidden"></div>
+    <div id="mobile-overlay" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-45 opacity-0 invisible transition-all duration-300 pointer-events-none md:hidden"></div>
 
-    <!-- SIDEBAR dengan logo WhatsApp style & teks hijau -->
-    <aside class="sidebar w-72 rounded-3xl md:rounded-2xl flex flex-col h-full md:relative md:translate-x-0 shadow-md" id="sidebar">
+    <!-- SIDEBAR dengan logo WhatsApp style & teks hijau - lebih rapi di mobile -->
+    <aside class="sidebar w-72 rounded-3xl md:rounded-2xl flex flex-col h-full" id="sidebar">
         
-        <div class="px-6 pt-6 pb-5 mb-1 flex justify-between items-center border-b border-gray-100">
+        <div class="px-5 pt-5 pb-4 mb-1 flex justify-between items-center border-b border-gray-100">
             <div class="flex items-center gap-3">
-                <!-- Logo style WhatsApp: lingkaran hijau dengan ikon WA -->
                 <div class="w-9 h-9 rounded-xl bg-[#25D366] flex items-center justify-center shadow-sm">
                     <i class="fab fa-whatsapp text-white text-xl"></i>
                 </div>
@@ -155,13 +171,13 @@
                     <h2 class="font-display font-extrabold tracking-tight text-lg leading-tight">
                         <span class="text-gray-800">Reqra</span><span class="text-[#25D366]">WA</span>
                     </h2>
-                    <p class="text-[11px] font-medium text-gray-400 -mt-0.5">Smart Messaging</p>
+                    <p class="text-[10px] font-medium text-gray-400 -mt-0.5">Smart Messaging</p>
                 </div>
             </div>
             <button class="md:hidden text-gray-400 hover:text-gray-700 text-xl bg-gray-50 w-8 h-8 rounded-full transition" id="close-sidebar"><i class="fas fa-times text-sm"></i></button>
         </div>
         
-        <nav class="nav-menu flex flex-col gap-1.5 px-4 py-5 overflow-y-auto flex-1">
+        <nav class="nav-menu flex flex-col gap-1.5 px-4 py-4 overflow-y-auto flex-1">
             <a href="kirimgrup.php" target="main-frame" class="nav-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Kirim Pesan Grup" data-subtitle="Promosi & broadcast ke grup WhatsApp" data-icon="fa-users" data-iconbg="bg-green-100" data-icontext="text-green-700">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-users text-lg"></i></div>
@@ -198,7 +214,7 @@
                 <span class="text-sm font-semibold tracking-wide">Auto Reply</span>
             </a>
 
-            <!-- 🟢 TIGA HALAMAN BARU: pesan.php, grafik.php, manage_templates.php -->
+            <!-- TIGA HALAMAN BARU -->
             <a href="pesan.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Pesan & Broadcast" data-subtitle="Kirim pesan langsung dan broadcast" data-icon="fa-envelope" data-iconbg="bg-blue-100" data-icontext="text-blue-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-envelope text-lg"></i></div>
@@ -218,15 +234,15 @@
             </a>
         </nav>
 
-        <div class="px-4 pb-6 mt-3 border-t border-gray-100 pt-4">
-            <a href="logoutwa.php" target="_top" class="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 font-medium">
+        <div class="px-4 pb-5 mt-3 border-t border-gray-100 pt-3">
+            <a href="logoutwa.php" target="_top" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200 font-medium">
                 <i class="fas fa-sign-out-alt w-5 text-center text-red-400"></i> 
                 <span class="text-sm font-semibold">Keluar Akun</span>
             </a>
         </div>
     </aside>
 
-    <!-- MAIN WORKSPACE clean white -->
+    <!-- MAIN WORKSPACE -->
     <main class="flex-1 flex flex-col gap-5 min-w-0 relative">
         
         <header class="bg-white rounded-2xl md:rounded-3xl px-6 py-4 flex justify-between items-center shadow-sm border border-gray-100">
@@ -254,7 +270,7 @@
             </div>
         </header>
 
-        <!-- KONTEN IFRAME white clean -->
+        <!-- KONTEN IFRAME -->
         <div class="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-hidden shadow-sm border border-gray-100 relative">
             
             <div id="loading-overlay" class="absolute inset-0 z-20 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
@@ -296,7 +312,7 @@
                 return localStorage.getItem('wa_dashboard_active_menu');
             }
 
-            // Update tampilan header & active class (tanpa border, box berwarna)
+            // Update tampilan header & active class
             function applyActiveState(linkElement) {
                 if (!linkElement) return;
                 navLinks.forEach(link => link.classList.remove('active'));
@@ -379,7 +395,7 @@
                 });
             });
             
-            // Inisialisasi saat refresh: memuat menu terakhir yang disimpan
+            // Inisialisasi saat refresh
             function initializeFromStorage() {
                 const storedHref = getStoredMenu();
                 let targetLink = null;
