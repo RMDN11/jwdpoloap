@@ -164,15 +164,15 @@
         
         <div class="px-5 pt-5 pb-4 mb-1 flex justify-between items-center border-b border-gray-100">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-[#25D366] flex items-center justify-center shadow-sm">
-                    <i class="fab fa-whatsapp text-white text-xl"></i>
-                </div>
-                <div>
-                    <h2 class="font-display font-extrabold tracking-tight text-lg leading-tight">
-                        <span class="text-gray-800">Reqra</span><span class="text-[#25D366]">WA</span>
-                    </h2>
-                    <p class="text-[10px] font-medium text-gray-400 -mt-0.5">Smart Messaging</p>
-                </div>
+                <div class="w-9 h-9 rounded-xl bg-[#166534] flex items-center justify-center shadow-sm">
+    <i class="fab fa-whatsapp text-white text-xl"></i>
+</div>
+<div>
+    <h2 class="font-display font-extrabold tracking-tight text-lg leading-tight">
+        <span class="text-gray-800">Reqra</span><span class="text-[#166534]">WA</span>
+    </h2>
+     <p class="text-[10px] font-medium text-gray-400 -mt-0.5">Smart Messaging</p>
+</div>
             </div>
             <button class="md:hidden text-gray-400 hover:text-gray-700 text-xl bg-gray-50 w-8 h-8 rounded-full transition" id="close-sidebar"><i class="fas fa-times text-sm"></i></button>
         </div>
