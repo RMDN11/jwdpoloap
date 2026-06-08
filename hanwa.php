@@ -262,12 +262,16 @@
                 </div>
             </div>
             
-            <div class="hidden sm:flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full shadow-sm">
-                <div class="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center text-white shadow-sm">
-                    <i class="fas fa-user-check text-xs"></i>
-                </div>
-                <span class="text-sm font-semibold text-gray-700">Halo <span class="font-normal text-gray-400">|</span> <span class="text-[#25D366]">Han!</span></span>
-            </div>
+            <div class="hidden sm:flex items-center gap-3 bg-gradient-to-r from-green-50 to-emerald-50 px-5 py-2.5 rounded-full shadow-sm border border-green-100">
+    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#166534] to-[#15803d] flex items-center justify-center text-white shadow-md">
+        <i class="fas fa-smile-wink text-sm"></i>
+    </div>
+    <span class="text-sm font-semibold text-gray-700">
+        <i class="fas fa-hand-peace text-[#166534] mr-1"></i>
+        Halo, <span class="text-[#166534] font-extrabold">Han!</span>
+        <span class="inline-block ml-1 animate-wave">👋</span>
+    </span>
+</div>
         </header>
 
         <!-- KONTEN IFRAME -->
