@@ -26,6 +26,7 @@ if (isset($_SESSION['logout_message'])) {
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username'] ?? '');
     $password = trim($_POST['password'] ?? '');
+    $remember = isset($_POST['remember']) ? true : false;
     
     if (!empty($username) && !empty($password)) {
         try {
@@ -42,6 +43,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['logged_in'] = true;
                     $_SESSION['role'] = 'user';
+                    
+                    // Jika "Ingat Saya" dicentang, simpan username di cookie/localStorage (via JS nanti)
+                    // Untuk keamanan, hanya simpan username, BUKAN password
+                    if ($remember) {
+                        // Set cookie username selama 30 hari
+                        setcookie('remembered_username', $username, time() + (86400 * 30), "/");
+                    } else {
+                        // Hapus cookie jika ada
+                        setcookie('remembered_username', '', time() - 3600, "/");
+                    }
                     
                     header("Location: hanwa.php");
                     exit();
@@ -60,6 +71,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error = "Username dan password harus diisi!";
     }
 }
+
+// Ambil username yang tersimpan di cookie (jika ada)
+$savedUsername = isset($_COOKIE['remembered_username']) ? $_COOKIE['remembered_username'] : '';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -68,7 +82,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#075E54">
+    <meta name="theme-color" content="#ffffff">
     <title>Login - Reqra WhatsApp</title>
     <link rel="icon" type="image/png" href="LOGOJWD.png">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -87,164 +101,185 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
             min-height: 100dvh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
+            background: #ffffff;
             overflow-x: hidden;
         }
         
-        /* ========== DESKTOP: Background dengan animasi & gambar menarik ========== */
+        /* ========== DESKTOP: Layout 2 kolom ========== */
         @media (min-width: 769px) {
             body {
-                background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
             
-            /* Grid pattern background */
-            body::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background-image: 
-                    linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px);
-                background-size: 50px 50px;
-                pointer-events: none;
+            .login-container {
+                display: flex;
+                width: 100%;
+                max-width: 1280px;
+                margin: 0 auto;
+                padding: 2rem;
+                gap: 3rem;
+                align-items: center;
+                justify-content: space-between;
             }
             
-            /* Animated gradient blob 1 */
-            body::after {
-                content: '';
-                position: absolute;
-                width: 500px;
-                height: 500px;
-                background: radial-gradient(circle, rgba(37, 99, 235, 0.3) 0%, rgba(139, 92, 246, 0.15) 50%, transparent 70%);
-                border-radius: 50%;
-                top: -200px;
-                right: -150px;
-                animation: floatBlob 25s infinite ease-in-out;
-                pointer-events: none;
+            /* Kiri: Login Box */
+            .login-box {
+                flex: 1;
+                max-width: 460px;
+                margin: 0 auto;
             }
             
-            /* Blob 2 */
-            .bg-blob-2 {
-                position: absolute;
-                width: 450px;
-                height: 450px;
-                background: radial-gradient(circle, rgba(34, 197, 94, 0.2) 0%, rgba(59, 130, 246, 0.1) 60%, transparent 80%);
-                border-radius: 50%;
-                bottom: -180px;
-                left: -150px;
-                animation: floatBlob2 30s infinite ease-in-out;
-                pointer-events: none;
-                z-index: 0;
+            /* Kanan: Animasi Icon & Bubble */
+            .hero-animation {
+                flex: 1;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                position: relative;
             }
             
-            /* Blob 3 */
-            .bg-blob-3 {
+            .bubble-container {
+                position: relative;
+                width: 100%;
+                max-width: 480px;
+                min-height: 480px;
+            }
+            
+            /* Floating WhatsApp Icon */
+            .whatsapp-icon {
                 position: absolute;
-                width: 300px;
-                height: 300px;
-                background: radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, rgba(59, 130, 246, 0.05) 70%);
-                border-radius: 50%;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                animation: pulseBlob 15s infinite ease-in-out;
-                pointer-events: none;
+                width: 120px;
+                height: 120px;
+                background: linear-gradient(145deg, #075E54, #128C7E);
+                border-radius: 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 20px 40px -12px rgba(7, 94, 84, 0.3);
+                z-index: 10;
+                animation: pulseIcon 3s infinite ease-in-out;
             }
             
-            @keyframes floatBlob {
-                0%, 100% { transform: translate(0, 0) scale(1); }
-                50% { transform: translate(30px, -30px) scale(1.05); }
+            .whatsapp-icon i {
+                font-size: 4rem;
+                color: white;
             }
             
-            @keyframes floatBlob2 {
-                0%, 100% { transform: translate(0, 0) scale(1); }
-                50% { transform: translate(-25px, 25px) scale(1.08); }
+            /* Bubbles */
+            .bubble {
+                position: absolute;
+                background: rgba(18, 140, 126, 0.08);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                backdrop-filter: blur(2px);
             }
             
-            @keyframes pulseBlob {
-                0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
-                50% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.1); }
-            }
-            
-            /* Hero illustration area */
-            .hero-illustration {
-                position: fixed;
-                right: 5%;
-                top: 50%;
-                transform: translateY(-50%);
-                width: 35%;
-                max-width: 400px;
+            .bubble i {
+                font-size: 1.5rem;
+                color: #128C7E;
                 opacity: 0.7;
-                pointer-events: none;
-                z-index: 1;
             }
             
-            .hero-illustration svg {
-                width: 100%;
-                height: auto;
-                filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2));
+            /* Bubble positions & sizes */
+            .bubble-1 { top: 0; left: 10%; width: 80px; height: 80px; animation: float1 8s infinite ease-in-out; }
+            .bubble-2 { bottom: 5%; right: 0; width: 100px; height: 100px; animation: float2 10s infinite ease-in-out; }
+            .bubble-3 { top: 20%; right: 5%; width: 60px; height: 60px; animation: float3 7s infinite ease-in-out; }
+            .bubble-4 { bottom: 25%; left: 0; width: 70px; height: 70px; animation: float4 9s infinite ease-in-out; }
+            .bubble-5 { top: 60%; left: 20%; width: 45px; height: 45px; animation: float5 6s infinite ease-in-out; }
+            .bubble-6 { top: 10%; right: 25%; width: 50px; height: 50px; animation: float6 11s infinite ease-in-out; }
+            
+            @keyframes float1 { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-20px) rotate(5deg); } }
+            @keyframes float2 { 0%,100% { transform: translateX(0) rotate(0deg); } 50% { transform: translateX(-20px) rotate(-5deg); } }
+            @keyframes float3 { 0%,100% { transform: translateY(0) translateX(0); } 50% { transform: translateY(-15px) translateX(10px); } }
+            @keyframes float4 { 0%,100% { transform: translateX(0); } 50% { transform: translateX(15px); } }
+            @keyframes float5 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+            @keyframes float6 { 0%,100% { transform: translateX(0) rotate(0deg); } 50% { transform: translateX(-12px) rotate(8deg); } }
+            @keyframes pulseIcon { 0%,100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 20px 40px -12px rgba(7,94,84,0.3); } 50% { transform: translate(-50%, -50%) scale(1.05); box-shadow: 0 30px 60px -12px rgba(7,94,84,0.4); } }
+            
+            /* Text bubble */
+            .text-bubble {
+                position: absolute;
+                bottom: 15%;
+                right: 10%;
+                background: white;
+                border-radius: 1.5rem;
+                padding: 0.75rem 1.25rem;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+                border: 1px solid #eef2f6;
+                animation: fadeInUp 1s ease-out;
+            }
+            
+            .text-bubble p {
+                font-size: 0.875rem;
+                color: #1e293b;
+                font-weight: 500;
+                margin: 0;
+            }
+            
+            .text-bubble i {
+                color: #128C7E;
+                margin-right: 0.5rem;
+            }
+            
+            @keyframes fadeInUp {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
             }
         }
         
-        /* ========== MOBILE: Background bersih ========== */
+        /* ========== MOBILE: Hanya box login compact ========== */
         @media (max-width: 768px) {
             body {
-                background: #ffffff;
-                padding: 1rem;
+                display: flex;
                 align-items: flex-start;
+                justify-content: center;
+                padding: 1rem;
                 padding-top: 2rem;
             }
             
-            body::before,
-            body::after,
-            .bg-blob-2,
-            .bg-blob-3,
-            .hero-illustration {
-                display: none;
-            }
-        }
-        
-        /* ========== LOGIN CARD ========== */
-        .login-card {
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 2rem;
-            width: 100%;
-            z-index: 10;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        
-        /* Desktop: ukuran normal dengan efek glassmorphism */
-        @media (min-width: 769px) {
-            .login-card {
-                max-width: 440px;
-                backdrop-filter: blur(10px);
-                background: rgba(255, 255, 255, 0.96);
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-                margin-left: 8%;
+            .login-container {
+                width: 100%;
             }
             
-            .login-card:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.3);
+            .hero-animation {
+                display: none;
+            }
+            
+            .login-box {
+                width: 100%;
             }
         }
         
-        /* Mobile: compact, lebih kecil dan rapi */
+        /* ========== LOGIN CARD STYLE ========== */
+        .login-card {
+            background: white;
+            border-radius: 2rem;
+            width: 100%;
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #eef2f6;
+            transition: all 0.3s ease;
+        }
+        
+        @media (min-width: 769px) {
+            .login-card {
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            }
+            .login-card:hover {
+                transform: translateY(-4px);
+            }
+        }
+        
         @media (max-width: 768px) {
             .login-card {
-                max-width: 100%;
                 border-radius: 1.5rem;
-                background: white;
-                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
-                border: 1px solid #eef2f6;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
             }
         }
         
@@ -608,105 +643,119 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </style>
 </head>
 <body>
-    <!-- Desktop only: animated blobs -->
-    <div class="bg-blob-2"></div>
-    <div class="bg-blob-3"></div>
-    
-    <!-- Desktop only: hero illustration (minimalist whatsapp style) -->
-    <div class="hero-illustration">
-        <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M100 10C55 10 20 45 20 90C20 110 28 128 40 142L25 185L70 170C84 180 100 185 116 185C161 185 196 150 196 105C196 60 161 10 100 10Z" fill="url(#grad1)" fill-opacity="0.8"/>
-            <path d="M100 30C66 30 40 56 40 90C40 106 47 120 58 130L48 162L81 152C91 158 103 162 115 162C149 162 175 136 175 102C175 68 149 30 100 30Z" fill="white" fill-opacity="0.9"/>
-            <circle cx="75" cy="85" r="6" fill="#075E54"/>
-            <circle cx="100" cy="85" r="6" fill="#075E54"/>
-            <circle cx="125" cy="85" r="6" fill="#075E54"/>
-            <path d="M75 110C75 110 88 125 100 125C112 125 125 110 125 110" stroke="#075E54" stroke-width="3" stroke-linecap="round" fill="none"/>
-            <defs>
-                <linearGradient id="grad1" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stop-color="#075E54"/>
-                    <stop offset="100%" stop-color="#128C7E"/>
-                </linearGradient>
-            </defs>
-        </svg>
-    </div>
+    <div class="login-container">
+        <!-- Kiri: Login Box -->
+        <div class="login-box">
+            <div class="login-card">
+                <div class="card-header">
+                    <div class="logo-icon">
+                        <i class="fab fa-whatsapp"></i>
+                    </div>
+                    <h1>Reqra<span style="color:#128C7E;">WA</span></h1>
+                    <p>Sistem Pengiriman Pesan Otomatis</p>
+                </div>
 
-    <div class="login-card">
-        <div class="card-header">
-            <div class="logo-icon">
-                <i class="fab fa-whatsapp"></i>
+                <div class="card-body">
+                    <?php if ($error): ?>
+                        <div class="alert alert-error">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <span><?= htmlspecialchars($error) ?></span>
+                        </div>
+                    <?php endif; ?>
+                    <?php if ($success_message): ?>
+                        <div class="alert alert-success">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span><?= htmlspecialchars($success_message) ?></span>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" action="" novalidate id="loginForm">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fa-solid fa-user"></i> Username
+                            </label>
+                            <div class="input-wrapper">
+                                <i class="fa-solid fa-at input-icon"></i>
+                                <input type="text" name="username" id="username" class="form-input" 
+                                       placeholder="Masukkan username" value="<?= htmlspecialchars($savedUsername) ?>"
+                                       autocomplete="username" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fa-solid fa-lock"></i> Password
+                            </label>
+                            <div class="input-wrapper">
+                                <i class="fa-solid fa-key input-icon"></i>
+                                <input type="password" name="password" id="password" class="form-input" 
+                                       placeholder="Masukkan password" autocomplete="current-password" required>
+                                <button type="button" class="password-toggle" id="togglePwd">
+                                    <i class="fa-solid fa-eye" id="eyeIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <label class="remember-me">
+                                <input type="checkbox" name="remember" id="remember" <?= $savedUsername ? 'checked' : '' ?>>
+                                <span>Ingat saya</span>
+                            </label>
+                            <a href="#" class="forgot-link" id="forgotLink">Lupa password?</a>
+                        </div>
+
+                        <button type="submit" class="btn-submit" id="loginBtn">
+                            <i class="fa-solid fa-right-to-bracket" id="btnIcon"></i>
+                            <span id="btnText">Masuk</span>
+                        </button>
+                    </form>
+
+                    <div class="security-badge">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>End-to-End Encryption · Aman</span>
+                    </div>
+
+                    <div class="card-footer">
+                        Reqra WhatsApp &copy; <?= date('Y') ?>
+                    </div>
+                </div>
             </div>
-            <h1>Reqra<span style="color:#128C7E;">WA</span></h1>
-            <p>Sistem Pengiriman Pesan Otomatis</p>
         </div>
 
-        <div class="card-body">
-            <?php if ($error): ?>
-                <div class="alert alert-error">
-                    <i class="fa-solid fa-circle-exclamation"></i>
-                    <span><?= htmlspecialchars($error) ?></span>
+        <!-- Kanan: Animasi Icon & Bubble (Desktop Only) -->
+        <div class="hero-animation">
+            <div class="bubble-container">
+                <div class="whatsapp-icon">
+                    <i class="fab fa-whatsapp"></i>
                 </div>
-            <?php endif; ?>
-            <?php if ($success_message): ?>
-                <div class="alert alert-success">
-                    <i class="fa-solid fa-circle-check"></i>
-                    <span><?= htmlspecialchars($success_message) ?></span>
+                <div class="bubble bubble-1">
+                    <i class="fas fa-comment-dots"></i>
                 </div>
-            <?php endif; ?>
-
-            <form method="POST" action="" novalidate>
-                <div class="form-group">
-                    <label class="form-label">
-                        <i class="fa-solid fa-user"></i> Username
-                    </label>
-                    <div class="input-wrapper">
-                        <i class="fa-solid fa-at input-icon"></i>
-                        <input type="text" name="username" id="username" class="form-input" 
-                               placeholder="Masukkan username" value="<?= htmlspecialchars($_POST['username'] ?? '') ?>"
-                               autocomplete="username" required>
-                    </div>
+                <div class="bubble bubble-2">
+                    <i class="fas fa-users"></i>
                 </div>
-
-                <div class="form-group">
-                    <label class="form-label">
-                        <i class="fa-solid fa-lock"></i> Password
-                    </label>
-                    <div class="input-wrapper">
-                        <i class="fa-solid fa-key input-icon"></i>
-                        <input type="password" name="password" id="password" class="form-input" 
-                               placeholder="Masukkan password" autocomplete="current-password" required>
-                        <button type="button" class="password-toggle" id="togglePwd">
-                            <i class="fa-solid fa-eye" id="eyeIcon"></i>
-                        </button>
-                    </div>
+                <div class="bubble bubble-3">
+                    <i class="fas fa-bullhorn"></i>
                 </div>
-
-                <div class="form-actions">
-                    <label class="remember-me">
-                        <input type="checkbox" name="remember" id="remember">
-                        <span>Ingat saya</span>
-                    </label>
-                    <a href="#" class="forgot-link" id="forgotLink">Lupa password?</a>
+                <div class="bubble bubble-4">
+                    <i class="fas fa-chart-line"></i>
                 </div>
-
-                <button type="submit" class="btn-submit" id="loginBtn">
-                    <i class="fa-solid fa-right-to-bracket" id="btnIcon"></i>
-                    <span id="btnText">Masuk</span>
-                </button>
-            </form>
-
-            <div class="security-badge">
-                <i class="fa-solid fa-shield-halved"></i>
-                <span>End-to-End Encryption · Aman</span>
-            </div>
-
-            <div class="card-footer">
-                Reqra WhatsApp &copy; <?= date('Y') ?>
+                <div class="bubble bubble-5">
+                    <i class="fas fa-reply-all"></i>
+                </div>
+                <div class="bubble bubble-6">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div class="text-bubble">
+                    <p><i class="fas fa-check-circle"></i> Pesan terkirim otomatis</p>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
     (function() {
+        // Toggle password visibility
         const toggleBtn = document.getElementById('togglePwd');
         const pwdInput = document.getElementById('password');
         const eyeIcon = document.getElementById('eyeIcon');
@@ -720,7 +769,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             });
         }
 
-        const form = document.querySelector('form');
+        const form = document.getElementById('loginForm');
         const loginBtn = document.getElementById('loginBtn');
         const btnIcon = document.getElementById('btnIcon');
         const btnText = document.getElementById('btnText');
