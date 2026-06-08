@@ -218,6 +218,12 @@
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-chalkboard-user text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Pesan Tutor</span>
             </a>
+
+            <a href="pesan.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
+               data-title="Pesan & Broadcast" data-subtitle="Kirim pesan langsung dan broadcast" data-icon="fa-envelope" data-iconbg="bg-blue-100" data-icontext="text-blue-600">
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-envelope text-lg"></i></div>
+                <span class="text-sm font-semibold tracking-wide">Pesan Baru</span>
+            </a>
             
             <a href="promosi.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Promosi Broadcast" data-subtitle="Kirim promosi massal via WhatsApp" data-icon="fa-bullhorn" data-iconbg="bg-green-100" data-icontext="text-green-600">
@@ -225,12 +231,6 @@
                 <span class="text-sm font-semibold tracking-wide">Promosi</span>
             </a>
             <!-- TIGA HALAMAN BARU -->
-            <a href="pesan.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Pesan & Broadcast" data-subtitle="Kirim pesan langsung dan broadcast" data-icon="fa-envelope" data-iconbg="bg-blue-100" data-icontext="text-blue-600">
-                <div class="icon-wrapper w-6 text-center"><i class="fas fa-envelope text-lg"></i></div>
-                <span class="text-sm font-semibold tracking-wide">Pesan Baru</span>
-            </a>
-            
             <a href="grafik.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Grafik & Statistik" data-subtitle="Analisis data dan grafik pengiriman" data-icon="fa-chart-line" data-iconbg="bg-indigo-100" data-icontext="text-indigo-600">
                 <div class="icon-wrapper w-6 text-center"><i class="fas fa-chart-line text-lg"></i></div>
