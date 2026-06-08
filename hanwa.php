@@ -59,12 +59,15 @@
         
         /* Aktif: background hijau lembut */
         .nav-link.active {
-    background: #dcfce7 !important;
-    color: #166534 !important;
-}
-.nav-link.active .icon-wrapper {
-    color: #166534 !important;
-}
+            background: #dcfce7 !important;
+            color: #166534 !important;
+            font-weight: 600;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+        }
+        
+        .nav-link.active .icon-wrapper {
+            color: #059669 !important;
+        }
         
         .nav-link:not(.active):hover {
             background-color: #f8fafc;
@@ -161,15 +164,15 @@
         
         <div class="px-5 pt-5 pb-4 mb-1 flex justify-between items-center border-b border-gray-100">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-[#166534] flex items-center justify-center shadow-sm">
-    <i class="fab fa-whatsapp text-white text-xl"></i>
-</div>
-<div>
-    <h2 class="font-display font-extrabold tracking-tight text-lg leading-tight">
-        <span class="text-gray-800">Reqra</span><span class="text-[#166534]">WA</span>
-    </h2>
-     <p class="text-[10px] font-medium text-gray-400 -mt-0.5">Smart Messaging</p>
-</div>
+                <div class="w-9 h-9 rounded-xl bg-[#25D366] flex items-center justify-center shadow-sm">
+                    <i class="fab fa-whatsapp text-white text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="font-display font-extrabold tracking-tight text-lg leading-tight">
+                        <span class="text-gray-800">Reqra</span><span class="text-[#25D366]">WA</span>
+                    </h2>
+                    <p class="text-[10px] font-medium text-gray-400 -mt-0.5">Smart Messaging</p>
+                </div>
             </div>
             <button class="md:hidden text-gray-400 hover:text-gray-700 text-xl bg-gray-50 w-8 h-8 rounded-full transition" id="close-sidebar"><i class="fas fa-times text-sm"></i></button>
         </div>
@@ -260,8 +263,10 @@
             </div>
             
             <div class="hidden sm:flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full shadow-sm">
-                <div class="w-8 h-8 rounded-full bg-[#166534] flex items-center justify-center text-white shadow-sm">
-<span class="text-sm font-semibold text-gray-700">Admin <span class="font-normal text-gray-400">|</span> <span class="text-[#166534]">Panel</span></span>
+                <div class="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center text-white shadow-sm">
+                    <i class="fas fa-user-check text-xs"></i>
+                </div>
+                <span class="text-sm font-semibold text-gray-700">Admin <span class="font-normal text-gray-400">|</span> <span class="text-[#25D366]">Panel</span></span>
             </div>
         </header>
 
@@ -270,7 +275,7 @@
             
             <div id="loading-overlay" class="absolute inset-0 z-20 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
                 <div class="relative">
-                    <i class="fab fa-whatsapp text-4xl text-[#166534] loader-spin"></i>
+                    <i class="fab fa-whatsapp text-4xl text-[#25D366] loader-spin"></i>
                     <div class="absolute inset-0 flex items-center justify-center">
                         <i class="fas fa-circle-notch text-green-300 text-sm animate-pulse"></i>
                     </div>
