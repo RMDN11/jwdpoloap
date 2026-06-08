@@ -213,11 +213,11 @@
                 <span class="text-sm font-semibold tracking-wide">Reminder Pembayaran</span>
             </a>
 
-            <a href="reminder.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Reminder Pembayaran" data-subtitle="Jadwalkan & kelola pengingat otomatis" data-icon="fa-clock" data-iconbg="bg-amber-100" data-icontext="text-amber-600">
-                <div class="icon-wrapper w-6 text-center"><i class="fas fa-clock text-lg"></i></div>
-                <span class="text-sm font-semibold tracking-wide">Reminder Peserta</span>
-            </a>
+           <a href="kelola_reminder.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
+   data-title="Reminder Pembayaran" data-subtitle="Jadwalkan & kelola pengingat otomatis" data-icon="fa-clock" data-iconbg="bg-amber-100" data-icontext="text-amber-600">
+    <div class="icon-wrapper w-6 text-center"><i class="fas fa-clock text-lg"></i></div>
+    <span class="text-sm font-semibold tracking-wide">Reminder Peserta</span>
+</a>
             
             <a href="wa-tut.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
                data-title="Tutor WhatsApp" data-subtitle="Manajemen materi & tutorial WA" data-icon="fa-chalkboard-user" data-iconbg="bg-purple-100" data-icontext="text-purple-600">
