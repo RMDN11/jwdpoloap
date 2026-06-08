@@ -46,7 +46,7 @@ $hariIni = date('N');
 $jamIni = date('H:i');
 $tanggalIni = date('Y-m-d');
 $totalDiproses = 0;
-$batasMaksimal = 15; 
+$batasMaksimal = 50; 
 
 writeLog("Waktu eksekusi: Hari=$hariIni, Jam=$jamIni, Tanggal=$tanggalIni"); 
 
