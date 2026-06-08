@@ -266,7 +266,7 @@
                 <div class="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center text-white shadow-sm">
                     <i class="fas fa-user-check text-xs"></i>
                 </div>
-                <span class="text-sm font-semibold text-gray-700">Admin <span class="font-normal text-gray-400">|</span> <span class="text-[#25D366]">Panel</span></span>
+                <span class="text-sm font-semibold text-gray-700">Halo <span class="font-normal text-gray-400">|</span> <span class="text-[#25D366]">Han!</span></span>
             </div>
         </header>
 
