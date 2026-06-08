@@ -214,8 +214,8 @@
             </a>
 
             <a href="reminder.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 transition-all duration-200"
-               data-title="Reminder Pembayaran" data-subtitle="Jadwalkan & kelola pengingat otomatis" data-icon="fa-Clock" data-iconbg="bg-amber-100" data-icontext="text-amber-600">
-                <div class="icon-wrapper w-6 text-center"><i class="fas fa-bell text-lg"></i></div>
+               data-title="Reminder Pembayaran" data-subtitle="Jadwalkan & kelola pengingat otomatis" data-icon="fa-clock" data-iconbg="bg-amber-100" data-icontext="text-amber-600">
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-clock text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Reminder Peserta</span>
             </a>
             
