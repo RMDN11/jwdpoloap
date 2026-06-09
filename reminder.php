@@ -281,7 +281,8 @@ $offset = ($page - 1) * $itemsPerPage;
 // ============================================
 
 // Query untuk menghitung total
-$countSql = "SELECT COUNT(DISTINCT p.id) as total FROM peserta p 
+$countSql = "SELECT p.id, MAX(pemb.id) as id_pembayaran_terakhir 
+             FROM peserta p 
              LEFT JOIN pembayaran pemb ON p.id = pemb.peserta_id 
              WHERE p.nowa IS NOT NULL AND p.nowa != ''";
 $countParams = [];
@@ -319,14 +320,19 @@ if (!empty($filterBulanBayar)) {
     }
 } else {
     if ($filterPembayaran === 'lunas') {
-        $countSql .= " GROUP BY p.id HAVING MAX(pemb.id) IS NOT NULL";
+        $countSql .= " GROUP BY p.id HAVING id_pembayaran_terakhir IS NOT NULL";
     } elseif ($filterPembayaran === 'belum_lunas') {
-        $countSql .= " GROUP BY p.id HAVING MAX(pemb.id) IS NULL";
+        $countSql .= " GROUP BY p.id HAVING id_pembayaran_terakhir IS NULL";
+    } else {
+        $countSql .= " GROUP BY p.id";
     }
 }
 
+// Bungkus dalam subquery agar mendapatkan jumlah baris (total peserta) yang benar setelah difilter
+$finalCountSql = "SELECT COUNT(*) as total FROM ($countSql) as sub";
+
 $totalCount = 0;
-$countStmt = $conn->prepare($countSql);
+$countStmt = $conn->prepare($finalCountSql);
 if ($countStmt) {
     if (!empty($countParams)) {
         $countStmt->bind_param($countTypes, ...$countParams);
@@ -1439,7 +1445,9 @@ $templatePesanDefault = "";
         // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
         document.body.style.backgroundColor = "transparent";
     }
- </script> <script>
+ </script> 
+ 
+ <script>
         // Menyembunyikan header asli jika halaman ini dibuka di dalam iframe dashboard
         if (window.self !== window.top) {
             const headerElement = document.querySelector('header');
