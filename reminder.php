@@ -102,9 +102,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_get_peserta'])) {
         }
         
         $stmt = $conn->prepare($sql);
-        if (!empty($params)) { $stmt->bind_param($types, ...$params); }
-        $stmt->execute();
-        $result = $stmt->get_result();
+if (!empty($params)) {
+    $refs = [];
+    foreach ($params as $key => $value) {
+        $refs[$key] = &$params[$key];
+    }
+    call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
+}
+$stmt->execute();
+$result = $stmt->get_result();
         
         while ($p = $result->fetch_assoc()) {
             $selectedPeserta[] = $p['nowa'] . '|' . $p['nama_lengkap'];
@@ -281,8 +287,7 @@ $offset = ($page - 1) * $itemsPerPage;
 // ============================================
 
 // Query untuk menghitung total
-$countSql = "SELECT p.id, MAX(pemb.id) as id_pembayaran_terakhir 
-             FROM peserta p 
+$countSql = "SELECT COUNT(DISTINCT p.id) as total FROM peserta p 
              LEFT JOIN pembayaran pemb ON p.id = pemb.peserta_id 
              WHERE p.nowa IS NOT NULL AND p.nowa != ''";
 $countParams = [];
@@ -320,22 +325,21 @@ if (!empty($filterBulanBayar)) {
     }
 } else {
     if ($filterPembayaran === 'lunas') {
-        $countSql .= " GROUP BY p.id HAVING id_pembayaran_terakhir IS NOT NULL";
+        $countSql .= " GROUP BY p.id HAVING MAX(pemb.id) IS NOT NULL";
     } elseif ($filterPembayaran === 'belum_lunas') {
-        $countSql .= " GROUP BY p.id HAVING id_pembayaran_terakhir IS NULL";
-    } else {
-        $countSql .= " GROUP BY p.id";
+        $countSql .= " GROUP BY p.id HAVING MAX(pemb.id) IS NULL";
     }
 }
 
-// Bungkus dalam subquery agar mendapatkan jumlah baris (total peserta) yang benar setelah difilter
-$finalCountSql = "SELECT COUNT(*) as total FROM ($countSql) as sub";
-
 $totalCount = 0;
-$countStmt = $conn->prepare($finalCountSql);
+$countStmt = $conn->prepare($countSql);
 if ($countStmt) {
     if (!empty($countParams)) {
-        $countStmt->bind_param($countTypes, ...$countParams);
+        $refs = [];
+        foreach ($countParams as $key => $value) {
+            $refs[$key] = &$countParams[$key];
+        }
+        call_user_func_array([$countStmt, 'bind_param'], array_merge([$countTypes], $refs));
     }
     $countStmt->execute();
     $countResult = $countStmt->get_result()->fetch_assoc();
@@ -407,15 +411,18 @@ $params[] = $offset;
 $pesertaAktif = [];
 $stmt = $conn->prepare($sql);
 if ($stmt) {
-    if (!empty($params)) { 
-        $stmt->bind_param($types, ...$params); 
+    if (!empty($params)) {
+        $refs = [];
+        foreach ($params as $key => $value) {
+            $refs[$key] = &$params[$key];
+        }
+        call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
     }
     $stmt->execute();
     $result = $stmt->get_result();
     $pesertaAktif = $result->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 }
-
 // ============================================
 // AMBIL DATA LOG
 // ============================================
@@ -1255,11 +1262,10 @@ $templatePesanDefault = "";
             });
 
             // Kosongkan selection saat filter diterapkan
-            document.querySelector('#filter-form button[type="submit"]').addEventListener('click', function() {
-                checkboxes.forEach(cb => cb.checked = false);
-                updateSelectionDisplay();
-            });
-
+            document.getElementById('filter-form').addEventListener('submit', function() {
+    checkboxes.forEach(cb => cb.checked = false);
+    updateSelectionDisplay();
+});
             updateSelectionDisplay();
 
             // ---------------------------------------------------------
@@ -1445,9 +1451,7 @@ $templatePesanDefault = "";
         // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
         document.body.style.backgroundColor = "transparent";
     }
- </script> 
- 
- <script>
+ </script> <script>
         // Menyembunyikan header asli jika halaman ini dibuka di dalam iframe dashboard
         if (window.self !== window.top) {
             const headerElement = document.querySelector('header');
