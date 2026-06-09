@@ -279,7 +279,8 @@ $filterBulanBayar = $_GET['bulan_bayar'] ?? '';
 
 // Pagination
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$itemsPerPage = 300;
+// Mengurangi itemsPerPage dari 300 menjadi 50 agar initial load HTML tidak berat
+$itemsPerPage = 50; 
 $offset = ($page - 1) * $itemsPerPage;
 
 // ============================================
@@ -523,7 +524,6 @@ $templatePesanDefault = "";
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-<!-- Header -->
 <header class="bg-gray-800 text-white shadow-sm sticky top-0 z-10">
     <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3">
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
@@ -566,7 +566,6 @@ $templatePesanDefault = "";
     <main class="flex-grow p-4 sm:p-6 lg:p-8">
         <div class="max-w-7xl mx-auto relative">
             
-            <!-- BANNER LOADER INLINE (DI BAWAH HEADER) -->
             <div id="loader" class="hidden animate-fade-in-down mb-6 bg-white rounded-xl shadow-lg border border-blue-100 overflow-hidden relative">
                 <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500"></div>
                 <div class="p-5 flex flex-col sm:flex-row items-center gap-5">
@@ -597,7 +596,6 @@ $templatePesanDefault = "";
             <?php endif; ?>
             
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- PANEL AKSI -->
                 <div class="space-y-6 order-1 lg:order-2">
                     <div class="bg-card shadow-md rounded-2xl p-6 sticky top-24 border border-card">
                         <h2 class="text-lg font-semibold mb-4 flex items-center text-primary">
@@ -712,7 +710,6 @@ $templatePesanDefault = "";
                     </div>
                 </div>
                 
-                <!-- FILTER DAN DAFTAR PESERTA -->
                 <div class="lg:col-span-2 space-y-6 order-2 lg:order-1">
                     <div class="bg-card shadow-md rounded-2xl p-6 border border-card">
                         <h2 class="text-lg font-semibold mb-4 flex items-center text-primary">
@@ -813,7 +810,6 @@ $templatePesanDefault = "";
                             </div>
                         </div>
                         
-                        <!-- Info Selection -->
                         <div id="selectionInfo" class="selection-info hidden">
                             <div class="flex items-center space-x-2">
                                 <i class="fas fa-users text-lg"></i>
@@ -826,7 +822,6 @@ $templatePesanDefault = "";
                             </button>
                         </div>
                         
-                        <!-- Form dan Tabel -->
                         <form method="POST" action="" id="peserta-form">
                             <input type="hidden" name="selected_all_filtered_mode" id="selected-all-filtered-mode" value="false">
                             <input type="hidden" name="search_hidden" value="<?= htmlspecialchars($search) ?>">
@@ -952,7 +947,6 @@ $templatePesanDefault = "";
                                 </table>
                             </div>
                             
-                            <!-- PAGINATION -->
                             <?php if ($totalPages > 1): ?>
                             <div class="mt-4 flex justify-between items-center">
                                 <a href="?<?= http_build_query(array_merge($_GET, ['page' => $page - 1])) ?>" 
@@ -998,7 +992,6 @@ $templatePesanDefault = "";
         </div>
     </main>
 
-    <!-- Modal Templates -->
     <div id="manageTemplatesModal" class="fixed inset-0 z-50 items-center justify-center p-4 hidden">
         <div class="fixed inset-0 modal-backdrop"></div>
         <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-card">
@@ -1263,9 +1256,10 @@ $templatePesanDefault = "";
 
             // Kosongkan selection saat filter diterapkan
             document.getElementById('filter-form').addEventListener('submit', function() {
-    checkboxes.forEach(cb => cb.checked = false);
-    updateSelectionDisplay();
-});
+                checkboxes.forEach(cb => cb.checked = false);
+                updateSelectionDisplay();
+            });
+            
             updateSelectionDisplay();
 
             // ---------------------------------------------------------
@@ -1418,13 +1412,11 @@ $templatePesanDefault = "";
                 });
                 
                 checkboxes.forEach(cb => { 
-    cb.addEventListener('change', () => { 
-        updateSelectAllState(); 
-        updateButtonText(); 
-        // Tambahkan baris ini agar form langsung dikirim saat dicentang
-        document.getElementById('filter-form').submit(); 
-    }); 
-});
+                    cb.addEventListener('change', () => { 
+                        updateSelectAllState(); 
+                        updateButtonText(); 
+                    }); 
+                });
                 
                 document.addEventListener('click', (e) => { 
                     if (!popup.contains(e.target) && !btn.contains(e.target)) { 
@@ -1442,50 +1434,18 @@ $templatePesanDefault = "";
                 'select-all-halaqoh',
                 'halaqoh-checkbox'
             );
-        });
+        }); // PENUTUP DOMContentLoaded UTAMA
+    </script>
     <script>
-    if (window.self !== window.top) {
-        const headerElement = document.querySelector('header');
-        if (headerElement) {
-            headerElement.style.display = 'none';
+        if (window.self !== window.top) {
+            const headerElement = document.querySelector('header');
+            if (headerElement) {
+                headerElement.style.display = 'none';
+            }
+            
+            // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
+            document.body.style.backgroundColor = "transparent";
         }
-        
-        // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
-        document.body.style.backgroundColor = "transparent";
-    }
-    <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const btnHalaqoh = document.getElementById('halaqoh-filter-btn');
-    const popupHalaqoh = document.getElementById('halaqoh-filter-popup');
-
-    // 1. Fungsi untuk Buka/Tutup popup saat tombol diklik
-    if (btnHalaqoh && popupHalaqoh) {
-        btnHalaqoh.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation(); // Mencegah klik menyebar
-            popupHalaqoh.classList.toggle('hidden'); // Memunculkan/menyembunyikan menu
-        });
-    }
-
-    // 2. Fungsi untuk menutup popup jika user klik di sembarang tempat (luar kotak)
-    document.addEventListener('click', function(e) {
-        if (!btnHalaqoh.contains(e.target) && !popupHalaqoh.contains(e.target)) {
-            popupHalaqoh.classList.add('hidden');
-        }
-    });
-
-    // 3. (Opsional) Fungsi untuk Checkbox "Pilih Semua"
-    const selectAllCheckbox = document.getElementById('select-all-halaqoh');
-    const halaqohCheckboxes = document.querySelectorAll('.halaqoh-checkbox');
-
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            halaqohCheckboxes.forEach(cb => {
-                cb.checked = selectAllCheckbox.checked;
-            });
-        });
-    }
-});
-</script>
+    </script>
 </body>
 </html>
