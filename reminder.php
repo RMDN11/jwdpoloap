@@ -1453,19 +1453,39 @@ $templatePesanDefault = "";
         // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
         document.body.style.backgroundColor = "transparent";
     }
- </script> 
- 
- <script>
-        // Menyembunyikan header asli jika halaman ini dibuka di dalam iframe dashboard
-        if (window.self !== window.top) {
-            const headerElement = document.querySelector('header');
-            if (headerElement) {
-                headerElement.style.display = 'none';
-            }
-            
-            // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
-            document.body.style.backgroundColor = "transparent";
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnHalaqoh = document.getElementById('halaqoh-filter-btn');
+    const popupHalaqoh = document.getElementById('halaqoh-filter-popup');
+
+    // 1. Fungsi untuk Buka/Tutup popup saat tombol diklik
+    if (btnHalaqoh && popupHalaqoh) {
+        btnHalaqoh.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation(); // Mencegah klik menyebar
+            popupHalaqoh.classList.toggle('hidden'); // Memunculkan/menyembunyikan menu
+        });
+    }
+
+    // 2. Fungsi untuk menutup popup jika user klik di sembarang tempat (luar kotak)
+    document.addEventListener('click', function(e) {
+        if (!btnHalaqoh.contains(e.target) && !popupHalaqoh.contains(e.target)) {
+            popupHalaqoh.classList.add('hidden');
         }
-    </script>
+    });
+
+    // 3. (Opsional) Fungsi untuk Checkbox "Pilih Semua"
+    const selectAllCheckbox = document.getElementById('select-all-halaqoh');
+    const halaqohCheckboxes = document.querySelectorAll('.halaqoh-checkbox');
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            halaqohCheckboxes.forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+            });
+        });
+    }
+});
+</script>
 </body>
 </html>
