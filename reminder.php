@@ -273,7 +273,7 @@ $filterHalaqoh = $_GET['halaqoh'] ?? [];
 if (!is_array($filterHalaqoh)) {
     $filterHalaqoh = !empty($filterHalaqoh) ? [$filterHalaqoh] : [];
 }
-$filterStatus = $_GET['status'] ?? 'proses';
+$filterStatus = $_GET['status'] ?? 'semua';
 $filterPembayaran = $_GET['pembayaran'] ?? '';
 $filterBulanBayar = $_GET['bulan_bayar'] ?? '';
 
@@ -1418,11 +1418,13 @@ $templatePesanDefault = "";
                 });
                 
                 checkboxes.forEach(cb => { 
-                    cb.addEventListener('change', () => { 
-                        updateSelectAllState(); 
-                        updateButtonText(); 
-                    }); 
-                });
+    cb.addEventListener('change', () => { 
+        updateSelectAllState(); 
+        updateButtonText(); 
+        // Tambahkan baris ini agar form langsung dikirim saat dicentang
+        document.getElementById('filter-form').submit(); 
+    }); 
+});
                 
                 document.addEventListener('click', (e) => { 
                     if (!popup.contains(e.target) && !btn.contains(e.target)) { 
@@ -1452,5 +1454,18 @@ $templatePesanDefault = "";
         document.body.style.backgroundColor = "transparent";
     }
  </script> 
+ 
+ <script>
+        // Menyembunyikan header asli jika halaman ini dibuka di dalam iframe dashboard
+        if (window.self !== window.top) {
+            const headerElement = document.querySelector('header');
+            if (headerElement) {
+                headerElement.style.display = 'none';
+            }
+            
+            // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
+            document.body.style.backgroundColor = "transparent";
+        }
+    </script>
 </body>
 </html>
