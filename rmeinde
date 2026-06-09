@@ -2,7 +2,6 @@
 require_once 'auth_checkwa.php';
 require_once 'config.php';
 
-// Fungsi kirimPesan tetap dipertahankan jika sewaktu-waktu dibutuhkan untuk tes manual
 function kirimPesan($recipient, $message, $apiUrl, $apiToken) {
     $data = [
         "recipient_type" => "individual", 
@@ -40,22 +39,15 @@ function kirimPesan($recipient, $message, $apiUrl, $apiToken) {
 }
 
 // ============================================
-// PROSES AJAX REQUEST (SISTEM ANTREAN / QUEUE)
+// PROSES AJAX REQUEST (PROGRESS BAR)
 // ============================================
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_add_to_queue'])) {
+// 1. AJAX: Ambil daftar peserta untuk dikirim
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_get_peserta'])) {
     header('Content-Type: application/json');
-    
-    $templatePesan = $_POST['template_pesan'] ?? '';
-    if (empty($templatePesan)) {
-        echo json_encode(['status' => 'error', 'msg' => 'Template pesan kosong!']); 
-        exit;
-    }
-
     $selectedPeserta = [];
     $isAllFiltered = isset($_POST['selected_all_filtered_mode']) && $_POST['selected_all_filtered_mode'] === 'true';
     
-    // Jika Mode Select All Filtered: Ambil langsung dari Database
     if ($isAllFiltered) {
         $search = $_POST['search_hidden'] ?? '';
         $filterHalaqoh = $_POST['halaqoh_hidden'] ?? [];
@@ -110,48 +102,55 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_add_to_queue'])) 
         }
         
         $stmt = $conn->prepare($sql);
-        if (!empty($params)) {
-            $refs = [];
-            foreach ($params as $key => $value) {
-                $refs[$key] = &$params[$key];
-            }
-            call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
-        }
-        $stmt->execute();
-        $result = $stmt->get_result();
+if (!empty($params)) {
+    $refs = [];
+    foreach ($params as $key => $value) {
+        $refs[$key] = &$params[$key];
+    }
+    call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
+}
+$stmt->execute();
+$result = $stmt->get_result();
         
         while ($p = $result->fetch_assoc()) {
             $selectedPeserta[] = $p['nowa'] . '|' . $p['nama_lengkap'];
         }
         $stmt->close();
     } else {
-        // Jika mode ceklis manual: Ambil dari array POST
         $selectedPeserta = $_POST['selected_peserta'] ?? [];
     }
     
-    // PROSES INSERT KE TABEL ANTREAN (wa_queue_satuan)
-    $countSuccess = 0;
-    $stmt_queue = $conn->prepare("INSERT INTO wa_queue_satuan (nowa, nama, pesan, status) VALUES (?, ?, ?, 'pending')");
-    
-    if ($stmt_queue) {
-        foreach ($selectedPeserta as $p_info) {
-            $parts = explode('|', $p_info);
-            $nowa = $parts[0];
-            $namaPeserta = count($parts) > 1 ? $parts[1] : $nowa;
-            
-            if (empty($nowa)) continue;
-            
-            // Personalisasi pesan dengan nama
-            $pesanBody = str_replace('{nama}', $namaPeserta, $templatePesan);
-            
-            $stmt_queue->bind_param("sss", $nowa, $namaPeserta, $pesanBody);
-            $stmt_queue->execute();
-            $countSuccess++;
-        }
-        $stmt_queue->close();
+    echo json_encode(['status' => 'success', 'data' => $selectedPeserta]);
+    exit;
+}
+
+// 2. AJAX: Kirim Pesan Satuan
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_reminder'])) {
+    header('Content-Type: application/json');
+    $nowa = $_POST['nowa'] ?? '';
+    $namaPeserta = $_POST['nama'] ?? '';
+    $templatePesan = $_POST['template_pesan'] ?? '';
+
+    if (empty($nowa)) {
+        echo json_encode(['status' => 'error', 'msg' => 'Nomor kosong']); exit;
     }
+
+    $pesanBody = str_replace('{nama}', $namaPeserta, $templatePesan);
+    $result = kirimPesan($nowa, $pesanBody, $apiUrl, $apiToken);
     
-    echo json_encode(['status' => 'success', 'msg' => "$countSuccess pesan berhasil dimasukkan ke antrean."]);
+    $finalLogMessage = "[".$result['status']."] " . $result['message'] . " - " . htmlspecialchars($pesanBody);
+    
+    $stmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, NOW())");
+    if ($stmt) {
+        $stmt->bind_param("sss", $nowa, $namaPeserta, $finalLogMessage);
+        $stmt->execute();
+        $stmt->close();
+    }
+
+    echo json_encode([
+        'status' => ($result['status'] == 'TERKIRIM') ? 'success' : 'error',
+        'msg' => $result['message']
+    ]);
     exit;
 }
 
@@ -216,13 +215,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_template_id']))
     header("Location: " . strtok($_SERVER['REQUEST_URI'], '?')); exit;
 }
 
-// PROSES HAPUS SEMUA LOG (Diubah untuk membersihkan riwayat Antrean juga opsional)
+// PROSES HAPUS SEMUA LOG
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_all_logs'])) {
-    if ($conn->query("TRUNCATE TABLE wa_queue_satuan") && $conn->query("TRUNCATE TABLE log_wa")) {
-        $_SESSION['notification'] = "Semua riwayat log dan antrean berhasil dihapus.";
+    if ($conn->query("TRUNCATE TABLE log_wa")) {
+        $_SESSION['notification'] = "Semua riwayat log berhasil dihapus.";
         $_SESSION['notification_type'] = 'success';
     } else {
-        $_SESSION['notification'] = "Gagal menghapus riwayat: " . $conn->error;
+        $_SESSION['notification'] = "Gagal menghapus semua riwayat log: " . $conn->error;
         $_SESSION['notification_type'] = 'error';
     }
     header("Location: " . strtok($_SERVER['REQUEST_URI'], '?')); exit;
@@ -231,7 +230,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_all_logs'])) {
 // PROSES HAPUS LOG
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_log_id'])) {
     $logIdToDelete = $_POST['delete_log_id'];
-    $stmt = $conn->prepare("DELETE FROM wa_queue_satuan WHERE id = ?"); // Menghapus dari queue table sebagai log
+    $stmt = $conn->prepare("DELETE FROM log_wa WHERE id = ?");
     $stmt->bind_param("i", $logIdToDelete);
     
     if ($stmt->execute()) {
@@ -244,6 +243,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_log_id'])) {
     $stmt->close();
     header("Location: " . strtok($_SERVER['REQUEST_URI'], '?')); exit;
 }
+
 
 // ============================================
 // AMBIL DATA UNTUK TAMPILAN
@@ -279,6 +279,7 @@ $filterBulanBayar = $_GET['bulan_bayar'] ?? '';
 
 // Pagination
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+// Mengurangi itemsPerPage dari 300 menjadi 50 agar initial load HTML tidak berat
 $itemsPerPage = 50; 
 $offset = ($page - 1) * $itemsPerPage;
 
@@ -423,13 +424,12 @@ if ($stmt) {
     $pesertaAktif = $result->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 }
+// ============================================
+// AMBIL DATA LOG
+// ============================================
 
-// ============================================
-// AMBIL DATA LOG DARI ANTREAN
-// ============================================
 $logPesan = [];
-// Mengambil log langsung dari tabel antrean untuk melihat status terkini
-$logResult = $conn->query("SELECT id, nama, pesan as message, status, created_at, sent_at FROM wa_queue_satuan ORDER BY id DESC LIMIT 20");
+$logResult = $conn->query("SELECT id, nama, message, created_at FROM log_wa ORDER BY created_at DESC LIMIT 20");
 if ($logResult) { 
     $logPesan = $logResult->fetch_all(MYSQLI_ASSOC); 
 }
@@ -437,6 +437,7 @@ if ($logResult) {
 // ============================================
 // AMBIL TEMPLATE
 // ============================================
+
 $dbTemplatesResult = $conn->query("SELECT id, category, title, content FROM wa_templates ORDER BY category, title");
 $dbTemplates = $dbTemplatesResult ? $dbTemplatesResult->fetch_all(MYSQLI_ASSOC) : [];
 
@@ -515,6 +516,8 @@ $templatePesanDefault = "";
             width: 50px;
             text-align: center;
         }
+        
+        /* Animasi Loader Inline */
         @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in-down { animation: fadeInDown 0.4s ease-out forwards; }
     </style>
@@ -567,14 +570,15 @@ $templatePesanDefault = "";
                 <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500"></div>
                 <div class="p-5 flex flex-col sm:flex-row items-center gap-5">
                     <div class="bg-blue-50 w-14 h-14 rounded-full flex items-center justify-center shrink-0 shadow-inner border border-blue-100">
-                        <i class="fas fa-server text-2xl text-blue-500 animate-pulse"></i>
+                        <i class="fas fa-paper-plane text-2xl text-blue-500 animate-bounce"></i>
                     </div>
                     <div class="flex-1 w-full">
                         <div class="flex justify-between items-end mb-2">
                             <div>
-                                <h3 class="font-extrabold text-slate-800 text-base">Memproses ke Antrean Server...</h3>
-                                <p id="progressStatus" class="text-xs font-medium text-slate-500 mt-0.5">Mempersiapkan ribuan data Anda dengan aman...</p>
+                                <h3 class="font-extrabold text-slate-800 text-base">Proses Pengiriman Berjalan...</h3>
+                                <p id="progressStatus" class="text-xs font-medium text-slate-500 mt-0.5">Mempersiapkan data pengiriman...</p>
                             </div>
+                            <p id="progressText" class="text-lg font-black text-blue-600">0 / 0</p>
                         </div>
                         <div class="w-full bg-slate-100 rounded-full h-3 shadow-inner overflow-hidden relative">
                             <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-300 w-0 relative">
@@ -647,20 +651,21 @@ $templatePesanDefault = "";
                         
                         <button type="button" id="btn-kirim-reminder"
                                 class="w-full btn-primary text-white px-6 py-3 rounded-lg shadow-lg font-bold text-lg transition duration-300 flex items-center justify-center transform hover:scale-105">
-                            <i class="fas fa-paper-plane text-2xl mr-2"></i> Kirim ke Antrean
+                            <i class="fas fa-paper-plane text-2xl mr-2"></i> Kirim ke 
+                            <span id="selected-count" class="ml-1.5 font-bold">0</span> Terpilih
                         </button>
                         
                         <hr class="my-6 border-gray-200">
                         
                         <div class="flex justify-between items-center mb-4">
                             <h2 class="text-lg font-semibold flex items-center text-primary">
-                                <i class="fas fa-list-ol text-xl mr-2 text-accent"></i> Status Antrean
+                                <i class="fas fa-history text-xl mr-2 text-accent"></i> Log Pesan Terkirim
                             </h2>
                             <form method="POST" action="">
                                 <button type="submit" name="delete_all_logs" value="1" 
-                                        onclick="return confirm('Anda yakin ingin menghapus SEMUA riwayat antrean dan log?');" 
+                                        onclick="return confirm('Anda yakin ingin menghapus SEMUA riwayat log? Tindakan ini tidak dapat dibatalkan.');" 
                                         class="text-xs text-red-500 hover:underline font-semibold">
-                                    Hapus Semua
+                                    Hapus Riwayat
                                 </button>
                             </form>
                         </div>
@@ -668,21 +673,26 @@ $templatePesanDefault = "";
                         <div class="space-y-2 max-h-80 overflow-y-auto pr-2">
                             <?php if(!empty($logPesan)): ?>
                                 <?php foreach($logPesan as $log): ?>
+                                    <?php
+                                    $message_status = 'default';
+                                    if (strpos($log['message'], '[TERKIRIM]') !== false) {
+                                        $message_status = 'success';
+                                    } elseif (strpos($log['message'], '[GAGAL]') !== false) {
+                                        $message_status = 'failed';
+                                    }
+                                    ?>
                                     <div class="relative flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200 group">
                                         <div class="flex items-center space-x-3 overflow-hidden">
-                                            <?php if ($log['status'] == 'sent'): ?>
-                                                <i class="fas fa-check-circle text-green-500 text-xl" title="Terkirim"></i>
-                                            <?php elseif ($log['status'] == 'failed'): ?>
-                                                <i class="fas fa-times-circle text-red-500 text-xl" title="Gagal"></i>
+                                            <?php if ($message_status == 'success'): ?>
+                                                <i class="fas fa-check-circle text-green-500 text-xl"></i>
+                                            <?php elseif ($message_status == 'failed'): ?>
+                                                <i class="fas fa-times-circle text-red-500 text-xl"></i>
                                             <?php else: ?>
-                                                <i class="fas fa-clock text-yellow-500 text-xl" title="Menunggu Antrean (Pending)"></i>
+                                                <i class="fas fa-clock text-blue-500 text-xl"></i>
                                             <?php endif; ?>
                                             <div>
                                                 <p class="font-semibold text-gray-800 text-sm truncate"><?= htmlspecialchars($log['nama']) ?></p>
-                                                <p class="text-gray-400 text-[10px]">
-                                                    Dibuat: <?= date('d M, H:i', strtotime($log['created_at'])) ?>
-                                                    <?= $log['sent_at'] ? '| Dikirim: '.date('H:i', strtotime($log['sent_at'])) : '' ?>
-                                                </p>
+                                                <p class="text-gray-400 text-[10px]"><?= date('d M Y, H:i', strtotime($log['created_at'])) ?></p>
                                             </div>
                                         </div>
                                         <form method="POST" action="" class="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -694,7 +704,7 @@ $templatePesanDefault = "";
                                     </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <p class="text-sm text-gray-500 text-center p-4">Antrean masih kosong.</p>
+                                <p class="text-sm text-gray-500 text-center p-4">Belum ada pesan terkirim.</p>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -1065,7 +1075,7 @@ $templatePesanDefault = "";
         document.addEventListener('DOMContentLoaded', function () {
             
             // ---------------------------------------------------------
-            // FUNGSI AJAX MEMASUKKAN KE ANTREAN (SATU KALI KLIK, CEPAT)
+            // FUNGSI AJAX LOOPING (PENGIRIMAN REMINDER)
             // ---------------------------------------------------------
             const btnKirimReminder = document.getElementById('btn-kirim-reminder');
             
@@ -1074,6 +1084,8 @@ $templatePesanDefault = "";
 
                 const form = document.getElementById('peserta-form');
                 const formData = new FormData(form);
+                
+                // Ambil manual isi textarea karena ia berada di luar <form> tapi terhubung via ID
                 const templatePesan = document.getElementById('template-textarea').value.trim();
                 
                 if(!templatePesan) {
@@ -1081,6 +1093,7 @@ $templatePesanDefault = "";
                     return;
                 }
 
+                // Cek apakah ada yang diceklis jika mode All Filtered bernilai false
                 if(document.getElementById('selected-all-filtered-mode').value === 'false') {
                     const checkboxes = document.querySelectorAll('.peserta-checkbox:checked');
                     if(checkboxes.length === 0) {
@@ -1092,6 +1105,7 @@ $templatePesanDefault = "";
                 // Tampilkan Banner Loader
                 const loader = document.getElementById('loader');
                 const pBar = document.getElementById('progressBar');
+                const pText = document.getElementById('progressText');
                 const pStat = document.getElementById('progressStatus');
 
                 loader.classList.remove('hidden');
@@ -1100,32 +1114,80 @@ $templatePesanDefault = "";
 
                 btnKirimReminder.style.pointerEvents = 'none';
                 btnKirimReminder.classList.add('opacity-75');
-                btnKirimReminder.innerHTML = '<i class="fas fa-spinner fa-spin text-2xl mr-2"></i> Memproses Antrean...';
+                btnKirimReminder.innerHTML = '<i class="fas fa-spinner fa-spin text-2xl mr-2"></i> Memproses...';
 
-                pStat.innerHTML = `Mengirim data ke database antrean...`;
-                pBar.style.width = '50%';
-
-                formData.append('ajax_add_to_queue', '1');
-                formData.append('template_pesan', templatePesan);
-
+                // TAHAP 1: Ambil data target (karena mode 'Select All Filtered' butuh query ulang ke DB)
+                formData.append('ajax_get_peserta', '1');
+                
+                let pesertaList = [];
                 try {
-                    let res = await fetch(window.location.href, { method: 'POST', body: formData });
-                    let json = await res.json();
+                    pStat.innerHTML = `Mengambil data peserta terpilih...`;
+                    let resGet = await fetch(window.location.href, { method: 'POST', body: formData });
+                    let jsonGet = await resGet.json();
                     
-                    if(json.status === 'success') {
-                        pBar.style.width = '100%';
-                        pStat.innerHTML = `<span class="text-emerald-600 font-bold">Sukses!</span> ${json.msg} Cron Job akan mengirim perlahan. Memuat ulang halaman...`;
-                        
-                        setTimeout(() => { window.location.reload(); }, 2000);
-                    } else {
-                        alert("Gagal: " + json.msg);
-                        window.location.reload();
+                    if(jsonGet.status === 'success' && jsonGet.data) {
+                        pesertaList = jsonGet.data;
                     }
                 } catch(error) {
-                    console.error("Fetch Error:", error);
-                    alert("Terjadi kesalahan sistem saat menyimpan ke antrean.");
+                    console.error("Error Get Data:", error);
+                    alert("Gagal mengambil data peserta. Periksa koneksi Anda.");
                     window.location.reload();
+                    return;
                 }
+
+                let total = pesertaList.length;
+                if(total === 0) {
+                    alert("Tidak ada peserta valid yang ditemukan.");
+                    window.location.reload();
+                    return;
+                }
+
+                // TAHAP 2: Loop pengiriman AJAX
+                let successCount = 0;
+                let failCount = 0;
+
+                pBar.style.width = '0%';
+                pText.innerText = `0 / ${total}`;
+
+                for (let i = 0; i < total; i++) {
+                    let parts = pesertaList[i].split('|');
+                    let nowa = parts[0];
+                    let namaPeserta = parts.length > 1 ? parts[1] : nowa;
+
+                    pStat.innerHTML = `Mengirim ke: <b>${namaPeserta}</b>...`;
+
+                    let sendData = new FormData();
+                    sendData.append('ajax_kirim_reminder', '1');
+                    sendData.append('nowa', nowa);
+                    sendData.append('nama', namaPeserta);
+                    sendData.append('template_pesan', templatePesan);
+
+                    try {
+                        let resSend = await fetch(window.location.href, { method: 'POST', body: sendData });
+                        let jsonSend = await resSend.json();
+                        
+                        if (jsonSend.status === 'success') {
+                            successCount++;
+                        } else {
+                            failCount++;
+                        }
+                    } catch (error) {
+                        failCount++;
+                        console.error("Fetch Error:", error);
+                    }
+
+                    // Update UI Progress
+                    let pct = Math.round(((i + 1) / total) * 100);
+                    pBar.style.width = pct + '%';
+                    pText.innerText = `${i + 1} / ${total}`;
+
+                    // Jeda agar API OneSender stabil
+                    await new Promise(r => setTimeout(r, 500));
+                }
+
+                pStat.innerHTML = `<span class="text-emerald-600 font-bold">Proses Selesai!</span> ${successCount} Berhasil, ${failCount} Gagal. Memuat ulang riwayat...`;
+                
+                setTimeout(() => { window.location.reload(); }, 1500);
             });
 
             // ---------------------------------------------------------
@@ -1143,8 +1205,8 @@ $templatePesanDefault = "";
             function updateSelectionDisplay() {
                 const checkedCount = document.querySelectorAll('.peserta-checkbox:checked').length;
                 
-                if (selectedCountSpan) selectedCountSpan.textContent = checkedCount;
-                if (selectedCountInfo) selectedCountInfo.textContent = checkedCount;
+                selectedCountSpan.textContent = checkedCount;
+                selectedCountInfo.textContent = checkedCount;
                 
                 if (checkedCount > 0) {
                     selectionInfo.classList.remove('hidden');
@@ -1192,6 +1254,7 @@ $templatePesanDefault = "";
                 updateSelectionDisplay();
             });
 
+            // Kosongkan selection saat filter diterapkan
             document.getElementById('filter-form').addEventListener('submit', function() {
                 checkboxes.forEach(cb => cb.checked = false);
                 updateSelectionDisplay();
@@ -1371,7 +1434,7 @@ $templatePesanDefault = "";
                 'select-all-halaqoh',
                 'halaqoh-checkbox'
             );
-        }); 
+        }); // PENUTUP DOMContentLoaded UTAMA
     </script>
     <script>
         if (window.self !== window.top) {
@@ -1379,6 +1442,8 @@ $templatePesanDefault = "";
             if (headerElement) {
                 headerElement.style.display = 'none';
             }
+            
+            // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
             document.body.style.backgroundColor = "transparent";
         }
     </script>
