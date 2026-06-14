@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>ReqraWA | Dashboard</title>
+    <title>ReqraWA | Dashboard Stabil</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="LOGOJWD.png">
@@ -105,26 +105,27 @@
             transform-origin: 70% 70%;
         }
 
-        /* iframe transitions */
+        /* iframe transitions - lebih halus dan stabil */
         .iframe-hidden {
             opacity: 0;
-            transform: translateY(18px) scale(0.99);
-            transition: opacity 0.35s ease-out, transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            transform: translateY(12px) scale(0.99);
+            transition: opacity 0.28s ease-out, transform 0.32s cubic-bezier(0.2, 0.85, 0.4, 1);
         }
         .iframe-visible {
             opacity: 1;
             transform: translateY(0) scale(1);
-            transition: opacity 0.45s ease-out, transform 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            transition: opacity 0.35s ease-out, transform 0.38s cubic-bezier(0.2, 0.9, 0.4, 1.1);
         }
 
-        /* loading overlay */
+        /* loading overlay smooth */
         #loading-overlay {
-            backdrop-filter: blur(8px);
-            background-color: rgba(255, 255, 255, 0.85);
-            transition: opacity 0.35s ease, visibility 0.35s;
+            backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.92);
+            transition: opacity 0.3s ease, visibility 0.3s;
+            z-index: 30;
         }
         .loader-spin {
-            animation: spinModern 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+            animation: spinModern 0.9s cubic-bezier(0.5, 0, 0.5, 1) infinite;
         }
         @keyframes spinModern {
             100% { transform: rotate(360deg); }
@@ -168,9 +169,14 @@
         @media (min-width: 769px) {
             .sidebar { position: relative; transform: none !important; }
         }
+
+        /* main wrapper biar iframe smooth */
+        .iframe-wrapper {
+            will-change: transform, opacity;
+        }
     </style>
 </head>
-<body class="flex p-4 md:p-5 gap-5 h-screen w-screen">
+<body class="flex p-4 md:p-5 gap-5 h-screen w-screen overflow-hidden">
 
     <div id="mobile-overlay" class="fixed inset-0 bg-black/20 backdrop-blur-sm z-45 opacity-0 invisible transition-all duration-300 pointer-events-none md:hidden"></div>
 
@@ -191,73 +197,63 @@
         </div>
         
         <nav class="nav-menu flex flex-col gap-1.5 px-4 py-4 overflow-y-auto flex-1">
-            <!-- 1. Kirim Pesan Grup - Hijau -->
             <a href="kirimgrup.php" target="main-frame" class="nav-link active flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200"
                data-title="Kirim Pesan Grup" data-subtitle="Promosi & broadcast ke grup WhatsApp" data-icon="fa-users" data-bg="#dcfce7" data-text="#166534" data-iconcolor="#059669" data-hover-bg="#e8f5e9">
-                <div class="icon-wrapper w-6 text-center transition-all duration-200"><i class="fas fa-users text-lg"></i></div>
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-users text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Kirim Pesan Grup</span>
             </a>
             
-            <!-- 2. Reminder Pembayaran - Amber/Kuning -->
             <a href="reminder.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200"
                data-title="Reminder Pembayaran" data-subtitle="Jadwalkan & kelola pengingat otomatis" data-icon="fa-bell" data-bg="#fef3c7" data-text="#d97706" data-iconcolor="#f59e0b" data-hover-bg="#fffbeb">
-                <div class="icon-wrapper w-6 text-center transition-all duration-200"><i class="fas fa-bell text-lg"></i></div>
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-bell text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Reminder Pembayaran</span>
             </a>
 
-            <!-- 3. Reminder Peserta - Jam/Amber -->
             <a href="kelola_reminder.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200"
                data-title="Reminder Peserta Telat" data-subtitle="Jadwalkan & kelola pengingat otomatis" data-icon="fa-clock" data-bg="#fef3c7" data-text="#d97706" data-iconcolor="#f59e0b" data-hover-bg="#fffbeb">
-                <div class="icon-wrapper w-6 text-center transition-all duration-200"><i class="fas fa-clock text-lg"></i></div>
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-clock text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Reminder Peserta</span>
             </a>
             
-            <!-- 4. Pesan Tutor - Ungu -->
             <a href="wa-tut.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200"
                data-title="Tutor WhatsApp" data-subtitle="Manajemen materi & tutorial WA" data-icon="fa-chalkboard-user" data-bg="#f3e8ff" data-text="#9333ea" data-iconcolor="#a855f7" data-hover-bg="#faf5ff">
-                <div class="icon-wrapper w-6 text-center transition-all duration-200"><i class="fas fa-chalkboard-user text-lg"></i></div>
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-chalkboard-user text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Pesan Tutor</span>
             </a>
 
-            <!-- 5. Pesan Baru - Biru -->
             <a href="pesan.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200"
                data-title="Pesan & Broadcast" data-subtitle="Kirim pesan langsung dan broadcast" data-icon="fa-envelope" data-bg="#dbeafe" data-text="#2563eb" data-iconcolor="#3b82f6" data-hover-bg="#eff6ff">
-                <div class="icon-wrapper w-6 text-center transition-all duration-200"><i class="fas fa-envelope text-lg"></i></div>
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-envelope text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Pesan Baru</span>
             </a>
             
-            <!-- 6. Promosi - Hijau Muda -->
             <a href="promosi.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200"
                data-title="Promosi Broadcast" data-subtitle="Kirim promosi massal via WhatsApp" data-icon="fa-bullhorn" data-bg="#dcfce7" data-text="#16a34a" data-iconcolor="#22c55e" data-hover-bg="#f0fdf4">
-                <div class="icon-wrapper w-6 text-center transition-all duration-200"><i class="fas fa-bullhorn text-lg"></i></div>
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-bullhorn text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Promosi</span>
             </a>
             
-            <!-- 7. Grafik - Indigo -->
             <a href="grafik.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200"
                data-title="Grafik & Statistik" data-subtitle="Analisis data dan grafik pengiriman" data-icon="fa-chart-line" data-bg="#e0e7ff" data-text="#4338ca" data-iconcolor="#6366f1" data-hover-bg="#eef2ff">
-                <div class="icon-wrapper w-6 text-center transition-all duration-200"><i class="fas fa-chart-line text-lg"></i></div>
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-chart-line text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Grafik</span>
             </a>
             
-            <!-- 8. Template - Teal -->
             <a href="manage_templates.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200"
                data-title="Manajemen Template" data-subtitle="Kelola template pesan" data-icon="fa-file-alt" data-bg="#ccfbf1" data-text="#0f766e" data-iconcolor="#14b8a6" data-hover-bg="#f0fdfa">
-                <div class="icon-wrapper w-6 text-center transition-all duration-200"><i class="fas fa-file-alt text-lg"></i></div>
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-file-alt text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Template</span>
             </a>
             
-            <!-- 9. Kelola Grup - Indigo -->
             <a href="kelola_grup.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200"
                data-title="Manajemen Grup" data-subtitle="Tambah, edit & hapus daftar grup target" data-icon="fa-address-book" data-bg="#e0e7ff" data-text="#4f46e5" data-iconcolor="#818cf8" data-hover-bg="#eef2ff">
-                <div class="icon-wrapper w-6 text-center transition-all duration-200"><i class="fas fa-address-book text-lg"></i></div>
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-address-book text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Kelola Grup</span>
             </a>
 
-            <!-- 10. Auto Reply - Rose/Merah Muda -->
             <a href="manage_auto_reply.php" target="main-frame" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200"
                data-title="Auto Reply" data-subtitle="Balasan otomatis cerdas" data-icon="fa-reply-all" data-bg="#ffe4e6" data-text="#e11d48" data-iconcolor="#f43f5e" data-hover-bg="#fff1f2">
-                <div class="icon-wrapper w-6 text-center transition-all duration-200"><i class="fas fa-reply-all text-lg"></i></div>
+                <div class="icon-wrapper w-6 text-center"><i class="fas fa-reply-all text-lg"></i></div>
                 <span class="text-sm font-semibold tracking-wide">Kelola Auto Reply</span>
             </a>
         </nav>
@@ -299,12 +295,12 @@
             </div>
         </header>
 
-        <div class="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-hidden shadow-sm border border-gray-100 relative">
-            <div id="loading-overlay" class="absolute inset-0 z-20 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center gap-3" style="visibility: hidden; opacity: 0;">
+        <div class="flex-1 bg-white rounded-2xl md:rounded-3xl overflow-hidden shadow-sm border border-gray-100 relative iframe-wrapper">
+            <div id="loading-overlay" class="absolute inset-0 z-20 bg-white/95 backdrop-blur-md flex flex-col items-center justify-center gap-3" style="visibility: hidden; opacity: 0;">
                 <div class="relative">
                     <i class="fab fa-whatsapp text-4xl text-[#166534] loader-spin"></i>
                 </div>
-                <p class="text-sm font-bold text-gray-500 tracking-wide bg-white px-4 py-1.5 rounded-full shadow-sm">Memuat konten...</p>
+                <p class="text-sm font-bold text-gray-500 tracking-wide bg-white/80 px-4 py-1.5 rounded-full shadow-sm">Memuat konten...</p>
             </div>
             <iframe src="kirimgrup.php" name="main-frame" id="main-frame" class="w-full h-full border-none bg-white iframe-visible" title="Dashboard ReqraWA"></iframe>
         </div>
@@ -312,12 +308,9 @@
 
     <script>
         (function() {
-            const sidebar = document.getElementById('sidebar');
-            const menuToggle = document.getElementById('menu-toggle');
-            const closeSidebarBtn = document.getElementById('close-sidebar');
-            const mobileOverlay = document.getElementById('mobile-overlay');
-            const navLinks = document.querySelectorAll('.nav-link');
+            // ========== STABILITAS IFRAME: antrian navigasi & manajemen event yang bersih ==========
             const iframe = document.getElementById('main-frame');
+            const navLinks = document.querySelectorAll('.nav-link');
             const pageTitle = document.getElementById('page-title');
             const pageSubtitle = document.getElementById('page-subtitle');
             const headerIcon = document.getElementById('header-icon');
@@ -326,33 +319,85 @@
             const titleDot = document.getElementById('title-dot');
             const textContainer = document.getElementById('text-container');
 
-            let isTransitioning = false;
+            // State navigasi yang stabil
+            let currentNavigation = {
+                isLoading: false,
+                targetUrl: null,
+                timeoutId: null,
+                loadHandler: null,
+                errorHandler: null,
+                activeLink: null
+            };
+            let pendingUrl = null;     // url yang diminta ketika sedang loading
+            let currentLoadedUrl = getRelativePath(iframe.src); // initial
 
-            function saveActiveMenu(href) {
-                if (href) localStorage.setItem('wa_dashboard_active_menu', href);
+            // Helper: ambil nama file dari URL (relatif)
+            function getRelativePath(fullUrl) {
+                if (!fullUrl) return '';
+                try {
+                    let urlObj = new URL(fullUrl, window.location.href);
+                    let path = urlObj.pathname;
+                    let segments = path.split('/');
+                    let fileName = segments.pop();
+                    if (fileName === '' || fileName.includes('?')) fileName = fileName.split('?')[0];
+                    return fileName || '';
+                } catch(e) {
+                    let lastSlash = fullUrl.lastIndexOf('/');
+                    if(lastSlash !== -1) return fullUrl.substring(lastSlash + 1).split('?')[0];
+                    return fullUrl.split('?')[0];
+                }
             }
 
-            function getStoredMenu() {
-                return localStorage.getItem('wa_dashboard_active_menu');
+            // Bersihkan listener & timeout dari navigasi sebelumnya
+            function cleanupNavigation() {
+                if (currentNavigation.loadHandler) {
+                    iframe.removeEventListener('load', currentNavigation.loadHandler);
+                    currentNavigation.loadHandler = null;
+                }
+                if (currentNavigation.errorHandler) {
+                    iframe.removeEventListener('error', currentNavigation.errorHandler);
+                    currentNavigation.errorHandler = null;
+                }
+                if (currentNavigation.timeoutId) {
+                    clearTimeout(currentNavigation.timeoutId);
+                    currentNavigation.timeoutId = null;
+                }
             }
 
-            function resetLinkStyle(link) {
-                link.style.backgroundColor = '';
-                link.style.color = '';
-                const wrapper = link.querySelector('.icon-wrapper');
-                if (wrapper) wrapper.style.color = '';
+            // Tampilkan loading overlay
+            function showLoading() {
+                loadingOverlay.style.visibility = 'visible';
+                loadingOverlay.style.opacity = '1';
+                iframe.classList.remove('iframe-visible');
+                iframe.classList.add('iframe-hidden');
             }
 
+            // Sembunyikan loading
+            function hideLoading() {
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    if (loadingOverlay.style.opacity === '0') {
+                        loadingOverlay.style.visibility = 'hidden';
+                    }
+                }, 280);
+                iframe.classList.remove('iframe-hidden');
+                iframe.classList.add('iframe-visible');
+            }
+
+            // Update tampilan header & active menu style
             function applyActiveState(linkElement, skipAnimation = false) {
                 if (!linkElement) return;
                 
                 navLinks.forEach(link => {
                     link.classList.remove('active');
-                    resetLinkStyle(link);
+                    // reset background inline style
+                    link.style.backgroundColor = '';
+                    link.style.color = '';
+                    const wrapper = link.querySelector('.icon-wrapper');
+                    if (wrapper) wrapper.style.color = '';
                 });
                 
                 linkElement.classList.add('active');
-                
                 const bgColor = linkElement.dataset.bg || '#dcfce7';
                 const textColor = linkElement.dataset.text || '#166534';
                 const iconColor = linkElement.dataset.iconcolor || '#059669';
@@ -378,12 +423,135 @@
                 }
             }
 
-            // Setup hover effect untuk setiap link (warna hover sesuai dataset)
+            // Proses navigasi sebenarnya (setelah antrian)
+            function performNavigation(url, linkElement) {
+                if (!url) return;
+                
+                // Bersihkan navigasi sebelumnya
+                cleanupNavigation();
+                
+                // Tandai loading
+                currentNavigation.isLoading = true;
+                currentNavigation.targetUrl = url;
+                currentNavigation.activeLink = linkElement;
+                
+                showLoading();
+                
+                // Set listener load sekali pakai
+                const onLoad = function() {
+                    if (currentNavigation.targetUrl === url) {
+                        currentLoadedUrl = getRelativePath(iframe.src);
+                        hideLoading();
+                        currentNavigation.isLoading = false;
+                        
+                        // Jika ada pending URL, eksekusi segera setelah ini stabil
+                        if (pendingUrl && pendingUrl !== url) {
+                            const nextUrl = pendingUrl;
+                            const nextLink = Array.from(navLinks).find(link => link.getAttribute('href') === nextUrl);
+                            pendingUrl = null;
+                            performNavigation(nextUrl, nextLink);
+                        } else {
+                            pendingUrl = null;
+                            // update active style final sesuai link
+                            if (linkElement) applyActiveState(linkElement, false);
+                            localStorage.setItem('wa_dashboard_active_menu', url);
+                        }
+                    }
+                    // Hapus diri sendiri
+                    iframe.removeEventListener('load', onLoad);
+                    iframe.removeEventListener('error', onError);
+                    currentNavigation.loadHandler = null;
+                    currentNavigation.errorHandler = null;
+                    if (currentNavigation.timeoutId) clearTimeout(currentNavigation.timeoutId);
+                    currentNavigation.timeoutId = null;
+                };
+                
+                const onError = function() {
+                    console.warn('Iframe loading error:', url);
+                    hideLoading();
+                    currentNavigation.isLoading = false;
+                    iframe.removeEventListener('load', onLoad);
+                    iframe.removeEventListener('error', onError);
+                    currentNavigation.loadHandler = null;
+                    currentNavigation.errorHandler = null;
+                    if (currentNavigation.timeoutId) clearTimeout(currentNavigation.timeoutId);
+                    currentNavigation.timeoutId = null;
+                    
+                    // jika ada pending, lanjut
+                    if (pendingUrl && pendingUrl !== url) {
+                        const nextUrl = pendingUrl;
+                        const nextLink = Array.from(navLinks).find(link => link.getAttribute('href') === nextUrl);
+                        pendingUrl = null;
+                        performNavigation(nextUrl, nextLink);
+                    } else {
+                        pendingUrl = null;
+                        // tetap aktifkan link meskipun error biar UI tidak aneh
+                        if (linkElement) applyActiveState(linkElement, false);
+                        localStorage.setItem('wa_dashboard_active_menu', url);
+                    }
+                };
+                
+                currentNavigation.loadHandler = onLoad;
+                currentNavigation.errorHandler = onError;
+                iframe.addEventListener('load', onLoad);
+                iframe.addEventListener('error', onError);
+                
+                // Timeout pengaman (5 detik)
+                currentNavigation.timeoutId = setTimeout(() => {
+                    if (currentNavigation.isLoading && currentNavigation.targetUrl === url) {
+                        console.warn('Loading timeout, force hide loading');
+                        hideLoading();
+                        currentNavigation.isLoading = false;
+                        cleanupNavigation();
+                        if (pendingUrl && pendingUrl !== url) {
+                            const nextUrl = pendingUrl;
+                            const nextLink = Array.from(navLinks).find(link => link.getAttribute('href') === nextUrl);
+                            pendingUrl = null;
+                            performNavigation(nextUrl, nextLink);
+                        } else {
+                            pendingUrl = null;
+                            if (linkElement) applyActiveState(linkElement, false);
+                        }
+                    }
+                }, 6000);
+                
+                // Ubah src iframe
+                iframe.src = url;
+            }
+            
+            // Fungsi utama navigasi dengan queue + stabilitas
+            function navigateToUrl(url, linkElement, isUserClick = true) {
+                if (!url || !linkElement) return;
+                
+                // jika sama dengan halaman yang sedang aktif dan tidak dalam loading, hanya update style
+                const currentFileName = currentLoadedUrl || getRelativePath(iframe.src);
+                if (currentFileName === url && !currentNavigation.isLoading) {
+                    applyActiveState(linkElement, false);
+                    localStorage.setItem('wa_dashboard_active_menu', url);
+                    // sembunyikan loading jika kebetulan keliatan
+                    hideLoading();
+                    return;
+                }
+                
+                // Jika sedang loading, simpan sebagai pending (tab baru antri)
+                if (currentNavigation.isLoading) {
+                    // update pending url dengan yang terakhir diklik
+                    pendingUrl = url;
+                    // update style dulu supaya feedback visual
+                    applyActiveState(linkElement, true);
+                    return;
+                }
+                
+                // Tidak loading, langsung jalankan navigasi
+                performNavigation(url, linkElement);
+            }
+            
+            // Setup hover effect (stabil)
             navLinks.forEach(link => {
                 const hoverBg = link.dataset.hoverBg || '#f8fafc';
                 const textColor = link.dataset.text || '#166534';
                 link.addEventListener('mouseenter', function() {
-                    if (!this.classList.contains('active')) {
+                    if (!this.classList.contains('active') && !currentNavigation.isLoading) {
                         this.style.backgroundColor = hoverBg;
                         this.style.color = textColor;
                     }
@@ -395,64 +563,16 @@
                     }
                 });
             });
-
-            function showLoading() {
-                loadingOverlay.style.visibility = 'visible';
-                loadingOverlay.style.opacity = '1';
-                iframe.classList.remove('iframe-visible');
-                iframe.classList.add('iframe-hidden');
-            }
-
-            function hideLoading() {
-                loadingOverlay.style.opacity = '0';
-                setTimeout(() => {
-                    loadingOverlay.style.visibility = 'hidden';
-                }, 300);
-                iframe.classList.remove('iframe-hidden');
-                iframe.classList.add('iframe-visible');
-            }
-
-            function loadIframeByLink(linkElement) {
-                if (!linkElement || isTransitioning) return;
-                
-                const targetUrl = linkElement.getAttribute('href');
-                if (!targetUrl) return;
-                
-                const currentSrc = iframe.src;
-                let currentPath = currentSrc.substring(currentSrc.lastIndexOf('/') + 1);
-                
-                if (currentPath === targetUrl && iframe.classList.contains('iframe-visible')) {
-                    applyActiveState(linkElement);
-                    return;
-                }
-                
-                isTransitioning = true;
-                showLoading();
-                applyActiveState(linkElement, true);
-                saveActiveMenu(targetUrl);
-                
-                iframe.src = targetUrl;
-                
-                const onLoadHandler = function() {
-                    hideLoading();
-                    isTransitioning = false;
-                    iframe.removeEventListener('load', onLoadHandler);
-                };
-                
-                iframe.addEventListener('load', onLoadHandler);
-                
-                setTimeout(() => {
-                    if (isTransitioning) {
-                        hideLoading();
-                        isTransitioning = false;
-                    }
-                }, 5000);
-            }
             
+            // Click handler menu
             navLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
                     e.preventDefault();
-                    loadIframeByLink(this);
+                    const targetUrl = this.getAttribute('href');
+                    if (!targetUrl) return;
+                    navigateToUrl(targetUrl, this, true);
+                    
+                    // Mobile: tutup sidebar setelah klik
                     if (window.innerWidth <= 768) {
                         sidebar.classList.remove('show');
                         document.body.classList.remove('sidebar-open');
@@ -461,8 +581,9 @@
                 });
             });
             
+            // Simpan active menu dari storage lalu muat
             function initializeFromStorage() {
-                const storedHref = getStoredMenu();
+                const storedHref = localStorage.getItem('wa_dashboard_active_menu');
                 let targetLink = null;
                 if (storedHref) {
                     targetLink = Array.from(navLinks).find(link => link.getAttribute('href') === storedHref);
@@ -474,22 +595,43 @@
                 
                 if (targetLink) {
                     const targetUrl = targetLink.getAttribute('href');
-                    const currentSrc = iframe.src;
-                    let currentPath = currentSrc.substring(currentSrc.lastIndexOf('/') + 1);
-                    
-                    applyActiveState(targetLink, true);
-                    
-                    if (currentPath !== targetUrl) {
+                    const currentFileName = getRelativePath(iframe.src);
+                    // Jika berbeda, set iframe src tanpa animasi mengganggu
+                    if (currentFileName !== targetUrl) {
+                        // langsung set src tanpa efek loading visible? tapi harus seamless
+                        // supaya stabil kita pakai navigasi
+                        currentNavigation.isLoading = false;   // reset state awal
+                        pendingUrl = null;
+                        cleanupNavigation();
                         iframe.src = targetUrl;
-                        iframe.onload = function() {
+                        currentLoadedUrl = targetUrl;
+                        // Setelah iframe dimuat, aktifkan style & sembunyikan loading
+                        const tempLoad = function() {
                             hideLoading();
-                            iframe.onload = null;
+                            applyActiveState(targetLink, true);
+                            iframe.removeEventListener('load', tempLoad);
                         };
+                        iframe.addEventListener('load', tempLoad);
+                        showLoading();
+                        // timeout safety
+                        setTimeout(() => {
+                            hideLoading();
+                            applyActiveState(targetLink, true);
+                        }, 4000);
                     } else {
+                        applyActiveState(targetLink, true);
                         hideLoading();
                     }
+                } else {
+                    hideLoading();
                 }
             }
+            
+            // Sidebar toggles (sama seperti sebelumnya, perbaikan minor)
+            const sidebar = document.getElementById('sidebar');
+            const menuToggle = document.getElementById('menu-toggle');
+            const closeSidebarBtn = document.getElementById('close-sidebar');
+            const mobileOverlay = document.getElementById('mobile-overlay');
             
             function toggleSidebar(show) {
                 if (show) {
@@ -512,17 +654,22 @@
             if (menuToggle) menuToggle.addEventListener('click', () => toggleSidebar(true));
             if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', () => toggleSidebar(false));
             if (mobileOverlay) mobileOverlay.addEventListener('click', () => toggleSidebar(false));
-            
             window.addEventListener('resize', () => {
-                if (window.innerWidth > 768 && sidebar.classList.contains('show')) {
-                    toggleSidebar(false);
-                }
+                if (window.innerWidth > 768 && sidebar.classList.contains('show')) toggleSidebar(false);
             });
             
+            // inisialisasi awal
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', initializeFromStorage);
             } else {
                 initializeFromStorage();
+            }
+            
+            // handle jika iframe sudah termuat awal, pastikan loading overlay tertutup
+            if (iframe.complete || iframe.readyState === 'complete') {
+                setTimeout(() => hideLoading(), 200);
+            } else {
+                iframe.addEventListener('load', () => hideLoading());
             }
         })();
     </script>
