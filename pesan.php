@@ -344,406 +344,468 @@ if (isset($_GET['export_csv_action'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Follow-Up Minimalist | JWD</title>
+    <title>CRM Follow-Up Pipeline | JWD</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
-        .custom-scroll { max-height: 400px; overflow-y: auto; scrollbar-width: thin; }
-        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; overflow: hidden; }
         
-        .minimal-card { background: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05); border: 1px solid #f1f5f9; transition: all 0.3s ease; }
-        .btn-clean { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; transition: all 0.2s ease; }
-        .btn-clean:hover { background: #f8fafc; transform: translateY(-1px); border-color: #cbd5e1; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .custom-scroll { overflow-y: auto; scrollbar-width: thin; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .crm-card { background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); }
+        .crm-input { width: 100%; padding: 0.5rem 0.75rem; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.75rem; transition: all 0.2s; outline: none; }
+        .crm-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1); }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
         
         .chat-bg { background-color: #f0f2f5; background-image: radial-gradient(#cbd5e1 1px, transparent 0); background-size: 20px 20px; }
-        .bubble-left { background: #ffffff; border-radius: 0 16px 16px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .bubble-right { background: #dcf8c6; border-radius: 16px 0 16px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .bubble-left { background: #ffffff; border-radius: 0 12px 12px 12px; box-shadow: 0 1px 1px rgba(0,0,0,0.05); }
+        .bubble-right { background: #dcf8c6; border-radius: 12px 0 12px 12px; box-shadow: 0 1px 1px rgba(0,0,0,0.05); }
         
-        #waPreview { display: none; position: fixed; bottom: 20px; right: 20px; width: 320px; z-index: 100; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; }
-        .hover-row:hover { background-color: #f8fafc; transform: translateY(-1px); box-shadow: 0 2px 10px -2px rgba(0,0,0,0.02); z-index: 10; position: relative; }
+        #waPreview { display: none; position: fixed; bottom: 20px; right: 20px; width: 300px; z-index: 100; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; }
+        .hover-row:hover { background-color: #f8fafc; }
     </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="h-screen flex text-slate-700">
 
-<div class="max-w-[1500px] mx-auto relative">
-    
-    <header class="bg-white/80 backdrop-blur-md border border-slate-100 py-5 px-6 rounded-2xl mb-6 flex flex-wrap justify-between items-center gap-4 shadow-sm">
-        <div class="flex items-center gap-3">
-            <div class="bg-blue-50 w-10 h-10 rounded-full flex items-center justify-center text-blue-500">
-                <i class="fas fa-paper-plane"></i>
+    <aside id="app-sidebar" class="w-64 bg-[#0f172a] text-slate-300 flex-shrink-0 flex flex-col transition-all duration-300 z-20 hidden md:flex">
+        <div class="h-16 flex items-center px-6 border-b border-slate-800 shrink-0">
+            <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center mr-3 shadow-lg shadow-blue-900/50">
+                <i class="fas fa-paper-plane text-white text-sm"></i>
             </div>
-            <div>
-                <h1 class="text-xl font-bold tracking-tight text-slate-800">Follow-Up</h1>
-                <p class="text-[11px] text-slate-500 font-medium mt-0.5">Sistem Manajemen Antrean Pesan</p>
-            </div>
+            <span class="text-white font-bold tracking-wide">JWD CRM</span>
         </div>
+        <div class="p-4 flex-1 overflow-y-auto custom-scroll">
+            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 pl-2">Menu Utama</div>
+            <nav class="space-y-1">
+                <a href="index.php" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors text-xs font-medium text-slate-400 hover:text-white">
+                    <i class="fas fa-home w-6 text-center text-slate-500"></i> Dashboard
+                </a>
+                <a href="pesan.php" class="flex items-center px-3 py-2.5 rounded-lg bg-blue-600/10 text-blue-400 font-semibold transition-colors text-xs border border-blue-500/20">
+                    <i class="fas fa-reply-all w-6 text-center"></i> Pipeline Follow-Up
+                </a>
+                <a href="manage_templates.php" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors text-xs font-medium text-slate-400 hover:text-white">
+                    <i class="fas fa-comment-dots w-6 text-center text-slate-500"></i> Kelola Template
+                </a>
+                <a href="grafik.php" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors text-xs font-medium text-slate-400 hover:text-white">
+                    <i class="fas fa-chart-pie w-6 text-center text-slate-500"></i> Analytics Chat
+                </a>
+            </nav>
+            <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 pl-2 mt-8">Pengaturan</div>
+            <nav class="space-y-1">
+                <a href="wa-tut.php" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors text-xs font-medium text-slate-400 hover:text-white">
+                    <i class="fas fa-cog w-6 text-center text-slate-500"></i> Sistem Server
+                </a>
+            </nav>
+        </div>
+        <div class="p-4 border-t border-slate-800 shrink-0">
+            <a href="wa.php?logout=true" onclick="return confirm('Apakah Anda yakin ingin keluar?')" class="flex items-center px-3 py-2.5 rounded-lg hover:bg-rose-500/10 hover:text-rose-400 transition-colors text-xs font-medium text-slate-400">
+                <i class="fas fa-sign-out-alt w-6 text-center text-rose-500/70"></i> Keluar Sesi
+            </a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen relative min-w-0 bg-[#f8fafc]">
         
-        <div class="flex flex-wrap gap-2.5">
-            <a href="grafik.php" class="btn-clean px-4 py-2 text-xs font-bold flex items-center text-slate-600"><i class="fas fa-chart-line mr-2"></i>Statistik</a>
-            <button onclick="openModal('modalTambah')" class="btn-clean px-4 py-2 text-xs font-bold flex items-center text-slate-600"><i class="fas fa-plus mr-2"></i>Manual</button>
-            <button onclick="openModal('modalCSV')" class="px-4 py-2 text-xs font-bold flex items-center bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm"><i class="fas fa-file-csv mr-2"></i>Import CSV</button>
-            <a href="?export_csv_action=1&search=<?=urlencode($search)?>&from=<?=urlencode($f_start)?>&to=<?=urlencode($f_end)?>&minat=<?=urlencode($f_minat)?>" class="px-4 py-2 text-xs font-bold flex items-center bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition-colors shadow-sm"><i class="fas fa-download mr-2"></i>Export</a>
-        </div>
-    </header>
-
-    <div id="loader" class="hidden animate-fadeIn mb-6 bg-white minimal-card overflow-hidden relative">
-        <div class="absolute top-0 left-0 right-0 h-1 bg-blue-500"></div>
-        <div class="p-5 flex items-center gap-4">
-            <i class="fas fa-circle-notch fa-spin text-2xl text-blue-500"></i>
-            <div class="flex-1">
-                <div class="flex justify-between items-end mb-2">
-                    <h3 class="font-bold text-slate-700 text-sm">Mengirim Pesan...</h3>
-                    <p id="progressText" class="text-sm font-bold text-blue-600">0%</p>
-                </div>
-                <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden"><div id="progressBar" class="bg-blue-500 h-full rounded-full transition-all duration-300 w-0"></div></div>
-                <p id="progressStatus" class="text-[10px] text-slate-400 mt-2">Mempersiapkan data...</p>
+        <header id="app-header" class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 z-10">
+            <div class="flex items-center gap-3">
+                <h1 class="text-lg font-bold text-slate-800">Pipeline Follow-Up</h1>
+                <span class="hidden md:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-800">
+                    Live
+                </span>
             </div>
-        </div>
-    </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openModal('modalTambah')" class="px-3 py-1.5 text-xs font-semibold flex items-center bg-white border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 transition-colors shadow-sm">
+                    <i class="fas fa-plus mr-1.5 text-slate-400"></i> Manual
+                </button>
+                <button onclick="openModal('modalCSV')" class="px-3 py-1.5 text-xs font-semibold flex items-center bg-white border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 transition-colors shadow-sm">
+                    <i class="fas fa-file-csv mr-1.5 text-slate-400"></i> CSV
+                </button>
+                <a href="?export_csv_action=1&search=<?=urlencode($search)?>&from=<?=urlencode($f_start)?>&to=<?=urlencode($f_end)?>&minat=<?=urlencode($f_minat)?>" class="px-3 py-1.5 text-xs font-semibold flex items-center bg-slate-800 text-white rounded-md hover:bg-slate-900 transition-colors shadow-sm">
+                    <i class="fas fa-download mr-1.5"></i> Export
+                </a>
+            </div>
+        </header>
 
-    <?php if ($notification): ?>
-    <div class="mb-6 p-4 rounded-xl border <?= $notificationType === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : ($notificationType === 'warning' ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-rose-50 border-rose-100 text-rose-700') ?> flex items-center gap-3 text-sm font-medium shadow-sm animate-fadeIn">
-        <i class="fas <?= $notificationType === 'success' ? 'fa-check-circle' : ($notificationType === 'warning' ? 'fa-exclamation-triangle' : 'fa-times-circle') ?> text-lg"></i> <?= $notification ?>
-    </div>
-    <?php endif; ?>
-
-    <?php if(!empty($statistikMinat)): ?>
-    <div class="mb-6 flex gap-3 overflow-x-auto pb-2 custom-scroll">
-        <?php if($f_minat): ?>
-        <a href="pesan.php" class="bg-rose-50 text-rose-600 border border-rose-100 rounded-xl flex-shrink-0 px-4 py-3 text-xs font-bold hover:bg-rose-100 transition-colors flex items-center"><i class="fas fa-times mr-2"></i>Hapus Filter</a>
-        <?php endif; ?>
-        <?php foreach($statistikMinat as $namaMinat => $jumlah): 
-            $isActive = ($f_minat === $namaMinat) ? 'bg-blue-600 text-white border-blue-600 shadow-md transform -translate-y-0.5' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:bg-blue-50';
-        ?>
-        <a href="?minat=<?= urlencode($namaMinat) ?>" class="minimal-card flex-shrink-0 px-5 py-3 transition-all cursor-pointer border <?= $isActive ?>">
-            <div class="text-[10px] font-bold uppercase tracking-wider opacity-80 mb-1"><?= htmlspecialchars($namaMinat) ?></div>
-            <div class="text-xl font-black"><?= $jumlah ?> <span class="text-[10px] font-medium opacity-70">Leads</span></div>
-        </a>
-        <?php endforeach; ?>
-    </div>
-    <?php endif; ?>
-
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div class="xl:col-span-3 space-y-6">
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 custom-scroll">
             
-            <div class="minimal-card p-5">
-                <h3 class="font-bold text-slate-700 mb-4 text-xs uppercase tracking-wider"><i class="fas fa-search text-slate-400 mr-2"></i> Pencarian</h3>
-                <form method="GET" class="space-y-3">
-                    <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Nama / No WhatsApp..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-400 text-xs transition-colors">
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="date" name="from" value="<?= htmlspecialchars($f_start) ?>" class="w-full text-[10px] p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
-                        <input type="date" name="to" value="<?= htmlspecialchars($f_end) ?>" class="w-full text-[10px] p-2 bg-slate-50 border border-slate-200 rounded-lg outline-none">
+            <div id="loader" class="hidden animate-fadeIn mb-6 crm-card p-4 border-l-4 border-l-blue-500 bg-blue-50/30">
+                <div class="flex items-center gap-4">
+                    <i class="fas fa-circle-notch fa-spin text-xl text-blue-500"></i>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-end mb-1">
+                            <h3 class="font-bold text-slate-700 text-sm">Mengirim Broadcast...</h3>
+                            <p id="progressText" class="text-sm font-bold text-blue-600">0%</p>
+                        </div>
+                        <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden"><div id="progressBar" class="bg-blue-500 h-full transition-all duration-300 w-0"></div></div>
+                        <p id="progressStatus" class="text-[10px] text-slate-500 mt-1.5 font-medium">Mempersiapkan data antrean...</p>
                     </div>
-                    <button type="submit" class="w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-xs hover:bg-slate-700 transition-colors">Cari Data</button>
-                    <a href="pesan.php" class="block text-center text-[10px] text-slate-400 hover:text-slate-600 mt-2">Reset Form</a>
-                </form>
-            </div>
-            
-            <div class="minimal-card p-5 border-blue-50">
-                <h3 class="font-bold text-slate-700 mb-4 text-xs uppercase tracking-wider"><i class="fas fa-cog text-slate-400 mr-2"></i> Manajemen</h3>
-                <div class="space-y-2">
-                    <form method="POST" onsubmit="return confirm('Kosongkan histori follow-up hari ini?')"><input type="hidden" name="clear_fu" value="1"><button type="submit" class="w-full bg-white hover:bg-slate-50 text-slate-600 py-2 rounded-lg text-xs font-semibold border border-slate-200 transition-colors"><i class="fas fa-sync-alt mr-2"></i>Reset Sesi Harian</button></form>
-                    <a href="manage_templates.php" class="block text-center w-full bg-white hover:bg-slate-50 text-slate-600 py-2 rounded-lg text-xs font-semibold border border-slate-200 transition-colors"><i class="fas fa-comment-dots mr-2"></i>Kelola Template</a>
                 </div>
             </div>
 
-            <?php if(!empty($organikSudahDichat) || !empty($manualSudahDichat)): ?>
-            <div class="space-y-4">
-                <?php if(!empty($organikSudahDichat)): ?>
-                <div class="minimal-card overflow-hidden border-emerald-100">
-                    <div class="p-3 bg-emerald-50/50 border-b border-emerald-100 flex justify-between items-center">
-                        <h3 class="font-bold text-[10px] text-emerald-700 uppercase"><i class="fas fa-check mr-1.5"></i> Selesai Organik</h3>
-                        <span class="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full"><?= count($organikSudahDichat) ?></span>
-                    </div>
-                    <div class="max-h-[250px] overflow-y-auto custom-scroll">
-                        <div class="divide-y divide-slate-100">
-                            <?php foreach($organikSudahDichat as $r): ?>
-                            <div class="p-3 hover:bg-slate-50 transition-colors">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <div class="font-bold text-[11px] text-slate-700 cursor-pointer hover:text-blue-600" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>"><?= $r['nama'] ?></div>
-                                        <div class="text-[9px] text-slate-400"><?= $r['nowa'] ?></div>
-                                    </div>
-                                </div>
-                                <form class="flex gap-1.5" onsubmit="submitSingleAjax(event, this)">
-                                    <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
-                                    <select name="template_id" class="bg-white border border-slate-200 rounded text-[9px] p-1 flex-1 outline-none focus:border-emerald-300" required onchange="showWA(this)">
-                                        <option value="">Kirim Lagi...</option>
-                                        <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
-                                    </select>
-                                    <button type="submit" class="bg-slate-100 text-slate-500 px-2 rounded hover:bg-emerald-500 hover:text-white transition-colors"><i class="fas fa-paper-plane text-[9px]"></i></button>
-                                </form>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
-                
-                <?php if(!empty($manualSudahDichat)): ?>
-                <div class="minimal-card overflow-hidden border-amber-100">
-                    <div class="p-3 bg-amber-50/50 border-b border-amber-100 flex justify-between items-center">
-                        <h3 class="font-bold text-[10px] text-amber-700 uppercase"><i class="fas fa-check-double mr-1.5"></i> Selesai Manual</h3>
-                        <span class="text-[9px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full"><?= count($manualSudahDichat) ?></span>
-                    </div>
-                    <div class="max-h-[250px] overflow-y-auto custom-scroll">
-                        <div class="divide-y divide-slate-100">
-                            <?php foreach($manualSudahDichat as $r): ?>
-                            <div class="p-3 hover:bg-slate-50 transition-colors">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <div class="font-bold text-[11px] text-slate-700 cursor-pointer hover:text-blue-600" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>"><?= $r['nama'] ?></div>
-                                        <div class="text-[9px] text-slate-400"><?= $r['nowa'] ?></div>
-                                    </div>
-                                </div>
-                                <form class="flex gap-1.5" onsubmit="submitSingleAjax(event, this)">
-                                    <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
-                                    <select name="template_id" class="bg-white border border-slate-200 rounded text-[9px] p-1 flex-1 outline-none focus:border-amber-300" required onchange="showWA(this)">
-                                        <option value="">Kirim Lagi...</option>
-                                        <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
-                                    </select>
-                                    <button type="submit" class="bg-slate-100 text-slate-500 px-2 rounded hover:bg-amber-500 hover:text-white transition-colors"><i class="fas fa-paper-plane text-[9px]"></i></button>
-                                </form>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                </div>
-                <?php endif; ?>
+            <?php if ($notification): ?>
+            <div class="mb-6 p-3 rounded-md border <?= $notificationType === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : ($notificationType === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-rose-50 border-rose-200 text-rose-700') ?> flex items-center gap-2 text-xs font-semibold shadow-sm animate-fadeIn">
+                <i class="fas <?= $notificationType === 'success' ? 'fa-check-circle' : ($notificationType === 'warning' ? 'fa-exclamation-triangle' : 'fa-times-circle') ?>"></i> <?= $notification ?>
             </div>
             <?php endif; ?>
-        </div>
 
-        <div class="xl:col-span-9 space-y-6">
-            
-            <div class="minimal-card p-5 flex flex-col md:flex-row gap-4 justify-between items-center bg-blue-50/30">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0"><i class="fas fa-broadcast-tower text-sm"></i></div>
-                    <div>
-                        <h3 class="font-bold text-sm text-slate-800">Broadcast Pintar</h3>
-                        <p class="text-[10px] text-slate-500"><span id="countCheck" class="font-bold text-blue-600">0</span> kontak dipilih</p>
-                    </div>
+            <?php if(!empty($statistikMinat)): ?>
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Stages Klasifikasi</h2>
+                    <?php if($f_minat): ?>
+                    <a href="pesan.php" class="text-[10px] text-rose-500 hover:text-rose-700 font-bold"><i class="fas fa-times mr-1"></i>Reset Filter</a>
+                    <?php endif; ?>
                 </div>
-                <form id="formMassal" class="w-full md:w-auto flex gap-2">
-                    <select name="template_id_multi" onchange="showWA(this)" class="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-blue-400" required>
-                        <option value="">Pilih Template Broadcast...</option>
-                        <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
-                    </select>
-                    <button type="button" onclick="submitMassAjax(event)" class="bg-slate-800 hover:bg-slate-900 px-4 py-2 rounded-lg font-bold text-xs text-white transition-colors">Kirim Massal</button>
-                </form>
+                <div class="flex gap-3 overflow-x-auto pb-2 custom-scroll">
+                    <?php foreach($statistikMinat as $namaMinat => $jumlah): 
+                        $isActive = ($f_minat === $namaMinat) ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:border-slate-300 bg-white';
+                    ?>
+                    <a href="?minat=<?= urlencode($namaMinat) ?>" class="crm-card flex-shrink-0 w-40 p-3 transition-colors cursor-pointer border <?= $isActive ?>">
+                        <div class="text-[10px] font-bold text-slate-500 mb-1 truncate"><?= htmlspecialchars($namaMinat) ?></div>
+                        <div class="text-lg font-black text-slate-800"><?= $jumlah ?> <span class="text-[10px] font-medium text-slate-400">Leads</span></div>
+                    </a>
+                    <?php endforeach; ?>
+                </div>
             </div>
+            <?php endif; ?>
 
-            <div class="minimal-card overflow-hidden">
-                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                    <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Daftar Customer Baru (Organik)
-                    </h3>
-                    <div class="flex items-center gap-3">
-                        <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">Total: <?= $total_o ?></span>
-                        <label class="text-[11px] font-bold text-slate-600 cursor-pointer flex items-center"><input type="checkbox" id="checkAllOrganik" class="mr-1.5 w-3.5 h-3.5 accent-blue-600">Pilih Semua</label>
-                    </div>
-                </div>
-                <div class="custom-scroll bg-white">
-                    <table class="w-full text-left text-xs">
-                        <thead class="text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-100 bg-slate-50/50">
-                            <tr><th class="p-3 w-10 text-center">#</th><th class="p-3">Prospek</th><th class="p-3">Status Terakhir</th><th class="p-3 text-right">Aksi Cepat</th></tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <?php foreach($targetOrganik_paged as $r): ?>
-                            <tr class="hover-row transition-all">
-                                <td class="p-3 text-center"><input type="checkbox" value="<?= $r['nowa'] ?>" class="cb-target cb-organik w-3.5 h-3.5 accent-blue-600 cursor-pointer"></td>
-                                <td class="p-3">
-                                    <div class="font-bold text-slate-800 text-sm mb-0.5 cursor-pointer hover:text-blue-600 flex items-center gap-2" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>">
-                                        <?= $r['nama'] ?>
-                                        <?php if($r['gender'] !== '-'): ?>
-                                            <span class="text-[9px] px-1.5 py-0.5 rounded-md font-medium <?= strtolower($r['gender']) == 'ikhwan' || strtolower($r['gender']) == 'laki-laki' ? 'bg-blue-50 text-blue-500' : 'bg-pink-50 text-pink-500' ?>"><?= $r['gender'] ?></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="text-[10px] text-slate-500 mb-1 flex items-center gap-1">
-                                        <?= $r['nowa'] ?> <a href="https://wa.me/<?= $r['clean_wa'] ?>" target="_blank" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fab fa-whatsapp"></i></a>
-                                    </div>
-                                    <span class="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[9px] font-bold"><?= $r['klas'] ?></span>
-                                </td>
-                                <td class="p-3">
-                                    <?php if($r['fu_tmpl'] === 'Baru'): ?>
-                                        <span class="text-slate-400 text-[10px] italic">Baru/Belum diproses</span>
-                                    <?php else: ?>
-                                        <div class="text-[10px] font-medium text-slate-700 bg-white border border-slate-200 inline-block px-2 py-1 rounded cursor-pointer hover:border-blue-300 hover:text-blue-600 transition-colors mb-1" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>">
-                                            <i class="fas fa-history text-slate-400 mr-1"></i> <?= $r['fu_tmpl'] ?>
-                                        </div>
-                                        <div class="text-[9px] text-slate-400"><i class="far fa-clock mr-1"></i><?= $r['fu_text'] ?></div>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="p-3 text-right">
-                                    <div class="flex gap-1.5 justify-end items-center">
-                                        <form class="inline flex gap-1 items-center" onsubmit="submitSingleAjax(event, this)">
-                                            <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
-                                            <select name="template_id" class="bg-white border border-slate-200 rounded p-1.5 text-[10px] w-28 outline-none focus:border-blue-400" required onchange="showWA(this)">
-                                                <option value="">Pilih...</option>
-                                                <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
-                                            </select>
-                                            <button type="submit" class="bg-blue-50 text-blue-600 w-7 h-7 rounded flex items-center justify-center hover:bg-blue-600 hover:text-white transition-colors"><i class="fas fa-paper-plane text-[10px]"></i></button>
-                                        </form>
-                                        <form method="POST" onsubmit="return confirm('Hapus prospek ini?')" class="inline">
-                                            <input type="hidden" name="delete_prospect" value="1">
-                                            <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
-                                            <button type="submit" class="bg-rose-50 text-rose-500 w-7 h-7 rounded flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors"><i class="fas fa-trash-alt text-[10px]"></i></button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <?php if ($pages_o > 1): ?>
-                <div class="p-3 bg-white border-t border-slate-100 flex justify-between items-center text-[11px] font-medium text-slate-500">
-                    <span>Halaman <?= $page_o ?> / <?= $pages_o ?></span>
-                    <div class="flex gap-1">
-                        <?php if($page_o > 1): ?><a href="<?= buildPageUrl('page_o', $page_o-1) ?>" class="px-2.5 py-1 bg-white border border-slate-200 rounded hover:bg-slate-50 transition-colors">Prev</a><?php endif; ?>
-                        <?php if($page_o < $pages_o): ?><a href="<?= buildPageUrl('page_o', $page_o+1) ?>" class="px-2.5 py-1 bg-white border border-slate-200 rounded hover:bg-slate-50 transition-colors">Next</a><?php endif; ?>
-                    </div>
-                </div>
-                <?php endif; ?>
-            </div>
-
-            <div class="minimal-card overflow-hidden mt-6">
-                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-                    <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-amber-500"></span> Daftar Antrean Manual / CSV
-                    </h3>
-                    <div class="flex items-center gap-4">
-                        <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-medium">Total: <?= $total_m ?></span>
-                        <form method="POST" onsubmit="return confirm('Hapus SEMUA daftar antrean manual?')" class="inline">
-                            <input type="hidden" name="hapus_semua_manual" value="1">
-                            <button type="submit" class="text-rose-500 hover:text-rose-700 text-[10px] font-bold flex items-center"><i class="fas fa-trash-alt mr-1"></i>Hapus Semua</button>
+            <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                
+                <div class="xl:col-span-1 space-y-5">
+                    
+                    <div class="crm-card p-4">
+                        <h3 class="font-bold text-slate-800 text-xs mb-3 flex items-center"><i class="fas fa-filter text-slate-400 mr-2"></i> Filter Data</h3>
+                        <form method="GET" class="space-y-3">
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-500 uppercase mb-1 block">Kata Kunci</label>
+                                <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Nama / No. WhatsApp..." class="crm-input">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-[9px] font-bold text-slate-500 uppercase mb-1 block">Dari</label>
+                                    <input type="date" name="from" value="<?= htmlspecialchars($f_start) ?>" class="crm-input">
+                                </div>
+                                <div>
+                                    <label class="text-[9px] font-bold text-slate-500 uppercase mb-1 block">Sampai</label>
+                                    <input type="date" name="to" value="<?= htmlspecialchars($f_end) ?>" class="crm-input">
+                                </div>
+                            </div>
+                            <button type="submit" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-1.5 rounded-md font-bold text-xs transition-colors border border-slate-300">Terapkan Filter</button>
                         </form>
-                        <label class="text-[11px] font-bold text-slate-600 cursor-pointer flex items-center"><input type="checkbox" id="checkAllManual" class="mr-1.5 w-3.5 h-3.5 accent-amber-500">Pilih Semua</label>
                     </div>
-                </div>
-                <div class="custom-scroll bg-white">
-                    <table class="w-full text-left text-xs">
-                        <thead class="text-slate-400 text-[10px] uppercase tracking-wider border-b border-slate-100 bg-slate-50/50">
-                            <tr><th class="p-3 w-10 text-center">#</th><th class="p-3">Prospek</th><th class="p-3">Status Terakhir</th><th class="p-3 text-right">Aksi Cepat</th></tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            <?php foreach($targetManual_paged as $r): ?>
-                            <tr class="hover-row transition-all">
-                                <td class="p-3 text-center"><input type="checkbox" value="<?= $r['nowa'] ?>" class="cb-target cb-manual w-3.5 h-3.5 accent-amber-500 cursor-pointer"></td>
-                                <td class="p-3">
-                                    <div class="font-bold text-slate-800 text-sm mb-0.5 cursor-pointer hover:text-amber-600 flex items-center gap-2" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>"><?= $r['nama'] ?></div>
-                                    <div class="text-[10px] text-slate-500 flex items-center gap-1">
-                                        <?= $r['nowa'] ?> <a href="https://wa.me/<?= $r['clean_wa'] ?>" target="_blank" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fab fa-whatsapp"></i></a>
-                                    </div>
-                                </td>
-                                <td class="p-3">
-                                    <?php if($r['fu_tmpl'] === 'Baru'): ?>
-                                        <span class="text-slate-400 text-[10px] italic">Baru/Belum diproses</span>
-                                    <?php else: ?>
-                                        <div class="text-[10px] font-medium text-slate-700 bg-white border border-slate-200 inline-block px-2 py-1 rounded cursor-pointer hover:border-amber-300 hover:text-amber-600 transition-colors mb-1" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>">
-                                            <i class="fas fa-history text-slate-400 mr-1"></i> <?= $r['fu_tmpl'] ?>
-                                        </div>
-                                        <div class="text-[9px] text-slate-400"><i class="far fa-clock mr-1"></i><?= $r['fu_text'] ?></div>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="p-3 text-right">
-                                    <div class="flex gap-1.5 justify-end items-center">
-                                        <form class="inline flex gap-1 items-center" onsubmit="submitSingleAjax(event, this)">
+
+                    <div class="crm-card p-4">
+                        <h3 class="font-bold text-slate-800 text-xs mb-3 flex items-center"><i class="fas fa-cog text-slate-400 mr-2"></i> Aksi Sesi</h3>
+                        <form method="POST" onsubmit="return confirm('Kosongkan histori Selesai hari ini? Data tidak akan dihapus dari database, hanya direset dari daftar selesai sesi ini.')">
+                            <input type="hidden" name="clear_fu" value="1">
+                            <button type="submit" class="w-full bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 py-1.5 rounded-md text-xs font-semibold border border-slate-200 transition-colors shadow-sm">
+                                <i class="fas fa-sync-alt mr-1.5"></i> Reset Sesi Harian
+                            </button>
+                        </form>
+                    </div>
+
+                    <?php if(!empty($organikSudahDichat) || !empty($manualSudahDichat)): ?>
+                    <div class="space-y-4">
+                        <?php if(!empty($organikSudahDichat)): ?>
+                        <div class="crm-card overflow-hidden">
+                            <div class="p-2.5 bg-emerald-50 border-b border-emerald-100 flex justify-between items-center">
+                                <h3 class="font-bold text-[9px] text-emerald-700 uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Organik Selesai</h3>
+                                <span class="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded"><?= count($organikSudahDichat) ?></span>
+                            </div>
+                            <div class="max-h-[250px] overflow-y-auto custom-scroll p-1">
+                                <?php foreach($organikSudahDichat as $r): ?>
+                                <div class="p-2 hover:bg-slate-50 rounded transition-colors group border-b border-slate-50 last:border-0">
+                                    <div class="font-semibold text-[10px] text-slate-700 cursor-pointer group-hover:text-blue-600 truncate" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>"><?= $r['nama'] ?></div>
+                                    <div class="flex items-center gap-1 mt-1">
+                                        <form class="flex w-full gap-1" onsubmit="submitSingleAjax(event, this)">
                                             <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
-                                            <select name="template_id" class="bg-white border border-slate-200 rounded p-1.5 text-[10px] w-24 outline-none focus:border-amber-400" required onchange="showWA(this)">
-                                                <option value="">Pilih...</option>
+                                            <select name="template_id" class="crm-input p-1 text-[9px] flex-1" required onchange="showWA(this)">
+                                                <option value="">Ulangi...</option>
                                                 <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
                                             </select>
-                                            <button type="submit" class="bg-amber-50 text-amber-600 w-7 h-7 rounded flex items-center justify-center hover:bg-amber-500 hover:text-white transition-colors"><i class="fas fa-paper-plane text-[10px]"></i></button>
-                                        </form>
-                                        <form method="POST" onsubmit="return confirm('Hapus prospek ini?')" class="inline">
-                                            <input type="hidden" name="delete_prospect" value="1">
-                                            <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
-                                            <button type="submit" class="bg-rose-50 text-rose-500 w-7 h-7 rounded flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors"><i class="fas fa-trash-alt text-[10px]"></i></button>
+                                            <button type="submit" class="bg-slate-100 text-slate-500 w-6 rounded hover:bg-emerald-500 hover:text-white transition-colors border border-slate-200"><i class="fas fa-paper-plane text-[8px]"></i></button>
                                         </form>
                                     </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-                <?php if ($pages_m > 1): ?>
-                <div class="p-3 bg-white border-t border-slate-100 flex justify-between items-center text-[11px] font-medium text-slate-500">
-                    <span>Halaman <?= $page_m ?> / <?= $pages_m ?></span>
-                    <div class="flex gap-1">
-                        <?php if($page_m > 1): ?><a href="<?= buildPageUrl('page_m', $page_m-1) ?>" class="px-2.5 py-1 bg-white border border-slate-200 rounded hover:bg-slate-50 transition-colors">Prev</a><?php endif; ?>
-                        <?php if($page_m < $pages_m): ?><a href="<?= buildPageUrl('page_m', $page_m+1) ?>" class="px-2.5 py-1 bg-white border border-slate-200 rounded hover:bg-slate-50 transition-colors">Next</a><?php endif; ?>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if(!empty($manualSudahDichat)): ?>
+                        <div class="crm-card overflow-hidden">
+                            <div class="p-2.5 bg-amber-50 border-b border-amber-100 flex justify-between items-center">
+                                <h3 class="font-bold text-[9px] text-amber-700 uppercase tracking-wider"><i class="fas fa-check-double mr-1"></i> Manual Selesai</h3>
+                                <span class="text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded"><?= count($manualSudahDichat) ?></span>
+                            </div>
+                            <div class="max-h-[250px] overflow-y-auto custom-scroll p-1">
+                                <?php foreach($manualSudahDichat as $r): ?>
+                                <div class="p-2 hover:bg-slate-50 rounded transition-colors group border-b border-slate-50 last:border-0">
+                                    <div class="font-semibold text-[10px] text-slate-700 cursor-pointer group-hover:text-blue-600 truncate" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>"><?= $r['nama'] ?></div>
+                                    <div class="flex items-center gap-1 mt-1">
+                                        <form class="flex w-full gap-1" onsubmit="submitSingleAjax(event, this)">
+                                            <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
+                                            <select name="template_id" class="crm-input p-1 text-[9px] flex-1" required onchange="showWA(this)">
+                                                <option value="">Ulangi...</option>
+                                                <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
+                                            </select>
+                                            <button type="submit" class="bg-slate-100 text-slate-500 w-6 rounded hover:bg-amber-500 hover:text-white transition-colors border border-slate-200"><i class="fas fa-paper-plane text-[8px]"></i></button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                     </div>
+                    <?php endif; ?>
                 </div>
-                <?php endif; ?>
-            </div>
 
+                <div class="xl:col-span-3 space-y-6">
+                    
+                    <div class="crm-card p-4 flex flex-col sm:flex-row gap-4 justify-between items-center bg-white border-l-4 border-l-blue-500">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0 border border-blue-100"><i class="fas fa-bullhorn text-sm"></i></div>
+                            <div>
+                                <h3 class="font-bold text-xs text-slate-800">Tindakan Massal</h3>
+                                <p class="text-[10px] text-slate-500"><span id="countCheck" class="font-bold text-blue-600 bg-blue-50 px-1 rounded">0</span> kontak terpilih di halaman ini</p>
+                            </div>
+                        </div>
+                        <form id="formMassal" class="w-full sm:w-auto flex gap-2">
+                            <select name="template_id_multi" onchange="showWA(this)" class="crm-input py-1.5" required>
+                                <option value="">Pilih Template Broadcast...</option>
+                                <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
+                            </select>
+                            <button type="button" onclick="submitMassAjax(event)" class="bg-blue-600 hover:bg-blue-700 px-4 py-1.5 rounded-md font-bold text-xs text-white transition-colors shadow-sm whitespace-nowrap">Kirim Massal</button>
+                        </form>
+                    </div>
+
+                    <div class="crm-card overflow-hidden flex flex-col">
+                        <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
+                            <h3 class="font-bold text-xs text-slate-800 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Leads Organik <span class="text-[9px] font-normal text-slate-500 ml-1">(Total: <?= $total_o ?>)</span>
+                            </h3>
+                            <label class="text-[10px] font-bold text-slate-600 cursor-pointer flex items-center hover:text-blue-600 transition-colors">
+                                <input type="checkbox" id="checkAllOrganik" class="mr-1.5 w-3 h-3 accent-blue-600">Pilih Semua Halaman Ini
+                            </label>
+                        </div>
+                        <div class="overflow-x-auto custom-scroll bg-white">
+                            <table class="w-full text-left text-xs whitespace-nowrap">
+                                <thead class="text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-200 bg-white">
+                                    <tr><th class="p-3 w-10 text-center">#</th><th class="p-3">Identitas Prospek</th><th class="p-3">Status Pipeline</th><th class="p-3 text-right">Aksi</th></tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <?php if(empty($targetOrganik_paged)): ?>
+                                        <tr><td colspan="4" class="p-8 text-center text-slate-400 text-xs">Tidak ada data prospek organik.</td></tr>
+                                    <?php endif; ?>
+                                    <?php foreach($targetOrganik_paged as $r): ?>
+                                    <tr class="hover-row transition-colors group">
+                                        <td class="p-3 text-center"><input type="checkbox" value="<?= $r['nowa'] ?>" class="cb-target cb-organik w-3 h-3 accent-blue-600 cursor-pointer"></td>
+                                        <td class="p-3">
+                                            <div class="font-bold text-slate-800 text-[11px] mb-0.5 cursor-pointer hover:text-blue-600 flex items-center gap-2" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>">
+                                                <?= $r['nama'] ?>
+                                                <?php if($r['gender'] !== '-'): ?>
+                                                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-medium"><?= $r['gender'] ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 flex items-center gap-1 font-mono">
+                                                <?= $r['nowa'] ?> <a href="https://wa.me/<?= $r['clean_wa'] ?>" target="_blank" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fab fa-whatsapp"></i></a>
+                                            </div>
+                                        </td>
+                                        <td class="p-3">
+                                            <span class="bg-slate-100 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[9px] font-bold mb-1 inline-block"><?= $r['klas'] ?></span>
+                                            <div class="text-[9px] text-slate-500 flex items-center mt-0.5">
+                                                <?php if($r['fu_tmpl'] === 'Baru'): ?>
+                                                    <i class="fas fa-circle text-[6px] text-blue-500 mr-1.5"></i> Baru Masuk
+                                                <?php else: ?>
+                                                    <i class="fas fa-check-double text-blue-500 mr-1.5"></i> <span class="truncate max-w-[120px]" title="<?= $r['fu_tmpl'] ?>"><?= $r['fu_tmpl'] ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                        <td class="p-3 text-right">
+                                            <div class="flex gap-1.5 justify-end items-center opacity-80 group-hover:opacity-100 transition-opacity">
+                                                <form class="inline flex gap-1 items-center" onsubmit="submitSingleAjax(event, this)">
+                                                    <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
+                                                    <select name="template_id" class="crm-input py-1 w-24 text-[9px]" required onchange="showWA(this)">
+                                                        <option value="">Pilih...</option>
+                                                        <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
+                                                    </select>
+                                                    <button type="submit" class="bg-white border border-slate-300 text-blue-600 w-6 h-6 rounded flex items-center justify-center hover:bg-blue-50 hover:border-blue-300 transition-colors shadow-sm"><i class="fas fa-paper-plane text-[9px]"></i></button>
+                                                </form>
+                                                <form method="POST" onsubmit="return confirm('Hapus prospek ini?')" class="inline">
+                                                    <input type="hidden" name="delete_prospect" value="1">
+                                                    <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
+                                                    <button type="submit" class="bg-white border border-slate-300 text-rose-500 w-6 h-6 rounded flex items-center justify-center hover:bg-rose-50 hover:border-rose-300 transition-colors shadow-sm"><i class="fas fa-trash-alt text-[9px]"></i></button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php if ($pages_o > 1): ?>
+                        <div class="p-2 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-[10px] font-medium text-slate-500 shrink-0">
+                            <span>Hal <?= $page_o ?> dari <?= $pages_o ?></span>
+                            <div class="flex gap-1">
+                                <?php if($page_o > 1): ?><a href="<?= buildPageUrl('page_o', $page_o-1) ?>" class="px-2 py-1 bg-white border border-slate-200 rounded hover:bg-slate-100 transition-colors">Prev</a><?php endif; ?>
+                                <?php if($page_o < $pages_o): ?><a href="<?= buildPageUrl('page_o', $page_o+1) ?>" class="px-2 py-1 bg-white border border-slate-200 rounded hover:bg-slate-100 transition-colors">Next</a><?php endif; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="crm-card overflow-hidden flex flex-col">
+                        <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center shrink-0">
+                            <h3 class="font-bold text-xs text-slate-800 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-amber-500"></span> Leads Manual / CSV <span class="text-[9px] font-normal text-slate-500 ml-1">(Total: <?= $total_m ?>)</span>
+                            </h3>
+                            <div class="flex items-center gap-3">
+                                <form method="POST" onsubmit="return confirm('Hapus SEMUA daftar antrean manual?')" class="inline">
+                                    <input type="hidden" name="hapus_semua_manual" value="1">
+                                    <button type="submit" class="text-[10px] text-rose-500 hover:text-rose-700 font-bold flex items-center bg-rose-50 px-2 py-0.5 rounded border border-rose-100 transition-colors"><i class="fas fa-trash-alt mr-1"></i>Bersihkan</button>
+                                </form>
+                                <label class="text-[10px] font-bold text-slate-600 cursor-pointer flex items-center hover:text-amber-600 transition-colors">
+                                    <input type="checkbox" id="checkAllManual" class="mr-1.5 w-3 h-3 accent-amber-500">Pilih Semua Halaman Ini
+                                </label>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto custom-scroll bg-white">
+                            <table class="w-full text-left text-xs whitespace-nowrap">
+                                <thead class="text-slate-500 text-[10px] uppercase tracking-wider border-b border-slate-200 bg-white">
+                                    <tr><th class="p-3 w-10 text-center">#</th><th class="p-3">Identitas Prospek</th><th class="p-3">Status Pipeline</th><th class="p-3 text-right">Aksi</th></tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    <?php if(empty($targetManual_paged)): ?>
+                                        <tr><td colspan="4" class="p-8 text-center text-slate-400 text-xs">Tidak ada antrean manual/CSV.</td></tr>
+                                    <?php endif; ?>
+                                    <?php foreach($targetManual_paged as $r): ?>
+                                    <tr class="hover-row transition-colors group">
+                                        <td class="p-3 text-center"><input type="checkbox" value="<?= $r['nowa'] ?>" class="cb-target cb-manual w-3 h-3 accent-amber-500 cursor-pointer"></td>
+                                        <td class="p-3">
+                                            <div class="font-bold text-slate-800 text-[11px] mb-0.5 cursor-pointer hover:text-amber-600 flex items-center gap-2" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>">
+                                                <?= $r['nama'] ?>
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 flex items-center gap-1 font-mono">
+                                                <?= $r['nowa'] ?> <a href="https://wa.me/<?= $r['clean_wa'] ?>" target="_blank" class="text-emerald-500 hover:scale-110 transition-transform"><i class="fab fa-whatsapp"></i></a>
+                                            </div>
+                                        </td>
+                                        <td class="p-3">
+                                            <div class="text-[9px] text-slate-500 flex items-center mt-0.5">
+                                                <?php if($r['fu_tmpl'] === 'Baru'): ?>
+                                                    <i class="fas fa-circle text-[6px] text-amber-500 mr-1.5"></i> Menunggu
+                                                <?php else: ?>
+                                                    <i class="fas fa-check-double text-blue-500 mr-1.5"></i> <span class="truncate max-w-[120px]" title="<?= $r['fu_tmpl'] ?>"><?= $r['fu_tmpl'] ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                        <td class="p-3 text-right">
+                                            <div class="flex gap-1.5 justify-end items-center opacity-80 group-hover:opacity-100 transition-opacity">
+                                                <form class="inline flex gap-1 items-center" onsubmit="submitSingleAjax(event, this)">
+                                                    <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
+                                                    <select name="template_id" class="crm-input py-1 w-24 text-[9px]" required onchange="showWA(this)">
+                                                        <option value="">Pilih...</option>
+                                                        <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
+                                                    </select>
+                                                    <button type="submit" class="bg-white border border-slate-300 text-amber-600 w-6 h-6 rounded flex items-center justify-center hover:bg-amber-50 hover:border-amber-300 transition-colors shadow-sm"><i class="fas fa-paper-plane text-[9px]"></i></button>
+                                                </form>
+                                                <form method="POST" onsubmit="return confirm('Hapus prospek ini?')" class="inline">
+                                                    <input type="hidden" name="delete_prospect" value="1">
+                                                    <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
+                                                    <button type="submit" class="bg-white border border-slate-300 text-rose-500 w-6 h-6 rounded flex items-center justify-center hover:bg-rose-50 hover:border-rose-300 transition-colors shadow-sm"><i class="fas fa-trash-alt text-[9px]"></i></button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php if ($pages_m > 1): ?>
+                        <div class="p-2 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-[10px] font-medium text-slate-500 shrink-0">
+                            <span>Hal <?= $page_m ?> dari <?= $pages_m ?></span>
+                            <div class="flex gap-1">
+                                <?php if($page_m > 1): ?><a href="<?= buildPageUrl('page_m', $page_m-1) ?>" class="px-2 py-1 bg-white border border-slate-200 rounded hover:bg-slate-100 transition-colors">Prev</a><?php endif; ?>
+                                <?php if($page_m < $pages_m): ?><a href="<?= buildPageUrl('page_m', $page_m+1) ?>" class="px-2 py-1 bg-white border border-slate-200 rounded hover:bg-slate-100 transition-colors">Next</a><?php endif; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+
+                </div>
+            </div>
+            <div class="h-12"></div>
+        </div>
+    </main>
+
+    <div id="waPreview" class="animate-fadeIn">
+        <div class="bg-[#075e54] text-white p-2 flex items-center justify-between">
+            <p class="text-[10px] font-bold"><i class="fas fa-eye mr-1.5"></i> Live Preview Mode</p>
+            <button onclick="closeWA()" class="opacity-70 hover:opacity-100 p-1"><i class="fas fa-times text-xs"></i></button>
+        </div>
+        <div class="chat-bg p-3 h-40 overflow-y-auto custom-scroll">
+            <div class="bubble-left p-2.5 text-[11px] text-[#111b21] mb-2 inline-block whitespace-pre-wrap" id="waText">...</div>
         </div>
     </div>
-</div>
 
-<div id="waPreview" class="animate-slideIn">
-    <div class="bg-[#075e54] text-white p-2.5 flex items-center justify-between">
-        <p class="text-[11px] font-bold"><i class="fas fa-eye mr-1.5"></i> Live Preview</p>
-        <button onclick="closeWA()" class="opacity-70 hover:opacity-100 p-1"><i class="fas fa-times text-sm"></i></button>
-    </div>
-    <div class="chat-bg p-4 h-48 overflow-y-auto custom-scroll">
-        <div class="bubble-left p-2.5 text-[12px] text-[#111b21] mb-2 inline-block whitespace-pre-wrap" id="waText">...</div>
-    </div>
-</div>
-
-<div id="modalTambah" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
-    <div class="minimal-card w-full max-w-sm overflow-hidden shadow-2xl animate-fadeIn">
-        <div class="p-5 border-b border-slate-100 font-bold flex justify-between items-center text-slate-700 bg-white"><span>Tambah Manual</span><button type="button" onclick="closeModal('modalTambah')" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button></div>
-        <form method="POST" class="p-6 space-y-4 bg-slate-50/50">
-            <div>
-                <label class="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap</label>
-                <input type="text" name="nama_baru" required class="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-400">
+    <div id="modalTambah" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+        <div class="crm-card w-full max-w-sm overflow-hidden shadow-2xl animate-fadeIn">
+            <div class="p-4 border-b border-slate-200 font-bold flex justify-between items-center text-slate-700 bg-slate-50 text-xs">
+                <span><i class="fas fa-user-plus mr-1.5 text-slate-400"></i> Tambah Prospek Manual</span>
+                <button type="button" onclick="closeModal('modalTambah')" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
             </div>
-            <div>
-                <label class="text-[10px] font-bold text-slate-500 uppercase">WhatsApp (08...)</label>
-                <input type="number" name="nowa_baru" required class="w-full mt-1 p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-400">
-            </div>
-            <button type="submit" name="tambah_prospek" class="w-full bg-slate-800 text-white py-3 rounded-lg font-bold text-sm hover:bg-slate-900 transition-colors mt-2">Simpan Prospek</button>
-        </form>
-    </div>
-</div>
-
-<div id="modalCSV" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
-    <div class="minimal-card w-full max-w-sm overflow-hidden shadow-2xl animate-fadeIn">
-        <div class="p-5 border-b border-slate-100 font-bold flex justify-between items-center text-slate-700 bg-white"><span>Upload Bulk CSV</span><button type="button" onclick="closeModal('modalCSV')" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button></div>
-        <form method="POST" enctype="multipart/form-data" class="p-6 space-y-4 bg-slate-50/50" onsubmit="showManualLoading()">
-            <div class="bg-blue-50/50 p-3 rounded-lg border border-blue-100 text-[11px] text-blue-700 font-medium"><i class="fas fa-info-circle mr-1"></i> Format CSV baris pertama: <b>Nama, WhatsApp</b></div>
-            <input type="file" name="file_csv" accept=".csv" required class="w-full p-4 border border-dashed border-slate-300 bg-white rounded-lg text-xs cursor-pointer focus:border-blue-400">
-            <button type="submit" name="upload_csv" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors mt-2">Proses Import</button>
-        </form>
-    </div>
-</div>
-
-<div id="modalDetailChat" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
-    <div class="minimal-card w-full max-w-md overflow-hidden shadow-2xl animate-fadeIn flex flex-col h-[70vh] max-h-[600px]">
-        <div class="p-4 border-b border-slate-200 font-bold flex justify-between items-center text-slate-800 bg-white z-10 shadow-sm">
-            <div class="flex items-center gap-2">
-                <i class="fab fa-whatsapp text-emerald-500 text-lg"></i> <span>Detail Percakapan</span>
-            </div>
-            <button type="button" onclick="closeModal('modalDetailChat')" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="chat-bg flex-1 p-4 overflow-y-auto custom-scroll flex flex-col gap-4" id="detailChatContent">
-            </div>
-        <div class="p-3 border-t border-slate-100 bg-white text-right">
-            <button onclick="closeModal('modalDetailChat')" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors">Tutup</button>
+            <form method="POST" class="p-5 space-y-4 bg-white">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase">Nama Lengkap</label>
+                    <input type="text" name="nama_baru" required class="crm-input mt-1">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase">WhatsApp (Contoh: 0812...)</label>
+                    <input type="number" name="nowa_baru" required class="crm-input mt-1">
+                </div>
+                <div class="pt-2">
+                    <button type="submit" name="tambah_prospek" class="w-full bg-slate-800 text-white py-2 rounded-md font-bold text-xs hover:bg-slate-900 transition-colors shadow-sm">Simpan Prospek</button>
+                </div>
+            </form>
         </div>
     </div>
-</div>
+
+    <div id="modalCSV" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+        <div class="crm-card w-full max-w-sm overflow-hidden shadow-2xl animate-fadeIn">
+            <div class="p-4 border-b border-slate-200 font-bold flex justify-between items-center text-slate-700 bg-slate-50 text-xs">
+                <span><i class="fas fa-file-csv mr-1.5 text-slate-400"></i> Import Data via CSV</span>
+                <button type="button" onclick="closeModal('modalCSV')" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data" class="p-5 space-y-4 bg-white" onsubmit="showManualLoading()">
+                <div class="bg-blue-50/50 p-2.5 rounded border border-blue-100 text-[10px] text-blue-700 font-medium">
+                    <i class="fas fa-info-circle mr-1"></i> Baris pertama pada file CSV harus berisi header berurutan: <b>Nama, WhatsApp</b>
+                </div>
+                <input type="file" name="file_csv" accept=".csv" required class="w-full p-3 border border-dashed border-slate-300 bg-slate-50 rounded-md text-xs cursor-pointer focus:border-blue-400 outline-none">
+                <div class="pt-2">
+                    <button type="submit" name="upload_csv" class="w-full bg-blue-600 text-white py-2 rounded-md font-bold text-xs hover:bg-blue-700 transition-colors shadow-sm">Mulai Import Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalDetailChat" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+        <div class="crm-card w-full max-w-md overflow-hidden shadow-2xl animate-fadeIn flex flex-col h-[65vh] max-h-[550px]">
+            <div class="p-3 border-b border-slate-200 font-bold flex justify-between items-center text-slate-800 bg-white z-10 shadow-sm shrink-0">
+                <div class="flex items-center gap-2 text-xs">
+                    <i class="fab fa-whatsapp text-emerald-500 text-base"></i> <span>History Pesan</span>
+                </div>
+                <button type="button" onclick="closeModal('modalDetailChat')" class="text-slate-400 hover:text-slate-600 w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="chat-bg flex-1 p-4 overflow-y-auto custom-scroll flex flex-col gap-4" id="detailChatContent">
+                </div>
+        </div>
+    </div>
 
 <script>
 const templates = <?= json_encode($jsTemplates) ?>;
@@ -759,7 +821,6 @@ function showWA(s) {
 function showDetail(userMsg, sysMsg) {
     if (!userMsg || userMsg.trim() === '') userMsg = '(Pesan masuk kosong)';
     
-    // Format escape line breaks untuk HTML
     const formatMsg = (str) => str.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>');
     
     let html = '';
@@ -767,22 +828,22 @@ function showDetail(userMsg, sysMsg) {
     // Chat Kiri (User)
     html += `
     <div class="flex items-end gap-2 pr-12 animate-fadeIn" style="animation-delay: 0.1s">
-        <div class="w-6 h-6 rounded-full bg-slate-300 flex items-center justify-center shrink-0 mb-1"><i class="fas fa-user text-white text-[10px]"></i></div>
-        <div class="bubble-left p-3 text-[12px] text-[#111b21] relative">
+        <div class="w-5 h-5 rounded-full bg-slate-300 flex items-center justify-center shrink-0 mb-1 shadow-sm"><i class="fas fa-user text-white text-[8px]"></i></div>
+        <div class="bubble-left p-2.5 text-[11px] text-[#111b21] relative">
             ${formatMsg(userMsg)}
-            <div class="text-[9px] text-slate-400 mt-1 text-right">Pesan User</div>
+            <div class="text-[8px] text-slate-400 mt-1 text-right">Prospek</div>
         </div>
     </div>`;
 
-    // Chat Kanan (Sistem / Terakhir)
+    // Chat Kanan (Sistem)
     if (sysMsg && sysMsg.trim() !== '') {
         html += `
         <div class="flex items-end gap-2 pl-12 flex-row-reverse animate-fadeIn" style="animation-delay: 0.2s">
-            <div class="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 mb-1"><i class="fas fa-robot text-white text-[10px]"></i></div>
-            <div class="bubble-right p-3 text-[12px] text-[#111b21] relative">
-                <div class="text-[10px] text-emerald-700 font-bold mb-1 border-b border-emerald-200/50 pb-1">Terkirim:</div>
+            <div class="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 mb-1 shadow-sm"><i class="fas fa-robot text-white text-[8px]"></i></div>
+            <div class="bubble-right p-2.5 text-[11px] text-[#111b21] relative">
+                <div class="text-[9px] text-emerald-700 font-bold mb-1 border-b border-emerald-200/50 pb-0.5">Template Follow-up:</div>
                 ${formatMsg(sysMsg)}
-                <div class="text-[9px] text-emerald-600/70 mt-1 text-right flex items-center justify-end gap-1"><i class="fas fa-check-double text-blue-500"></i> Sistem</div>
+                <div class="text-[8px] text-emerald-600/80 mt-1 text-right flex items-center justify-end gap-1"><i class="fas fa-check-double text-blue-500"></i> CRM</div>
             </div>
         </div>`;
     }
@@ -797,8 +858,7 @@ function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 function showManualLoading() { 
     document.getElementById('loader').classList.remove('hidden');
-    document.getElementById('progressStatus').innerText = "Mengunggah data...";
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.getElementById('progressStatus').innerText = "Mengunggah data CSV...";
 }
 
 function updateCount() { document.getElementById('countCheck').innerText = document.querySelectorAll('.cb-target:checked').length; }
@@ -812,7 +872,7 @@ async function submitMassAjax(e) {
     const sel = document.querySelectorAll('.cb-target:checked'); 
     const tmplId = document.querySelector('select[name="template_id_multi"]').value;
     
-    if(!sel.length || !tmplId) { alert('Harap pilih prospek dan template!'); return; } 
+    if(!sel.length || !tmplId) { alert('Pilih minimal 1 prospek dan pilih template broadcast!'); return; } 
     
     const modal = document.getElementById('loader'); 
     const pBar = document.getElementById('progressBar');
@@ -820,13 +880,12 @@ async function submitMassAjax(e) {
     const pStat = document.getElementById('progressStatus');
     
     modal.classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
     
     let success = 0, fail = 0; let total = sel.length;
 
     for (let i = 0; i < total; i++) {
         let contactId = sel[i].value;
-        pStat.innerText = `Mengirim ke ${contactId}... (${i+1}/${total})`;
+        pStat.innerText = `Memproses pengiriman ke ${contactId}... (${i+1}/${total})`;
         
         try {
             let formData = new FormData();
@@ -856,7 +915,7 @@ async function submitSingleAjax(e, form) {
     if(!tmplId) { alert('Pilih template!'); return; }
     const btn = form.querySelector('button[type="submit"]');
     const oriHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[10px]"></i>'; btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[8px]"></i>'; btn.disabled = true;
     
     try {
         let formData = new FormData();
@@ -868,12 +927,13 @@ async function submitSingleAjax(e, form) {
         let json = await res.json();
         
         if(json.status === 'success') {
-            btn.innerHTML = '<i class="fas fa-check text-[10px]"></i>';
-            btn.classList.replace('bg-blue-50', 'bg-emerald-500');
-            btn.classList.replace('bg-amber-50', 'bg-emerald-500');
+            btn.innerHTML = '<i class="fas fa-check text-[8px]"></i>';
+            btn.classList.replace('bg-white', 'bg-emerald-500');
             btn.classList.replace('bg-slate-100', 'bg-emerald-500');
-            btn.classList.add('text-white');
-            setTimeout(() => location.reload(), 500);
+            btn.classList.replace('text-blue-600', 'text-white');
+            btn.classList.replace('text-slate-500', 'text-white');
+            btn.classList.replace('border-slate-300', 'border-emerald-600');
+            setTimeout(() => location.reload(), 400);
         } else {
             alert('Gagal API: ' + json.msg);
             btn.innerHTML = oriHtml; btn.disabled = false;
@@ -884,10 +944,14 @@ async function submitSingleAjax(e, form) {
     }
 }
 
+// IFRAME INTEGRATION: Sembunyikan Header dan Sidebar CRM bila diload dari dalam dashboard utama
 if (window.self !== window.top) {
-    const headerElement = document.querySelector('header');
-    if (headerElement) headerElement.style.display = 'none';
+    const sidebar = document.getElementById('app-sidebar');
+    const header = document.getElementById('app-header');
+    if (sidebar) sidebar.style.display = 'none';
+    if (header) header.style.display = 'none';
     document.body.style.backgroundColor = "transparent";
+    document.querySelector('main').style.backgroundColor = "transparent";
 }
 </script>
 </body>
