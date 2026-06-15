@@ -231,6 +231,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
         header("Location: pesan.php"); exit;
     }
 
+    // FITUR HAPUS SEMUA MANUAL
+    if (isset($_POST['hapus_semua_manual'])) {
+        $conn->query("DELETE FROM log_wa WHERE message = 'Data CSV/Manual'");
+        $_SESSION['notification'] = "✅ Seluruh daftar antrean manual dan CSV berhasil dihapus!";
+        $_SESSION['notificationType'] = 'success';
+        header("Location: pesan.php"); exit;
+    }
+
     if (isset($_POST['delete_prospect'])) { $conn->query("DELETE FROM log_wa WHERE nowa = '{$_POST['contact_id']}'"); header("Location: pesan.php"); exit; }
     if (isset($_POST['update_block_status'])) {
         if ($_POST['current_status'] === 'unblock') $conn->query("DELETE FROM blocked_peserta WHERE nowa = '{$_POST['contact_id']}'");
@@ -258,6 +266,10 @@ $res = $conn->query($sql);
 
 while ($row = $res->fetch_assoc()) {
     $raw_nowa = $row['nowa'];
+    
+    // ABAIKAN JIKA FORMAT GRUP (@g.us atau @g)
+    if (strpos($raw_nowa, '@g') !== false || strpos($raw_nowa, '-') !== false) continue;
+
     $n_log = preg_replace('/\D/', '', $raw_nowa);
     if(strpos($n_log,'0')===0) $n_log = '62'.substr($n_log,1);
     if(empty($n_log)) continue;
@@ -313,6 +325,7 @@ while ($row = $res->fetch_assoc()) {
         'nama' => $finalName, 
         'gender' => $extractedGender,
         'klas' => $klas,
+        'msgRaw' => $msgRaw,
         'fu_text' => $row['last_followup_at'] ? date('d/m H:i', strtotime($row['last_followup_at'])) : 'Belum Pernah',
         'fu_tmpl' => $row['last_template_name'] ? $row['last_template_name'] : 'Baru'
     ];
@@ -326,6 +339,28 @@ while ($row = $res->fetch_assoc()) {
 
 if (!empty($idsToDelete)) $conn->query("DELETE FROM log_wa WHERE id IN (" . implode(',', $idsToDelete) . ")");
 
+// === PAGINATION LOGIC ===
+$page_o = isset($_GET['page_o']) ? max(1, (int)$_GET['page_o']) : 1;
+$page_m = isset($_GET['page_m']) ? max(1, (int)$_GET['page_m']) : 1;
+$per_page = 10;
+
+$total_o = count($targetOrganik);
+$total_m = count($targetManual);
+
+$pages_o = max(1, ceil($total_o / $per_page));
+$pages_m = max(1, ceil($total_m / $per_page));
+
+// Paging Array
+$targetOrganik_paged = array_slice($targetOrganik, ($page_o - 1) * $per_page, $per_page);
+$targetManual_paged = array_slice($targetManual, ($page_m - 1) * $per_page, $per_page);
+
+// Helper untuk parameter URL Pagination
+function buildPageUrl($pageType, $pageNum) {
+    $params = $_GET;
+    $params[$pageType] = $pageNum;
+    return '?' . http_build_query($params);
+}
+
 // EXPORT CSV LENGKAP
 if (isset($_GET['export_csv_action'])) {
     header('Content-Type: text/csv; charset=utf-8'); 
@@ -333,7 +368,7 @@ if (isset($_GET['export_csv_action'])) {
     $output = fopen('php://output', 'w'); 
     fputcsv($output, ['Nama', 'Gender', 'Nomor WA', 'Minat', 'Tgl Follow-up Terakhir', 'Template Terakhir']);
     
-    // Gabungkan Organik dan Manual untuk export
+    // Gabungkan Organik dan Manual untuk export (menggunakan full data, bukan paged)
     $allExportData = array_merge($targetOrganik, $targetManual);
     foreach($allExportData as $r) { 
         fputcsv($output, [$r['nama'], $r['gender'], $r['nowa'], $r['klas'], $r['fu_text'], $r['fu_tmpl']]); 
@@ -400,7 +435,6 @@ if (isset($_GET['export_csv_action'])) {
         </div>
     </header>
 
-    <!-- BANNER INLINE LOADER -->
     <div id="loader" class="hidden animate-fadeInDownBanner mb-8 bg-white vibrant-card overflow-hidden relative border border-blue-100">
         <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
         <div class="p-6 flex flex-col sm:flex-row items-center gap-6">
@@ -428,7 +462,6 @@ if (isset($_GET['export_csv_action'])) {
     </div>
     <?php endif; ?>
 
-    <!-- CARD STATISTIK MINAT -->
     <?php if(!empty($statistikMinat)): 
         $colors = ['bg-blue-500', 'bg-emerald-500', 'bg-orange-500', 'bg-purple-500', 'bg-rose-500', 'bg-indigo-500'];
         $i = 0;
@@ -456,7 +489,6 @@ if (isset($_GET['export_csv_action'])) {
     <?php endif; ?>
 
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <!-- =============== KOLOM KIRI (SIDEBAR) =============== -->
         <div class="xl:col-span-3 space-y-6">
             
             <div class="vibrant-card p-6 bg-white">
@@ -480,10 +512,8 @@ if (isset($_GET['export_csv_action'])) {
                 </div>
             </div>
 
-            <!-- === KOTAK SELESAI HARI INI === -->
             <?php if(!empty($organikSudahDichat) || !empty($manualSudahDichat)): ?>
             <div class="flex flex-col gap-6">
-                <!-- ORGANIK SELESAI -->
                 <?php if(!empty($organikSudahDichat)): ?>
                 <div class="bg-slate-950 rounded-[24px] shadow-lg overflow-hidden border border-slate-800">
                     <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-black/20">
@@ -498,7 +528,7 @@ if (isset($_GET['export_csv_action'])) {
                                     <td class="block w-full mb-3">
                                         <div class="flex justify-between items-start">
                                             <div>
-                                                <div class="font-bold text-[12px] text-emerald-100">
+                                                <div class="font-bold text-[12px] text-emerald-100 cursor-pointer hover:text-emerald-300" onclick='showDetail(<?= json_encode($r['msgRaw']) ?>)'>
                                                     <?= $r['nama'] ?>
                                                     <?php if($r['gender'] !== '-'): ?>
                                                         <span class="ml-1 text-[9px] px-1.5 py-0.5 rounded-md <?= strtolower($r['gender']) == 'ikhwan' || strtolower($r['gender']) == 'laki-laki' ? 'bg-blue-900 text-blue-200' : 'bg-pink-900 text-pink-200' ?>"><?= $r['gender'] ?></span>
@@ -507,12 +537,12 @@ if (isset($_GET['export_csv_action'])) {
                                                 <div class="text-[9px] text-slate-400 font-mono mt-0.5"><?= $r['nowa'] ?></div>
                                             </div>
                                         </div>
-                                        <div class="text-[9px] text-emerald-500/80 mt-2 border border-emerald-900 bg-emerald-950/30 inline-block px-1.5 py-0.5 rounded"><i class="fas fa-history mr-1"></i><?= $r['fu_tmpl'] ?></div>
+                                        <div class="text-[9px] text-emerald-500/80 mt-2 border border-emerald-900 bg-emerald-950/30 inline-block px-1.5 py-0.5 rounded cursor-pointer hover:bg-emerald-900" onclick='showDetail(<?= json_encode("Template Terakhir:\n\n" . $r['fu_tmpl']) ?>)'><i class="fas fa-history mr-1"></i><?= $r['fu_tmpl'] ?></div>
                                     </td>
                                     <td class="block w-full">
                                         <form class="flex gap-1.5 w-full" onsubmit="submitSingleAjax(event, this)">
                                             <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
-                                            <select name="template_id" class="bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-[9px] text-slate-300 save-template flex-1" required>
+                                            <select name="template_id" class="bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-[9px] text-slate-300 save-template flex-1" required onchange="showWA(this)">
                                                 <option value="">Chat Ulang...</option>
                                                 <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
                                             </select>
@@ -527,7 +557,6 @@ if (isset($_GET['export_csv_action'])) {
                 </div>
                 <?php endif; ?>
 
-                <!-- MANUAL SELESAI -->
                 <?php if(!empty($manualSudahDichat)): ?>
                 <div class="bg-slate-900 rounded-[24px] shadow-lg overflow-hidden border border-slate-700">
                     <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-black/20">
@@ -542,16 +571,16 @@ if (isset($_GET['export_csv_action'])) {
                                     <td class="block w-full mb-3">
                                         <div class="flex justify-between items-start">
                                             <div>
-                                                <div class="font-bold text-[12px] text-amber-100"><?= $r['nama'] ?></div>
+                                                <div class="font-bold text-[12px] text-amber-100 cursor-pointer hover:text-amber-300" onclick='showDetail(<?= json_encode($r['msgRaw']) ?>)'><?= $r['nama'] ?></div>
                                                 <div class="text-[9px] text-slate-400 font-mono mt-0.5"><?= $r['nowa'] ?></div>
                                             </div>
                                         </div>
-                                        <div class="text-[9px] text-amber-500/80 mt-2 border border-amber-900 bg-amber-950/30 inline-block px-1.5 py-0.5 rounded"><i class="fas fa-history mr-1"></i><?= $r['fu_tmpl'] ?></div>
+                                        <div class="text-[9px] text-amber-500/80 mt-2 border border-amber-900 bg-amber-950/30 inline-block px-1.5 py-0.5 rounded cursor-pointer hover:bg-amber-900" onclick='showDetail(<?= json_encode("Template Terakhir:\n\n" . $r['fu_tmpl']) ?>)'><i class="fas fa-history mr-1"></i><?= $r['fu_tmpl'] ?></div>
                                     </td>
                                     <td class="block w-full">
                                         <form class="flex gap-1.5 w-full" onsubmit="submitSingleAjax(event, this)">
                                             <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
-                                            <select name="template_id" class="bg-slate-800 border border-slate-600 rounded-lg p-1.5 text-[9px] text-slate-300 save-template flex-1" required>
+                                            <select name="template_id" class="bg-slate-800 border border-slate-600 rounded-lg p-1.5 text-[9px] text-slate-300 save-template flex-1" required onchange="showWA(this)">
                                                 <option value="">Chat Ulang...</option>
                                                 <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
                                             </select>
@@ -569,7 +598,6 @@ if (isset($_GET['export_csv_action'])) {
             <?php endif; ?>
         </div>
 
-        <!-- =============== KOLOM KANAN (KONTEN UTAMA) =============== -->
         <div class="xl:col-span-9 space-y-6">
             
             <div class="vibrant-card p-6 flex flex-col md:flex-row gap-6 items-center bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/50">
@@ -591,10 +619,9 @@ if (isset($_GET['export_csv_action'])) {
                 </form>
             </div>
 
-            <!-- DAFTAR ORGANIK -->
             <div class="vibrant-card overflow-hidden bg-white border border-slate-100">
                 <div class="p-5 bg-white border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
-                    <h3 class="font-extrabold text-sm text-slate-800 flex items-center gap-2"><i class="fas fa-leaf text-emerald-500"></i> Daftar Customer Baru (Organik) - Total Leads: <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]"><?= count($targetOrganik) ?></span></h3>
+                    <h3 class="font-extrabold text-sm text-slate-800 flex items-center gap-2"><i class="fas fa-leaf text-emerald-500"></i> Daftar Customer Baru (Organik) - Total Leads: <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md text-[10px]"><?= $total_o ?></span></h3>
                     <label class="text-[11px] font-bold text-slate-500 cursor-pointer"><input type="checkbox" id="checkAllOrganik" class="mr-1.5 accent-blue-600">Pilih Semua</label>
                 </div>
                 <div class="custom-scroll">
@@ -603,11 +630,11 @@ if (isset($_GET['export_csv_action'])) {
                             <tr><th class="p-4 w-10 text-center">#</th><th class="p-4">Identitas</th><th class="p-4">Riwayat Follow Up</th><th class="p-4 text-right">Aksi</th></tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
-                            <?php foreach($targetOrganik as $r): ?>
+                            <?php foreach($targetOrganik_paged as $r): ?>
                             <tr class="hover:bg-blue-50/50 bg-white group transition-colors">
                                 <td class="p-4 text-center"><input type="checkbox" value="<?= $r['nowa'] ?>" class="cb-target cb-organik w-4 h-4 accent-blue-600"></td>
                                 <td class="p-4">
-                                    <div class="font-extrabold text-slate-800 text-sm mb-0.5">
+                                    <div class="font-extrabold text-slate-800 text-sm mb-0.5 cursor-pointer hover:text-blue-600 inline-block" onclick='showDetail(<?= json_encode($r['msgRaw']) ?>)' title="Klik untuk lihat pesan">
                                         <?= $r['nama'] ?>
                                         <?php if($r['gender'] !== '-'): ?>
                                             <span class="ml-1 text-[9px] px-1.5 py-0.5 rounded-md font-bold <?= strtolower($r['gender']) == 'ikhwan' || strtolower($r['gender']) == 'laki-laki' ? 'bg-blue-100 text-blue-600' : 'bg-pink-100 text-pink-600' ?>"><?= $r['gender'] ?></span>
@@ -620,7 +647,7 @@ if (isset($_GET['export_csv_action'])) {
                                     <?php if($r['fu_tmpl'] === 'Baru'): ?>
                                         <span class="text-slate-400 text-[10px] italic">Belum ada riwayat</span>
                                     <?php else: ?>
-                                        <div class="text-[10px] font-bold text-slate-600 bg-slate-50 inline-block px-2 py-1 rounded border border-slate-200 mb-1"><i class="fas fa-history text-slate-400 mr-1"></i> <?= $r['fu_tmpl'] ?></div>
+                                        <div class="text-[10px] font-bold text-slate-600 bg-slate-50 inline-block px-2 py-1 rounded border border-slate-200 mb-1 cursor-pointer hover:bg-slate-200" onclick='showDetail(<?= json_encode("Template Terakhir:\n\n" . $r['fu_tmpl']) ?>)' title="Klik untuk lihat template"><i class="fas fa-history text-slate-400 mr-1"></i> <?= $r['fu_tmpl'] ?></div>
                                         <div class="text-[9px] text-slate-500"><i class="far fa-clock mr-1"></i><?= $r['fu_text'] ?></div>
                                     <?php endif; ?>
                                 </td>
@@ -628,7 +655,7 @@ if (isset($_GET['export_csv_action'])) {
                                     <div class="flex gap-1.5 justify-end">
                                         <form class="inline" onsubmit="submitSingleAjax(event, this)">
                                             <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
-                                            <select name="template_id" class="bg-white border border-slate-200 rounded-lg p-1.5 text-[10px] w-32 save-template" required>
+                                            <select name="template_id" class="bg-white border border-slate-200 rounded-lg p-1.5 text-[10px] w-32 save-template" required onchange="showWA(this)">
                                                 <option value="">Pilih...</option>
                                                 <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
                                             </select>
@@ -646,13 +673,29 @@ if (isset($_GET['export_csv_action'])) {
                         </tbody>
                     </table>
                 </div>
+                <?php if ($pages_o > 1): ?>
+                <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs font-semibold">
+                    <span class="text-slate-500">Halaman <?= $page_o ?> dari <?= $pages_o ?></span>
+                    <div class="flex gap-2">
+                        <?php if($page_o > 1): ?><a href="<?= buildPageUrl('page_o', $page_o-1) ?>" class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition-colors">Prev</a><?php endif; ?>
+                        <?php if($page_o < $pages_o): ?><a href="<?= buildPageUrl('page_o', $page_o+1) ?>" class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition-colors">Next</a><?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
 
-            <!-- DAFTAR MANUAL -->
             <div class="vibrant-card overflow-hidden bg-amber-50/10 border border-amber-100">
                 <div class="p-5 bg-white border-b border-amber-100 flex justify-between items-center">
-                    <h3 class="font-extrabold text-sm text-slate-800 flex items-center gap-2"><i class="fas fa-database text-amber-500"></i> Daftar Antrean Manual/CSV <span class="bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-md text-[10px]"><?= count($targetManual) ?></span></h3>
-                    <label class="text-[11px] font-bold text-slate-500 cursor-pointer"><input type="checkbox" id="checkAllManual" class="mr-1.5 accent-amber-500">Pilih Semua</label>
+                    <h3 class="font-extrabold text-sm text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-database text-amber-500"></i> Daftar Antrean Manual/CSV <span class="bg-amber-100 text-amber-700 px-2.5 py-0.5 rounded-md text-[10px]"><?= $total_m ?></span>
+                    </h3>
+                    <div class="flex items-center gap-4">
+                        <form method="POST" onsubmit="return confirm('Peringatan: Aksi ini akan menghapus SEMUA daftar antrean manual dan CSV. Lanjutkan?')" class="inline">
+                            <input type="hidden" name="hapus_semua_manual" value="1">
+                            <button type="submit" class="bg-rose-100 text-rose-600 px-3 py-1.5 rounded-lg text-[10px] font-bold hover:bg-rose-600 hover:text-white transition-all shadow-sm"><i class="fas fa-trash-alt mr-1"></i>Hapus Semua</button>
+                        </form>
+                        <label class="text-[11px] font-bold text-slate-500 cursor-pointer"><input type="checkbox" id="checkAllManual" class="mr-1.5 accent-amber-500">Pilih Semua</label>
+                    </div>
                 </div>
                 <div class="custom-scroll">
                     <table class="w-full text-left text-xs">
@@ -660,18 +703,18 @@ if (isset($_GET['export_csv_action'])) {
                             <tr><th class="p-4 w-10 text-center">#</th><th class="p-4">Identitas</th><th class="p-4">Riwayat Follow Up</th><th class="p-4 text-right">Aksi</th></tr>
                         </thead>
                         <tbody class="divide-y divide-amber-100">
-                            <?php foreach($targetManual as $r): ?>
+                            <?php foreach($targetManual_paged as $r): ?>
                             <tr class="hover:bg-amber-100/50 bg-white">
                                 <td class="p-4 text-center"><input type="checkbox" value="<?= $r['nowa'] ?>" class="cb-target cb-manual w-4 h-4 accent-amber-500"></td>
                                 <td class="p-4">
-                                    <div class="font-bold text-slate-700 text-sm mb-0.5"><?= $r['nama'] ?></div>
+                                    <div class="font-bold text-slate-700 text-sm mb-0.5 cursor-pointer hover:text-amber-600 inline-block" onclick='showDetail(<?= json_encode($r['msgRaw']) ?>)' title="Klik untuk lihat pesan"><?= $r['nama'] ?></div>
                                     <div class="text-[10px] text-slate-500 font-mono"><?= $r['nowa'] ?> <a href="https://wa.me/<?= $r['clean_wa'] ?>" target="_blank" class="text-emerald-500 ml-1"><i class="fab fa-whatsapp"></i></a></div>
                                 </td>
                                 <td class="p-4">
                                     <?php if($r['fu_tmpl'] === 'Baru'): ?>
                                         <span class="text-slate-400 text-[10px] italic">Belum ada riwayat</span>
                                     <?php else: ?>
-                                        <div class="text-[10px] font-bold text-slate-600 bg-amber-50 inline-block px-2 py-1 rounded border border-amber-200 mb-1"><i class="fas fa-history text-slate-400 mr-1"></i> <?= $r['fu_tmpl'] ?></div>
+                                        <div class="text-[10px] font-bold text-slate-600 bg-amber-50 inline-block px-2 py-1 rounded border border-amber-200 mb-1 cursor-pointer hover:bg-amber-200" onclick='showDetail(<?= json_encode("Template Terakhir:\n\n" . $r['fu_tmpl']) ?>)' title="Klik untuk lihat template"><i class="fas fa-history text-slate-400 mr-1"></i> <?= $r['fu_tmpl'] ?></div>
                                         <div class="text-[9px] text-slate-500"><i class="far fa-clock mr-1"></i><?= $r['fu_text'] ?></div>
                                     <?php endif; ?>
                                 </td>
@@ -679,7 +722,7 @@ if (isset($_GET['export_csv_action'])) {
                                     <div class="flex gap-1.5 justify-end">
                                         <form class="inline" onsubmit="submitSingleAjax(event, this)">
                                             <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
-                                            <select name="template_id" class="bg-amber-50 border border-amber-200 rounded-lg p-1.5 text-[10px] w-28 save-template" required>
+                                            <select name="template_id" class="bg-amber-50 border border-amber-200 rounded-lg p-1.5 text-[10px] w-28 save-template" required onchange="showWA(this)">
                                                 <option value="">Tmpl...</option>
                                                 <?php foreach($pesanTemplates as $t): ?><option value="<?= $t['id'] ?>"><?= $t['name'] ?></option><?php endforeach; ?>
                                             </select>
@@ -697,6 +740,15 @@ if (isset($_GET['export_csv_action'])) {
                         </tbody>
                     </table>
                 </div>
+                <?php if ($pages_m > 1): ?>
+                <div class="p-4 bg-amber-50/30 border-t border-amber-100 flex justify-between items-center text-xs font-semibold">
+                    <span class="text-amber-800/60">Halaman <?= $page_m ?> dari <?= $pages_m ?></span>
+                    <div class="flex gap-2">
+                        <?php if($page_m > 1): ?><a href="<?= buildPageUrl('page_m', $page_m-1) ?>" class="px-3 py-1 bg-white border border-amber-200 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors">Prev</a><?php endif; ?>
+                        <?php if($page_m < $pages_m): ?><a href="<?= buildPageUrl('page_m', $page_m+1) ?>" class="px-3 py-1 bg-white border border-amber-200 rounded-lg text-amber-700 hover:bg-amber-100 transition-colors">Next</a><?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
 
         </div>
@@ -735,6 +787,20 @@ if (isset($_GET['export_csv_action'])) {
     </div>
 </div>
 
+<div id="modalDetailChat" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+    <div class="vibrant-card bg-white w-full max-w-md overflow-hidden shadow-2xl">
+        <div class="p-4 border-b border-slate-100 font-extrabold flex justify-between items-center text-slate-800 bg-slate-50">
+            <span>Detail Pesan</span>
+            <button type="button" onclick="closeModal('modalDetailChat')" class="text-slate-400 hover:text-rose-500"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 text-sm text-slate-700 bg-white max-h-[60vh] overflow-y-auto whitespace-pre-wrap font-medium" id="detailChatContent">
+        </div>
+        <div class="p-4 border-t border-slate-100 bg-slate-50 text-right">
+            <button onclick="closeModal('modalDetailChat')" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-300">Tutup</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const templates = <?= json_encode($jsTemplates) ?>;
 
@@ -745,6 +811,12 @@ function showWA(s) {
         t.innerText = templates[s.value].replace(/\[nama\]|\{nama\}/gi, '[Nama Prospek]'); 
         p.style.display = 'block'; 
     } else { p.style.display = 'none'; }
+}
+
+function showDetail(text) {
+    if (!text || text.trim() === '') text = '(Pesan kosong / Tidak ada data)';
+    document.getElementById('detailChatContent').innerText = text;
+    openModal('modalDetailChat');
 }
 
 function closeWA() { document.getElementById('waPreview').style.display = 'none'; }
