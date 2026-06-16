@@ -160,8 +160,6 @@ if (isset($_POST['ajax_send'])) {
         
         if($hasilAPI['status'] === 'TERKIRIM') {
             $tmplNameSafe = $conn->real_escape_string($tmplName);
-            
-            // Generate History String
             $historyLog = date('d/m/Y H:i') . " - " . $tmplNameSafe;
             $newHistory = empty($currentHistory) ? $historyLog : $currentHistory . '|||' . $historyLog;
             $newHistorySafe = $conn->real_escape_string($newHistory);
@@ -169,7 +167,8 @@ if (isset($_POST['ajax_send'])) {
             $conn->query("UPDATE log_wa SET last_followup_at = NOW(), is_form_sent = GREATEST(is_form_sent, $isForm), last_template_name = '$tmplNameSafe', template_history = '$newHistorySafe' WHERE nowa = '$cid'");
             
             if (!in_array($cid, $_SESSION['followed_up_today'])) $_SESSION['followed_up_today'][] = $cid;
-            echo json_encode(['status' => 'success', 'new_history' => $newHistory, 'fu_tmpl' => $tmplNameSafe, 'fu_time' => date('d/m H:i')]);
+            // Kirim balik nama user agar notifikasi toast lebih personal
+            echo json_encode(['status' => 'success', 'nama' => $nama, 'new_history' => $newHistory, 'fu_tmpl' => $tmplNameSafe, 'fu_time' => date('d/m H:i')]);
         } else {
             echo json_encode(['status' => 'error', 'msg' => $hasilAPI['msg']]);
         }
@@ -186,12 +185,8 @@ $blocked = getBlockedNumbers($conn);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
     if (isset($_POST['tambah_prospek'])) {
         $n = preg_replace('/\D/', '', $_POST['nowa_baru']); if (strpos($n, '0') === 0) $n = '62' . substr($n, 1);
-        
-        // Pengecekan duplikasi yang lebih aman
         $check = $conn->prepare("SELECT id FROM log_wa WHERE nowa = ? OR nowa = ? LIMIT 1");
-        $n_raw = $_POST['nowa_baru'];
-        $check->bind_param("ss", $n, $n_raw);
-        $check->execute();
+        $n_raw = $_POST['nowa_baru']; $check->bind_param("ss", $n, $n_raw); $check->execute();
         
         if (isset($disqualified[$n]) || isset($blocked[$n])) {
             $_SESSION['notification'] = "❌ Gagal: Nomor sudah terdaftar / diblokir!"; $_SESSION['notificationType'] = 'error';
@@ -199,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
             $_SESSION['notification'] = "⚠️ Nomor sudah ada di dalam database (Organik / Manual)."; $_SESSION['notificationType'] = 'warning';
         } else {
             $conn->query("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES ('$n', '{$_POST['nama_baru']}', 'Data CSV/Manual', NOW())");
-            $_SESSION['notification'] = "✅ Prospek manual ditambahkan!"; $_SESSION['notificationType'] = 'success';
+            $_SESSION['notification'] = "Prospek manual berhasil ditambahkan!"; $_SESSION['notificationType'] = 'success';
         }
         header("Location: pesan.php"); exit;
     }
@@ -208,8 +203,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
         set_time_limit(0); ini_set('memory_limit', '512M'); 
         if (($handle = fopen($_FILES['file_csv']['tmp_name'], "r")) !== FALSE) {
             $suksesUpload = 0; $ditolak = 0; $sudahAda = 0;
-            
-            // OPTIMASI: RAM Mapping untuk menghindari query loop yang memperlambat import CSV
             $existing_data = [];
             $resAll = $conn->query("SELECT nowa FROM log_wa");
             if($resAll) {
@@ -219,23 +212,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
                     if($nAll) $existing_data[$nAll] = true;
                 }
             }
-
             $conn->begin_transaction();
             $stmt = $conn->prepare("INSERT IGNORE INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, 'Data CSV/Manual', NOW())");
             
             while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
                 if (strtolower($data[0]) === 'nama' || empty($data[0])) continue;
                 $n = preg_replace('/\D/', '', $data[1]); if (strpos($n, '0') === 0) $n = '62' . substr($n, 1);
-                
                 if (isset($disqualified[$n]) || isset($blocked[$n])) { $ditolak++; continue; }
                 if (isset($existing_data[$n])) { $sudahAda++; continue; }
-
                 $stmt->bind_param("ss", $n, $data[0]); if($stmt->execute()) $suksesUpload++;
             }
             $conn->commit();
             fclose($handle); 
-            
-            $msg = "✅ $suksesUpload Data CSV di-import.";
+            $msg = "$suksesUpload Data CSV di-import.";
             if($sudahAda > 0) $msg .= " $sudahAda dilewati karena duplikat.";
             $_SESSION['notification'] = $msg; $_SESSION['notificationType'] = 'success';
         }
@@ -244,8 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
 
     if (isset($_POST['hapus_semua_manual'])) {
         $conn->query("DELETE FROM log_wa WHERE message = 'Data CSV/Manual'");
-        $_SESSION['notification'] = "✅ Seluruh antrean manual & CSV berhasil dihapus!";
-        $_SESSION['notificationType'] = 'success';
+        $_SESSION['notification'] = "Seluruh antrean manual & CSV berhasil dihapus!"; $_SESSION['notificationType'] = 'success';
         header("Location: pesan.php"); exit;
     }
 
@@ -254,7 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
 }
 
 // ==================================================================
-// DATA FETCHING & FILTER
+// DATA FETCHING & FILTER (OPTIMIZED LOOP)
 // ==================================================================
 $jsTemplates = []; $pesanTemplates = [];
 $res = $conn->query("SELECT id, name, content FROM poloap_templates ORDER BY name");
@@ -297,33 +285,36 @@ while ($row = $res->fetch_assoc()) {
     }
     $processed[$n_log] = true;
 
+    // Cek Blocklist
     if (isset($disqualified[$n_log]) || isset($blocked[$n_log])) continue;
-    if ($f_start && date('Y-m-d', strtotime($row['created_at'])) < $f_start) continue;
-    if ($f_end && date('Y-m-d', strtotime($row['created_at'])) > $f_end) continue;
     
-    if ($search) {
-        $s = strtolower($search);
-        if (strpos(strtolower($row['nama']), $s) === false && strpos(strtolower($row['nowa']), $s) === false) continue;
-    }
-
+    // Hitung Klasifikasi (Perlu untuk Statistik Header)
     $klas = classifyMessage($row['message']);
     if ($klas === 'Lainnya') continue;
 
     if (!isset($statistikMinat[$klas])) $statistikMinat[$klas] = 0;
     $statistikMinat[$klas]++;
+
+    // Terapkan Filter Tanggal & Pencarian & Minat (Jika tidak lolos, skip agar RAM/CPU aman dari regex)
     if ($f_minat && $klas !== $f_minat) continue;
+    if ($f_start && date('Y-m-d', strtotime($row['created_at'])) < $f_start) continue;
+    if ($f_end && date('Y-m-d', strtotime($row['created_at'])) > $f_end) continue;
+    if ($search) {
+        $s = strtolower($search);
+        if (strpos(strtolower($row['nama']), $s) === false && strpos(strtolower($row['nowa']), $s) === false) continue;
+    }
 
-    $is_fu_today = (in_array($raw_nowa, $_SESSION['followed_up_today']) || in_array($n_log, $_SESSION['followed_up_today']));
-
-    $namaDb = trim($row['nama']);
+    // --- PROSES REGEX NAMA & GENDER (Hanya dijalankan pada data yang LOLOS filter) ---
     $msgRaw = $row['message'] ?? '';
+    $namaDb = trim($row['nama']);
     $extractedName = ''; $extractedGender = '-';
 
     if (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?\s*\(/i', $msgRaw, $m)) $extractedName = trim($m[1]);
     elseif (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?/i', $msgRaw, $m)) $extractedName = trim($m[1]);
-
     if (preg_match('/\((ikhwan|akhwat|laki-laki|perempuan|laki|pr)\)/i', $msgRaw, $m)) $extractedGender = ucfirst(strtolower(trim($m[1])));
+    
     $finalName = !empty($extractedName) ? $extractedName : (!empty($namaDb) ? $namaDb : 'Hamba Allah');
+    $is_fu_today = (in_array($raw_nowa, $_SESSION['followed_up_today']) || in_array($n_log, $_SESSION['followed_up_today']));
 
     $data = [
         'id' => $row['id'],
@@ -338,7 +329,6 @@ while ($row = $res->fetch_assoc()) {
         'history' => $row['template_history'] ?? ''
     ];
 
-    // PEMBARUAN: Data tetap didorong ke tabel utama (tidak di-hide saat di-refresh), dan salinannya dikirim ke Log Sidebar
     if ($klas === 'Data CSV/Manual') {
         $targetManual[] = $data;
         if ($is_fu_today) $manualSudahDichat[] = $data; 
@@ -393,7 +383,7 @@ if (isset($_GET['export_csv_action'])) {
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
         .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
         
-        /* Sidebar Collapse Animation */
+        /* Sidebar Collapse */
         .crm-sidebar { width: 20rem; background-color: #ffffff; border-right: 1px solid #e2e8f0; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); flex-shrink: 0; }
         .crm-sidebar.collapsed { width: 4.5rem; }
         .crm-sidebar.collapsed .hide-on-collapse { opacity: 0; pointer-events: none; visibility: hidden; transition: opacity 0.2s, visibility 0.2s; white-space: nowrap; width: 0; height: 0; overflow: hidden; margin: 0; padding: 0; }
@@ -424,12 +414,13 @@ if (isset($_GET['export_csv_action'])) {
         .input-group { display: flex; }
         .input-group select { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: 0; }
         .input-group button { border-top-left-radius: 0; border-bottom-left-radius: 0; }
-        
-        /* Timeline line history */
         .timeline-line::before { content: ''; position: absolute; left: 11px; top: 20px; bottom: 0; width: 2px; background: #e2e8f0; z-index: 0; }
     </style>
 </head>
 <body class="overflow-hidden">
+
+<!-- Kontainer untuk Toast Notifications -->
+<div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
 
 <div class="flex h-screen w-full font-sans">
     
@@ -446,10 +437,10 @@ if (isset($_GET['export_csv_action'])) {
         </div>
 
         <div class="p-5 space-y-6 flex-1">
-            
             <section class="hide-on-collapse">
                 <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center"><i class="fas fa-filter mr-2"></i> Filter Data</h3>
                 <form method="GET" class="space-y-3">
+                    <input type="hidden" name="minat" value="<?= htmlspecialchars($f_minat) ?>"> <!-- Pertahankan minat jika ada -->
                     <div>
                         <div class="relative">
                             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
@@ -542,15 +533,9 @@ if (isset($_GET['export_csv_action'])) {
         <header class="h-[70px] shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-10 shadow-sm">
             <h2 class="text-base font-bold text-slate-800 hidden sm:block">Daftar Antrean Pesan</h2>
             <div class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 custom-scroll">
-                <button onclick="openModal('modalTambah')" class="shrink-0 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm">
-                    <i class="fas fa-plus mr-1"></i> Manual
-                </button>
-                <button onclick="openModal('modalCSV')" class="shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm">
-                    <i class="fas fa-file-csv mr-1"></i> Import CSV
-                </button>
-                <a href="?export_csv_action=1&search=<?=urlencode($search)?>&from=<?=urlencode($f_start)?>&to=<?=urlencode($f_end)?>&minat=<?=urlencode($f_minat)?>" class="shrink-0 bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm">
-                    <i class="fas fa-download mr-1"></i> Export Data
-                </a>
+                <button onclick="openModal('modalTambah')" class="shrink-0 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm"><i class="fas fa-plus mr-1"></i> Manual</button>
+                <button onclick="openModal('modalCSV')" class="shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm"><i class="fas fa-file-csv mr-1"></i> Import CSV</button>
+                <a href="?export_csv_action=1&search=<?=urlencode($search)?>&from=<?=urlencode($f_start)?>&to=<?=urlencode($f_end)?>&minat=<?=urlencode($f_minat)?>" class="shrink-0 bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm"><i class="fas fa-download mr-1"></i> Export Data</a>
             </div>
         </header>
 
@@ -559,9 +544,7 @@ if (isset($_GET['export_csv_action'])) {
             <!-- PANEL TREND 3 HARI TERAKHIR -->
             <div class="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-xl p-5 text-white shadow-md mb-5 animate-fade-in flex flex-col md:flex-row justify-between items-center gap-4 border border-blue-900/50">
                 <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm shrink-0 border border-white/20">
-                        <i class="fas fa-fire text-xl text-orange-300"></i>
-                    </div>
+                    <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm shrink-0 border border-white/20"><i class="fas fa-fire text-xl text-orange-300"></i></div>
                     <div>
                         <h3 class="font-bold text-sm md:text-base">Trend Minat (3 Hari Terakhir)</h3>
                         <p class="text-[10px] md:text-xs text-blue-200 mt-0.5">Top chat organik masuk sejak <?= date('d M Y', strtotime('-3 days')) ?></p>
@@ -573,7 +556,7 @@ if (isset($_GET['export_csv_action'])) {
                         <div class="text-[11px] text-blue-200 italic flex items-center"><i class="fas fa-info-circle mr-1"></i> Belum ada data baru.</div>
                     <?php else: ?>
                         <?php foreach(array_slice($trend_3d, 0, 4) as $m => $c): ?>
-                            <div class="bg-black/20 border border-white/10 rounded-lg px-2.5 py-1.5 shrink-0 flex items-center gap-2 hover:bg-black/30 transition-colors">
+                            <div class="bg-black/20 border border-white/10 rounded-lg px-2.5 py-1.5 shrink-0 flex items-center gap-2 hover:bg-black/30 transition-colors cursor-default">
                                 <span class="text-[9px] font-bold uppercase tracking-wider text-blue-100"><?= $m ?></span>
                                 <span class="bg-white text-blue-800 text-[10px] font-black px-1.5 py-0.5 rounded"><?= $c ?></span>
                             </div>
@@ -581,9 +564,7 @@ if (isset($_GET['export_csv_action'])) {
                     <?php endif; ?>
                 </div>
                 
-                <a href="grafik.php" class="shrink-0 bg-white hover:bg-blue-50 text-blue-800 px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm whitespace-nowrap">
-                    Lihat Detail <i class="fas fa-arrow-right ml-1"></i>
-                </a>
+                <a href="grafik.php" class="shrink-0 bg-white hover:bg-blue-50 text-blue-800 px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm whitespace-nowrap">Lihat Detail <i class="fas fa-arrow-right ml-1"></i></a>
             </div>
 
             <!-- Loader -->
@@ -591,29 +572,24 @@ if (isset($_GET['export_csv_action'])) {
                 <div class="flex items-center gap-4">
                     <i class="fas fa-circle-notch fa-spin text-xl text-blue-500"></i>
                     <div class="flex-1">
-                        <div class="flex justify-between items-end mb-1">
-                            <h3 class="font-bold text-slate-700 text-sm">Sistem Sedang Bekerja...</h3>
-                            <p id="progressText" class="text-sm font-bold text-blue-600">0%</p>
-                        </div>
+                        <div class="flex justify-between items-end mb-1"><h3 class="font-bold text-slate-700 text-sm">Sistem Sedang Bekerja...</h3><p id="progressText" class="text-sm font-bold text-blue-600">0%</p></div>
                         <div class="w-full bg-slate-100 rounded-full h-1.5"><div id="progressBar" class="bg-blue-500 h-full rounded-full transition-all duration-300 w-0"></div></div>
                         <p id="progressStatus" class="text-[10px] text-slate-500 mt-1">Mohon tunggu sebentar...</p>
                     </div>
                 </div>
             </div>
 
-            <?php if ($notification): ?>
-            <div class="crm-card p-3 border-l-4 <?= $notificationType === 'success' ? 'border-l-emerald-500 bg-emerald-50' : ($notificationType === 'warning' ? 'border-l-amber-500 bg-amber-50' : 'border-l-rose-500 bg-rose-50') ?> flex items-center gap-3 text-xs font-semibold animate-fade-in mb-5">
-                <i class="fas <?= $notificationType === 'success' ? 'fa-check-circle text-emerald-500' : ($notificationType === 'warning' ? 'fa-exclamation-triangle text-amber-500' : 'fa-times-circle text-rose-500') ?> text-base"></i>
-                <span class="text-slate-700"><?= $notification ?></span>
-            </div>
-            <?php endif; ?>
-
+            <!-- Metrik Statistik / Filter Minat -->
             <?php if(!empty($statistikMinat)): ?>
             <div class="flex gap-3 overflow-x-auto pb-2 custom-scroll snap-x">
                 <?php foreach($statistikMinat as $namaMinat => $jumlah): 
                     $isActive = ($f_minat === $namaMinat);
+                    // Buat url mempertahankan filter text/date
+                    $filterUrl = buildPageUrl('minat', $isActive ? '' : $namaMinat);
+                    // Reset pagination ke hal 1 jika ganti filter
+                    $filterUrl = preg_replace('/&page_[om]=\d+/', '', $filterUrl);
                 ?>
-                <a href="?minat=<?= urlencode($namaMinat) ?>" class="crm-card flex-shrink-0 min-w-[150px] p-3 hover-lift snap-center <?= $isActive ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/50' : 'hover:border-slate-300' ?> cursor-pointer transition-all">
+                <a href="<?= $filterUrl ?>" class="crm-card flex-shrink-0 min-w-[150px] p-3 hover-lift snap-center <?= $isActive ? 'border-blue-500 ring-1 ring-blue-500 bg-blue-50/50' : 'hover:border-slate-300' ?> cursor-pointer transition-all">
                     <div class="flex justify-between items-start mb-1">
                         <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider"><?= htmlspecialchars($namaMinat) ?></div>
                         <?php if($isActive): ?><i class="fas fa-check-circle text-blue-500 text-xs"></i><?php endif; ?>
@@ -649,9 +625,7 @@ if (isset($_GET['export_csv_action'])) {
                         <div class="w-2 h-2 rounded-full bg-emerald-500"></div> Data Organik Baru
                         <span class="bg-slate-100 text-slate-600 text-[9px] px-1.5 py-0.5 rounded-full ml-1"><?= $total_o ?></span>
                     </h3>
-                    <label class="text-[10px] font-bold text-slate-600 cursor-pointer flex items-center hover:text-blue-600 transition-colors">
-                        <input type="checkbox" id="checkAllOrganik" class="mr-1.5 w-3 h-3 accent-blue-600 rounded">Pilih Semua
-                    </label>
+                    <label class="text-[10px] font-bold text-slate-600 cursor-pointer flex items-center hover:text-blue-600 transition-colors"><input type="checkbox" id="checkAllOrganik" class="mr-1.5 w-3 h-3 accent-blue-600 rounded">Pilih Semua</label>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-600 whitespace-nowrap">
@@ -660,7 +634,7 @@ if (isset($_GET['export_csv_action'])) {
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             <?php if(empty($targetOrganik_paged)): ?>
-                                <tr><td colspan="4" class="p-6 text-center text-slate-400 text-[11px] font-medium">Data organik kosong.</td></tr>
+                                <tr><td colspan="4" class="p-6 text-center text-slate-400 text-[11px] font-medium">Data organik kosong atau tidak sesuai filter.</td></tr>
                             <?php else: ?>
                                 <?php foreach($targetOrganik_paged as $r): ?>
                                 <tr class="row-animate group">
@@ -702,8 +676,7 @@ if (isset($_GET['export_csv_action'])) {
                                                 <button type="submit" class="bg-blue-50 border border-blue-200 border-l-0 text-blue-600 px-2.5 rounded-r hover:bg-blue-600 hover:text-white transition-colors" title="Kirim Pesan"><i class="fas fa-paper-plane text-[9px]"></i></button>
                                             </form>
                                             <form method="POST" class="m-0" onsubmit="return confirm('Hapus prospek organik ini?')">
-                                                <input type="hidden" name="delete_prospect" value="1">
-                                                <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
+                                                <input type="hidden" name="delete_prospect" value="1"><input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
                                                 <button type="submit" class="bg-white border border-slate-200 text-slate-400 p-1.5 rounded hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-colors shadow-sm" title="Hapus Data"><i class="fas fa-trash-alt text-[9px]"></i></button>
                                             </form>
                                         </div>
@@ -738,9 +711,7 @@ if (isset($_GET['export_csv_action'])) {
                             <button type="submit" class="text-rose-500 hover:text-rose-700 text-[10px] font-bold flex items-center transition-colors"><i class="fas fa-trash mr-1"></i>Hapus Semua</button>
                         </form>
                         <div class="w-px h-3 bg-slate-200"></div>
-                        <label class="text-[10px] font-bold text-slate-600 cursor-pointer flex items-center hover:text-amber-600 transition-colors">
-                            <input type="checkbox" id="checkAllManual" class="mr-1.5 w-3 h-3 accent-amber-500 rounded">Pilih Semua
-                        </label>
+                        <label class="text-[10px] font-bold text-slate-600 cursor-pointer flex items-center hover:text-amber-600 transition-colors"><input type="checkbox" id="checkAllManual" class="mr-1.5 w-3 h-3 accent-amber-500 rounded">Pilih Semua</label>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -791,8 +762,7 @@ if (isset($_GET['export_csv_action'])) {
                                                 <button type="submit" class="bg-amber-50 border border-amber-200 border-l-0 text-amber-600 px-2.5 rounded-r hover:bg-amber-500 hover:text-white transition-colors" title="Kirim Pesan"><i class="fas fa-paper-plane text-[9px]"></i></button>
                                             </form>
                                             <form method="POST" class="m-0" onsubmit="return confirm('Hapus data manual ini?')">
-                                                <input type="hidden" name="delete_prospect" value="1">
-                                                <input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
+                                                <input type="hidden" name="delete_prospect" value="1"><input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
                                                 <button type="submit" class="bg-white border border-slate-200 text-slate-400 p-1.5 rounded hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-colors shadow-sm" title="Hapus Data"><i class="fas fa-trash-alt text-[9px]"></i></button>
                                             </form>
                                         </div>
@@ -814,7 +784,6 @@ if (isset($_GET['export_csv_action'])) {
                 <?php endif; ?>
             </div>
 
-            <!-- Spacer bawah -->
             <div class="h-10"></div>
         </div>
     </main>
@@ -822,7 +791,6 @@ if (isset($_GET['export_csv_action'])) {
 
 <!-- ================== MODALS & POPUPS ================== -->
 
-<!-- Modal Riwayat Template (HISTORY) -->
 <div id="modalHistory" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl w-full max-w-sm overflow-hidden shadow-2xl animate-fade-in border border-slate-100">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -830,9 +798,7 @@ if (isset($_GET['export_csv_action'])) {
             <button type="button" onclick="closeModal('modalHistory')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fas fa-times"></i></button>
         </div>
         <div class="p-5 max-h-[60vh] overflow-y-auto custom-scroll relative">
-            <div id="historyContent" class="space-y-4 timeline-line relative pl-3">
-                <!-- Diisi via JS -->
-            </div>
+            <div id="historyContent" class="space-y-4 timeline-line relative pl-3"></div>
         </div>
         <div class="p-3 border-t border-slate-100 bg-slate-50 text-right">
             <button onclick="closeModal('modalHistory')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm">Tutup</button>
@@ -840,7 +806,6 @@ if (isset($_GET['export_csv_action'])) {
     </div>
 </div>
 
-<!-- Preview Live Text -->
 <div id="waPreview" class="animate-fade-in">
     <div class="bg-[#075e54] text-white p-2.5 flex items-center justify-between">
         <div class="flex items-center gap-2"><i class="fas fa-eye text-xs"></i> <p class="text-xs font-semibold tracking-wide">Live Preview</p></div>
@@ -851,7 +816,6 @@ if (isset($_GET['export_csv_action'])) {
     </div>
 </div>
 
-<!-- Modal Tambah Manual -->
 <div id="modalTambah" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl w-full max-w-sm overflow-hidden shadow-2xl animate-fade-in">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -872,7 +836,6 @@ if (isset($_GET['export_csv_action'])) {
     </div>
 </div>
 
-<!-- Modal CSV -->
 <div id="modalCSV" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl w-full max-w-sm overflow-hidden shadow-2xl animate-fade-in">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -889,7 +852,6 @@ if (isset($_GET['export_csv_action'])) {
     </div>
 </div>
 
-<!-- Modal Detail Chat -->
 <div id="modalDetailChat" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-fade-in flex flex-col h-[75vh] max-h-[600px]">
         <div class="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
@@ -913,6 +875,41 @@ document.addEventListener("DOMContentLoaded", function() {
 window.addEventListener("beforeunload", function() { sessionStorage.setItem('scrollpos', window.scrollY); });
 
 const templates = <?= json_encode($jsTemplates) ?>;
+
+// --- TOAST NOTIFICATION SYSTEM ---
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    
+    let colors = 'bg-emerald-500 text-white shadow-emerald-500/30';
+    let icon = 'fa-check-circle';
+    
+    if (type === 'error') { colors = 'bg-rose-500 text-white shadow-rose-500/30'; icon = 'fa-times-circle'; }
+    else if (type === 'info' || type === 'warning') { colors = 'bg-blue-600 text-white shadow-blue-500/30'; icon = 'fa-info-circle'; }
+    
+    toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-[13px] font-bold transform transition-all duration-300 translate-x-full opacity-0 pointer-events-auto ${colors}`;
+    toast.innerHTML = `<i class="fas ${icon} text-lg"></i> <span>${message}</span>`;
+    
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.remove('translate-x-full', 'opacity-0'), 10);
+    setTimeout(() => {
+        toast.classList.add('translate-x-full', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+// Munculkan notifikasi jika ada session PHP atau jika Filter aktif
+document.addEventListener('DOMContentLoaded', () => {
+    <?php if ($notification): ?>
+        showToast("<?= addslashes($notification) ?>", "<?= $notificationType ?>");
+    <?php endif; ?>
+    
+    <?php if ($f_minat || $search || $f_start || $f_end): ?>
+        let filterMsg = "Filter berhasil diterapkan!";
+        <?php if($f_minat): ?> filterMsg = "Menampilkan <?= ($total_o + $total_m) ?> data untuk minat: <?= addslashes($f_minat) ?>"; <?php endif; ?>
+        showToast(filterMsg, 'info');
+    <?php endif; ?>
+});
 
 function toggleSidebar() { document.getElementById('mainSidebar').classList.toggle('collapsed'); }
 
@@ -980,9 +977,9 @@ document.querySelectorAll('.cb-target').forEach(c => c.addEventListener('change'
 async function submitMassAjax(e) { 
     e.preventDefault();
     const sel = document.querySelectorAll('.cb-target:checked'); const tmplId = document.querySelector('select[name="template_id_multi"]').value;
-    if(!sel.length || !tmplId) { alert('Pilih minimal 1 prospek dan 1 template!'); return; } 
+    if(!sel.length || !tmplId) { showToast('Pilih minimal 1 prospek dan 1 template!', 'warning'); return; } 
     const loader = document.getElementById('loader'); const pBar = document.getElementById('progressBar'); const pText = document.getElementById('progressText'); const pStat = document.getElementById('progressStatus');
-    loader.classList.remove('hidden'); window.scrollTo(0, 0); // bawa ke atas untuk lihat progress bar
+    loader.classList.remove('hidden'); window.scrollTo(0, 0);
     let success = 0, fail = 0; let total = sel.length;
     for (let i = 0; i < total; i++) {
         let contactId = sel[i].value; pStat.innerText = `Menghubungkan ke API... (${contactId}) [${i+1}/${total}]`;
@@ -999,12 +996,12 @@ async function submitMassAjax(e) {
     setTimeout(() => location.reload(), 1000);
 }
 
-// KIRIM SATUAN TANPA REFRESH (FULL DOM MANIPULATION)
+// KIRIM SATUAN TANPA REFRESH
 async function submitSingleAjax(e, form) {
     e.preventDefault();
     const contactId = form.querySelector('input[name="contact_id"]').value;
     const tmplId = form.querySelector('select[name="template_id"]').value;
-    if(!tmplId) { alert('Pilih template dahulu!'); return; }
+    if(!tmplId) { showToast('Pilih template dahulu!', 'warning'); return; }
     
     const btn = form.querySelector('button[type="submit"]');
     const oriHtml = btn.innerHTML;
@@ -1019,13 +1016,16 @@ async function submitSingleAjax(e, form) {
             btn.classList.remove('bg-blue-50', 'bg-amber-50', 'text-blue-600', 'text-amber-600');
             btn.classList.add('bg-emerald-500', 'text-white', 'border-emerald-600');
             
-            // Update Tampilan Baris Langsung Tanpa Refresh
+            // Tampilkan Toast Notifikasi
+            showToast(`✅ Pesan berhasil dikirim kepada ${json.nama}`, 'success');
+
+            // Update DOM Tanpa Refresh
             const tr = form.closest('tr');
             let statusCell = tr.querySelector('.status-cell');
             if(statusCell) {
                 let isOrganik = form.closest('.crm-card').innerHTML.includes('Organik');
                 let colorTheme = isOrganik ? 'blue' : 'amber';
-                let badgeRaw = statusCell.querySelector('span'); // Cek jika masih 'BELUM DIPROSES'
+                let badgeRaw = statusCell.querySelector('span');
                 
                 if(badgeRaw && badgeRaw.innerText.includes('BELUM DIPROSES')) {
                     statusCell.innerHTML = `
@@ -1048,10 +1048,10 @@ async function submitSingleAjax(e, form) {
             }
             setTimeout(() => { btn.innerHTML = oriHtml; btn.disabled = false; }, 2000);
         } else {
-            alert('Gagal Terkirim: ' + json.msg); btn.innerHTML = oriHtml; btn.disabled = false;
+            showToast('Gagal Terkirim: ' + json.msg, 'error'); btn.innerHTML = oriHtml; btn.disabled = false;
         }
     } catch(err) {
-        alert('Kesalahan jaringan.'); btn.innerHTML = oriHtml; btn.disabled = false;
+        showToast('Terjadi kesalahan jaringan.', 'error'); btn.innerHTML = oriHtml; btn.disabled = false;
     }
 }
 
