@@ -148,10 +148,7 @@ require_once 'auth_checkwa.php';
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-address-book text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Kelola Grup</span>
             </a>
-            <a href="search_peserta.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Database Peserta" data-subtitle="Cari dan kelola kontak" data-icon="fa-search" data-bg="#f1f5f9" data-text="#475569" data-iconcolor="#64748b" data-hover="#f8fafc">
-                <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-search text-lg"></i></div>
-                <span class="menu-text text-[13px] font-semibold tracking-wide">Cari Peserta</span>
-            </a>
+            
             <a href="grafik.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Dashboard Statistik" data-subtitle="Analitik performa" data-icon="fa-chart-line" data-bg="#ede9fe" data-text="#6d28d9" data-iconcolor="#8b5cf6" data-hover="#f5f3ff">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-chart-line text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Statistik Data</span>
