@@ -3,14 +3,12 @@ session_start();
 require_once 'auth_checkwa.php';
 require_once 'config.php';
 
-// --- NOTIFIKASI ---
 $notification = '';
 $notificationType = '';
 if (isset($_SESSION['notification'])) {
     $notification = $_SESSION['notification'];
     $notificationType = $_SESSION['notificationType'];
-    unset($_SESSION['notification']);
-    unset($_SESSION['notificationType']);
+    unset($_SESSION['notification'], $_SESSION['notificationType']);
 }
 
 // ========================================
@@ -37,8 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manage_templates_acti
             $_SESSION['notification'] = "Nama dan isi template tidak boleh kosong.";
             $_SESSION['notificationType'] = 'error';
         }
-        header("Location: " . $_SERVER['PHP_SELF']);
-        exit;
+        header("Location: " . $_SERVER['PHP_SELF']); exit;
     }
 
     if ($action === 'edit' && $conn) {
@@ -53,8 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manage_templates_acti
                     $_SESSION['notification'] = "Template berhasil diupdate.";
                     $_SESSION['notificationType'] = 'success';
                 } else {
-                    $_SESSION['notification'] = "Tidak ada data yang diubah.";
-                    $_SESSION['notificationType'] = 'error';
+                    $_SESSION['notification'] = "Tidak ada perubahan data.";
+                    $_SESSION['notificationType'] = 'warning';
                 }
             } else {
                 $_SESSION['notification'] = "Gagal mengupdate template: " . $stmt->error;
@@ -65,8 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manage_templates_acti
             $_SESSION['notification'] = "Data template tidak valid.";
             $_SESSION['notificationType'] = 'error';
         }
-        header("Location: " . $_SERVER['PHP_SELF']);
-        exit;
+        header("Location: " . $_SERVER['PHP_SELF']); exit;
     }
 
     if ($action === 'delete' && $conn) {
@@ -91,21 +87,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manage_templates_acti
             $_SESSION['notification'] = "ID template tidak valid.";
             $_SESSION['notificationType'] = 'error';
         }
-        header("Location: " . $_SERVER['PHP_SELF']);
-        exit;
+        header("Location: " . $_SERVER['PHP_SELF']); exit;
     }
 }
 
-// Ambil templates untuk ditampilkan
 $pesanTemplates = [];
 if ($conn) {
     $stmt = $conn->prepare("SELECT id, name, content FROM poloap_templates ORDER BY name");
     if ($stmt) {
         $stmt->execute();
         $result = $stmt->get_result();
-        while ($row = $result->fetch_assoc()) {
-            $pesanTemplates[] = $row;
-        }
+        while ($row = $result->fetch_assoc()) { $pesanTemplates[] = $row; }
         $stmt->close();
     }
 }
@@ -115,634 +107,207 @@ if ($conn) {
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Kelola Template Pesan</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kelola Template Pesan | JWD</title>
     <?php $cache_buster = time(); ?>
     <link rel="icon" href="LOGOJWD.png?v=<?= $cache_buster ?>" type="image/png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #334155; }
         
-        :root {
-            --primary: #374151;
-            --secondary: #4b5563;
-            --accent: #9ca3af;
-            --card-bg: #f3f4f6;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-        }
+        .custom-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
+        .crm-card { background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); transition: all 0.2s ease-in-out; }
+        .crm-input { background: #f8fafc; border: 1px solid #e2e8f0; color: #334155; border-radius: 8px; transition: all 0.2s; }
+        .crm-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); background: #ffffff; }
         
-        body {
-            background-color: #f9fafb;
-            color: #111827;
-            min-height: 100vh;
-        }
+        .hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .hover-lift:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .row-animate { transition: background-color 0.2s ease; }
+        .row-animate:hover { background-color: #f1f5f9; }
         
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 1rem;
-        }
-        
-        /* Header Styles - Sama seperti analitik chat */
-        .header {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            border-radius: 1rem;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-        
-        .header-content {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 2rem;
-        }
-        
-        .title-section {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-        }
-        
-        .logo-container {
-            width: 80px;
-            height: 80px;
-            border-radius: 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .logo-container i {
-            font-size: 2rem;
-            color: white;
-        }
-        
-        .title-content h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-        
-        .title-content p {
-            color: #d1d5db;
-            font-size: 1.1rem;
-        }
-        
-        .header-actions {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-        
-        .action-btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.75rem;
-            text-decoration: none;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-        
-        .action-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
-        }
-
-        .btn-logout {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-        
-        .btn-logout:hover {
-            background: rgba(239, 68, 68, 0.3);
-        }
-        
-        /* Notification */
-        .notification {
-            padding: 1rem 1.5rem;
-            border-radius: 0.75rem;
-            margin-bottom: 2rem;
-            border-left: 4px solid;
-            animation: slideIn 0.5s ease-out;
-        }
-        
-        .notification.success {
-            background: #d1fae5;
-            border-left-color: var(--success);
-            color: #065f46;
-        }
-        
-        .notification.error {
-            background: #fee2e2;
-            border-left-color: var(--danger);
-            color: #991b1b;
-        }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        /* Main Content Layout */
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-        }
-        
-        /* Form Panel */
-        .form-panel {
-            background: white;
-            border-radius: 1rem;
-            padding: 2rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e5e7eb;
-            height: fit-content;
-        }
-        
-        .panel-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            color: #111827;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .panel-title i {
-            color: var(--accent);
-        }
-        
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-label {
-            font-size: 0.9rem;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-            color: #374151;
-        }
-        
-        .form-input, .form-textarea {
-            padding: 0.75rem;
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            font-size: 0.95rem;
-            transition: all 0.3s ease;
-        }
-        
-        .form-input:focus, .form-textarea:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-        
-        .form-textarea {
-            resize: vertical;
-            min-height: 120px;
-        }
-        
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(to right, #6b7280, #4b5563);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: linear-gradient(to right, #4b5563, #374151);
-            transform: translateY(-1px);
-        }
-        
-        .btn-success {
-            background: linear-gradient(to right, #10b981, #059669);
-            color: white;
-        }
-        
-        .btn-success:hover {
-            background: linear-gradient(to right, #059669, #047857);
-        }
-        
-        .btn-secondary {
-            background: white;
-            color: #374151;
-            border: 1px solid #d1d5db;
-        }
-        
-        .btn-secondary:hover {
-            border-color: #9ca3af;
-        }
-        
-        /* Templates Panel */
-        .templates-panel {
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e5e7eb;
-            overflow: hidden;
-        }
-        
-        .panel-header {
-            padding: 1.5rem 2rem;
-            background: #f8fafc;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        .templates-list {
-            max-height: 600px;
-            overflow-y: auto;
-            padding: 1rem;
-        }
-        
-        .template-item {
-            background: #f8fafc;
-            border: 1px solid #e5e7eb;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            transition: all 0.3s ease;
-        }
-        
-        .template-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        
-        .template-header {
-            display: flex;
-            justify-content: between;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-        }
-        
-        .template-name {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #111827;
-            flex: 1;
-        }
-        
-        .template-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .btn-sm {
-            padding: 0.5rem 1rem;
-            font-size: 0.8rem;
-            border-radius: 0.5rem;
-        }
-        
-        .btn-edit {
-            background: linear-gradient(to right, #3b82f6, #2563eb);
-            color: white;
-        }
-        
-        .btn-edit:hover {
-            background: linear-gradient(to right, #2563eb, #1d4ed8);
-        }
-        
-        .btn-delete {
-            background: linear-gradient(to right, #ef4444, #dc2626);
-            color: white;
-        }
-        
-        .btn-delete:hover {
-            background: linear-gradient(to right, #dc2626, #b91c1c);
-        }
-        
-        .template-content {
-            color: #4b5563;
-            font-size: 0.9rem;
-            line-height: 1.5;
-            background: white;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            border: 1px solid #e5e7eb;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: #6b7280;
-        }
-        
-        .empty-state i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-        
-        /* Responsive Design */
-        @media (max-width: 1024px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .header-content {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .title-section {
-                flex-direction: column;
-            }
-            
-            .header-actions {
-                justify-content: center;
-            }
-            
-            .template-header {
-                flex-direction: column;
-                gap: 1rem;
-            }
-            
-            .template-actions {
-                width: 100%;
-                justify-content: center;
-            }
-            
-            .btn-sm {
-                flex: 1;
-            }
-        }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.97) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .animate-fade-in { animation: fadeInScale 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
     </style>
 </head>
-<body>
-    <div class="container">
-        <!-- Header - Sama seperti analitik chat -->
-        <header class="header">
-            <div class="header-content">
-                <div class="title-section">
-                    <div class="logo-container">
-                        <i class="fas fa-edit"></i>
-                    </div>
-                    <div class="title-content">
-                        <h1>Kelola Template Pesan</h1>
-                        <p>Atur template pesan untuk pengiriman reminder otomatis</p>
-                    </div>
-                </div>
-                
-                <div class="header-actions">
-                    <a href="analitikjwd.php" class="action-btn">
-                        <i class="fas fa-chart-line"></i>
-                        Analitik Chat
-                    </a>
-                    <a href="grafik-chat.php" class="action-btn">
-                        <i class="fas fa-chart-bar"></i>
-                        Grafik Chat
-                    </a>
-                    <a href="reminder.php" class="action-btn">
-                        <i class="fas fa-bell"></i>
-                        Reminder Pembayaran
-                    </a>
-                    <a href="logoutwa.php" class="action-btn btn-logout">
-                        <i class="fas fa-sign-out-alt"></i>
-                        Keluar
-                    </a>
-                </div>
-            </div>
-        </header>
+<body class="flex flex-col h-screen overflow-hidden bg-slate-50 relative">
 
-        <?php if (!empty($notification)): ?>
-        <div class="notification <?= $notificationType ?>">
-            <?= htmlspecialchars($notification); ?>
+    <div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
+
+    <header class="h-[70px] shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-10 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 text-white w-8 h-8 flex justify-center items-center rounded-lg shadow-sm"><i class="fas fa-comment-dots"></i></div>
+            <h2 class="text-base font-bold text-slate-800">Manajemen Template Pesan</h2>
         </div>
-        <?php endif; ?>
+        <div class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 custom-scroll">
+            <a href="pesan.php" class="shrink-0 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm">
+                <i class="fas fa-arrow-left mr-1"></i> Kembali
+            </a>
+            <a href="grafik.php" class="shrink-0 bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm">
+                <i class="fas fa-chart-line mr-1"></i> Analitik Data
+            </a>
+        </div>
+    </header>
 
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Form Panel -->
-            <div class="form-panel">
-                <h3 class="panel-title">
-                    <i class="fas fa-plus-circle"></i>
-                    <span id="form-title">Tambah Template Baru</span>
-                </h3>
-                <form method="POST" id="templateForm">
-                    <input type="hidden" name="manage_templates_action" id="form_action" value="add">
-                    <input type="hidden" name="template_id" id="template_id_input" value="">
-                    
-                    <div class="form-group">
-                        <label class="form-label">Nama Template</label>
-                        <input type="text" name="new_template_name" id="new_template_name" required 
-                               class="form-input" placeholder="Masukkan nama template">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Isi Pesan Template</label>
-                        <textarea name="new_template_content" id="new_template_content" required 
-                                  class="form-textarea" placeholder="Tulis isi pesan template di sini..."></textarea>
-                        <div class="text-xs text-gray-500 mt-1">
-                            Gunakan <code class="bg-gray-100 px-1 py-0.5 rounded">{nama}</code> dan 
-                            <code class="bg-gray-100 px-1 py-0.5 rounded">{nomor}</code> sebagai placeholder
+    <div class="flex-1 overflow-y-auto p-5 lg:p-6 space-y-6 custom-scroll">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-4 space-y-6">
+                <div class="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-xl p-5 text-white shadow-md animate-fade-in border border-blue-900/50">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/20"><i class="fas fa-info-circle"></i></div>
+                        <div>
+                            <h3 class="font-bold text-sm">Informasi Placeholder</h3>
+                            <p class="text-[10px] text-blue-200 mt-0.5">Gunakan <b class="text-white px-1 bg-black/20 rounded">{nama}</b> untuk menyapa prospek secara otomatis.</p>
                         </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <button type="submit" id="submit_template_btn" class="btn btn-primary">
-                            <i class="fas fa-save"></i>
-                            <span id="submit-text">Tambah Template</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
+                </div>
 
-            <!-- Templates Panel -->
-            <div class="templates-panel">
-                <div class="panel-header">
-                    <h3 class="panel-title">
-                        <i class="fas fa-list"></i>
-                        Daftar Template Tersimpan
+                <div class="crm-card p-5 animate-fade-in">
+                    <h3 class="font-bold text-sm text-slate-800 mb-4 pb-3 border-b border-slate-100 flex items-center">
+                        <i class="fas fa-edit text-blue-500 mr-2"></i> <span id="form-title">Tambah Template Baru</span>
                     </h3>
-                </div>
-                
-                <div class="templates-list">
-                    <?php if (empty($pesanTemplates)): ?>
-                        <div class="empty-state">
-                            <i class="fas fa-inbox"></i>
-                            <div>Belum ada template</div>
+                    <form method="POST" id="templateForm" class="space-y-4">
+                        <input type="hidden" name="manage_templates_action" id="form_action" value="add">
+                        <input type="hidden" name="template_id" id="template_id_input" value="">
+                        
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Nama Template</label>
+                            <input type="text" name="new_template_name" id="new_template_name" required class="crm-input w-full p-2.5 text-xs font-medium" placeholder="Contoh: Follow Up 1">
                         </div>
-                    <?php else: ?>
-                        <?php foreach ($pesanTemplates as $tmpl): ?>
-                            <div class="template-item">
-                                <div class="template-header">
-                                    <div class="template-name"><?= htmlspecialchars($tmpl['name']) ?></div>
-                                    <div class="template-actions">
-                                        <button type="button" class="btn btn-edit btn-sm edit-template-btn"
-                                                data-id="<?= $tmpl['id'] ?>"
-                                                data-name="<?= htmlspecialchars($tmpl['name'], ENT_QUOTES) ?>"
-                                                data-content="<?= htmlspecialchars($tmpl['content'], ENT_QUOTES) ?>">
-                                            <i class="fas fa-edit"></i>
-                                            Edit
-                                        </button>
-                                        <form method="POST" onsubmit="return confirm('Hapus template <?= htmlspecialchars($tmpl['name']) ?>?');" style="display:inline;">
-                                            <input type="hidden" name="manage_templates_action" value="delete">
-                                            <input type="hidden" name="template_id" value="<?= $tmpl['id'] ?>">
-                                            <button type="submit" class="btn btn-delete btn-sm">
-                                                <i class="fas fa-trash"></i>
-                                                Hapus
-                                            </button>
-                                        </form>
-                                    </div>
-                                </div>
-                                <div class="template-content">
-                                    <?= nl2br(htmlspecialchars($tmpl['content'])) ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                        
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Isi Pesan WhatsApp</label>
+                            <textarea name="new_template_content" id="new_template_content" required class="crm-input w-full p-2.5 text-xs font-medium min-h-[150px] custom-scroll" placeholder="Assalamu'alaikum {nama}, ..."></textarea>
+                        </div>
+                        
+                        <div class="pt-2 flex gap-2">
+                            <button type="submit" id="submit_template_btn" class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-bold text-xs hover:bg-blue-700 transition-colors shadow-sm"><i class="fas fa-save mr-1.5"></i> <span id="submit-text">Simpan</span></button>
+                            <button type="button" onclick="resetForm()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2.5 rounded-lg font-bold text-xs transition-colors shadow-sm" title="Batal/Reset"><i class="fas fa-undo"></i></button>
+                        </div>
+                    </form>
                 </div>
             </div>
+
+            <div class="lg:col-span-8">
+                <div class="crm-card overflow-hidden animate-fade-in" style="animation-delay: 0.1s;">
+                    <div class="p-4 border-b border-slate-200 bg-white flex justify-between items-center">
+                        <h3 class="font-bold text-sm text-slate-800 flex items-center gap-2">
+                            <i class="fas fa-list-ul text-blue-500 bg-blue-50 p-1.5 rounded text-[10px]"></i> Daftar Template
+                            <span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded-full ml-1 font-bold"><?= count($pesanTemplates) ?></span>
+                        </h3>
+                    </div>
+                    <div class="overflow-x-auto custom-scroll max-h-[600px]">
+                        <table class="w-full text-left text-sm text-slate-600">
+                            <thead class="text-[10px] text-slate-500 uppercase bg-slate-50/80 border-b border-slate-200 sticky top-0 z-10 backdrop-blur-sm">
+                                <tr>
+                                    <th class="p-4 font-bold w-1/3">Nama Template</th>
+                                    <th class="p-4 font-bold">Cuplikan Isi Pesan</th>
+                                    <th class="p-4 font-bold text-right w-24">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <?php if(empty($pesanTemplates)): ?>
+                                    <tr><td colspan="3" class="p-8 text-center text-slate-400 text-xs font-medium">Belum ada template yang disimpan.</td></tr>
+                                <?php else: ?>
+                                    <?php foreach($pesanTemplates as $tmpl): ?>
+                                    <tr class="row-animate group">
+                                        <td class="p-4 font-bold text-slate-800 text-xs align-top">
+                                            <div class="flex items-center gap-2"><i class="fas fa-file-alt text-blue-400"></i> <?= htmlspecialchars($tmpl['name']) ?></div>
+                                        </td>
+                                        <td class="p-4 align-top">
+                                            <div class="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded border border-slate-100 whitespace-pre-wrap max-h-[100px] overflow-y-auto custom-scroll leading-relaxed"><?= htmlspecialchars($tmpl['content']) ?></div>
+                                        </td>
+                                        <td class="p-4 text-right align-top">
+                                            <div class="flex justify-end gap-1.5">
+                                                <button type="button" class="bg-white border border-slate-200 text-blue-500 p-2 rounded hover:bg-blue-50 hover:border-blue-200 transition-colors shadow-sm edit-btn" 
+                                                        data-id="<?= $tmpl['id'] ?>" data-name="<?= htmlspecialchars($tmpl['name'], ENT_QUOTES) ?>" data-content="<?= htmlspecialchars($tmpl['content'], ENT_QUOTES) ?>" title="Edit">
+                                                    <i class="fas fa-pen text-[10px]"></i>
+                                                </button>
+                                                <form method="POST" class="m-0" onsubmit="return confirm('Hapus template <?= htmlspecialchars($tmpl['name'], ENT_QUOTES) ?>?')">
+                                                    <input type="hidden" name="manage_templates_action" value="delete">
+                                                    <input type="hidden" name="template_id" value="<?= $tmpl['id'] ?>">
+                                                    <button type="submit" class="bg-white border border-slate-200 text-slate-400 p-2 rounded hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-colors shadow-sm" title="Hapus">
+                                                        <i class="fas fa-trash-alt text-[10px]"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div>
+        <div class="h-10"></div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const editButtons = document.querySelectorAll('.edit-template-btn');
+        // --- TOAST NOTIFICATION SYSTEM ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let colors = 'bg-emerald-500 text-white shadow-emerald-500/30'; let icon = 'fa-check-circle';
+            if (type === 'error') { colors = 'bg-rose-500 text-white shadow-rose-500/30'; icon = 'fa-times-circle'; }
+            else if (type === 'warning') { colors = 'bg-amber-500 text-white shadow-amber-500/30'; icon = 'fa-exclamation-triangle'; }
+            
+            toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-[13px] font-bold transform transition-all duration-300 translate-x-full opacity-0 pointer-events-auto ${colors}`;
+            toast.innerHTML = `<i class="fas ${icon} text-lg"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-x-full', 'opacity-0'), 10);
+            setTimeout(() => { toast.classList.add('translate-x-full', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 4000);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            <?php if ($notification): ?>
+                showToast("<?= addslashes($notification) ?>", "<?= $notificationType ?>");
+            <?php endif; ?>
+
+            // Form Logic
             const formTitle = document.getElementById('form-title');
             const submitText = document.getElementById('submit-text');
-            const submitButton = document.getElementById('submit_template_btn');
             const formAction = document.getElementById('form_action');
             const templateIdInput = document.getElementById('template_id_input');
             const templateNameInput = document.getElementById('new_template_name');
             const templateContentInput = document.getElementById('new_template_content');
-            
-            // Edit template functionality
-            editButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const id = this.getAttribute('data-id');
-                    const name = this.getAttribute('data-name');
-                    const content = this.getAttribute('data-content');
-                    
-                    // Fill form with template data
-                    templateNameInput.value = name;
-                    templateContentInput.value = content;
-                    templateIdInput.value = id;
-                    
-                    // Update form for edit mode
-                    formTitle.textContent = 'Edit Template';
-                    submitText.textContent = 'Update Template';
+
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    templateIdInput.value = this.dataset.id;
+                    templateNameInput.value = this.dataset.name;
+                    templateContentInput.value = this.dataset.content;
+                    formTitle.innerHTML = 'Edit Template';
+                    submitText.innerHTML = 'Update';
                     formAction.value = 'edit';
-                    
-                    // Scroll to form
-                    document.querySelector('.form-panel').scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start' 
-                    });
-                    
-                    // Focus on name input
                     templateNameInput.focus();
                 });
             });
-            
-            // Reset form when clicking on "Tambah Template" if in edit mode
-            submitButton.addEventListener('click', function() {
-                if (formAction.value === 'edit' && !templateIdInput.value) {
-                    resetForm();
-                }
-            });
-            
-            // Form submission handling
-            document.getElementById('templateForm').addEventListener('submit', function() {
-                // Add loading state
-                const originalText = submitButton.innerHTML;
-                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
-                submitButton.disabled = true;
-                
-                // Revert after 3 seconds if still processing
-                setTimeout(() => {
-                    submitButton.innerHTML = originalText;
-                    submitButton.disabled = false;
-                }, 3000);
-            });
-            
-            // Auto-hide notifications after 5 seconds
-            const notifications = document.querySelectorAll('.notification');
-            notifications.forEach(notification => {
-                setTimeout(() => {
-                    notification.style.opacity = '0';
-                    notification.style.transform = 'translateY(-20px)';
-                    setTimeout(() => {
-                        notification.remove();
-                    }, 300);
-                }, 5000);
-            });
-            
-            function resetForm() {
+
+            window.resetForm = function() {
+                templateIdInput.value = '';
                 templateNameInput.value = '';
                 templateContentInput.value = '';
-                templateIdInput.value = '';
-                formTitle.textContent = 'Tambah Template Baru';
-                submitText.textContent = 'Tambah Template';
+                formTitle.innerHTML = 'Tambah Template Baru';
+                submitText.innerHTML = 'Simpan';
                 formAction.value = 'add';
-            }
-            
-            // Add hover effects to template items
-            const templateItems = document.querySelectorAll('.template-item');
-            templateItems.forEach(item => {
-                item.addEventListener('mouseenter', function() {
-                    this.style.transform = 'translateY(-2px)';
-                });
-                
-                item.addEventListener('mouseleave', function() {
-                    this.style.transform = 'translateY(0)';
-                });
-            });
+            };
         });
-     </script> <script>
-        // Menyembunyikan header asli jika halaman ini dibuka di dalam iframe dashboard
+
+        // Hide header if in iframe
         if (window.self !== window.top) {
             const headerElement = document.querySelector('header');
-            if (headerElement) {
-                headerElement.style.display = 'none';
-            }
-            
-            // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
+            if (headerElement) headerElement.style.display = 'none';
             document.body.style.backgroundColor = "transparent";
         }
     </script>
