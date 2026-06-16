@@ -1017,7 +1017,7 @@ async function submitSingleAjax(e, form) {
             btn.classList.add('bg-emerald-500', 'text-white', 'border-emerald-600');
             
             // Tampilkan Toast Notifikasi
-            showToast(`✅ Pesan berhasil dikirim kepada ${json.nama}`, 'success');
+            showToast(`Pesan berhasil dikirim kepada ${json.nama}`, 'success');
 
             // Update DOM Tanpa Refresh
             const tr = form.closest('tr');
