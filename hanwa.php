@@ -184,7 +184,7 @@ require_once 'auth_checkwa.php';
             
             <div class="hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
                 <div class="w-7 h-7 rounded-full bg-[#166534] flex items-center justify-center text-white"><i class="fas fa-user-shield text-[10px]"></i></div>
-                <span class="text-xs font-semibold text-slate-600 px-1">Halo, Admin</span>
+                <span class="text-xs font-semibold text-slate-600 px-1">Halo, Han!</span>
             </div>
         </header>
 
