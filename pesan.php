@@ -40,7 +40,7 @@ if ($res) while($r = $res->fetch_assoc()) $cols[] = $r['Field'];
 if(!in_array('last_followup_at', $cols)) @$conn->query("ALTER TABLE log_wa ADD last_followup_at DATETIME NULL");
 if(!in_array('is_form_sent', $cols)) @$conn->query("ALTER TABLE log_wa ADD is_form_sent TINYINT(1) DEFAULT 0");
 if(!in_array('last_template_name', $cols)) @$conn->query("ALTER TABLE log_wa ADD last_template_name VARCHAR(150) NULL");
-if(!in_array('template_history', $cols)) @$conn->query("ALTER TABLE log_wa ADD template_history TEXT NULL"); // Kolom baru untuk riwayat
+if(!in_array('template_history', $cols)) @$conn->query("ALTER TABLE log_wa ADD template_history TEXT NULL");
 
 if (!isset($_SESSION['followed_up_today'])) $_SESSION['followed_up_today'] = [];
 $notification = $notificationType = '';
@@ -93,8 +93,7 @@ function classifyMessage($message) {
 }
 
 function getDisqualifiedNumbers($conn) {
-    $disq = [];
-    if (!$conn) return $disq;
+    $disq = []; if (!$conn) return $disq;
     $tables = ['peserta', 'calon_peserta', 'pengampu'];
     foreach ($tables as $tbl) {
         $res = $conn->query("SHOW TABLES LIKE '$tbl'");
@@ -117,8 +116,7 @@ function getDisqualifiedNumbers($conn) {
 }
 
 function getBlockedNumbers($conn) {
-    $blk = [];
-    if(!$conn) return $blk;
+    $blk = []; if(!$conn) return $blk;
     $q = $conn->query("SELECT nowa FROM blocked_peserta");
     if ($q) while($r = $q->fetch_assoc()) {
         $n = preg_replace('/\D/', '', $r['nowa']); 
@@ -126,15 +124,6 @@ function getBlockedNumbers($conn) {
         if($n) $blk[$n] = true;
     }
     return $blk;
-}
-
-function isAlreadyInOrganic($conn, $number) {
-    $n = preg_replace('/\D/', '', $number);
-    if(strpos($n,'0')===0) $n = '62'.substr($n,1);
-    $check = $conn->prepare("SELECT id FROM log_wa WHERE (nowa = ? OR nowa = ?) AND message != 'Data CSV/Manual' AND message != '' LIMIT 1");
-    $check->bind_param("ss", $number, $n);
-    $check->execute();
-    return $check->get_result()->num_rows > 0;
 }
 
 // --- 1. HANDLE AJAX KIRIM ---
@@ -197,10 +186,17 @@ $blocked = getBlockedNumbers($conn);
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
     if (isset($_POST['tambah_prospek'])) {
         $n = preg_replace('/\D/', '', $_POST['nowa_baru']); if (strpos($n, '0') === 0) $n = '62' . substr($n, 1);
+        
+        // Pengecekan duplikasi yang lebih aman
+        $check = $conn->prepare("SELECT id FROM log_wa WHERE nowa = ? OR nowa = ? LIMIT 1");
+        $n_raw = $_POST['nowa_baru'];
+        $check->bind_param("ss", $n, $n_raw);
+        $check->execute();
+        
         if (isset($disqualified[$n]) || isset($blocked[$n])) {
             $_SESSION['notification'] = "❌ Gagal: Nomor sudah terdaftar / diblokir!"; $_SESSION['notificationType'] = 'error';
-        } elseif (isAlreadyInOrganic($conn, $_POST['nowa_baru'])) {
-            $_SESSION['notification'] = "⚠️ Nomor sudah ada di Daftar Organik."; $_SESSION['notificationType'] = 'warning';
+        } elseif ($check->get_result()->num_rows > 0) {
+            $_SESSION['notification'] = "⚠️ Nomor sudah ada di dalam database (Organik / Manual)."; $_SESSION['notificationType'] = 'warning';
         } else {
             $conn->query("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES ('$n', '{$_POST['nama_baru']}', 'Data CSV/Manual', NOW())");
             $_SESSION['notification'] = "✅ Prospek manual ditambahkan!"; $_SESSION['notificationType'] = 'success';
@@ -211,20 +207,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
     if (isset($_POST['upload_csv']) && isset($_FILES['file_csv'])) {
         set_time_limit(0); ini_set('memory_limit', '512M'); 
         if (($handle = fopen($_FILES['file_csv']['tmp_name'], "r")) !== FALSE) {
-            $suksesUpload = 0; $ditolak = 0; $sudahOrganik = 0;
+            $suksesUpload = 0; $ditolak = 0; $sudahAda = 0;
             
-            // OPTIMASI: Tarik data organik existing ke RAM/Array untuk menghilangkan query dalam loop
-            $existing_organic = [];
-            $resOrg = $conn->query("SELECT nowa FROM log_wa WHERE message != 'Data CSV/Manual' AND message != ''");
-            if($resOrg) {
-                while($rowOrg = $resOrg->fetch_assoc()) {
-                    $nOrg = preg_replace('/\D/', '', $rowOrg['nowa']);
-                    if(strpos($nOrg,'0')===0) $nOrg = '62'.substr($nOrg,1);
-                    if($nOrg) $existing_organic[$nOrg] = true;
+            // OPTIMASI: RAM Mapping untuk menghindari query loop yang memperlambat import CSV
+            $existing_data = [];
+            $resAll = $conn->query("SELECT nowa FROM log_wa");
+            if($resAll) {
+                while($rowAll = $resAll->fetch_assoc()) {
+                    $nAll = preg_replace('/\D/', '', $rowAll['nowa']);
+                    if(strpos($nAll,'0')===0) $nAll = '62'.substr($nAll,1);
+                    if($nAll) $existing_data[$nAll] = true;
                 }
             }
 
-            // Gunakan Transaction untuk kecepatan input ke Database
             $conn->begin_transaction();
             $stmt = $conn->prepare("INSERT IGNORE INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, 'Data CSV/Manual', NOW())");
             
@@ -233,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
                 $n = preg_replace('/\D/', '', $data[1]); if (strpos($n, '0') === 0) $n = '62' . substr($n, 1);
                 
                 if (isset($disqualified[$n]) || isset($blocked[$n])) { $ditolak++; continue; }
-                if (isset($existing_organic[$n])) { $sudahOrganik++; continue; }
+                if (isset($existing_data[$n])) { $sudahAda++; continue; }
 
                 $stmt->bind_param("ss", $n, $data[0]); if($stmt->execute()) $suksesUpload++;
             }
@@ -241,7 +236,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
             fclose($handle); 
             
             $msg = "✅ $suksesUpload Data CSV di-import.";
-            if($sudahOrganik > 0) $msg .= " $sudahOrganik ditolak karena duplikat dengan Organik.";
+            if($sudahAda > 0) $msg .= " $sudahAda dilewati karena duplikat.";
             $_SESSION['notification'] = $msg; $_SESSION['notificationType'] = 'success';
         }
         header("Location: pesan.php"); exit;
@@ -249,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
 
     if (isset($_POST['hapus_semua_manual'])) {
         $conn->query("DELETE FROM log_wa WHERE message = 'Data CSV/Manual'");
-        $_SESSION['notification'] = "✅ Seluruh daftar antrean manual dan CSV berhasil dihapus!";
+        $_SESSION['notification'] = "✅ Seluruh antrean manual & CSV berhasil dihapus!";
         $_SESSION['notificationType'] = 'success';
         header("Location: pesan.php"); exit;
     }
@@ -264,6 +259,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
 $jsTemplates = []; $pesanTemplates = [];
 $res = $conn->query("SELECT id, name, content FROM poloap_templates ORDER BY name");
 while($r = $res->fetch_assoc()) { $pesanTemplates[] = $r; $jsTemplates[$r['id']] = $r['content']; }
+
+// AMBIL TREND 3 HARI TERAKHIR
+$trend_3d = [];
+$three_days_ago = date('Y-m-d 00:00:00', strtotime('-3 days'));
+$res_3d = $conn->query("SELECT message FROM log_wa WHERE created_at >= '$three_days_ago' AND message != 'Data CSV/Manual' AND message != ''");
+if ($res_3d) {
+    while($r3 = $res_3d->fetch_assoc()) {
+        $k = classifyMessage($r3['message']);
+        if ($k !== 'Lainnya' && $k !== 'Data CSV/Manual') {
+            $trend_3d[$k] = ($trend_3d[$k] ?? 0) + 1;
+        }
+    }
+}
+arsort($trend_3d);
 
 $search = $_GET['search'] ?? ''; $f_start = $_GET['from'] ?? ''; $f_end = $_GET['to'] ?? ''; $f_minat = $_GET['minat'] ?? ''; 
 
@@ -281,6 +290,7 @@ while ($row = $res->fetch_assoc()) {
     if(strpos($n_log,'0')===0) $n_log = '62'.substr($n_log,1);
     if(empty($n_log)) continue;
 
+    // Deduplikasi Prioritas: Organik > Manual
     if(isset($processed[$n_log])) {
         if ($row['message'] === 'Data CSV/Manual') $idsToDelete[] = $row['id']; 
         continue;
@@ -328,10 +338,13 @@ while ($row = $res->fetch_assoc()) {
         'history' => $row['template_history'] ?? ''
     ];
 
+    // PEMBARUAN: Data tetap didorong ke tabel utama (tidak di-hide saat di-refresh), dan salinannya dikirim ke Log Sidebar
     if ($klas === 'Data CSV/Manual') {
-        if ($is_fu_today) $manualSudahDichat[] = $data; else $targetManual[] = $data;
+        $targetManual[] = $data;
+        if ($is_fu_today) $manualSudahDichat[] = $data; 
     } else {
-        if ($is_fu_today) $organikSudahDichat[] = $data; else $targetOrganik[] = $data;
+        $targetOrganik[] = $data;
+        if ($is_fu_today) $organikSudahDichat[] = $data; 
     }
 }
 
@@ -420,17 +433,14 @@ if (isset($_GET['export_csv_action'])) {
 
 <div class="flex h-screen w-full font-sans">
     
+    <!-- ================== SIDEBAR (KIRI) ================== -->
     <aside id="mainSidebar" class="crm-sidebar flex flex-col h-full z-20 overflow-y-auto overflow-x-hidden custom-scroll relative">
         <div class="border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-10 flex items-center justify-between logo-wrapper px-5 py-4">
             <div class="flex items-center gap-3 hide-on-collapse">
-                <div class="bg-blue-600 text-white w-8 h-8 flex justify-center items-center rounded-lg shadow-sm">
-                    <i class="fas fa-layer-group"></i>
-                </div>
-                <div>
-                    <h1 class="text-base font-bold tracking-tight text-slate-800">CRM Follow-Up</h1>
-                </div>
+                <div class="bg-blue-600 text-white w-8 h-8 flex justify-center items-center rounded-lg shadow-sm"><i class="fas fa-layer-group"></i></div>
+                <h1 class="text-base font-bold tracking-tight text-slate-800">CRM Follow-Up</h1>
             </div>
-            <button onclick="toggleSidebar()" class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors">
+            <button onclick="toggleSidebar()" class="text-slate-400 hover:text-blue-600 hover:bg-blue-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm border border-transparent hover:border-blue-100">
                 <i class="fas fa-bars"></i>
             </button>
         </div>
@@ -471,18 +481,15 @@ if (isset($_GET['export_csv_action'])) {
                 <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center hide-on-collapse"><i class="fas fa-cog mr-2"></i> Manajemen</h3>
                 <div class="space-y-2">
                     <a href="manage_templates.php" class="w-full flex items-center icon-center p-2 rounded-lg border border-transparent hover:border-blue-200 hover:bg-blue-50 text-slate-600 hover:text-blue-700 transition-all text-xs font-semibold cursor-pointer group">
-                        <i class="fas fa-comment-dots w-5 text-center text-slate-400 group-hover:text-blue-600 mr-2"></i>
-                        <span class="hide-on-collapse">Kelola Template</span>
+                        <i class="fas fa-comment-dots w-5 text-center text-slate-400 group-hover:text-blue-600 mr-2"></i><span class="hide-on-collapse">Kelola Template</span>
                     </a>
                     <a href="grafik.php" class="w-full flex items-center icon-center p-2 rounded-lg border border-transparent hover:border-blue-200 hover:bg-blue-50 text-slate-600 hover:text-blue-700 transition-all text-xs font-semibold cursor-pointer group">
-                        <i class="fas fa-chart-line w-5 text-center text-slate-400 group-hover:text-blue-600 mr-2"></i>
-                        <span class="hide-on-collapse">Statistik Data</span>
+                        <i class="fas fa-chart-line w-5 text-center text-slate-400 group-hover:text-blue-600 mr-2"></i><span class="hide-on-collapse">Statistik Data</span>
                     </a>
-                    <form method="POST" class="m-0" onsubmit="return confirm('Reset sesi harian? Data tidak dihapus.')">
+                    <form method="POST" class="m-0" onsubmit="return confirm('Reset sesi harian? Data tidak dihapus dari tabel, hanya me-reset label selesai di sidebar.')">
                         <input type="hidden" name="clear_fu" value="1">
                         <button type="submit" class="w-full flex items-center icon-center p-2 rounded-lg border border-transparent hover:border-rose-200 hover:bg-rose-50 text-slate-600 hover:text-rose-600 transition-all text-xs font-semibold cursor-pointer group">
-                            <i class="fas fa-sync-alt w-5 text-center text-slate-400 group-hover:text-rose-600 mr-2"></i>
-                            <span class="hide-on-collapse">Reset Sesi Harian</span>
+                            <i class="fas fa-sync-alt w-5 text-center text-slate-400 group-hover:text-rose-600 mr-2"></i><span class="hide-on-collapse">Reset Sesi Harian</span>
                         </button>
                     </form>
                 </div>
@@ -490,19 +497,33 @@ if (isset($_GET['export_csv_action'])) {
 
             <?php if(!empty($organikSudahDichat) || !empty($manualSudahDichat)): ?>
             <section class="mt-2 animate-fade-in hide-on-collapse">
-                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center"><i class="fas fa-check-circle mr-2"></i> Log Selesai</h3>
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center"><i class="fas fa-check-circle mr-2"></i> Log Selesai (Sesi)</h3>
                 <div class="space-y-3">
                     <?php if(!empty($organikSudahDichat)): ?>
                     <div class="border border-emerald-100 bg-emerald-50/50 rounded-lg p-2.5">
                         <div class="flex justify-between items-center mb-1.5">
-                            <span class="text-[10px] font-bold text-emerald-700 uppercase">Organik Selesai</span>
+                            <span class="text-[10px] font-bold text-emerald-700 uppercase">Organik Disapa</span>
                             <span class="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded"><?= count($organikSudahDichat) ?></span>
                         </div>
                         <div class="max-h-[100px] overflow-y-auto custom-scroll space-y-1">
                             <?php foreach($organikSudahDichat as $r): ?>
                                 <div class="text-[10px] text-slate-600 p-1 hover:bg-white rounded border border-transparent hover:border-emerald-100 flex justify-between group cursor-pointer transition-colors" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>">
                                     <span class="truncate pr-2 font-medium group-hover:text-emerald-700"><?= $r['nama'] ?></span>
-                                    <span class="text-slate-400 text-[9px]"><i class="fas fa-eye opacity-0 group-hover:opacity-100 transition-opacity"></i></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    <?php if(!empty($manualSudahDichat)): ?>
+                    <div class="border border-amber-100 bg-amber-50/50 rounded-lg p-2.5">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-[10px] font-bold text-amber-700 uppercase">Manual Disapa</span>
+                            <span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded"><?= count($manualSudahDichat) ?></span>
+                        </div>
+                        <div class="max-h-[100px] overflow-y-auto custom-scroll space-y-1">
+                            <?php foreach($manualSudahDichat as $r): ?>
+                                <div class="text-[10px] text-slate-600 p-1 hover:bg-white rounded border border-transparent hover:border-amber-100 flex justify-between group cursor-pointer transition-colors" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>">
+                                    <span class="truncate pr-2 font-medium group-hover:text-amber-700"><?= $r['nama'] ?></span>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -515,6 +536,7 @@ if (isset($_GET['export_csv_action'])) {
         </div>
     </aside>
 
+    <!-- ================== KONTEN UTAMA (KANAN) ================== -->
     <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 relative">
         
         <header class="h-[70px] shrink-0 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-10 shadow-sm">
@@ -534,6 +556,37 @@ if (isset($_GET['export_csv_action'])) {
 
         <div class="flex-1 overflow-y-auto p-5 lg:p-6 space-y-5 custom-scroll relative">
             
+            <!-- PANEL TREND 3 HARI TERAKHIR -->
+            <div class="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-xl p-5 text-white shadow-md mb-5 animate-fade-in flex flex-col md:flex-row justify-between items-center gap-4 border border-blue-900/50">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm shrink-0 border border-white/20">
+                        <i class="fas fa-fire text-xl text-orange-300"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm md:text-base">Trend Minat (3 Hari Terakhir)</h3>
+                        <p class="text-[10px] md:text-xs text-blue-200 mt-0.5">Top chat organik masuk sejak <?= date('d M Y', strtotime('-3 days')) ?></p>
+                    </div>
+                </div>
+                
+                <div class="flex-1 flex gap-2.5 overflow-x-auto custom-scroll pb-1 md:pb-0 px-2 max-w-full md:max-w-[50%]">
+                    <?php if(empty($trend_3d)): ?>
+                        <div class="text-[11px] text-blue-200 italic flex items-center"><i class="fas fa-info-circle mr-1"></i> Belum ada data baru.</div>
+                    <?php else: ?>
+                        <?php foreach(array_slice($trend_3d, 0, 4) as $m => $c): ?>
+                            <div class="bg-black/20 border border-white/10 rounded-lg px-2.5 py-1.5 shrink-0 flex items-center gap-2 hover:bg-black/30 transition-colors">
+                                <span class="text-[9px] font-bold uppercase tracking-wider text-blue-100"><?= $m ?></span>
+                                <span class="bg-white text-blue-800 text-[10px] font-black px-1.5 py-0.5 rounded"><?= $c ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                
+                <a href="grafik.php" class="shrink-0 bg-white hover:bg-blue-50 text-blue-800 px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm whitespace-nowrap">
+                    Lihat Detail <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+
+            <!-- Loader -->
             <div id="loader" class="hidden crm-card p-4 border-l-4 border-l-blue-500 animate-fade-in mb-5 bg-white">
                 <div class="flex items-center gap-4">
                     <i class="fas fa-circle-notch fa-spin text-xl text-blue-500"></i>
@@ -565,19 +618,19 @@ if (isset($_GET['export_csv_action'])) {
                         <div class="text-[9px] font-bold text-slate-500 uppercase tracking-wider"><?= htmlspecialchars($namaMinat) ?></div>
                         <?php if($isActive): ?><i class="fas fa-check-circle text-blue-500 text-xs"></i><?php endif; ?>
                     </div>
-                    <div class="text-xl font-black text-slate-800"><?= $jumlah ?> <span class="text-[9px] font-semibold text-slate-400">Leads</span></div>
+                    <div class="text-xl font-black text-slate-800"><?= $jumlah ?> <span class="text-[9px] font-semibold text-slate-400">Total</span></div>
                 </a>
                 <?php endforeach; ?>
             </div>
             <?php endif; ?>
 
+            <!-- Action Bar: Broadcast -->
             <div class="bg-white rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border border-blue-100 shadow-sm animate-fade-in relative overflow-hidden">
-                <div class="absolute inset-0 bg-gradient-to-r from-blue-50/50 to-indigo-50/50"></div>
                 <div class="flex items-center gap-3 relative z-10">
-                    <div class="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center shrink-0"><i class="fas fa-paper-plane"></i></div>
+                    <div class="bg-blue-50 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center shrink-0 border border-blue-100"><i class="fas fa-paper-plane"></i></div>
                     <div>
                         <h3 class="font-bold text-sm text-slate-800">Kirim Pesan Massal</h3>
-                        <p class="text-[10px] text-slate-500 font-medium"><span id="countCheck" class="font-bold text-blue-600 px-1 bg-white rounded shadow-sm border border-blue-100">0</span> kontak dicentang</p>
+                        <p class="text-[10px] text-slate-500 font-medium"><span id="countCheck" class="font-bold text-blue-600 px-1 bg-blue-50 rounded border border-blue-100">0</span> kontak dicentang</p>
                     </div>
                 </div>
                 <form id="formMassal" class="w-full sm:w-auto flex gap-2 relative z-10">
@@ -589,6 +642,7 @@ if (isset($_GET['export_csv_action'])) {
                 </form>
             </div>
 
+            <!-- Tabel Data Organik -->
             <div class="crm-card overflow-hidden animate-fade-in">
                 <div class="p-3 border-b border-slate-200 bg-white flex justify-between items-center">
                     <h3 class="font-bold text-xs text-slate-800 flex items-center gap-2">
@@ -602,12 +656,7 @@ if (isset($_GET['export_csv_action'])) {
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-600 whitespace-nowrap">
                         <thead class="text-[10px] text-slate-500 uppercase bg-slate-50/80 border-b border-slate-200">
-                            <tr>
-                                <th class="p-3 w-8 text-center">#</th>
-                                <th class="p-3 font-bold">Data Prospek</th>
-                                <th class="p-3 font-bold">Status Follow-Up</th>
-                                <th class="p-3 font-bold text-right">Aksi</th>
-                            </tr>
+                            <tr><th class="p-3 w-8 text-center">#</th><th class="p-3 font-bold">Data Prospek</th><th class="p-3 font-bold">Status Follow-Up</th><th class="p-3 font-bold text-right">Aksi</th></tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             <?php if(empty($targetOrganik_paged)): ?>
@@ -615,34 +664,27 @@ if (isset($_GET['export_csv_action'])) {
                             <?php else: ?>
                                 <?php foreach($targetOrganik_paged as $r): ?>
                                 <tr class="row-animate group">
-                                    <td class="p-3 text-center">
-                                        <input type="checkbox" value="<?= $r['nowa'] ?>" class="cb-target cb-organik w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer">
-                                    </td>
+                                    <td class="p-3 text-center"><input type="checkbox" value="<?= $r['nowa'] ?>" class="cb-target cb-organik w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer"></td>
                                     <td class="p-3">
                                         <div class="font-bold text-slate-800 text-[12px] cursor-pointer hover:text-blue-600 flex items-center gap-1.5" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>">
                                             <?= $r['nama'] ?>
-                                            <?php if($r['gender'] !== '-'): ?>
-                                                <span class="text-[8px] px-1 py-0.5 rounded text-slate-500 border border-slate-200"><?= $r['gender'] ?></span>
-                                            <?php endif; ?>
+                                            <?php if($r['gender'] !== '-'): ?><span class="text-[8px] px-1 py-0.5 rounded text-slate-500 border border-slate-200"><?= $r['gender'] ?></span><?php endif; ?>
                                         </div>
                                         <div class="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5 font-medium">
-                                            <?= $r['nowa'] ?> 
-                                            <a href="https://wa.me/<?= $r['clean_wa'] ?>" target="_blank" class="text-emerald-500 hover:scale-125 transition-transform" title="Buka WhatsApp Web"><i class="fab fa-whatsapp text-sm"></i></a>
-                                            <span class="w-1 h-1 rounded-full bg-slate-300"></span>
-                                            <span class="text-blue-600"><?= $r['klas'] ?></span>
+                                            <?= $r['nowa'] ?> <a href="https://wa.me/<?= $r['clean_wa'] ?>" target="_blank" class="text-emerald-500 hover:scale-125 transition-transform" title="Buka WhatsApp Web"><i class="fab fa-whatsapp text-sm"></i></a><span class="w-1 h-1 rounded-full bg-slate-300"></span><span class="text-blue-600"><?= $r['klas'] ?></span>
                                         </div>
                                     </td>
                                     <td class="p-3">
                                         <div class="status-cell">
                                             <?php if($r['fu_tmpl'] === 'Baru'): ?>
-                                                <span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded">BELUM DIPROSES</span>
+                                                <span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-200">BELUM DIPROSES</span>
                                             <?php else: ?>
                                                 <div class="flex items-center gap-2">
                                                     <div>
                                                         <div class="text-[10px] font-bold text-slate-700 template-name-display flex items-center gap-1"><i class="fas fa-check-double text-blue-500"></i> <span class="tmpl-text"><?= $r['fu_tmpl'] ?></span></div>
                                                         <div class="text-[9px] text-slate-400 mt-0.5 tmpl-time"><i class="far fa-clock mr-1"></i><?= $r['fu_text'] ?></div>
                                                     </div>
-                                                    <button type="button" class="history-btn bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-600 px-1.5 py-1 rounded border border-slate-200 transition-colors text-[9px] font-bold flex items-center gap-1" title="Lihat History Template" data-history="<?= htmlspecialchars($r['history'], ENT_QUOTES) ?>" onclick="showHistoryModal(this)">
+                                                    <button type="button" class="history-btn bg-white hover:bg-blue-50 text-slate-500 hover:text-blue-600 px-1.5 py-1 rounded border border-slate-200 transition-colors text-[9px] font-bold flex items-center gap-1 shadow-sm" title="Lihat History Template" data-history="<?= htmlspecialchars($r['history'], ENT_QUOTES) ?>" onclick="showHistoryModal(this)">
                                                         <i class="fas fa-list-ul"></i> Detail
                                                     </button>
                                                 </div>
@@ -683,6 +725,7 @@ if (isset($_GET['export_csv_action'])) {
                 <?php endif; ?>
             </div>
 
+            <!-- Tabel Data Manual/CSV -->
             <div class="crm-card overflow-hidden animate-fade-in" style="animation-delay: 0.1s;">
                 <div class="p-3 border-b border-slate-200 bg-white flex justify-between items-center">
                     <h3 class="font-bold text-xs text-slate-800 flex items-center gap-2">
@@ -692,9 +735,7 @@ if (isset($_GET['export_csv_action'])) {
                     <div class="flex items-center gap-3">
                         <form method="POST" onsubmit="return confirm('Peringatan: Menghapus seluruh antrean Manual/CSV?')" class="m-0">
                             <input type="hidden" name="hapus_semua_manual" value="1">
-                            <button type="submit" class="text-rose-500 hover:text-rose-700 text-[10px] font-bold flex items-center transition-colors">
-                                <i class="fas fa-trash mr-1"></i>Hapus Semua
-                            </button>
+                            <button type="submit" class="text-rose-500 hover:text-rose-700 text-[10px] font-bold flex items-center transition-colors"><i class="fas fa-trash mr-1"></i>Hapus Semua</button>
                         </form>
                         <div class="w-px h-3 bg-slate-200"></div>
                         <label class="text-[10px] font-bold text-slate-600 cursor-pointer flex items-center hover:text-amber-600 transition-colors">
@@ -705,12 +746,7 @@ if (isset($_GET['export_csv_action'])) {
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-600 whitespace-nowrap">
                         <thead class="text-[10px] text-slate-500 uppercase bg-slate-50/80 border-b border-slate-200">
-                            <tr>
-                                <th class="p-3 w-8 text-center">#</th>
-                                <th class="p-3 font-bold">Data Prospek</th>
-                                <th class="p-3 font-bold">Status Follow-Up</th>
-                                <th class="p-3 font-bold text-right">Aksi</th>
-                            </tr>
+                            <tr><th class="p-3 w-8 text-center">#</th><th class="p-3 font-bold">Data Prospek</th><th class="p-3 font-bold">Status Follow-Up</th><th class="p-3 font-bold text-right">Aksi</th></tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             <?php if(empty($targetManual_paged)): ?>
@@ -718,29 +754,26 @@ if (isset($_GET['export_csv_action'])) {
                             <?php else: ?>
                                 <?php foreach($targetManual_paged as $r): ?>
                                 <tr class="row-animate group">
-                                    <td class="p-3 text-center">
-                                        <input type="checkbox" value="<?= $r['nowa'] ?>" class="cb-target cb-manual w-3.5 h-3.5 accent-amber-500 rounded cursor-pointer">
-                                    </td>
+                                    <td class="p-3 text-center"><input type="checkbox" value="<?= $r['nowa'] ?>" class="cb-target cb-manual w-3.5 h-3.5 accent-amber-500 rounded cursor-pointer"></td>
                                     <td class="p-3">
                                         <div class="font-bold text-slate-800 text-[12px] cursor-pointer hover:text-amber-600 transition-colors" onclick="showDetail(this.dataset.user, this.dataset.sys)" data-user="<?= htmlspecialchars($r['msgRaw'], ENT_QUOTES) ?>" data-sys="<?= htmlspecialchars($r['fu_tmpl'] !== 'Baru' ? $r['fu_tmpl'] : '', ENT_QUOTES) ?>">
                                             <?= $r['nama'] ?>
                                         </div>
                                         <div class="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5 font-medium">
-                                            <?= $r['nowa'] ?> 
-                                            <a href="https://wa.me/<?= $r['clean_wa'] ?>" target="_blank" class="text-emerald-500 hover:scale-125 transition-transform"><i class="fab fa-whatsapp text-sm"></i></a>
+                                            <?= $r['nowa'] ?> <a href="https://wa.me/<?= $r['clean_wa'] ?>" target="_blank" class="text-emerald-500 hover:scale-125 transition-transform"><i class="fab fa-whatsapp text-sm"></i></a>
                                         </div>
                                     </td>
                                     <td class="p-3">
                                         <div class="status-cell">
                                             <?php if($r['fu_tmpl'] === 'Baru'): ?>
-                                                <span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded">BELUM DIPROSES</span>
+                                                <span class="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-200">BELUM DIPROSES</span>
                                             <?php else: ?>
                                                 <div class="flex items-center gap-2">
                                                     <div>
                                                         <div class="text-[10px] font-bold text-slate-700 template-name-display flex items-center gap-1"><i class="fas fa-check-double text-amber-500"></i> <span class="tmpl-text"><?= $r['fu_tmpl'] ?></span></div>
                                                         <div class="text-[9px] text-slate-400 mt-0.5 tmpl-time"><i class="far fa-clock mr-1"></i><?= $r['fu_text'] ?></div>
                                                     </div>
-                                                    <button type="button" class="history-btn bg-slate-100 hover:bg-amber-100 text-slate-500 hover:text-amber-600 px-1.5 py-1 rounded border border-slate-200 transition-colors text-[9px] font-bold flex items-center gap-1" title="Lihat History Template" data-history="<?= htmlspecialchars($r['history'], ENT_QUOTES) ?>" onclick="showHistoryModal(this)">
+                                                    <button type="button" class="history-btn bg-white hover:bg-amber-50 text-slate-500 hover:text-amber-600 px-1.5 py-1 rounded border border-slate-200 transition-colors text-[9px] font-bold flex items-center gap-1 shadow-sm" title="Lihat History Template" data-history="<?= htmlspecialchars($r['history'], ENT_QUOTES) ?>" onclick="showHistoryModal(this)">
                                                         <i class="fas fa-list-ul"></i> Detail
                                                     </button>
                                                 </div>
@@ -781,11 +814,15 @@ if (isset($_GET['export_csv_action'])) {
                 <?php endif; ?>
             </div>
 
+            <!-- Spacer bawah -->
             <div class="h-10"></div>
         </div>
     </main>
 </div>
 
+<!-- ================== MODALS & POPUPS ================== -->
+
+<!-- Modal Riwayat Template (HISTORY) -->
 <div id="modalHistory" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl w-full max-w-sm overflow-hidden shadow-2xl animate-fade-in border border-slate-100">
         <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -794,14 +831,16 @@ if (isset($_GET['export_csv_action'])) {
         </div>
         <div class="p-5 max-h-[60vh] overflow-y-auto custom-scroll relative">
             <div id="historyContent" class="space-y-4 timeline-line relative pl-3">
-                </div>
+                <!-- Diisi via JS -->
+            </div>
         </div>
         <div class="p-3 border-t border-slate-100 bg-slate-50 text-right">
-            <button onclick="closeModal('modalHistory')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors">Tutup</button>
+            <button onclick="closeModal('modalHistory')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm">Tutup</button>
         </div>
     </div>
 </div>
 
+<!-- Preview Live Text -->
 <div id="waPreview" class="animate-fade-in">
     <div class="bg-[#075e54] text-white p-2.5 flex items-center justify-between">
         <div class="flex items-center gap-2"><i class="fas fa-eye text-xs"></i> <p class="text-xs font-semibold tracking-wide">Live Preview</p></div>
@@ -812,9 +851,10 @@ if (isset($_GET['export_csv_action'])) {
     </div>
 </div>
 
+<!-- Modal Tambah Manual -->
 <div id="modalTambah" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl w-full max-w-sm overflow-hidden shadow-2xl animate-fade-in">
-        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
             <h3 class="font-bold text-slate-800 text-sm"><i class="fas fa-user-plus text-blue-500 mr-2"></i> Tambah Prospek</h3>
             <button type="button" onclick="closeModal('modalTambah')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fas fa-times"></i></button>
         </div>
@@ -832,9 +872,10 @@ if (isset($_GET['export_csv_action'])) {
     </div>
 </div>
 
+<!-- Modal CSV -->
 <div id="modalCSV" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl w-full max-w-sm overflow-hidden shadow-2xl animate-fade-in">
-        <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
             <h3 class="font-bold text-slate-800 text-sm"><i class="fas fa-file-csv text-blue-500 mr-2"></i> Import File CSV</h3>
             <button type="button" onclick="closeModal('modalCSV')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fas fa-times"></i></button>
         </div>
@@ -848,6 +889,7 @@ if (isset($_GET['export_csv_action'])) {
     </div>
 </div>
 
+<!-- Modal Detail Chat -->
 <div id="modalDetailChat" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-fade-in flex flex-col h-[75vh] max-h-[600px]">
         <div class="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
@@ -861,6 +903,7 @@ if (isset($_GET['export_csv_action'])) {
     </div>
 </div>
 
+<!-- ================== SCRIPT LOGIKA UI ================== -->
 <script>
 // PENGATURAN SMART SCROLL (Agar tidak refresh ke atas)
 document.addEventListener("DOMContentLoaded", function() { 
@@ -884,7 +927,7 @@ function showDetail(userMsg, sysMsg) {
     const formatMsg = (str) => str.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>');
     let html = `
     <div class="flex items-end gap-2 pr-8 animate-fade-in">
-        <div class="w-6 h-6 rounded-full bg-slate-300 border border-white flex items-center justify-center shrink-0 mb-1"><i class="fas fa-user text-white text-[10px]"></i></div>
+        <div class="w-6 h-6 rounded-full bg-slate-300 border border-white flex items-center justify-center shrink-0 mb-1 shadow-sm"><i class="fas fa-user text-white text-[10px]"></i></div>
         <div class="bubble-left p-2.5 text-[12px] text-[#111b21] relative leading-relaxed">
             <div class="text-[9px] text-slate-500 font-bold mb-1 opacity-70">Pesan User:</div>${formatMsg(userMsg)}
         </div>
@@ -892,7 +935,7 @@ function showDetail(userMsg, sysMsg) {
     if (sysMsg && sysMsg.trim() !== '') {
         html += `
         <div class="flex items-end gap-2 pl-8 flex-row-reverse animate-fade-in" style="animation-delay: 0.1s">
-            <div class="w-6 h-6 rounded-full bg-blue-500 border border-white flex items-center justify-center shrink-0 mb-1"><i class="fas fa-robot text-white text-[10px]"></i></div>
+            <div class="w-6 h-6 rounded-full bg-blue-500 border border-white flex items-center justify-center shrink-0 mb-1 shadow-sm"><i class="fas fa-robot text-white text-[10px]"></i></div>
             <div class="bubble-right p-2.5 text-[12px] text-[#111b21] relative leading-relaxed">
                 <div class="text-[9px] text-blue-700 font-bold mb-1 border-b border-blue-200/40 pb-1 flex justify-between items-center"><span>Sistem:</span><i class="fas fa-check-double text-blue-500"></i></div>${formatMsg(sysMsg)}
             </div>
@@ -904,7 +947,7 @@ function showDetail(userMsg, sysMsg) {
 function showHistoryModal(btn) {
     const rawHist = btn.dataset.history;
     const content = document.getElementById('historyContent');
-    if(!rawHist) { content.innerHTML = '<div class="text-xs text-slate-400 italic">Belum ada riwayat follow-up sistem.</div>'; } 
+    if(!rawHist) { content.innerHTML = '<div class="text-xs text-slate-400 italic font-medium p-2">Belum ada riwayat pengiriman sistem.</div>'; } 
     else {
         let items = rawHist.split('|||'); let html = '';
         items.forEach((item, index) => {
@@ -912,7 +955,7 @@ function showHistoryModal(btn) {
             html += `
             <div class="relative z-10 animate-fade-in" style="animation-delay: ${index * 0.05}s">
                 <div class="absolute -left-3.5 top-1.5 w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-sm"></div>
-                <div class="bg-white border border-slate-200 p-2.5 rounded-lg shadow-sm">
+                <div class="bg-white border border-slate-100 p-2.5 rounded-lg shadow-sm">
                     <div class="text-[9px] font-bold text-slate-400 mb-0.5"><i class="far fa-clock mr-1"></i>${time}</div>
                     <div class="text-[11px] font-bold text-slate-700"><i class="fas fa-paper-plane text-blue-500 mr-1 text-[10px]"></i> ${tmpl}</div>
                 </div>
@@ -939,7 +982,7 @@ async function submitMassAjax(e) {
     const sel = document.querySelectorAll('.cb-target:checked'); const tmplId = document.querySelector('select[name="template_id_multi"]').value;
     if(!sel.length || !tmplId) { alert('Pilih minimal 1 prospek dan 1 template!'); return; } 
     const loader = document.getElementById('loader'); const pBar = document.getElementById('progressBar'); const pText = document.getElementById('progressText'); const pStat = document.getElementById('progressStatus');
-    loader.classList.remove('hidden');
+    loader.classList.remove('hidden'); window.scrollTo(0, 0); // bawa ke atas untuk lihat progress bar
     let success = 0, fail = 0; let total = sel.length;
     for (let i = 0; i < total; i++) {
         let contactId = sel[i].value; pStat.innerText = `Menghubungkan ke API... (${contactId}) [${i+1}/${total}]`;
@@ -951,7 +994,7 @@ async function submitMassAjax(e) {
         let pct = Math.round(((i + 1) / total) * 100); pBar.style.width = pct + '%'; pText.innerText = pct + '%';
         await new Promise(r => setTimeout(r, 100)); 
     }
-    sessionStorage.setItem('scrollpos', window.scrollY); // Simpan scroll massal
+    sessionStorage.setItem('scrollpos', window.scrollY); 
     pStat.innerHTML = `<span class="text-emerald-600 font-bold">Selesai!</span> ${success} Terkirim, ${fail} Gagal. Merefresh status...`;
     setTimeout(() => location.reload(), 1000);
 }
@@ -980,15 +1023,18 @@ async function submitSingleAjax(e, form) {
             const tr = form.closest('tr');
             let statusCell = tr.querySelector('.status-cell');
             if(statusCell) {
-                let badgeRaw = statusCell.querySelector('span.bg-amber-100');
-                if(badgeRaw) {
+                let isOrganik = form.closest('.crm-card').innerHTML.includes('Organik');
+                let colorTheme = isOrganik ? 'blue' : 'amber';
+                let badgeRaw = statusCell.querySelector('span'); // Cek jika masih 'BELUM DIPROSES'
+                
+                if(badgeRaw && badgeRaw.innerText.includes('BELUM DIPROSES')) {
                     statusCell.innerHTML = `
                         <div class="flex items-center gap-2">
                             <div>
-                                <div class="text-[10px] font-bold text-slate-700 template-name-display flex items-center gap-1"><i class="fas fa-check-double text-blue-500"></i> <span class="tmpl-text">${json.fu_tmpl}</span></div>
+                                <div class="text-[10px] font-bold text-slate-700 template-name-display flex items-center gap-1"><i class="fas fa-check-double text-${colorTheme}-500"></i> <span class="tmpl-text">${json.fu_tmpl}</span></div>
                                 <div class="text-[9px] text-slate-400 mt-0.5 tmpl-time"><i class="far fa-clock mr-1"></i>${json.fu_time}</div>
                             </div>
-                            <button type="button" class="history-btn bg-slate-100 text-slate-500 px-1.5 py-1 rounded border border-slate-200 text-[9px] font-bold flex items-center gap-1" onclick="showHistoryModal(this)" data-history="${json.new_history}">
+                            <button type="button" class="history-btn bg-white hover:bg-${colorTheme}-50 text-slate-500 hover:text-${colorTheme}-600 px-1.5 py-1 rounded border border-slate-200 text-[9px] font-bold flex items-center gap-1 shadow-sm transition-colors" onclick="showHistoryModal(this)" data-history="${json.new_history}">
                                 <i class="fas fa-list-ul"></i> Detail
                             </button>
                         </div>
