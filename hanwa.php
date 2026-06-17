@@ -33,10 +33,7 @@ require_once 'auth_checkwa.php';
     <style>
         body { background: #f8fafc; overflow: hidden; font-family: 'Inter', sans-serif; }
 
-        /* ✅ SCROLLBAR RINGAN */
-        .nav-menu::-webkit-scrollbar { width: 4px; }
-        .nav-menu::-webkit-scrollbar-track { background: transparent; }
-        .nav-menu::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    
         
         /* ✅ 1. MAGNETIC NAV LINK & HOVER */
         .nav-link, .logout-btn { 
