@@ -33,7 +33,21 @@ require_once 'auth_checkwa.php';
     <style>
         body { background: #f8fafc; overflow: hidden; font-family: 'Inter', sans-serif; }
 
-    
+      /* ✅ SCROLLBAR RINGAN & FIX ABU-ABU SAAT MINIMIZE */
+        .nav-menu { overflow-x: hidden; overflow-y: auto; }
+        .nav-menu::-webkit-scrollbar { width: 4px; height: 0px; }
+        .nav-menu::-webkit-scrollbar-track { background: transparent; }
+        .nav-menu::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        /* Sembunyikan scrollbar (kursor geser) sepenuhnya saat sidebar di-minimize */
+        .sidebar.collapsed .nav-menu::-webkit-scrollbar { 
+            display: none; 
+            width: 0;
+        }
+        .sidebar.collapsed .nav-menu { 
+            scrollbar-width: none; /* Untuk Firefox */
+            -ms-overflow-style: none; /* Untuk IE/Edge */
+        }
         
         /* ✅ 1. MAGNETIC NAV LINK & HOVER */
         .nav-link, .logout-btn { 
