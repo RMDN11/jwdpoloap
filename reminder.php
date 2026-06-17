@@ -283,145 +283,147 @@ $itemsPerPage = 50;
 $offset = ($page - 1) * $itemsPerPage;
 
 // ============================================
-// QUERY UTAMA DENGAN PAGINATION
+// // ============================================
+// QUERY UTAMA DENGAN PAGINATION (OPTIMASI PHP LEVEL)
 // ============================================
 
-// Query untuk menghitung total
-$countSql = "SELECT COUNT(DISTINCT p.id) as total FROM peserta p 
+// 1. Hitung Total Data (Tanpa JOIN yang berat)
+$innerCountSql = "SELECT p.id FROM peserta p 
              LEFT JOIN pembayaran pemb ON p.id = pemb.peserta_id 
              WHERE p.nowa IS NOT NULL AND p.nowa != ''";
 $countParams = [];
 $countTypes = '';
 
-if ($search) { 
-    $countSql .= " AND p.nama_lengkap LIKE ?"; 
-    $countTypes .= 's'; 
-    $countParams[] = '%' . $search . '%'; 
-}
-
+if ($search) { $innerCountSql .= " AND p.nama_lengkap LIKE ?"; $countTypes .= 's'; $countParams[] = '%' . $search . '%'; }
 if (!empty($filterHalaqoh)) {
     $placeholders = implode(',', array_fill(0, count($filterHalaqoh), '?'));
-    $countSql .= " AND p.halaqoh IN ($placeholders)";
+    $innerCountSql .= " AND p.halaqoh IN ($placeholders)";
     $countTypes .= str_repeat('s', count($filterHalaqoh));
     $countParams = array_merge($countParams, $filterHalaqoh);
 }
-
-if ($filterStatus && $filterStatus !== 'semua') { 
-    $countSql .= " AND p.status = ?"; 
-    $countTypes .= 's'; 
-    $countParams[] = $filterStatus; 
-}
-
-// Filter pembayaran
+if ($filterStatus && $filterStatus !== 'semua') { $innerCountSql .= " AND p.status = ?"; $countTypes .= 's'; $countParams[] = $filterStatus; }
 if (!empty($filterBulanBayar)) {
     if ($filterPembayaran === 'lunas') {
-        $countSql .= " AND EXISTS (SELECT 1 FROM pembayaran p_check WHERE p_check.peserta_id = p.id AND p_check.bulan_pembayaran = ?)";
-        $countTypes .= 's'; 
-        $countParams[] = $filterBulanBayar;
+        $innerCountSql .= " AND EXISTS (SELECT 1 FROM pembayaran p_check WHERE p_check.peserta_id = p.id AND p_check.bulan_pembayaran = ?)";
+        $countTypes .= 's'; $countParams[] = $filterBulanBayar;
     } elseif ($filterPembayaran === 'belum_lunas') {
-        $countSql .= " AND NOT EXISTS (SELECT 1 FROM pembayaran p_check WHERE p_check.peserta_id = p.id AND p_check.bulan_pembayaran = ?)";
-        $countTypes .= 's'; 
-        $countParams[] = $filterBulanBayar;
-    }
-} else {
-    if ($filterPembayaran === 'lunas') {
-        $countSql .= " GROUP BY p.id HAVING MAX(pemb.id) IS NOT NULL";
-    } elseif ($filterPembayaran === 'belum_lunas') {
-        $countSql .= " GROUP BY p.id HAVING MAX(pemb.id) IS NULL";
+        $innerCountSql .= " AND NOT EXISTS (SELECT 1 FROM pembayaran p_check WHERE p_check.peserta_id = p.id AND p_check.bulan_pembayaran = ?)";
+        $countTypes .= 's'; $countParams[] = $filterBulanBayar;
     }
 }
+$innerCountSql .= " GROUP BY p.id";
 
+if (empty($filterBulanBayar)) {
+    if ($filterPembayaran === 'lunas') { $innerCountSql .= " HAVING MAX(pemb.id) IS NOT NULL"; }
+    elseif ($filterPembayaran === 'belum_lunas') { $innerCountSql .= " HAVING MAX(pemb.id) IS NULL"; }
+}
+
+$countSql = "SELECT COUNT(*) as total FROM ($innerCountSql) as sub";
 $totalCount = 0;
 $countStmt = $conn->prepare($countSql);
 if ($countStmt) {
     if (!empty($countParams)) {
-        $refs = [];
-        foreach ($countParams as $key => $value) {
-            $refs[$key] = &$countParams[$key];
-        }
+        $refs = []; foreach ($countParams as $key => $value) { $refs[$key] = &$countParams[$key]; }
         call_user_func_array([$countStmt, 'bind_param'], array_merge([$countTypes], $refs));
     }
     $countStmt->execute();
-    $countResult = $countStmt->get_result()->fetch_assoc();
-    $totalCount = $countResult['total'] ?? 0;
+    $totalCount = $countStmt->get_result()->fetch_assoc()['total'] ?? 0;
     $countStmt->close();
 }
-
 $totalPages = ceil($totalCount / $itemsPerPage);
 
-// Query untuk data utama
-$sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status, 
-        MAX(CASE WHEN l.message LIKE '%pembayaran%' THEN l.created_at END) as last_payment_reminder,
-        MAX(CASE WHEN l.message LIKE '%hafalan%' OR l.message LIKE '%setoran%' THEN l.created_at END) as last_setoran_reminder,
-        MAX(pemb.id) as id_pembayaran_terakhir
+// 2. Ambil Data Peserta Saja (Tanpa Join Log)
+$sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status, MAX(pemb.id) as id_pembayaran_terakhir 
         FROM peserta p 
-        LEFT JOIN log_wa l ON p.nowa = l.nowa 
         LEFT JOIN pembayaran pemb ON p.id = pemb.peserta_id 
         WHERE p.nowa IS NOT NULL AND p.nowa != ''";
-        
 $params = [];
 $types = '';
 
-if ($search) { 
-    $sql .= " AND p.nama_lengkap LIKE ?"; 
-    $types .= 's'; 
-    $params[] = '%' . $search . '%'; 
-}
-
+if ($search) { $sql .= " AND p.nama_lengkap LIKE ?"; $types .= 's'; $params[] = '%' . $search . '%'; }
 if (!empty($filterHalaqoh)) {
     $placeholders = implode(',', array_fill(0, count($filterHalaqoh), '?'));
     $sql .= " AND p.halaqoh IN ($placeholders)";
     $types .= str_repeat('s', count($filterHalaqoh));
     $params = array_merge($params, $filterHalaqoh);
 }
-
-if ($filterStatus && $filterStatus !== 'semua') { 
-    $sql .= " AND p.status = ?"; 
-    $types .= 's'; 
-    $params[] = $filterStatus; 
-}
-
+if ($filterStatus && $filterStatus !== 'semua') { $sql .= " AND p.status = ?"; $types .= 's'; $params[] = $filterStatus; }
 if (!empty($filterBulanBayar)) {
     if ($filterPembayaran === 'lunas') {
         $sql .= " AND EXISTS (SELECT 1 FROM pembayaran p_check WHERE p_check.peserta_id = p.id AND p_check.bulan_pembayaran = ?)";
-        $types .= 's';
-        $params[] = $filterBulanBayar;
+        $types .= 's'; $params[] = $filterBulanBayar;
     } elseif ($filterPembayaran === 'belum_lunas') {
         $sql .= " AND NOT EXISTS (SELECT 1 FROM pembayaran p_check WHERE p_check.peserta_id = p.id AND p_check.bulan_pembayaran = ?)";
-        $types .= 's';
-        $params[] = $filterBulanBayar;
+        $types .= 's'; $params[] = $filterBulanBayar;
     }
 }
-
 $sql .= " GROUP BY p.id";
 
 if (empty($filterBulanBayar)) {
-    if ($filterPembayaran === 'lunas') { 
-        $sql .= " HAVING id_pembayaran_terakhir IS NOT NULL"; 
-    } elseif ($filterPembayaran === 'belum_lunas') { 
-        $sql .= " HAVING id_pembayaran_terakhir IS NULL"; 
-    }
+    if ($filterPembayaran === 'lunas') { $sql .= " HAVING id_pembayaran_terakhir IS NOT NULL"; } 
+    elseif ($filterPembayaran === 'belum_lunas') { $sql .= " HAVING id_pembayaran_terakhir IS NULL"; }
 }
 
 $sql .= " ORDER BY p.halaqoh, p.nama_lengkap LIMIT ? OFFSET ?";
-$types .= 'ii';
-$params[] = $itemsPerPage;
-$params[] = $offset;
+$types .= 'ii'; $params[] = $itemsPerPage; $params[] = $offset;
 
 $pesertaAktif = [];
+$pesertaIds = [];
+$pesertaNoWas = [];
 $stmt = $conn->prepare($sql);
 if ($stmt) {
     if (!empty($params)) {
-        $refs = [];
-        foreach ($params as $key => $value) {
-            $refs[$key] = &$params[$key];
-        }
+        $refs = []; foreach ($params as $key => $value) { $refs[$key] = &$params[$key]; }
         call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
     }
     $stmt->execute();
     $result = $stmt->get_result();
-    $pesertaAktif = $result->fetch_all(MYSQLI_ASSOC);
+    while($row = $result->fetch_assoc()) {
+        $pesertaAktif[] = $row;
+        $pesertaIds[] = $row['id'];
+        if(!empty($row['nowa'])) $pesertaNoWas[] = "'" . $conn->real_escape_string($row['nowa']) . "'";
+    }
     $stmt->close();
+}
+
+// 3. Trik Mapping PHP: Ambil log & status Lunas HANYA untuk 50 peserta yg tampil
+$logDataMap = [];
+$cekLunasBulanMap = [];
+
+if(!empty($pesertaNoWas)) {
+    $noWaList = implode(',', $pesertaNoWas);
+    $logSql = "SELECT nowa, message, created_at FROM log_wa WHERE nowa IN ($noWaList)";
+    $logRes = $conn->query($logSql);
+    if($logRes) {
+        while($l = $logRes->fetch_assoc()) {
+            $n = $l['nowa'];
+            $msg = strtolower($l['message']);
+            if(!isset($logDataMap[$n])) $logDataMap[$n] = ['last_payment' => '', 'last_setoran' => ''];
+            
+            if(strpos($msg, 'pembayaran') !== false) {
+                if(empty($logDataMap[$n]['last_payment']) || $l['created_at'] > $logDataMap[$n]['last_payment']) {
+                    $logDataMap[$n]['last_payment'] = $l['created_at'];
+                }
+            }
+            if(strpos($msg, 'hafalan') !== false || strpos($msg, 'setoran') !== false) {
+                if(empty($logDataMap[$n]['last_setoran']) || $l['created_at'] > $logDataMap[$n]['last_setoran']) {
+                    $logDataMap[$n]['last_setoran'] = $l['created_at'];
+                }
+            }
+        }
+    }
+}
+
+if(!empty($filterBulanBayar) && !empty($pesertaIds)) {
+    $idList = implode(',', $pesertaIds);
+    $safeBulan = $conn->real_escape_string($filterBulanBayar);
+    $cekSql = "SELECT peserta_id FROM pembayaran WHERE peserta_id IN ($idList) AND bulan_pembayaran = '$safeBulan'";
+    $cekRes = $conn->query($cekSql);
+    if($cekRes) {
+        while($c = $cekRes->fetch_assoc()) {
+            $cekLunasBulanMap[$c['peserta_id']] = true;
+        }
+    }
 }
 
 // ============================================
@@ -847,8 +849,9 @@ $templatePesanDefault = "";
                                                 $halaqoh = $peserta['halaqoh'] ?? '-';
                                                 $nowa = $peserta['nowa'] ?? '';
                                                 $idPeserta = $peserta['id'] ?? 0;
-                                                $lastPaymentReminder = $peserta['last_payment_reminder'] ?? '';
                                                 $idPembayaranTerakhir = $peserta['id_pembayaran_terakhir'] ?? null;
+                                                $lastPaymentReminder = isset($logDataMap[$nowa]) ? $logDataMap[$nowa]['last_payment'] : '';
+                                                $lastSetoranReminder = isset($logDataMap[$nowa]) ? $logDataMap[$nowa]['last_setoran'] : '';
                                                 ?>
                                                 <tr class="hover:bg-gray-50 transition duration-150">
                                                     <td class="checkbox-cell px-4 py-3 whitespace-nowrap">
@@ -873,20 +876,9 @@ $templatePesanDefault = "";
                                                     <td class="px-6 py-4 text-sm whitespace-nowrap">
                                                         <?php 
                                                         if (!empty($filterBulanBayar)) {
-                                                            $cekLunasBulanIni = false;
-                                                            if ($idPeserta) {
-                                                                $checkLunasSql = "SELECT id FROM pembayaran WHERE peserta_id = ? AND bulan_pembayaran = ? LIMIT 1";
-                                                                $checkStmt = $conn->prepare($checkLunasSql);
-                                                                if ($checkStmt) {
-                                                                    $checkStmt->bind_param("is", $idPeserta, $filterBulanBayar);
-                                                                    $checkStmt->execute();
-                                                                    $checkResult = $checkStmt->get_result();
-                                                                    if ($checkResult->num_rows > 0) {
-                                                                        $cekLunasBulanIni = true;
-                                                                    }
-                                                                    $checkStmt->close();
-                                                                }
-                                                            }
+                                                            // Cek langsung dari Array, tidak perlu panggil SQL lagi!
+                                                            $cekLunasBulanIni = isset($cekLunasBulanMap[$idPeserta]);
+                                                            
                                                             if ($cekLunasBulanIni) {
                                                                 echo '<span class="inline-flex items-center text-xs leading-5 font-semibold rounded-full px-2 py-1 badge-lunas"><i class="fas fa-check-circle text-green-500 mr-1.5"></i>Lunas ' . htmlspecialchars($filterBulanBayar) . '</span>';
                                                             } else {
