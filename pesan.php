@@ -127,6 +127,7 @@ function getBlockedNumbers($conn) {
 }
 
 // --- 1. HANDLE AJAX KIRIM ---
+// --- 1. HANDLE AJAX KIRIM ---
 if (isset($_POST['ajax_send'])) {
     header('Content-Type: application/json');
     $cid = $_POST['contact_id'] ?? '';
@@ -156,10 +157,22 @@ if (isset($_POST['ajax_send'])) {
         $pesan = str_ireplace(['[nama]', '[NAMA]', '{nama}', '{NAMA}'], $nama, $msgTmpl);
         $pesan = str_replace('  ', ' ', $pesan);
         
-        $hasilAPI = kirimPesan($cid, $pesan, $apiUrl, $apiToken);
+        // ==========================================
+        // PERUBAHAN SKEMA: MASUKKAN KE ANTREAN CRON
+        // ==========================================
         
-        if($hasilAPI['status'] === 'TERKIRIM') {
-            $tmplNameSafe = $conn->real_escape_string($tmplName);
+        // 1. Matikan pengiriman API secara langsung
+        // $hasilAPI = kirimPesan($cid, $pesan, $apiUrl, $apiToken);
+        
+        // 2. Insert ke wa_queue_satuan (seperti di reminder.php)
+        $stmt_queue = $conn->prepare("INSERT INTO wa_queue_satuan (nowa, nama, pesan, status) VALUES (?, ?, ?, 'pending')");
+        $stmt_queue->bind_param("sss", $cid, $nama, $pesan);
+        
+        if($stmt_queue->execute()) {
+            $stmt_queue->close();
+            
+            // Beri label (Antrean) agar admin tahu pesan sedang dalam antrean Cron
+            $tmplNameSafe = $conn->real_escape_string($tmplName . " (Antrean)");
             $historyLog = date('d/m/Y H:i') . " - " . $tmplNameSafe;
             $newHistory = empty($currentHistory) ? $historyLog : $currentHistory . '|||' . $historyLog;
             $newHistorySafe = $conn->real_escape_string($newHistory);
@@ -167,10 +180,10 @@ if (isset($_POST['ajax_send'])) {
             $conn->query("UPDATE log_wa SET last_followup_at = NOW(), is_form_sent = GREATEST(is_form_sent, $isForm), last_template_name = '$tmplNameSafe', template_history = '$newHistorySafe' WHERE nowa = '$cid'");
             
             if (!in_array($cid, $_SESSION['followed_up_today'])) $_SESSION['followed_up_today'][] = $cid;
-            // Kirim balik nama user agar notifikasi toast lebih personal
+            
             echo json_encode(['status' => 'success', 'nama' => $nama, 'new_history' => $newHistory, 'fu_tmpl' => $tmplNameSafe, 'fu_time' => date('d/m H:i')]);
         } else {
-            echo json_encode(['status' => 'error', 'msg' => $hasilAPI['msg']]);
+            echo json_encode(['status' => 'error', 'msg' => 'Gagal memasukkan pesan ke antrean server.']);
         }
     } else {
         echo json_encode(['status' => 'error', 'msg' => 'Template atau kontak tidak valid']);
