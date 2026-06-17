@@ -262,13 +262,28 @@ if ($res_3d) {
 }
 arsort($trend_3d);
 
-$search = $_GET['search'] ?? ''; $f_start = $_GET['from'] ?? ''; $f_end = $_GET['to'] ?? ''; $f_minat = $_GET['minat'] ?? ''; 
+// PERBAIKAN 1: Eksekusi variabel pencarian dan Tanggal DI LUAR LOOP
+$search = $_GET['search'] ?? ''; 
+$search_lower = $search ? strtolower($search) : '';
 
-$targetOrganik = []; $targetManual = []; $organikSudahDichat = []; $manualSudahDichat = [];
+$f_start = $_GET['from'] ?? ''; 
+$f_start_str = $f_start ? $f_start . " 00:00:00" : null;
+
+$f_end = $_GET['to'] ?? ''; 
+$f_end_str = $f_end ? $f_end . " 23:59:59" : null;
+
+$f_minat = $_GET['minat'] ?? ''; 
+
+$targetOrganik_raw = []; $targetManual_raw = []; 
 $processed = []; $statistikMinat = []; $idsToDelete = [];
 
-$sql = "SELECT * FROM log_wa ORDER BY CASE WHEN (message = 'Data CSV/Manual' OR message = '') THEN 1 ELSE 0 END ASC, created_at DESC";
+// PERBAIKAN 2: Jangan pakai SELECT *. Ambil kolom yang dibutuhkan saja agar RAM tidak jebol
+$sql = "SELECT id, nowa, nama, message, created_at, last_followup_at, last_template_name, template_history 
+        FROM log_wa 
+        ORDER BY CASE WHEN (message = 'Data CSV/Manual' OR message = '') THEN 1 ELSE 0 END ASC, created_at DESC";
 $res = $conn->query($sql);
+
+$followed_up_session = $_SESSION['followed_up_today'] ?? [];
 
 while ($row = $res->fetch_assoc()) {
     $raw_nowa = $row['nowa'];
@@ -278,7 +293,7 @@ while ($row = $res->fetch_assoc()) {
     if(strpos($n_log,'0')===0) $n_log = '62'.substr($n_log,1);
     if(empty($n_log)) continue;
 
-    // Deduplikasi Prioritas: Organik > Manual
+    // Deduplikasi Prioritas
     if(isset($processed[$n_log])) {
         if ($row['message'] === 'Data CSV/Manual') $idsToDelete[] = $row['id']; 
         continue;
@@ -288,23 +303,49 @@ while ($row = $res->fetch_assoc()) {
     // Cek Blocklist
     if (isset($disqualified[$n_log]) || isset($blocked[$n_log])) continue;
     
-    // Hitung Klasifikasi (Perlu untuk Statistik Header)
+    // Hitung Klasifikasi
     $klas = classifyMessage($row['message']);
     if ($klas === 'Lainnya') continue;
 
     if (!isset($statistikMinat[$klas])) $statistikMinat[$klas] = 0;
     $statistikMinat[$klas]++;
 
-    // Terapkan Filter Tanggal & Pencarian & Minat (Jika tidak lolos, skip agar RAM/CPU aman dari regex)
+    // PERBAIKAN 3: Filter Tanggal menggunakan perbandingan String murni (Lebih cepat dari strtotime() di loop)
     if ($f_minat && $klas !== $f_minat) continue;
-    if ($f_start && date('Y-m-d', strtotime($row['created_at'])) < $f_start) continue;
-    if ($f_end && date('Y-m-d', strtotime($row['created_at'])) > $f_end) continue;
-    if ($search) {
-        $s = strtolower($search);
-        if (strpos(strtolower($row['nama']), $s) === false && strpos(strtolower($row['nowa']), $s) === false) continue;
+    if ($f_start_str && $row['created_at'] < $f_start_str) continue;
+    if ($f_end_str && $row['created_at'] > $f_end_str) continue;
+    if ($search_lower) {
+        if (strpos(strtolower($row['nama']), $search_lower) === false && strpos(strtolower($row['nowa']), $search_lower) === false) continue;
     }
 
-    // --- PROSES REGEX NAMA & GENDER (Hanya dijalankan pada data yang LOLOS filter) ---
+    $is_fu_today = (in_array($raw_nowa, $followed_up_session) || in_array($n_log, $followed_up_session));
+
+    // SIMPAN DATA MENTAH SAJA (Hindari pemrosesan Regex di loop puluhan ribu data)
+    $row['clean_wa'] = $n_log;
+    $row['klas'] = $klas;
+    $row['is_fu_today'] = $is_fu_today;
+
+    if ($klas === 'Data CSV/Manual') {
+        $targetManual_raw[] = $row;
+    } else {
+        $targetOrganik_raw[] = $row;
+    }
+}
+
+if (!empty($idsToDelete)) $conn->query("DELETE FROM log_wa WHERE id IN (" . implode(',', $idsToDelete) . ")");
+
+$page_o = isset($_GET['page_o']) ? max(1, (int)$_GET['page_o']) : 1;
+$page_m = isset($_GET['page_m']) ? max(1, (int)$_GET['page_m']) : 1;
+$per_page = 10;
+$total_o = count($targetOrganik_raw); $total_m = count($targetManual_raw);
+$pages_o = max(1, ceil($total_o / $per_page)); $pages_m = max(1, ceil($total_m / $per_page));
+
+// PERBAIKAN 4: Potong array dulu sesuai halaman pagination
+$paged_organik_raw = array_slice($targetOrganik_raw, ($page_o - 1) * $per_page, $per_page);
+$paged_manual_raw = array_slice($targetManual_raw, ($page_m - 1) * $per_page, $per_page);
+
+// Fungsi ini HANYA akan dipanggil untuk 10 baris data yang tampil di layar (Menghemat 99% CPU Server)
+function formatFinalData($row) {
     $msgRaw = $row['message'] ?? '';
     $namaDb = trim($row['nama']);
     $extractedName = ''; $extractedGender = '-';
@@ -314,53 +355,46 @@ while ($row = $res->fetch_assoc()) {
     if (preg_match('/\((ikhwan|akhwat|laki-laki|perempuan|laki|pr)\)/i', $msgRaw, $m)) $extractedGender = ucfirst(strtolower(trim($m[1])));
     
     $finalName = !empty($extractedName) ? $extractedName : (!empty($namaDb) ? $namaDb : 'Hamba Allah');
-    $is_fu_today = (in_array($raw_nowa, $_SESSION['followed_up_today']) || in_array($n_log, $_SESSION['followed_up_today']));
 
-    $data = [
+    return [
         'id' => $row['id'],
         'nowa' => $row['nowa'], 
-        'clean_wa' => $n_log, 
+        'clean_wa' => $row['clean_wa'], 
         'nama' => $finalName, 
         'gender' => $extractedGender,
-        'klas' => $klas,
+        'klas' => $row['klas'],
         'msgRaw' => $msgRaw,
         'fu_text' => $row['last_followup_at'] ? date('d/m H:i', strtotime($row['last_followup_at'])) : 'Belum Pernah',
         'fu_tmpl' => $row['last_template_name'] ? $row['last_template_name'] : 'Baru',
         'history' => $row['template_history'] ?? ''
     ];
-
-    if ($klas === 'Data CSV/Manual') {
-        $targetManual[] = $data;
-        if ($is_fu_today) $manualSudahDichat[] = $data; 
-    } else {
-        $targetOrganik[] = $data;
-        if ($is_fu_today) $organikSudahDichat[] = $data; 
-    }
 }
 
-if (!empty($idsToDelete)) $conn->query("DELETE FROM log_wa WHERE id IN (" . implode(',', $idsToDelete) . ")");
+// Map ke 10 target
+$targetOrganik_paged = array_map('formatFinalData', $paged_organik_raw);
+$targetManual_paged = array_map('formatFinalData', $paged_manual_raw);
 
-$page_o = isset($_GET['page_o']) ? max(1, (int)$_GET['page_o']) : 1;
-$page_m = isset($_GET['page_m']) ? max(1, (int)$_GET['page_m']) : 1;
-$per_page = 10;
-$total_o = count($targetOrganik); $total_m = count($targetManual);
-$pages_o = max(1, ceil($total_o / $per_page)); $pages_m = max(1, ceil($total_m / $per_page));
-
-$targetOrganik_paged = array_slice($targetOrganik, ($page_o - 1) * $per_page, $per_page);
-$targetManual_paged = array_slice($targetManual, ($page_m - 1) * $per_page, $per_page);
+// Ekstrak Sidebar Notifikasi (Hanya map baris data yang disapa hari ini)
+$organikSudahDichat = array_map('formatFinalData', array_filter($targetOrganik_raw, function($r) { return $r['is_fu_today']; }));
+$manualSudahDichat = array_map('formatFinalData', array_filter($targetManual_raw, function($r) { return $r['is_fu_today']; }));
 
 function buildPageUrl($pageType, $pageNum) {
     $params = $_GET; $params[$pageType] = $pageNum;
     return '?' . http_build_query($params);
 }
 
+// PERBAIKAN 5: Jalankan semua Regex Export JIKA HANYA tombol export diklik
 if (isset($_GET['export_csv_action'])) {
     header('Content-Type: text/csv; charset=utf-8'); 
     header('Content-Disposition: attachment; filename=Prospek_Filtered.csv');
     $output = fopen('php://output', 'w'); 
     fputcsv($output, ['Nama', 'Gender', 'Nomor WA', 'Minat', 'Tgl Follow-up Terakhir', 'Template Terakhir']);
-    $allExportData = array_merge($targetOrganik, $targetManual);
-    foreach($allExportData as $r) fputcsv($output, [$r['nama'], $r['gender'], $r['nowa'], $r['klas'], $r['fu_text'], $r['fu_tmpl']]); 
+    
+    $allExportRaw = array_merge($targetOrganik_raw, $targetManual_raw);
+    foreach($allExportRaw as $r) {
+        $formatted = formatFinalData($r);
+        fputcsv($output, [$formatted['nama'], $formatted['gender'], $formatted['nowa'], $formatted['klas'], $formatted['fu_text'], $formatted['fu_tmpl']]); 
+    }
     fclose($output); exit;
 }
 ?>
