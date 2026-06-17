@@ -38,12 +38,33 @@ require_once 'auth_checkwa.php';
         .nav-menu::-webkit-scrollbar-track { background: transparent; }
         .nav-menu::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         
-        /* ✅ NAV LINK & HOVER */
-        .nav-link { transition: all 0.25s ease; border-radius: 12px; position: relative; overflow: hidden; border: 1px solid transparent; }
-        .nav-link:hover { transform: translateX(4px); }
+        /* ✅ 1. MAGNETIC NAV LINK & HOVER */
+        .nav-link { 
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.25s, color 0.25s; 
+            border-radius: 12px; position: relative; border: 1px solid transparent; 
+        }
+        /* Efek Magnetic: tertarik dan membesar sedikit saat di-hover */
+        .nav-link:hover { transform: scale(1.02) translateX(4px); }
         .nav-link:hover .icon-wrapper i { animation: iconBounce 0.4s ease-in-out; }
         @keyframes iconBounce { 0% { transform: scale(1); } 50% { transform: scale(1.2) rotate(5deg); } 100% { transform: scale(1); } }
         .nav-link.active { font-weight: 600; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); }
+
+        /* ✅ 4. SMART FLOATING TOOLTIP */
+        .nav-tooltip {
+            position: absolute; left: 100%; top: 50%; transform: translateY(-50%) translateX(10px);
+            background: #1e293b; color: white; padding: 5px 12px; border-radius: 6px;
+            font-size: 12px; font-weight: 500; white-space: nowrap; pointer-events: none;
+            opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .sidebar.collapsed .nav-link:hover .nav-tooltip { opacity: 1; transform: translateY(-50%) translateX(4px); }
+        .sidebar:not(.collapsed) .nav-tooltip { display: none; }
+
+        /* ✅ TRANSISI TEKS SMOOTH SAAT MINIMIZE */
+        .menu-text, .section-label, .logo-text, .logout-text {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap; overflow: hidden; opacity: 1;
+        }
 
         /* ✅ SIDEBAR DESKTOP (COLLAPSED MODE) */
         .sidebar { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s ease; z-index: 60; background: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
@@ -52,13 +73,12 @@ require_once 'auth_checkwa.php';
             .sidebar { width: 17rem; position: relative; }
             .sidebar.collapsed { width: 5rem; }
             
-            /* Sembunyikan teks saat collapsed */
+            /* Teks hilang dengan transisi, tidak pakai display:none */
             .sidebar.collapsed .menu-text, 
             .sidebar.collapsed .section-label, 
             .sidebar.collapsed .logo-text,
-            .sidebar.collapsed .logout-text { opacity: 0; width: 0; overflow: hidden; white-space: nowrap; margin: 0; padding: 0; display: none; }
+            .sidebar.collapsed .logout-text { opacity: 0; width: 0; margin: 0; padding: 0; }
             
-            /* Pusatkan ikon */
             .sidebar.collapsed .nav-link { justify-content: center; padding: 0.75rem 0; }
             .sidebar.collapsed .header-brand { justify-content: center; }
             .sidebar.collapsed .logout-btn { justify-content: center; padding: 0.75rem 0; }
@@ -70,11 +90,32 @@ require_once 'auth_checkwa.php';
             .sidebar.show { transform: translateX(0); }
         }
 
-        /* ✅ IFRAME & LOADER (GLASSMORPHISM) */
-        #main-frame { width: 100%; height: 100%; border: none; background: transparent; transition: opacity 0.3s ease; opacity: 0; }
+        /* ✅ 2. IFRAME SLIDE-IN ENTRANCE & LOADER */
+        #main-frame { 
+            width: 100%; height: 100%; border: none; background: transparent; 
+            opacity: 0; transform: translateY(20px); 
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out; 
+        }
         #loading-overlay { backdrop-filter: blur(8px); background-color: rgba(255, 255, 255, 0.85); transition: opacity 0.3s ease, visibility 0.3s; z-index: 30; }
         .loader-spin { animation: spinModern 0.9s cubic-bezier(0.5, 0, 0.5, 1) infinite; }
         @keyframes spinModern { 100% { transform: rotate(360deg); } }
+
+        /* ✅ 3. SUBTLE PROGRESS INDICATOR (LINE LOADER) */
+        #line-loader {
+            position: absolute; top: 0; left: 0; height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #14b8a6);
+            z-index: 50; width: 0; opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .loading-active {
+            opacity: 1 !important;
+            animation: loadingLine 1.5s infinite ease-in-out;
+        }
+        @keyframes loadingLine {
+            0% { left: -35%; width: 35%; }
+            60% { left: 100%; width: 100%; }
+            100% { left: 100%; width: 0%; }
+        }
 
         /* Toggle Desktop Button */
         .btn-collapse { position: absolute; right: -12px; top: 22px; background: white; border: 1px solid #e2e8f0; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b; z-index: 70; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -109,18 +150,22 @@ require_once 'auth_checkwa.php';
             <a href="pesan.php" class="nav-link active flex items-center gap-3 px-3 py-2.5" data-title="Follow-Up & Single" data-subtitle="Kirim pesan langsung ke target" data-icon="fa-envelope" data-bg="#dbeafe" data-text="#2563eb" data-iconcolor="#3b82f6" data-hover="#eff6ff">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-envelope text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Pesan Personal</span>
+                <span class="nav-tooltip">Pesan Personal</span>
             </a>
             <a href="kirimgrup.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Kirim Pesan Grup" data-subtitle="Broadcast ke grup WhatsApp" data-icon="fa-users" data-bg="#dcfce7" data-text="#166534" data-iconcolor="#059669" data-hover="#e8f5e9">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-users text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Pesan Grup</span>
+                <span class="nav-tooltip">Pesan Grup</span>
             </a>
             <a href="promosi.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Promosi Broadcast" data-subtitle="Kirim promosi massal" data-icon="fa-bullhorn" data-bg="#dcfce7" data-text="#16a34a" data-iconcolor="#22c55e" data-hover="#f0fdf4">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-bullhorn text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Promosi Massal</span>
+                <span class="nav-tooltip">Promosi Massal</span>
             </a>
             <a href="wa-tut.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Pesan Tutor WhatsApp" data-subtitle="Manajemen materi & tutorial" data-icon="fa-chalkboard-user" data-bg="#f3e8ff" data-text="#9333ea" data-iconcolor="#a855f7" data-hover="#faf5ff">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-chalkboard-user text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Pesan Tutor</span>
+                <span class="nav-tooltip">Pesan Tutor</span>
             </a>
 
             <div class="section-label text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 pb-1 pt-4">Sistem & Auto</div>
@@ -128,14 +173,17 @@ require_once 'auth_checkwa.php';
             <a href="reminder.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Reminder Pembayaran" data-subtitle="Jadwalkan pengingat tagihan" data-icon="fa-bell" data-bg="#fef3c7" data-text="#d97706" data-iconcolor="#f59e0b" data-hover="#fffbeb">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-bell text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Tagihan Pembayaran</span>
+                <span class="nav-tooltip">Tagihan Pembayaran</span>
             </a>
             <a href="kelola_reminder.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Sistem Reminder Otomatis" data-subtitle="Robot pengingat peserta" data-icon="fa-clock" data-bg="#ffedd5" data-text="#ea580c" data-iconcolor="#f97316" data-hover="#fff7ed">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-clock text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Robot Reminder</span>
+                <span class="nav-tooltip">Robot Reminder</span>
             </a>
             <a href="manage_auto_reply.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Auto Reply Cerdas" data-subtitle="Balasan otomatis" data-icon="fa-reply-all" data-bg="#ffe4e6" data-text="#e11d48" data-iconcolor="#f43f5e" data-hover="#fff1f2">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-reply-all text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Auto Reply</span>
+                <span class="nav-tooltip">Auto Reply</span>
             </a>
 
             <div class="section-label text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 pb-1 pt-4">Database</div>
@@ -143,15 +191,18 @@ require_once 'auth_checkwa.php';
             <a href="manage_templates.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Manajemen Template" data-subtitle="Atur format pesan" data-icon="fa-file-alt" data-bg="#ccfbf1" data-text="#0f766e" data-iconcolor="#14b8a6" data-hover="#f0fdfa">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-file-alt text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Template Pesan</span>
+                <span class="nav-tooltip">Template Pesan</span>
             </a>
             <a href="kelola_grup.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Manajemen Grup" data-subtitle="Edit daftar grup target" data-icon="fa-address-book" data-bg="#e0e7ff" data-text="#4f46e5" data-iconcolor="#818cf8" data-hover="#eef2ff">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-address-book text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Kelola Grup</span>
+                <span class="nav-tooltip">Kelola Grup</span>
             </a>
             
             <a href="grafik.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Dashboard Statistik" data-subtitle="Analitik performa" data-icon="fa-chart-line" data-bg="#ede9fe" data-text="#6d28d9" data-iconcolor="#8b5cf6" data-hover="#f5f3ff">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-chart-line text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Statistik Data</span>
+                <span class="nav-tooltip">Statistik Data</span>
             </a>
         </nav>
 
@@ -189,6 +240,8 @@ require_once 'auth_checkwa.php';
         </header>
 
         <div class="flex-1 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 relative bg-slate-50/30">
+            <div id="line-loader"></div>
+
             <div id="loading-overlay" class="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <i class="fab fa-whatsapp text-4xl text-[#166534] loader-spin"></i>
                 <p class="text-xs font-bold text-slate-500 tracking-wide bg-white/80 px-4 py-1.5 rounded-full shadow-sm">Memuat modul...</p>
@@ -200,23 +253,25 @@ require_once 'auth_checkwa.php';
     <script>
         const iframe = document.getElementById('main-frame');
         const loader = document.getElementById('loading-overlay');
+        const lineLoader = document.getElementById('line-loader');
         const navLinks = document.querySelectorAll('.nav-link');
         const sidebar = document.getElementById('sidebar');
         
-        // 1. Logika Navigasi Tab (Tanpa Bug, Mulus, & Singkat)
         function switchTab(e, link) {
             e.preventDefault();
             const targetUrl = link.getAttribute('href');
             
-            // Cegah loading ulang jika mengklik tab yang sama persis
             if (iframe.src.includes(targetUrl)) return; 
 
-            // Tampilkan Glassmorphism Loader
+            // Tampilkan Line Loader & Overlay
             loader.style.visibility = 'visible';
             loader.style.opacity = '1';
+            lineLoader.classList.add('loading-active'); // Aktifkan progress indicator
+            
+            // 2. Turunkan dan hilangkan iframe (Slide Out)
             iframe.style.opacity = '0';
+            iframe.style.transform = 'translateY(20px)';
 
-            // Update Status Active Menu (Loop Sangat Cepat)
             navLinks.forEach(l => {
                 l.classList.remove('active');
                 l.style.background = ''; l.style.color = '';
@@ -228,29 +283,32 @@ require_once 'auth_checkwa.php';
             link.style.color = link.dataset.text;
             link.querySelector('.icon-wrapper').style.color = link.dataset.iconcolor;
 
-            // Update Header Dinamis
             document.getElementById('page-title').textContent = link.dataset.title;
             document.getElementById('page-subtitle').textContent = link.dataset.subtitle;
             document.getElementById('header-icon').className = `fas ${link.dataset.icon} text-lg transition-all`;
             document.getElementById('header-icon-box').className = `${link.dataset.bg} ${link.dataset.text} p-2.5 rounded-xl shadow-sm`;
             document.getElementById('title-dot').className = `w-1.5 h-1.5 rounded-full ${link.dataset.text.replace('text', 'bg')}`;
 
-            // Pindah Halaman & Simpan History
             iframe.src = targetUrl;
             localStorage.setItem('reqrawa_active', targetUrl);
             
-            // Tutup sidebar di mobile
             if (window.innerWidth <= 768) toggleMobileSidebar(false);
         }
 
-        // 2. Injeksi DOM Cerdas (Saat Iframe Selesai Dimuat)
         iframe.onload = () => {
-            // Sembunyikan loader dengan efek fade-out
+            // Sembunyikan loader overlay
             loader.style.opacity = '0';
             setTimeout(() => loader.style.visibility = 'hidden', 300);
-            iframe.style.opacity = '1';
+            
+            // Hentikan line loader
+            lineLoader.classList.remove('loading-active');
 
-            // Sembunyikan Header & Sidebar bawaan halaman anak (Mencegah Tabrakan UI)
+            // 2. Munculkan iframe ke atas (Slide In Entrance)
+            setTimeout(() => {
+                iframe.style.opacity = '1';
+                iframe.style.transform = 'translateY(0)';
+            }, 100);
+
             try {
                 const doc = iframe.contentDocument || iframe.contentWindow.document;
                 const innerHeader = doc.querySelector('header');
@@ -258,27 +316,24 @@ require_once 'auth_checkwa.php';
                 if(innerHeader) innerHeader.style.display = 'none';
                 if(innerSidebar) innerSidebar.style.display = 'none';
                 doc.body.style.backgroundColor = 'transparent';
-            } catch(e) { /* Diabaikan jika beda origin */ }
+            } catch(e) { }
         };
 
-        // 3. Efek Hover Dinamis
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => switchTab(e, link));
             link.addEventListener('mouseenter', () => { if(!link.classList.contains('active')) link.style.backgroundColor = link.dataset.hover; });
             link.addEventListener('mouseleave', () => { if(!link.classList.contains('active')) link.style.backgroundColor = ''; });
         });
 
-        // 4. Inisialisasi Tab Terakhir
         const savedUrl = localStorage.getItem('reqrawa_active');
         if(savedUrl) {
             const savedLink = Array.from(navLinks).find(l => l.getAttribute('href') === savedUrl);
             if(savedLink) {
-                iframe.src = savedUrl; // Langsung tembak src agar cepat
+                iframe.src = savedUrl; 
                 savedLink.click(); 
             }
         }
 
-        // 5. Fitur Minimize Sidebar (Desktop & Mobile)
         const btnCollapse = document.getElementById('desktop-collapse-btn');
         const iconCollapse = document.getElementById('collapse-icon');
         const mobileOverlay = document.getElementById('mobile-overlay');
