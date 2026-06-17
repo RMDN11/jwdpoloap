@@ -127,12 +127,13 @@ function getBlockedNumbers($conn) {
 }
 
 // --- 1. HANDLE AJAX KIRIM ---
-// --- 1. HANDLE AJAX KIRIM ---
+// --- 1. HANDLE AJAX KIRIM (DIUBAH KE SISTEM ANTREAN) ---
 if (isset($_POST['ajax_send'])) {
     header('Content-Type: application/json');
     $cid = $_POST['contact_id'] ?? '';
     $tmplId = $_POST['template_id'] ?? '';
 
+    // Ambil data template
     $stT = $conn->prepare("SELECT name, content FROM poloap_templates WHERE id = ?");
     $stT->bind_param("i", $tmplId); $stT->execute(); 
     $tmplData = $stT->get_result()->fetch_assoc();
@@ -142,6 +143,7 @@ if (isset($_POST['ajax_send'])) {
     if($msgTmpl && $cid) {
         $isForm = (stripos($msgTmpl, 'penempatan halaqoh') !== false) ? 1 : 0;
         
+        // Ambil data user
         $stN = $conn->prepare("SELECT nama, message, template_history FROM log_wa WHERE nowa = ? LIMIT 1");
         $stN->bind_param("s", $cid); $stN->execute(); 
         $dbRow = $stN->get_result()->fetch_assoc();
@@ -154,25 +156,21 @@ if (isset($_POST['ajax_send'])) {
         elseif (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?/i', $msgText, $m)) $nama = trim($m[1]);
         if (empty($nama) || strtolower($nama) == 'kak') $nama = 'Kak';
 
+        // Persiapkan pesan
         $pesan = str_ireplace(['[nama]', '[NAMA]', '{nama}', '{NAMA}'], $nama, $msgTmpl);
         $pesan = str_replace('  ', ' ', $pesan);
         
-        // ==========================================
-        // PERUBAHAN SKEMA: MASUKKAN KE ANTREAN CRON
-        // ==========================================
-        
-        // 1. Matikan pengiriman API secara langsung
-        // $hasilAPI = kirimPesan($cid, $pesan, $apiUrl, $apiToken);
-        
-        // 2. Insert ke wa_queue_satuan (seperti di reminder.php)
+        // =============================================================
+        // PERUBAHAN: INSERT KE TABEL ANTRIAN (wa_queue_satuan)
+        // =============================================================
         $stmt_queue = $conn->prepare("INSERT INTO wa_queue_satuan (nowa, nama, pesan, status) VALUES (?, ?, ?, 'pending')");
         $stmt_queue->bind_param("sss", $cid, $nama, $pesan);
         
         if($stmt_queue->execute()) {
             $stmt_queue->close();
             
-            // Beri label (Antrean) agar admin tahu pesan sedang dalam antrean Cron
-            $tmplNameSafe = $conn->real_escape_string($tmplName . " (Antrean)");
+            // Log history ke database agar UI tetap terupdate
+            $tmplNameSafe = $conn->real_escape_string($tmplName . " (Antrian)");
             $historyLog = date('d/m/Y H:i') . " - " . $tmplNameSafe;
             $newHistory = empty($currentHistory) ? $historyLog : $currentHistory . '|||' . $historyLog;
             $newHistorySafe = $conn->real_escape_string($newHistory);
@@ -181,9 +179,16 @@ if (isset($_POST['ajax_send'])) {
             
             if (!in_array($cid, $_SESSION['followed_up_today'])) $_SESSION['followed_up_today'][] = $cid;
             
-            echo json_encode(['status' => 'success', 'nama' => $nama, 'new_history' => $newHistory, 'fu_tmpl' => $tmplNameSafe, 'fu_time' => date('d/m H:i')]);
+            // Respon sukses
+            echo json_encode([
+                'status' => 'success', 
+                'nama' => $nama, 
+                'new_history' => $newHistory, 
+                'fu_tmpl' => $tmplNameSafe, 
+                'fu_time' => date('d/m H:i')
+            ]);
         } else {
-            echo json_encode(['status' => 'error', 'msg' => 'Gagal memasukkan pesan ke antrean server.']);
+            echo json_encode(['status' => 'error', 'msg' => 'Gagal memasukkan ke antrian: ' . $conn->error]);
         }
     } else {
         echo json_encode(['status' => 'error', 'msg' => 'Template atau kontak tidak valid']);
