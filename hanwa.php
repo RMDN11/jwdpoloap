@@ -39,13 +39,13 @@ require_once 'auth_checkwa.php';
         .nav-menu::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         
         /* ✅ 1. MAGNETIC NAV LINK & HOVER */
-        .nav-link { 
+        .nav-link, .logout-btn { 
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.25s, color 0.25s; 
             border-radius: 12px; position: relative; border: 1px solid transparent; 
         }
         /* Efek Magnetic: tertarik dan membesar sedikit saat di-hover */
-        .nav-link:hover { transform: scale(1.02) translateX(4px); }
-        .nav-link:hover .icon-wrapper i { animation: iconBounce 0.4s ease-in-out; }
+        .nav-link:hover, .logout-btn:hover { transform: scale(1.02) translateX(4px); }
+        .nav-link:hover .icon-wrapper i, .logout-btn:hover .icon-wrapper i { animation: iconBounce 0.4s ease-in-out; }
         @keyframes iconBounce { 0% { transform: scale(1); } 50% { transform: scale(1.2) rotate(5deg); } 100% { transform: scale(1); } }
         .nav-link.active { font-weight: 600; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); }
 
@@ -57,7 +57,8 @@ require_once 'auth_checkwa.php';
             opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 100; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        .sidebar.collapsed .nav-link:hover .nav-tooltip { opacity: 1; transform: translateY(-50%) translateX(4px); }
+        .sidebar.collapsed .nav-link:hover .nav-tooltip,
+        .sidebar.collapsed .logout-btn:hover .nav-tooltip { opacity: 1; transform: translateY(-50%) translateX(4px); }
         .sidebar:not(.collapsed) .nav-tooltip { display: none; }
 
         /* ✅ TRANSISI TEKS SMOOTH SAAT MINIMIZE */
@@ -73,15 +74,20 @@ require_once 'auth_checkwa.php';
             .sidebar { width: 17rem; position: relative; }
             .sidebar.collapsed { width: 5rem; }
             
+            /* HILANGKAN GAP SUPAYA ICON BENAR-BENAR KE TENGAH */
+            .sidebar.collapsed .nav-link,
+            .sidebar.collapsed .logout-btn,
+            .sidebar.collapsed .header-brand { gap: 0 !important; }
+
             /* Teks hilang dengan transisi, tidak pakai display:none */
             .sidebar.collapsed .menu-text, 
             .sidebar.collapsed .section-label, 
             .sidebar.collapsed .logo-text,
             .sidebar.collapsed .logout-text { opacity: 0; width: 0; margin: 0; padding: 0; }
             
-            .sidebar.collapsed .nav-link { justify-content: center; padding: 0.75rem 0; }
-            .sidebar.collapsed .header-brand { justify-content: center; }
+            .sidebar.collapsed .nav-link,
             .sidebar.collapsed .logout-btn { justify-content: center; padding: 0.75rem 0; }
+            .sidebar.collapsed .header-brand { justify-content: center; }
         }
 
         /* SIDEBAR MOBILE */
@@ -207,9 +213,10 @@ require_once 'auth_checkwa.php';
         </nav>
 
         <div class="px-3 pb-4 mt-2 border-t border-slate-100 pt-3 shrink-0">
-            <a href="logoutwa.php" class="logout-btn flex items-center gap-3 px-3 py-2 rounded-xl text-rose-500 hover:bg-rose-50 transition-colors font-medium">
-                <i class="fas fa-sign-out-alt w-6 text-center text-rose-400 shrink-0"></i> 
-                <span class="logout-text text-[13px] font-semibold">Keluar Akun</span>
+            <a href="logoutwa.php" class="logout-btn flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-500 hover:bg-rose-50 transition-colors font-medium">
+                <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-sign-out-alt text-lg text-rose-500"></i></div>
+                <span class="logout-text text-[13px] font-semibold tracking-wide">Keluar Akun</span>
+                <span class="nav-tooltip" style="background-color: #e11d48;">Keluar Akun</span>
             </a>
         </div>
     </aside>
