@@ -266,12 +266,27 @@ $jsTemplates = []; $pesanTemplates = [];
 $res = $conn->query("SELECT id, name, content FROM poloap_templates ORDER BY name");
 while($r = $res->fetch_assoc()) { $pesanTemplates[] = $r; $jsTemplates[$r['id']] = $r['content']; }
 
-// AMBIL TREND MINAT 7 HARI TERAKHIR (SEPEKAN)
+// AMBIL TREND MINAT 7 HARI TERAKHIR (SEPEKAN) DENGAN LOGIKA GRAFIK.PHP
 $trend_7d = [];
-$seven_days_ago = date('Y-m-d 00:00:00', strtotime('-7 days'));
-$res_7d = $conn->query("SELECT message FROM log_wa WHERE created_at >= '$seven_days_ago' AND message != 'Data CSV/Manual' AND message != ''");
+$processed_trend = []; // Untuk mencegah duplikasi nomor
+$tgl_mulai_trend = date('Y-m-d', strtotime('-7 days'));
+$tgl_akhir_trend = date('Y-m-d');
+
+$res_7d = $conn->query("SELECT nowa, message FROM log_wa WHERE created_at >= '$tgl_mulai_trend 00:00:00' AND created_at <= '$tgl_akhir_trend 23:59:59' AND message != 'Data CSV/Manual' AND message != '' ORDER BY created_at ASC");
+
 if ($res_7d) {
     while($r7 = $res_7d->fetch_assoc()) {
+        $n_log = preg_replace('/\D/', '', $r7['nowa']);
+        if(strpos($n_log,'0')===0) $n_log = '62'.substr($n_log,1);
+        if(empty($n_log)) continue;
+        
+        // Deduplikasi (Setiap nomor WA hanya dihitung 1x)
+        if(isset($processed_trend[$n_log])) continue;
+        $processed_trend[$n_log] = true;
+        
+        // Filter Abaikan nomor disqualified / blocked
+        if (isset($disqualified[$n_log]) || isset($blocked[$n_log])) continue;
+
         $k = classifyMessage($r7['message']);
         if ($k !== 'Lainnya' && $k !== 'Data CSV/Manual') {
             $trend_7d[$k] = ($trend_7d[$k] ?? 0) + 1;
@@ -280,6 +295,10 @@ if ($res_7d) {
 }
 arsort($trend_7d);
 
+// Format Tanggal Teks Bahasa Indonesia
+$namaBulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+$m_index = (int)date('m', strtotime($tgl_mulai_trend));
+$tgl_teks_trend = date('d', strtotime($tgl_mulai_trend)) . ' ' . $namaBulan[$m_index] . ' ' . date('Y');
 // PERBAIKAN 1: Eksekusi variabel pencarian dan Tanggal DI LUAR LOOP
 $search = $_GET['search'] ?? ''; 
 $search_lower = $search ? strtolower($search) : '';
@@ -610,7 +629,7 @@ if (isset($_GET['export_csv_action'])) {
                     <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm shrink-0 border border-white/20"><i class="fas fa-fire text-xl text-orange-300"></i></div>
                     <div>
                         <h3 class="font-bold text-sm md:text-base">Trend Minat (Sepekan Terakhir)</h3>
-                        <p class="text-[10px] md:text-xs text-blue-200 mt-0.5">Top chat organik masuk sejak <?= date('d M Y', strtotime('-7 days')) ?></p>
+                        <p class="text-[10px] md:text-xs text-blue-200 mt-0.5">Top chat organik masuk sejak <?= $tgl_teks_trend ?></p>
                     </div>
                 </div>
                 
