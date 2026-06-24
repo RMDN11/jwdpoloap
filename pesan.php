@@ -609,7 +609,6 @@ if (isset($_GET['export_csv_action'])) {
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm shrink-0 border border-white/20"><i class="fas fa-fire text-xl text-orange-300"></i></div>
                     <div>
-                        <div>
                         <h3 class="font-bold text-sm md:text-base">Trend Minat (Sepekan Terakhir)</h3>
                         <p class="text-[10px] md:text-xs text-blue-200 mt-0.5">Top chat organik masuk sejak <?= date('d M Y', strtotime('-7 days')) ?></p>
                     </div>
