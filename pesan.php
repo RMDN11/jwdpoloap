@@ -266,19 +266,19 @@ $jsTemplates = []; $pesanTemplates = [];
 $res = $conn->query("SELECT id, name, content FROM poloap_templates ORDER BY name");
 while($r = $res->fetch_assoc()) { $pesanTemplates[] = $r; $jsTemplates[$r['id']] = $r['content']; }
 
-// AMBIL TREND 3 HARI TERAKHIR
-$trend_3d = [];
-$three_days_ago = date('Y-m-d 00:00:00', strtotime('-3 days'));
-$res_3d = $conn->query("SELECT message FROM log_wa WHERE created_at >= '$three_days_ago' AND message != 'Data CSV/Manual' AND message != ''");
-if ($res_3d) {
-    while($r3 = $res_3d->fetch_assoc()) {
-        $k = classifyMessage($r3['message']);
+// AMBIL TREND MINAT 7 HARI TERAKHIR (SEPEKAN)
+$trend_7d = [];
+$seven_days_ago = date('Y-m-d 00:00:00', strtotime('-7 days'));
+$res_7d = $conn->query("SELECT message FROM log_wa WHERE created_at >= '$seven_days_ago' AND message != 'Data CSV/Manual' AND message != ''");
+if ($res_7d) {
+    while($r7 = $res_7d->fetch_assoc()) {
+        $k = classifyMessage($r7['message']);
         if ($k !== 'Lainnya' && $k !== 'Data CSV/Manual') {
-            $trend_3d[$k] = ($trend_3d[$k] ?? 0) + 1;
+            $trend_7d[$k] = ($trend_7d[$k] ?? 0) + 1;
         }
     }
 }
-arsort($trend_3d);
+arsort($trend_7d);
 
 // PERBAIKAN 1: Eksekusi variabel pencarian dan Tanggal DI LUAR LOOP
 $search = $_GET['search'] ?? ''; 
@@ -291,9 +291,7 @@ $f_end = $_GET['to'] ?? '';
 $f_end_str = $f_end ? $f_end . " 23:59:59" : null;
 
 $f_minat = $_GET['minat'] ?? ''; 
-
-$targetOrganik_raw = []; $targetManual_raw = []; 
-$processed = []; $statistikMinat = []; $idsToDelete = [];
+$f_status = $_GET['status_fu'] ?? ''; // FILTER STATUS FOLLOW-UP BARU
 
 // PERBAIKAN 2: Jangan pakai SELECT *. Ambil kolom yang dibutuhkan saja agar RAM tidak jebol
 $sql = "SELECT id, nowa, nama, message, created_at, last_followup_at, last_template_name, template_history 
@@ -332,6 +330,11 @@ while ($row = $res->fetch_assoc()) {
     if ($f_minat && $klas !== $f_minat) continue;
     if ($f_start_str && $row['created_at'] < $f_start_str) continue;
     if ($f_end_str && $row['created_at'] > $f_end_str) continue;
+    
+    // FILTER STATUS FOLLOW-UP
+    if ($f_status === 'belum' && !empty($row['last_followup_at'])) continue;
+    if ($f_status === 'sudah' && empty($row['last_followup_at'])) continue;
+
     if ($search_lower) {
         if (strpos(strtolower($row['nama']), $search_lower) === false && strpos(strtolower($row['nowa']), $search_lower) === false) continue;
     }
@@ -509,6 +512,14 @@ if (isset($_GET['export_csv_action'])) {
                             <input type="date" name="to" value="<?= htmlspecialchars($f_end) ?>" class="crm-input w-full px-2 py-1.5 text-[11px]">
                         </div>
                     </div>
+                    <div>
+                        <label class="text-[10px] font-semibold text-slate-500 mb-1 block">Status Follow-Up</label>
+                        <select name="status_fu" class="crm-input w-full px-2 py-1.5 text-[11px]">
+                            <option value="">Semua Status</option>
+                            <option value="belum" <?= $f_status === 'belum' ? 'selected' : '' ?>>Belum di Proses</option>
+                            <option value="sudah" <?= $f_status === 'sudah' ? 'selected' : '' ?>>Sudah di Proses</option>
+                        </select>
+                    </div>
                     <div class="pt-1 flex gap-2">
                         <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium text-xs transition-colors shadow-sm"><i class="fas fa-check mr-1.5"></i>Terapkan</button>
                         <?php if($search || $f_start || $f_end || $f_minat): ?>
@@ -587,7 +598,7 @@ if (isset($_GET['export_csv_action'])) {
             <div class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 custom-scroll">
                 <button onclick="openModal('modalTambah')" class="shrink-0 bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm"><i class="fas fa-plus mr-1"></i> Manual</button>
                 <button onclick="openModal('modalCSV')" class="shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm"><i class="fas fa-file-csv mr-1"></i> Import CSV</button>
-                <a href="?export_csv_action=1&search=<?=urlencode($search)?>&from=<?=urlencode($f_start)?>&to=<?=urlencode($f_end)?>&minat=<?=urlencode($f_minat)?>" class="shrink-0 bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm"><i class="fas fa-download mr-1"></i> Export Data</a>
+                <a href="?export_csv_action=1&search=<?=urlencode($search)?>&from=<?=urlencode($f_start)?>&to=<?=urlencode($f_end)?>&minat=<?=urlencode($f_minat)?>&status_fu=<?=urlencode($f_status)?>" class="shrink-0 bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all shadow-sm"><i class="fas fa-download mr-1"></i> Export Data</a>
             </div>
         </header>
 
@@ -598,16 +609,17 @@ if (isset($_GET['export_csv_action'])) {
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm shrink-0 border border-white/20"><i class="fas fa-fire text-xl text-orange-300"></i></div>
                     <div>
-                        <h3 class="font-bold text-sm md:text-base">Trend Minat (3 Hari Terakhir)</h3>
-                        <p class="text-[10px] md:text-xs text-blue-200 mt-0.5">Top chat organik masuk sejak <?= date('d M Y', strtotime('-3 days')) ?></p>
+                        <div>
+                        <h3 class="font-bold text-sm md:text-base">Trend Minat (Sepekan Terakhir)</h3>
+                        <p class="text-[10px] md:text-xs text-blue-200 mt-0.5">Top chat organik masuk sejak <?= date('d M Y', strtotime('-7 days')) ?></p>
                     </div>
                 </div>
                 
                 <div class="flex-1 flex gap-2.5 overflow-x-auto custom-scroll pb-1 md:pb-0 px-2 max-w-full md:max-w-[50%]">
-                    <?php if(empty($trend_3d)): ?>
+                    <?php if(empty($trend_7d)): ?>
                         <div class="text-[11px] text-blue-200 italic flex items-center"><i class="fas fa-info-circle mr-1"></i> Belum ada data baru.</div>
                     <?php else: ?>
-                        <?php foreach(array_slice($trend_3d, 0, 4) as $m => $c): ?>
+                        <?php foreach(array_slice($trend_7d, 0, 4) as $m => $c): ?>
                             <div class="bg-black/20 border border-white/10 rounded-lg px-2.5 py-1.5 shrink-0 flex items-center gap-2 hover:bg-black/30 transition-colors cursor-default">
                                 <span class="text-[9px] font-bold uppercase tracking-wider text-blue-100"><?= $m ?></span>
                                 <span class="bg-white text-blue-800 text-[10px] font-black px-1.5 py-0.5 rounded"><?= $c ?></span>
@@ -1071,8 +1083,19 @@ async function submitSingleAjax(e, form) {
             // Tampilkan Toast Notifikasi
             showToast(`Pesan berhasil dikirim kepada ${json.nama}`, 'success');
 
-            // Update DOM Tanpa Refresh
             const tr = form.closest('tr');
+
+            // HILANGKAN BARIS JIKA FILTER "BELUM DI PROSES" SEDANG AKTIF (TANPA REFRESH HALAMAN)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('status_fu') === 'belum') {
+                tr.style.transition = "opacity 0.4s ease, transform 0.4s ease";
+                tr.style.opacity = "0";
+                tr.style.transform = "translateX(20px)";
+                setTimeout(() => tr.remove(), 400);
+                return;
+            }
+
+            // Update DOM Tanpa Refresh (Jika tidak menggunakan filter 'belum')
             let statusCell = tr.querySelector('.status-cell');
             if(statusCell) {
                 let isOrganik = form.closest('.crm-card').innerHTML.includes('Organik');
