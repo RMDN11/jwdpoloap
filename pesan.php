@@ -49,19 +49,7 @@ if (isset($_SESSION['notification'])) {
     $notificationType = $_SESSION['notificationType'];
     unset($_SESSION['notification'], $_SESSION['notificationType']);
 }
-// Cek apakah ada filter yang dikirim melalui URL
-$filter_minat = $_GET['filter_minat'] ?? '';
-$where_clause = "";
 
-if (!empty($filter_minat)) {
-    // Kita gunakan logika yang sama dengan fungsi classifyMessage
-    // Jika classification message ini mengandung kata kunci minat tersebut
-    $where_clause = "WHERE message LIKE '%" . $conn->real_escape_string($filter_minat) . "%'";
-}
-
-// Query untuk tabel pesan (tambahkan $where_clause)
-$query_pesan = "SELECT * FROM log_wa $where_clause ORDER BY created_at DESC LIMIT 50";
-$result_pesan = $conn->query($query_pesan);
 // ==================================================================
 // FUNGSI API & LOGIKA UTAMA
 // ==================================================================
@@ -650,11 +638,10 @@ if (isset($_GET['export_csv_action'])) {
                         <div class="text-[11px] text-blue-200 italic flex items-center"><i class="fas fa-info-circle mr-1"></i> Belum ada data baru.</div>
                     <?php else: ?>
                         <?php foreach(array_slice($trend_7d, 0, 4) as $m => $c): ?>
-                            <a href="pesan.php?filter_minat=<?= urlencode($k) ?>" 
-                            class="flex justify-between items-center p-2 mb-2 bg-white/10 rounded-lg hover:bg-white/20 transition">
-                                <span><?= $k ?></span>
-                                <span class="font-bold"><?= $v ?></span>
-                            </a>
+                            <div class="bg-black/20 border border-white/10 rounded-lg px-2.5 py-1.5 shrink-0 flex items-center gap-2 hover:bg-black/30 transition-colors cursor-default">
+                                <span class="text-[9px] font-bold uppercase tracking-wider text-blue-100"><?= $m ?></span>
+                                <span class="bg-white text-blue-800 text-[10px] font-black px-1.5 py-0.5 rounded"><?= $c ?></span>
+                            </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
