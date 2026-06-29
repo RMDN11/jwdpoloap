@@ -666,7 +666,7 @@ $savedUsername = isset($_COOKIE['remembered_username']) ? $_COOKIE['remembered_u
                         <i class="fab fa-whatsapp"></i>
                     </div>
                     <h1>Reqra<span style="color:var(--primary);">WA</span></h1>
-                    <p>Sistem Pengiriman Pesan Otomatis</p>
+                    <p>Sistem Pengiriman Pesan Canggih</p>
                 </div>
 
                 <div class="card-body">
