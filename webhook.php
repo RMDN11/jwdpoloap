@@ -56,16 +56,35 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     exit;
 }
 
-// 5. EKSTRAKSI DATA (Lebih tangguh menggunakan Fallback)
-// Jika parameter 'sender_phone' tidak ada, otomatis cari parameter 'phone' atau 'from'
+// =================================================================
+// 5. EKSTRAKSI DATA & DETEKSI NAMA OTOMATIS DARI ISI PESAN
+// =================================================================
 $senderPhone = $data['sender_phone'] ?? $data['phone'] ?? $data['from'] ?? '';
 $messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';
-$senderName  = $data['from_name'] ?? $data['pushName'] ?? $data['name'] ?? 'Unknown';
 
 $senderPhone = trim($senderPhone);
 $messageText = trim($messageText);
 
+// Ambil nama dari profile WhatsApp sebagai cadangan awal
+$senderName  = $data['from_name'] ?? $data['pushName'] ?? $data['name'] ?? '';
 
+// --- ENGINE DETEKSI NAMA DARI ISI TEKS ---
+// Pola: mencari kata setelah "nama saya" atau "nama sy" atau "perkenalkan nama saya"
+if (preg_match('/(?:nama saya|nama sy|perkenalkan nama saya)\s+([A-Za-z0-9]+)/i', $messageText, $matches)) {
+    // $matches[1] akan mengambil 1 kata tepat setelah kalimat di atas (Yaitu: "Eny")
+    $extractedName = trim($matches[1]);
+    
+    // Jika nama hasil ekstraksi tidak kosong, gunakan nama ini!
+    if (!empty($extractedName)) {
+        $senderName = ucfirst(strtolower($extractedName)); // Merapikan huruf kapital menjadi "Eny"
+    }
+}
+
+// Jika setelah dicari di teks & profile tetap kosong, berikan sebutan default
+if (empty($senderName) || htmlspecialchars($senderName) === 'Unknown') {
+    $senderName = 'Kak';
+}
+// =================================================================
 
 // Validasi jika Nomor WA atau Pesan ternyata kosong
 if ($senderPhone === '' || $messageText === '') {
