@@ -125,7 +125,8 @@ if (!file_exists($engineFile)) {
         try {
             require_once $engineFile;
             $autoReply = new AutoReplyEngine($conn, $apiUrl, $apiToken, $baseDir . '/auto_reply_log.txt');
-            $sent = $autoReply->processIncomingMessage($senderPhone, $messageText);
+            // PERBAIKAN: Sisipkan variabel $senderName agar Engine bisa menyapa nama user
+            $sent = $autoReply->processIncomingMessage($senderPhone, $messageText, $senderName);
             $autoReplyStatus = $sent ? 'sent' : 'failed';
             logx("AUTO REPLY STATUS: {$autoReplyStatus}");
         } catch (Throwable $e) {
