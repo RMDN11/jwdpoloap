@@ -15,7 +15,8 @@ class AutoReplyEngine
         $this->logFile  = $logFile;
     }
 
-    public function processIncomingMessage($contactId, $message)
+    // PERBAIKAN: Menambahkan parameter $userName agar nama pengirim bisa ditangkap
+    public function processIncomingMessage($contactId, $message, $userName = 'Kak')
     {
         $this->logToFile("=== START AUTO-REPLY ===");
         $this->logToFile("Contact: {$contactId}, Message: " . substr($message, 0, 100));
@@ -43,11 +44,7 @@ class AutoReplyEngine
                 return false;
             }
 
-            if ($this->isContactRegistered($phone)) {
-                $this->logToFile("Auto-reply: contact is already registered, but still send reply if rule matches");
-                // JANGAN return false - tetap proses auto-reply untuk user registered
-            }
-
+            // Mencari aturan/keyword di database
             $rule = $this->findMatchingRule($message);
             if (!$rule) {
                 $this->logToFile("Auto-reply skipped: no matching rule found");
@@ -58,15 +55,19 @@ class AutoReplyEngine
             $this->logToFile("Rule found: ID={$rule['id']}, Keyword={$rule['keyword']}, Reply=" . substr($rule['reply'], 0, 50));
 
             $replyText = trim($rule['reply'] ?? '');
+            
+            // Jika balasan kosong di database
             if ($replyText === '') {
                 $this->logToFile("Auto-reply skipped: empty reply (rule ID {$rule['id']})");
                 $this->logAutoReply($phone, $message, null, 'empty_reply', $rule['id']);
                 return false;
-                $replyText = str_ireplace(['{nama}', '[nama]'], $userName, $replyText);
-                $sent = $this->sendViaOneSender($phone, $replyText);
             }
             
-
+            // PERBAIKAN: Pindahkan kode ini ke LUAR blok if agar tereksekusi dengan benar
+            // Ubah format tag nama menjadi nama WhatsApp asli
+            $replyText = str_ireplace(['{nama}', '[nama]'], $userName, $replyText);
+            
+            // Kirim pesan ke API OneSender
             $sent = $this->sendViaOneSender($phone, $replyText);
             $status = $sent ? 'sent' : 'failed';
 
