@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/wegqxcgv/subdomains/app.reqra.my.id/jwdpoloap/
+    - /bin/cp -R * $DEPLOYPATH
