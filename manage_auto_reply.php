@@ -1072,76 +1072,7 @@ if ($res) {
         </div>
         
         <!-- Tips Section -->
-        <div class="mt-8 card p-6 fade-in">
-            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <div class="w-8 h-8 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center mr-3">
-                    <i class="fas fa-lightbulb"></i>
-                </div>
-                Tips & Best Practices
-            </h3>
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
-                    <h4 class="font-bold text-gray-700 mb-3 flex items-center">
-                        <i class="fas fa-bullseye mr-2"></i> Keyword Strategy
-                    </h4>
-                    <ul class="space-y-2 text-sm text-gray-600">
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
-                            <span>Gunakan kata kunci umum: "harga", "daftar", "info"</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
-                            <span>Multiple keywords: "mau|ingin|ikut"</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-check text-green-500 mt-1 mr-2"></i>
-                            <span>Case-insensitive matching</span>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
-                    <h4 class="font-bold text-gray-700 mb-3 flex items-center">
-                        <i class="fas fa-rocket mr-2"></i> Optimization
-                    </h4>
-                    <ul class="space-y-2 text-sm text-gray-600">
-                        <li class="flex items-start">
-                            <i class="fas fa-star text-yellow-500 mt-1 mr-2"></i>
-                            <span>Test rule sebelum deploy</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-star text-yellow-500 mt-1 mr-2"></i>
-                            <span>Prioritas tinggi untuk keyword penting</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-star text-yellow-500 mt-1 mr-2"></i>
-                            <span>Gunakan emoji untuk engagement</span>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="bg-gray-50 p-5 rounded-lg border border-gray-200">
-                    <h4 class="font-bold text-gray-700 mb-3 flex items-center">
-                        <i class="fas fa-shield-alt mr-2"></i> System Info
-                    </h4>
-                    <ul class="space-y-2 text-sm text-gray-600">
-                        <li class="flex items-start">
-                            <i class="fas fa-database mt-1 mr-2"></i>
-                            <span>Farhan Ramadhan</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-plug mt-1 mr-2"></i>
-                            <span>Bismillah</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-history mt-1 mr-2"></i>
-                            <span>Real-time processing</span>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+        
         
         <!-- Footer -->
         <div class="mt-8 text-center text-gray-500 text-sm">
@@ -1294,6 +1225,29 @@ if ($res) {
             // Memastikan background transparan agar menyatu dengan efek glassmorphism dashboard
             document.body.style.backgroundColor = "transparent";
         }
+    </script>
+    <script>
+        // ----------------------------------------------------
+        // SCRIPT UNTUK MENAHAN POSISI SCROLL SETELAH RELOAD
+        // ----------------------------------------------------
+        
+        // Kembalikan posisi scroll saat halaman selesai dimuat
+        document.addEventListener("DOMContentLoaded", function() { 
+            const scrollpos = sessionStorage.getItem('scrollpos');
+            if (scrollpos) {
+                // Gunakan setTimeout kecil untuk memastikan DOM render selesai sebelum scroll
+                setTimeout(function() {
+                    window.scrollTo(0, parseInt(scrollpos));
+                    // Opsional: Hapus session setelah dipakai agar kembali ke atas saat navigasi normal
+                    sessionStorage.removeItem('scrollpos');
+                }, 10);
+            }
+        });
+
+        // Simpan posisi scroll sebelum halaman di-reload (saat form submit)
+        window.addEventListener("beforeunload", function() {
+            sessionStorage.setItem('scrollpos', window.scrollY);
+        });
     </script>
 </body>
 </html>
