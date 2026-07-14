@@ -126,7 +126,6 @@ function getBlockedNumbers($conn) {
     return $blk;
 }
 
-// --- 1. HANDLE AJAX KIRIM ---
 // --- 1. HANDLE AJAX KIRIM (DIUBAH KE SISTEM ANTREAN) ---
 if (isset($_POST['ajax_send'])) {
     header('Content-Type: application/json');
