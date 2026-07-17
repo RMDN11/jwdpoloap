@@ -42,6 +42,9 @@ if(!in_array('is_form_sent', $cols)) @$conn->query("ALTER TABLE log_wa ADD is_fo
 if(!in_array('last_template_name', $cols)) @$conn->query("ALTER TABLE log_wa ADD last_template_name VARCHAR(150) NULL");
 if(!in_array('template_history', $cols)) @$conn->query("ALTER TABLE log_wa ADD template_history TEXT NULL");
 
+// [FITUR BARU] AUTO-CREATE TABEL RIWAYAT PESAN CUSTOM
+@$conn->query("CREATE TABLE IF NOT EXISTS custom_msg_history (id INT AUTO_INCREMENT PRIMARY KEY, msg_text TEXT, created_at DATETIME)");
+
 if (!isset($_SESSION['followed_up_today'])) $_SESSION['followed_up_today'] = [];
 $notification = $notificationType = '';
 if (isset($_SESSION['notification'])) {
@@ -74,7 +77,10 @@ function kirimPesan($recipient, $message, $apiUrl, $apiToken) {
     
     if ($curlError) return ['status' => 'GAGAL', 'msg' => "cURL Error: $curlError"];
     if ($httpCode === 200) return ['status' => 'TERKIRIM', 'msg' => 'Sukses API'];
-    return ['status' => 'GAGAL', 'msg' => "API Code: $httpCode"];
+    
+    // [PERBAIKAN BUG]: Sertakan balasan teks dari API (maks 100 karakter) agar mudah di-debug
+    $errorDetail = $response ? substr(strip_tags($response), 0, 100) : 'No Response';
+    return ['status' => 'GAGAL', 'msg' => "API Code $httpCode | $errorDetail"];
 }
 
 function classifyMessage($message) {
@@ -126,18 +132,35 @@ function getBlockedNumbers($conn) {
     return $blk;
 }
 
-// --- 1. HANDLE AJAX KIRIM (DIUBAH KE SISTEM ANTREAN) ---
+// --- 1. HANDLE AJAX KIRIM (EKSEKUSI LANGSUNG API) ---
 if (isset($_POST['ajax_send'])) {
     header('Content-Type: application/json');
-    $cid = $_POST['contact_id'] ?? '';
+   $cid = $_POST['contact_id'] ?? '';
     $tmplId = $_POST['template_id'] ?? '';
+    $customMsg = $_POST['custom_message'] ?? ''; // [BARU] Tangkap pesan custom
 
-    // Ambil data template
-    $stT = $conn->prepare("SELECT name, content FROM poloap_templates WHERE id = ?");
-    $stT->bind_param("i", $tmplId); $stT->execute(); 
-    $tmplData = $stT->get_result()->fetch_assoc();
-    $msgTmpl = $tmplData['content'] ?? '';
-    $tmplName = $tmplData['name'] ?? '';
+    $msgTmpl = ''; $tmplName = '';
+
+    if (!empty($customMsg)) {
+        // [FITUR BARU] Gunakan pesan custom
+        $msgTmpl = $customMsg;
+        $tmplName = 'Pesan Custom Langsung';
+        
+        // Simpan ke riwayat jika teks belum pernah ada di database
+        $stmtCheck = $conn->prepare("SELECT id FROM custom_msg_history WHERE msg_text = ? LIMIT 1");
+        $stmtCheck->bind_param("s", $customMsg); $stmtCheck->execute();
+        if ($stmtCheck->get_result()->num_rows === 0) {
+            $stmtC = $conn->prepare("INSERT INTO custom_msg_history (msg_text, created_at) VALUES (?, NOW())");
+            $stmtC->bind_param("s", $customMsg); $stmtC->execute();
+        }
+    } else {
+        // Logika Lama (Pakai Template)
+        $stT = $conn->prepare("SELECT name, content FROM poloap_templates WHERE id = ?");
+        $stT->bind_param("i", $tmplId); $stT->execute(); 
+        $tmplData = $stT->get_result()->fetch_assoc();
+        $msgTmpl = $tmplData['content'] ?? '';
+        $tmplName = $tmplData['name'] ?? '';
+    }
 
     if($msgTmpl && $cid) {
         $isForm = (stripos($msgTmpl, 'penempatan halaqoh') !== false) ? 1 : 0;
@@ -160,16 +183,15 @@ if (isset($_POST['ajax_send'])) {
         $pesan = str_replace('  ', ' ', $pesan);
         
         // =============================================================
-        // PERUBAHAN: INSERT KE TABEL ANTRIAN (wa_queue_satuan)
+        // EKSEKUSI LANGSUNG KE API ONESENDER
         // =============================================================
-        $stmt_queue = $conn->prepare("INSERT INTO wa_queue_satuan (nowa, nama, pesan, status) VALUES (?, ?, ?, 'pending')");
-        $stmt_queue->bind_param("sss", $cid, $nama, $pesan);
+        global $apiUrl, $apiToken; // Memastikan variabel konfigurasi API terbaca
+        $hasil_kirim = kirimPesan($cid, $pesan, $apiUrl, $apiToken);
         
-        if($stmt_queue->execute()) {
-            $stmt_queue->close();
+        if($hasil_kirim['status'] === 'TERKIRIM') {
             
             // Log history ke database agar UI tetap terupdate
-            $tmplNameSafe = $conn->real_escape_string($tmplName . " (Antrian)");
+            $tmplNameSafe = $conn->real_escape_string($tmplName);
             $historyLog = date('d/m/Y H:i') . " - " . $tmplNameSafe;
             $newHistory = empty($currentHistory) ? $historyLog : $currentHistory . '|||' . $historyLog;
             $newHistorySafe = $conn->real_escape_string($newHistory);
@@ -187,7 +209,8 @@ if (isset($_POST['ajax_send'])) {
                 'fu_time' => date('d/m H:i')
             ]);
         } else {
-            echo json_encode(['status' => 'error', 'msg' => 'Gagal memasukkan ke antrian: ' . $conn->error]);
+            // Respon gagal jika API menolak/bermasalah
+            echo json_encode(['status' => 'error', 'msg' => 'Gagal mengirim pesan: ' . $hasil_kirim['msg']]);
         }
     } else {
         echo json_encode(['status' => 'error', 'msg' => 'Template atau kontak tidak valid']);
@@ -210,7 +233,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
         } elseif ($check->get_result()->num_rows > 0) {
             $_SESSION['notification'] = "⚠️ Nomor sudah ada di dalam database (Organik / Manual)."; $_SESSION['notificationType'] = 'warning';
         } else {
-            $conn->query("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES ('$n', '{$_POST['nama_baru']}', 'Data CSV/Manual', NOW())");
+            // [PERBAIKAN BUG]: Gunakan Prepared Statement untuk mencegah SQL Injection
+            $stmtInsert = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, 'Data CSV/Manual', NOW())");
+            $stmtInsert->bind_param("ss", $n, $_POST['nama_baru']);
+            $stmtInsert->execute();
+            
             $_SESSION['notification'] = "Prospek manual berhasil ditambahkan!"; $_SESSION['notificationType'] = 'success';
         }
         header("Location: pesan.php"); exit;
@@ -254,7 +281,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
         header("Location: pesan.php"); exit;
     }
 
-    if (isset($_POST['delete_prospect'])) { $conn->query("DELETE FROM log_wa WHERE nowa = '{$_POST['contact_id']}'"); header("Location: pesan.php"); exit; }
+    if (isset($_POST['delete_prospect'])) { 
+    // [PERBAIKAN BUG]: Gunakan Prepared Statement untuk DELETE
+    $stmtDel = $conn->prepare("DELETE FROM log_wa WHERE nowa = ?");
+    $stmtDel->bind_param("s", $_POST['contact_id']);
+    $stmtDel->execute();
+    header("Location: pesan.php"); exit; 
+}
     if (isset($_POST['clear_fu'])) { $_SESSION['followed_up_today'] = []; header("Location: pesan.php"); exit; }
 }
 
@@ -264,6 +297,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['ajax_send'])) {
 $jsTemplates = []; $pesanTemplates = [];
 $res = $conn->query("SELECT id, name, content FROM poloap_templates ORDER BY name");
 while($r = $res->fetch_assoc()) { $pesanTemplates[] = $r; $jsTemplates[$r['id']] = $r['content']; }
+
+$customHistories = [];
+$resCH = $conn->query("SELECT DISTINCT msg_text FROM custom_msg_history ORDER BY id DESC LIMIT 8");
+if ($resCH) {
+    while($r = $resCH->fetch_assoc()) $customHistories[] = $r;
+}
 
 // AMBIL TREND MINAT 7 HARI TERAKHIR (SEPEKAN) DENGAN LOGIKA GRAFIK.PHP
 $trend_7d = [];
@@ -312,12 +351,20 @@ $f_minat = $_GET['minat'] ?? '';
 $f_status = $_GET['status_fu'] ?? ''; // FILTER STATUS FOLLOW-UP BARU
 
 // PERBAIKAN 2: Jangan pakai SELECT *. Ambil kolom yang dibutuhkan saja agar RAM tidak jebol
+// PERBAIKAN 2: Jangan pakai SELECT *. Ambil kolom yang dibutuhkan saja agar RAM tidak jebol
 $sql = "SELECT id, nowa, nama, message, created_at, last_followup_at, last_template_name, template_history 
         FROM log_wa 
         ORDER BY CASE WHEN (message = 'Data CSV/Manual' OR message = '') THEN 1 ELSE 0 END ASC, created_at DESC";
 $res = $conn->query($sql);
 
 $followed_up_session = $_SESSION['followed_up_today'] ?? [];
+
+// [PERBAIKAN BUG]: Inisialisasi array kosong agar tidak terjadi TypeError (Error 500)
+$targetOrganik_raw = [];
+$targetManual_raw = [];
+$idsToDelete = [];
+$statistikMinat = [];
+$processed = [];
 
 while ($row = $res->fetch_assoc()) {
     $raw_nowa = $row['nowa'];
@@ -760,6 +807,8 @@ if (isset($_GET['export_csv_action'])) {
                                                 <input type="hidden" name="delete_prospect" value="1"><input type="hidden" name="contact_id" value="<?= $r['nowa'] ?>">
                                                 <button type="submit" class="bg-white border border-slate-200 text-slate-400 p-1.5 rounded hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-colors shadow-sm" title="Hapus Data"><i class="fas fa-trash-alt text-[9px]"></i></button>
                                             </form>
+                                            <!-- TOMBOL PESAN CUSTOM -->
+                                            <button type="button" onclick="openCustomMsgModal('<?= $r['nowa'] ?>', '<?= htmlspecialchars($r['nama'], ENT_QUOTES) ?>')" class="bg-indigo-50 border border-indigo-200 text-indigo-600 p-1.5 rounded hover:bg-indigo-600 hover:text-white transition-colors shadow-sm ml-1" title="Ketik Pesan Langsung"><i class="fas fa-keyboard text-[9px]"></i></button>       
                                         </div>
                                     </td>
                                 </tr>
@@ -894,6 +943,44 @@ if (isset($_GET['export_csv_action'])) {
     </div>
     <div class="chat-bg p-4 h-48 overflow-y-auto custom-scroll shadow-inner relative">
         <div class="bubble-left p-3 text-[12px] text-[#111b21] mb-2 inline-block whitespace-pre-wrap leading-relaxed border border-white/50" id="waText">...</div>
+    </div>
+</div>
+<!-- MODAL PESAN CUSTOM -->
+<div id="modalCustomMsg" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl w-full max-w-md overflow-hidden shadow-2xl animate-fade-in">
+        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <h3 class="font-bold text-slate-800 text-sm"><i class="fas fa-keyboard text-indigo-500 mr-2"></i> Ketik Pesan Langsung</h3>
+            <button type="button" onclick="closeModal('modalCustomMsg')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fas fa-times"></i></button>
+        </div>
+        <form onsubmit="submitCustomMsgAjax(event)" class="p-5 space-y-4">
+            <input type="hidden" id="custom_contact_id" name="contact_id">
+            
+            <div>
+                <label class="text-[11px] font-bold text-slate-500 uppercase mb-1 block">Kirim ke: <span id="custom_contact_name" class="text-indigo-600"></span></label>
+                <textarea id="custom_msg_text" name="custom_message" rows="4" required class="crm-input w-full p-2.5 text-xs" placeholder="Ketik pesan bebas di sini...&#10;(Anda tetap bisa menggunakan tag [nama] atau [NAMA] untuk menyapa target secara otomatis)"></textarea>
+            </div>
+            
+            <!-- BLOK RIWAYAT -->
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 uppercase mb-1.5 block">
+                    <i class="fas fa-history mr-1"></i> Riwayat Pesan Sebelumnya
+                </label>
+                <div class="flex flex-wrap gap-1.5 max-h-[110px] overflow-y-auto custom-scroll p-1 border border-slate-100 rounded-lg bg-slate-50/50">
+                    <?php if(empty($customHistories)): ?>
+                        <span class="text-[10px] text-slate-400 italic p-1">Belum ada riwayat pesan custom.</span>
+                    <?php else: ?>
+                        <?php foreach($customHistories as $ch): ?>
+                            <button type="button" onclick="useCustomHistory(this)" data-text="<?= htmlspecialchars($ch['msg_text'], ENT_QUOTES) ?>" class="bg-white hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 px-2 py-1.5 rounded border border-slate-200 hover:border-indigo-300 text-[10px] text-left truncate max-w-full transition-colors shadow-sm">
+                                <?= htmlspecialchars(substr($ch['msg_text'], 0, 45)) ?>...
+                            </button>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+                <p class="text-[9px] text-slate-400 mt-1">*Klik salah satu riwayat di atas untuk menyalinnya ke kolom chat.</p>
+            </div>
+
+            <button type="submit" id="btnSendCustom" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-bold text-xs hover:bg-indigo-700 transition-colors shadow-sm mt-2"><i class="fas fa-paper-plane mr-1"></i> Kirim Pesan Sekarang</button>
+        </form>
     </div>
 </div>
 
@@ -1148,6 +1235,57 @@ async function submitSingleAjax(e, form) {
 }
 
 if (window.self !== window.top) { document.body.style.backgroundColor = "transparent"; }
+// --- SCRIPT FITUR PESAN CUSTOM ---
+function openCustomMsgModal(contactId, nama) {
+    document.getElementById('custom_contact_id').value = contactId;
+    document.getElementById('custom_contact_name').innerText = nama;
+    document.getElementById('custom_msg_text').value = '';
+    openModal('modalCustomMsg');
+}
+
+function useCustomHistory(btn) {
+    // Memasukkan teks dari tombol riwayat ke dalam textarea
+    document.getElementById('custom_msg_text').value = btn.dataset.text;
+}
+
+async function submitCustomMsgAjax(e) {
+    e.preventDefault();
+    const contactId = document.getElementById('custom_contact_id').value;
+    const msg = document.getElementById('custom_msg_text').value;
+    const btn = document.getElementById('btnSendCustom');
+    
+    if(!msg.trim()) { showToast('Pesan tidak boleh kosong!', 'warning'); return; }
+    
+    const oriHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...'; btn.disabled = true;
+    
+    try {
+        let fd = new FormData(); 
+        fd.append('ajax_send', '1'); 
+        fd.append('contact_id', contactId); 
+        fd.append('custom_message', msg);
+        
+        let res = await fetch('', { method: 'POST', body: fd }); 
+        let json = await res.json();
+        
+        if(json.status === 'success') {
+            showToast(`Pesan custom berhasil dikirim kepada ${json.nama}`, 'success');
+            closeModal('modalCustomMsg');
+            
+            // Otomatis refresh agar histori tersimpan dan antrean terupdate
+            setTimeout(() => {
+                sessionStorage.setItem('scrollpos', window.scrollY);
+                location.reload();
+            }, 1200);
+        } else {
+            showToast('Gagal Terkirim: ' + json.msg, 'error'); 
+        }
+    } catch(err) {
+        showToast('Terjadi kesalahan jaringan.', 'error'); 
+    } finally {
+        btn.innerHTML = oriHtml; btn.disabled = false;
+    }
+}
 </script>
 </body>
 </html>
