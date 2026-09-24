@@ -53,7 +53,7 @@ foreach ($newContacts as $number => $rows) {
      * event for an already-qualified contact.
      */
     if (!$isEligible) {
-        $isEligible = crmFindEligibleProspectByNumber($conn, $number, $disqualified, $blocked) !== null;
+        $isEligible = crmFindEligibleProspectByNumber($conn, (string)$rows[0]['nowa'], $disqualified, $blocked) !== null;
     }
 
     if ($isEligible) $eligibleNewNumbers[$number] = true;
