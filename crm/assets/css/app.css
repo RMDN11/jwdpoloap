@@ -216,13 +216,30 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .nav-item{position:relative}
 .nav-badge{position:absolute;top:2px;right:calc(50% - 24px);min-width:15px;height:15px;padding:0 4px;border-radius:999px;background:#dc2626;color:#fff;border:2px solid #fff;font-size:8px;line-height:11px;text-align:center;font-weight:900}
 
-/* Mobile chat sheet UX */
-.chat-sheet-backdrop{display:none!important}
+/* Mobile chat sheet UX: backdrop is opt-in, never visible on the base Chat page. */
+.chat-sheet-backdrop{
+  display:none!important;
+  pointer-events:none;
+  opacity:0;
+}
 @media(max-width:768px){
   body.crm-chat-sheet-open{overflow:hidden}
-  body.crm-chat-sheet-open .chat-sheet-backdrop{display:block!important;position:fixed;inset:0;z-index:69;background:rgba(15,35,25,.34);backdrop-filter:blur(2px)}
-  .chat-panel.has-contact{z-index:70}
-  .chat-panel.has-contact .send-box-foot button{min-height:42px;padding-inline:16px}
+  body.crm-chat-sheet-open .chat-sheet-backdrop{
+    display:block!important;
+    position:fixed;
+    inset:0;
+    z-index:69;
+    background:rgba(15,35,25,.34);
+    backdrop-filter:blur(2px);
+    -webkit-backdrop-filter:blur(2px);
+    pointer-events:auto;
+    opacity:1;
+  }
+  body.crm-chat-sheet-open .chat-panel.has-contact{z-index:70}
+  body.crm-chat-sheet-open .chat-panel.has-contact .send-box-foot button{
+    min-height:42px;
+    padding-inline:16px;
+  }
 }
 
 /* Keep the global CRM header stable when page content changes. */
