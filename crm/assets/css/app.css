@@ -276,7 +276,7 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .scene-cloud:after{width:31px;height:31px;right:15px;top:-13px}
 .scene-cloud-b{width:70px;right:7%;top:58%;transform:scale(.7);opacity:.5;animation-delay:-3s}
 .scene-stars{position:absolute;inset:0;opacity:0;transition:opacity .7s;background-image:radial-gradient(circle at 70% 23%,rgba(255,255,255,.9) 0 1.5px,transparent 2px),radial-gradient(circle at 83% 36%,rgba(255,255,255,.75) 0 1px,transparent 1.5px),radial-gradient(circle at 59% 42%,rgba(255,255,255,.65) 0 1px,transparent 1.5px),radial-gradient(circle at 76% 54%,rgba(255,255,255,.65) 0 1px,transparent 1.5px)}
-.home-scene[data-period="night"]:before{background:linear-gradient(135deg,rgba(12,39,31,.12),rgba(23,54,45,.38))}
+.home-scene[data-period="night"]:before{background:linear-gradient(135deg,rgba(10,35,28,.24),rgba(18,52,43,.68))}
 .home-scene[data-period="night"] .scene-sun,.home-scene[data-period="dawn"] .scene-sun{opacity:0;transform:translateY(8px) scale(.85)}
 .home-scene[data-period="night"] .scene-moon{opacity:1;transform:translateY(0)}
 .home-scene[data-period="night"] .scene-cloud{opacity:.12}
