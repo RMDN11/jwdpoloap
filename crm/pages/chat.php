@@ -48,7 +48,7 @@ while ($row = $result->fetch_assoc()) {
 $selectedContact = null;
 if ($selected !== '') {
     $normalized = crmNormalizeNumber($selected);
-    $s = $conn->prepare("SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history FROM log_wa WHERE nowa = ? OR nowa = ? ORDER BY id DESC LIMIT 1");
+    $s = $conn->prepare("SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history FROM log_wa WHERE nowa = ? OR nowa = ? ORDER BY id DESC LIMIT 30");
     $s->bind_param('ss', $selected, $normalized);
     $s->execute();
     $selectedContact = null;
