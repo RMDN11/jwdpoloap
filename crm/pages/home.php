@@ -150,7 +150,7 @@ if ($result) {
     function tick() {
         const now = getJakartaParts();
         if (dayEl) dayEl.textContent = dayNames[now.weekday];
-        const sceneEl = document.getElementById('crmHomeScene');
+        const sceneEl = document.querySelector('#crmHomeScene .home-scene');
         if (sceneEl) sceneEl.dataset.period = getTimePeriod(now.hour, now.minute);
         if (digitalEl) digitalEl.textContent = [now.hour, now.minute].map(v => String(v).padStart(2,'0')).join(':');
         if (hourHand) hourHand.style.transform = 'translateX(-50%) rotate(' + ((now.hour % 12) * 30 + now.minute * .5) + 'deg)';
