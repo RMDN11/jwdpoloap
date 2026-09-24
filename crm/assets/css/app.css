@@ -106,3 +106,26 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   body{padding-bottom:0}
   .content{width:auto}
 }
+
+
+/* CRM V2 chat interaction polish */
+.chat-item{width:100%;max-width:100%;min-width:0;overflow:hidden}
+.chat-body{min-width:0;max-width:100%;overflow:hidden}
+.chat-body strong,.chat-body small{min-width:0;max-width:100%}
+.chat-body small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-meta{flex:0 0 auto;min-width:34px}
+.chat-panel-head{min-width:0}
+.chat-panel-contact{min-width:0;flex:1;overflow:hidden}
+.chat-panel-contact strong,.chat-panel-contact small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-panel-close{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border:1px solid #e0e9e3;border-radius:11px;background:#f8fbf9;color:#718078;text-decoration:none}
+@media(max-width:768px){
+  .chat-item{flex:0 0 auto}
+  .chat-panel.has-contact{position:fixed;left:0;right:0;bottom:0;z-index:70;width:100%;max-width:none;max-height:calc(88dvh - env(safe-area-inset-top,0px));overflow-y:auto;margin:0;padding:14px 14px calc(22px + env(safe-area-inset-bottom,0px));border:0;border-top:1px solid #dfe9e3;border-radius:24px 24px 0 0;background:rgba(255,255,255,.98);box-shadow:0 -20px 60px rgba(17,45,31,.22);animation:crmSheetUp .22s ease-out both}
+  .chat-panel.has-contact::before{content:"";display:block;width:38px;height:4px;margin:0 auto 12px;border-radius:999px;background:#d7e1db}
+  .chat-panel.has-contact .chat-panel-head{padding-bottom:12px}
+  .chat-panel.has-contact .chat-message{margin-top:10px}
+  .chat-panel.has-contact .send-box{margin-top:10px}
+  .chat-panel.has-contact .send-box textarea{min-height:82px}
+  .chat-panel:not(.has-contact){display:none}
+}
+@keyframes crmSheetUp{from{transform:translateY(24px);opacity:.7}to{transform:translateY(0);opacity:1}}
