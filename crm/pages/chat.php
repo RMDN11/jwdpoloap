@@ -132,10 +132,13 @@ function crmPreview(string $text, int $length = 72): string {
             <?php $selectedName = crmChatName($selectedContact); ?>
             <div class="chat-panel-head">
                 <div class="contact-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($selectedName, 0, 1))) ?></div>
-                <div>
+                <div class="chat-panel-contact">
                     <strong><?= htmlspecialchars($selectedName) ?></strong>
                     <small><?= htmlspecialchars($selectedContact['nowa']) ?></small>
                 </div>
+                <a class="chat-panel-close" href="?page=chat&q=<?= urlencode($search) ?>&status=<?= urlencode($status) ?>" aria-label="Tutup percakapan">
+                    <i class="fa-solid fa-xmark"></i>
+                </a>
             </div>
 
             <div class="chat-message">
