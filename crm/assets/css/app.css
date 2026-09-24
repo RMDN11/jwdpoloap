@@ -273,3 +273,13 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .activity-back{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #dce7e0;border-radius:11px;color:#4e6257;background:#fff;text-decoration:none;font-size:10px;font-weight:700}
 @media(max-width:850px){.home-time-card{grid-template-columns:1fr}.home-time-copy{padding:20px}.home-tools-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.home-time-copy h1{font-size:26px}.home-clock-row{margin-top:20px}.home-analog-clock{width:76px;height:76px;flex-basis:76px}.clock-hour{height:20px}.clock-minute{height:27px}.clock-second{height:30px}.home-clock-row strong{font-size:24px}.home-calendar-card{padding:14px}.home-calendar-grid span{min-height:27px}.home-tools-grid{gap:7px}.home-tools-grid>a{padding:11px}.home-tools-grid small{font-size:8px}.activity-log-item{align-items:flex-start}.activity-log-item time{font-size:8px}}
+
+/* Compact Home tools */
+.home-section-heading{margin-bottom:10px}.home-section-heading h2{font-size:14px}.home-section-heading a{display:inline-flex;align-items:center;gap:5px}
+.home-tools-grid{grid-template-columns:repeat(8,1fr);gap:7px}
+.home-tools-grid>a{padding:10px 6px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:78px;box-shadow:none}
+.home-tool-icon{width:29px;height:29px;border-radius:9px;margin:0 0 7px;font-size:11px}
+.home-tools-grid strong{font-size:9px;font-weight:750}
+.home-tools-grid small{display:none}
+@media(max-width:850px){.home-tools-grid{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:560px){.home-tools-grid{grid-template-columns:repeat(4,1fr);gap:6px}.home-tools-grid>a{min-height:68px;padding:8px 4px;border-radius:12px}.home-tool-icon{width:27px;height:27px;margin-bottom:5px;font-size:10px}.home-tools-grid strong{font-size:8px}.home-section-heading h2{font-size:13px}}
