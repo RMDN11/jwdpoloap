@@ -242,19 +242,47 @@ function crmChatUrl(string $search, string $status, string $contact = ''): strin
 
 <script>
 (() => {
-    const lastLogId = <?= (int)$maxLogId ?>;
-    const toastContainer = document.querySelector('.toast-container, #toast-container');
+    let lastLogId = <?= (int)$maxLogId ?>;
+    let pollBusy = false;
+    function showNewChatToast(count) {
+        const old = document.getElementById('crm-new-chat-toast');
+        if (old) old.remove();
+
+        const el = document.createElement('button');
+        el.id = 'crm-new-chat-toast';
+        el.type = 'button';
+        el.className = 'crm-new-chat-toast';
+        el.innerHTML = '<i class="fa-solid fa-bell"></i><span>' + count + ' pesan baru masuk. Muat ulang</span>';
+        el.onclick = () => location.reload();
+        document.body.appendChild(el);
+
+        window.setTimeout(() => {
+            if (el.isConnected) el.remove();
+        }, 9000);
+    }
+
     function poll() {
-        if (!lastLogId) return;
-        fetch('pages/chat-poll.php?last_id=' + encodeURIComponent(lastLogId), {headers:{'X-Requested-With':'XMLHttpRequest'}})
-        .then(r => r.json()).then(data => {
-            if (data.status === 'success' && data.new_count > 0 && toastContainer && !document.getElementById('crm-new-chat-toast')) {
-                const el = document.createElement('button');
-                el.id = 'crm-new-chat-toast'; el.type = 'button'; el.className = 'crm-new-chat-toast';
-                el.innerHTML = '<i class="fa-solid fa-bell"></i><span>' + data.new_count + ' pesan baru masuk. Muat ulang</span>';
-                el.onclick = () => location.reload(); toastContainer.appendChild(el);
+        if (!lastLogId || pollBusy) return;
+        pollBusy = true;
+
+        fetch('pages/chat-poll.php?last_id=' + encodeURIComponent(lastLogId), {
+            headers:{'X-Requested-With':'XMLHttpRequest'},
+            cache:'no-store'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status !== 'success') return;
+
+            if (Number(data.max_id || 0) > lastLogId) {
+                lastLogId = Number(data.max_id);
             }
-        }).catch(() => {});
+
+            if (data.new_count > 0) {
+                showNewChatToast(Number(data.new_count));
+            }
+        })
+        .catch(() => {})
+        .finally(() => { pollBusy = false; });
     }
     const templateSelect = document.getElementById('crmTemplateSelect');
     const templatePreview = document.getElementById('crmTemplatePreview');
