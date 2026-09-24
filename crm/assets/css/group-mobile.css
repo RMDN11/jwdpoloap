@@ -1,0 +1,222 @@
+/* CRM Group mobile layout refinement */
+@media (max-width: 560px){
+  .group-page-head{
+    gap:10px;
+    padding-bottom:12px;
+  }
+  .group-page-head h1{
+    font-size:23px;
+    line-height:1.15;
+  }
+  .group-page-head p{
+    margin-top:5px;
+    font-size:10px;
+  }
+  .group-manage-link{
+    min-height:36px;
+    padding:8px 10px;
+    font-size:9px;
+    border-radius:10px;
+  }
+
+  .group-compose-grid,
+  .group-lower-grid{
+    gap:10px;
+  }
+  .group-card{
+    border-radius:17px;
+  }
+  .group-composer{
+    padding:13px;
+  }
+  .group-card-head{
+    margin-bottom:12px;
+  }
+  .group-card-head h2{
+    font-size:15px;
+  }
+  .group-kicker{
+    font-size:7.5px;
+  }
+
+  .group-field textarea{
+    min-height:112px;
+    padding:10px;
+    font-size:11px;
+    border-radius:12px;
+  }
+  .group-upload{
+    margin-top:8px;
+    padding:9px 10px;
+    border-radius:12px;
+  }
+  .group-upload-icon{
+    width:31px;
+    height:31px;
+    border-radius:9px;
+  }
+
+  .group-section{
+    margin-top:13px;
+  }
+  .group-section-title>span{
+    font-size:9px;
+    margin-bottom:6px;
+  }
+  .group-section-title small{
+    font-size:8px;
+  }
+  .group-modes{
+    gap:5px;
+  }
+  .group-mode{
+    padding:9px 4px;
+    border-radius:11px;
+  }
+  .group-mode i{
+    margin-bottom:4px;
+    font-size:12px;
+  }
+  .group-mode strong{
+    font-size:8.5px;
+  }
+  .group-mode small{
+    font-size:7px;
+  }
+
+  .group-search{
+    height:36px;
+    margin-top:7px;
+    padding-inline:9px;
+  }
+  .group-search input{
+    font-size:10px;
+  }
+  .group-list{
+    max-height:300px;
+    margin-top:7px;
+  }
+  .group-category-head{
+    padding:7px 8px;
+  }
+  .group-target{
+    gap:7px;
+    padding:6px 4px;
+  }
+  .group-target>span:last-child{
+    font-size:8.5px;
+  }
+  .group-target-dot{
+    width:22px;
+    height:22px;
+  }
+
+  .group-send-btn{
+    margin-top:13px;
+    min-height:46px;
+    border-radius:12px;
+    font-size:10px;
+  }
+
+  .group-side{
+    gap:9px;
+  }
+  .group-preview-card,
+  .group-summary-card,
+  .group-lower-grid>.group-card{
+    padding:12px;
+  }
+  .group-phone{
+    border-radius:14px;
+  }
+  .group-phone-body{
+    min-height:205px;
+    padding:11px;
+  }
+  .group-wa-bubble{
+    max-width:92%;
+  }
+  .group-summary-card{
+    gap:5px;
+  }
+  .group-summary-row{
+    font-size:8.5px;
+  }
+
+  .group-lower-grid{
+    margin-top:10px;
+  }
+  .group-lower-grid>.group-card{
+    overflow:hidden;
+  }
+
+  /* Schedules become two-line rows instead of forcing the date off-screen. */
+  .group-schedule-item{
+    display:grid;
+    grid-template-columns:30px minmax(0,1fr);
+    align-items:start;
+    gap:8px;
+    padding:8px;
+  }
+  .group-schedule-icon{
+    width:30px;
+    height:30px;
+  }
+  .group-schedule-item>div{
+    min-width:0;
+  }
+  .group-schedule-item strong{
+    font-size:8.5px;
+  }
+  .group-schedule-item p{
+    font-size:7.5px;
+    line-height:1.35;
+    margin-top:2px;
+  }
+  .group-schedule-item>small{
+    grid-column:2;
+    min-width:0;
+    margin-top:-3px;
+    font-size:7.5px;
+    line-height:1.35;
+    white-space:normal;
+    overflow-wrap:anywhere;
+    text-align:left;
+  }
+
+  /* History keeps status text readable without widening the card. */
+  .group-history-item{
+    display:grid;
+    grid-template-columns:27px minmax(0,1fr) auto;
+    align-items:start;
+    gap:8px;
+    padding:8px;
+  }
+  .group-history-item>span{
+    width:27px;
+    height:27px;
+  }
+  .group-history-item>div{
+    min-width:0;
+  }
+  .group-history-item strong{
+    font-size:8.5px;
+  }
+  .group-history-item small{
+    margin-top:2px;
+    font-size:7.5px;
+    line-height:1.35;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  .group-history-item time{
+    padding-top:1px;
+    font-size:7.5px;
+  }
+
+  .group-old-link{
+    min-height:34px;
+    padding:8px 10px;
+    font-size:8.5px;
+  }
+}
