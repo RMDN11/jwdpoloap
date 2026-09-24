@@ -129,3 +129,83 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   .chat-panel:not(.has-contact){display:none}
 }
 @keyframes crmSheetUp{from{transform:translateY(24px);opacity:.7}to{transform:translateY(0);opacity:1}}
+
+/* CRM V2 Home dashboard */
+.home-hero{position:relative;display:flex;align-items:stretch;justify-content:space-between;min-height:218px;overflow:hidden;padding:24px;border-radius:26px;background:linear-gradient(135deg,#0b3525 0%,#145f38 55%,#209451 100%);color:#fff;box-shadow:0 18px 40px rgba(16,81,48,.15)}
+.home-hero:before{content:"";position:absolute;width:330px;height:330px;right:-170px;top:-190px;border:1px solid rgba(255,255,255,.1);border-radius:50%;box-shadow:0 0 0 42px rgba(255,255,255,.025),0 0 0 84px rgba(255,255,255,.02)}
+.home-hero-copy{position:relative;z-index:2;max-width:470px}
+.home-hero-top{display:flex;align-items:center;gap:9px}
+.home-hero .eyebrow{font-size:10px}
+.live-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid rgba(255,255,255,.14);border-radius:999px;background:rgba(255,255,255,.08);font-size:9px;font-weight:750;color:#e6f7ec}
+.live-pill i{font-size:5px;color:#7ee2a3}
+.home-hero h1{margin:14px 0 7px;font-size:30px;line-height:1.05;letter-spacing:-.055em}
+.home-hero h1 span{font-size:.8em}
+.home-hero p{max-width:390px;margin:0;color:#d6ede0;font-size:12px;line-height:1.65}
+.hero-cta{display:inline-flex;align-items:center;gap:9px;margin-top:19px;padding:10px 13px;border-radius:12px;background:#fff;color:#125c35;text-decoration:none;font-size:11px;font-weight:800;box-shadow:0 8px 20px rgba(0,0,0,.1)}
+.hero-cta i{font-size:9px}
+.home-hero-orb{position:absolute;right:38px;bottom:25px;width:94px;height:94px;border-radius:30px;display:grid;place-items:center;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);transform:rotate(8deg)}
+.home-hero-orb i{font-size:43px;transform:rotate(-8deg);opacity:.9}
+.home-hero-orb span{position:absolute;right:-8px;top:-8px;width:19px;height:19px;border-radius:50%;background:#7ee2a3;box-shadow:0 0 0 6px rgba(126,226,163,.12)}
+.home-section{margin-top:25px}
+.home-section .section-heading{margin-bottom:12px}
+.section-heading>div{min-width:0}
+.section-kicker{display:block;margin-bottom:2px;color:#8b9992;font-size:8px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.section-heading h2{font-size:18px}
+.section-date{font-size:10px;color:#8a9891}
+.home-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.home-stat{position:relative;min-width:0;padding:14px;border:1px solid #e4ebe7;border-radius:19px;background:#fff;text-decoration:none;color:#10231b;box-shadow:0 5px 18px rgba(24,55,41,.035)}
+.home-stat-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#eef8f1;color:#168044;font-size:13px}
+.home-stat.primary{border-color:#bfe2ca;background:linear-gradient(145deg,#f8fdf9,#fff)}
+.home-stat strong{display:block;margin-top:11px;font-size:23px;line-height:1;letter-spacing:-.045em}
+.home-stat small{display:block;margin-top:5px;color:#84918b;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-actions{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:10px}
+.home-action{min-width:0;min-height:84px;display:flex;align-items:center;gap:10px;padding:13px;border:1px solid #e4ebe7;border-radius:18px;background:#fff;color:#18352a;text-decoration:none;box-shadow:0 5px 18px rgba(24,55,41,.035)}
+.home-action-main{background:#f2fbf5;border-color:#cce8d5}
+.home-action-icon{width:37px;height:37px;flex:0 0 37px;display:grid;place-items:center;border-radius:12px;background:#e7f6ed;color:#168044;font-size:14px}
+.home-action-copy{min-width:0;flex:1}
+.home-action-copy strong,.home-action-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-action-copy strong{font-size:11px}
+.home-action-copy small{margin-top:3px;color:#8a9791;font-size:9px}
+.home-action-arrow{font-size:9px;color:#98a49e}
+.home-activity-list{display:grid;gap:7px}
+.home-activity-item{display:flex;align-items:center;gap:11px;min-width:0;padding:11px 12px;border:1px solid #e4ebe7;border-radius:16px;background:#fff;color:#18352a;text-decoration:none;box-shadow:0 4px 14px rgba(24,55,41,.03)}
+.home-activity-avatar{width:39px;height:39px;flex:0 0 39px;display:grid;place-items:center;border-radius:13px;background:#e8f5ec;color:#168044;font-size:12px;font-weight:800}
+.home-activity-body{min-width:0;flex:1}
+.home-activity-body strong,.home-activity-body small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-activity-body strong{font-size:11px}
+.home-activity-body small{margin-top:3px;color:#87948e;font-size:9px}
+.home-activity-meta{display:flex;align-items:center;gap:8px;flex:0 0 auto;color:#9aa69f}
+.home-activity-meta time{font-size:9px}
+.home-activity-meta i{font-size:8px}
+.home-activity-section .section-heading a{display:flex;align-items:center;gap:5px}
+.home-activity-section .section-heading a i{font-size:8px}
+@media(max-width:768px){
+  .home-hero{min-height:205px;padding:20px;border-radius:23px}
+  .home-hero h1{font-size:27px}
+  .home-hero p{max-width:280px;font-size:11px}
+  .home-hero-orb{right:-6px;bottom:19px;width:82px;height:82px;border-radius:26px;opacity:.72}
+  .home-hero-orb i{font-size:36px}
+  .home-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .home-stat{padding:13px;border-radius:17px}
+  .home-stat strong{font-size:21px}
+  .home-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .home-action{min-height:76px;padding:11px;border-radius:16px}
+  .home-action-icon{width:34px;height:34px;flex-basis:34px;border-radius:11px}
+  .home-action-copy strong{font-size:10px}
+  .home-action-copy small{font-size:8px}
+  .home-action-arrow{display:none}
+  .home-section{margin-top:22px}
+}
+@media(max-width:390px){
+  .home-hero{min-height:195px;padding:18px}
+  .home-hero h1{font-size:25px}
+  .home-hero p{font-size:10px;max-width:250px}
+  .hero-cta{margin-top:15px;padding:9px 11px;font-size:10px}
+  .home-hero-orb{width:72px;height:72px;right:-10px;bottom:17px}
+  .home-hero-orb i{font-size:31px}
+  .home-stat{padding:11px}
+  .home-stat-icon{width:31px;height:31px;border-radius:10px}
+  .home-stat strong{font-size:19px}
+  .home-action{min-height:70px;padding:10px}
+  .home-activity-item{padding:10px}
+}

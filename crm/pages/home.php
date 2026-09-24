@@ -15,48 +15,110 @@ if ($result) {
     while ($row = $result->fetch_assoc()) $recent[] = $row;
 }
 ?>
-<section class="hero-card">
-    <div>
-        <span class="eyebrow">CRM Jawwada</span>
-        <h1>Halo, Han 👋</h1>
-        <p>Kelola percakapan, prospek, follow-up, dan reminder dari satu workspace.</p>
+<section class="home-hero">
+    <div class="home-hero-copy">
+        <div class="home-hero-top">
+            <span class="eyebrow">CRM Jawwada</span>
+            <span class="live-pill"><i class="fa-solid fa-circle"></i> Aktif</span>
+        </div>
+        <h1>Halo, Han <span>👋</span></h1>
+        <p>Semua percakapan dan follow-up penting, diringkas di satu tempat.</p>
+        <a class="hero-cta" href="?page=chat">
+            <span>Buka inbox</span>
+            <i class="fa-solid fa-arrow-right"></i>
+        </a>
     </div>
-    <div class="hero-glow"><i class="fab fa-whatsapp"></i></div>
-</section>
-
-<section class="section">
-    <div class="section-heading"><h2>Ringkasan Hari Ini</h2><span><?= date('d M Y') ?></span></div>
-    <div class="stats-grid">
-        <a class="stat-card" href="?page=chat"><span class="stat-icon blue"><i class="fa-regular fa-message"></i></span><strong><?= number_format($chatToday) ?></strong><small>Chat masuk</small></a>
-        <a class="stat-card" href="?page=chat"><span class="stat-icon green"><i class="fa-solid fa-user-plus"></i></span><strong><?= number_format($prospects) ?></strong><small>Prospek tersimpan</small></a>
-        <a class="stat-card" href="?page=chat"><span class="stat-icon amber"><i class="fa-regular fa-clock"></i></span><strong><?= number_format($followups) ?></strong><small>Follow-up hari ini</small></a>
-        <a class="stat-card" href="?page=reminder"><span class="stat-icon red"><i class="fa-regular fa-bell"></i></span><strong><?= number_format($reminders) ?></strong><small>Reminder hari ini</small></a>
-    </div>
-</section>
-
-<section class="section">
-    <div class="section-heading"><h2>Quick Action</h2></div>
-    <div class="quick-grid">
-        <a href="?page=action"><i class="fa-regular fa-paper-plane"></i><span>Follow Up</span></a>
-        <a href="?page=action"><i class="fa-solid fa-bullhorn"></i><span>Broadcast</span></a>
-        <a href="?page=reminder"><i class="fa-regular fa-calendar-plus"></i><span>Reminder</span></a>
-        <a href="?page=more"><i class="fa-solid fa-layer-group"></i><span>Semua Fitur</span></a>
+    <div class="home-hero-orb">
+        <i class="fab fa-whatsapp"></i>
+        <span></span>
     </div>
 </section>
 
-<section class="section">
-    <div class="section-heading"><h2>Aktivitas Terbaru</h2><a href="?page=chat">Lihat semua</a></div>
-    <div class="activity-list">
+<section class="home-section">
+    <div class="section-heading">
+        <div>
+            <span class="section-kicker">Overview</span>
+            <h2>Hari ini</h2>
+        </div>
+        <span class="section-date"><?= date('d M Y') ?></span>
+    </div>
+
+    <div class="home-stats">
+        <a class="home-stat primary" href="?page=chat">
+            <span class="home-stat-icon"><i class="fa-regular fa-message"></i></span>
+            <strong><?= number_format($chatToday) ?></strong>
+            <small>Chat masuk</small>
+        </a>
+        <a class="home-stat" href="?page=chat">
+            <span class="home-stat-icon"><i class="fa-solid fa-user-plus"></i></span>
+            <strong><?= number_format($prospects) ?></strong>
+            <small>Prospek tersimpan</small>
+        </a>
+        <a class="home-stat" href="?page=chat">
+            <span class="home-stat-icon"><i class="fa-regular fa-clock"></i></span>
+            <strong><?= number_format($followups) ?></strong>
+            <small>Follow-up hari ini</small>
+        </a>
+        <a class="home-stat" href="?page=reminder">
+            <span class="home-stat-icon"><i class="fa-regular fa-bell"></i></span>
+            <strong><?= number_format($reminders) ?></strong>
+            <small>Reminder hari ini</small>
+        </a>
+    </div>
+</section>
+
+<section class="home-section">
+    <div class="section-heading">
+        <div>
+            <span class="section-kicker">Shortcut</span>
+            <h2>Aksi cepat</h2>
+        </div>
+    </div>
+
+    <div class="home-actions">
+        <a href="?page=action" class="home-action home-action-main">
+            <span class="home-action-icon"><i class="fa-regular fa-paper-plane"></i></span>
+            <span class="home-action-copy"><strong>Follow Up</strong><small>Hubungi prospek</small></span>
+            <i class="fa-solid fa-arrow-up-right-from-square home-action-arrow"></i>
+        </a>
+        <a href="?page=action" class="home-action">
+            <span class="home-action-icon"><i class="fa-solid fa-bullhorn"></i></span>
+            <span class="home-action-copy"><strong>Broadcast</strong><small>Kirim ke grup</small></span>
+        </a>
+        <a href="?page=reminder" class="home-action">
+            <span class="home-action-icon"><i class="fa-regular fa-calendar-plus"></i></span>
+            <span class="home-action-copy"><strong>Reminder</strong><small>Atur pengingat</small></span>
+        </a>
+        <a href="?page=more" class="home-action">
+            <span class="home-action-icon"><i class="fa-solid fa-layer-group"></i></span>
+            <span class="home-action-copy"><strong>Semua fitur</strong><small>Kelola workspace</small></span>
+        </a>
+    </div>
+</section>
+
+<section class="home-section home-activity-section">
+    <div class="section-heading">
+        <div>
+            <span class="section-kicker">Live feed</span>
+            <h2>Aktivitas terbaru</h2>
+        </div>
+        <a href="?page=chat">Lihat semua <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+
+    <div class="home-activity-list">
         <?php if (!$recent): ?>
             <div class="empty-state"><i class="fa-regular fa-comments"></i><strong>Belum ada aktivitas</strong><p>Data percakapan akan muncul di sini.</p></div>
         <?php else: foreach ($recent as $item): ?>
-            <a href="?page=chat" class="activity-item">
-                <span class="activity-avatar"><?= strtoupper(substr(trim($item['nama'] ?: 'K'), 0, 1)) ?></span>
-                <span class="activity-body">
+            <a href="?page=chat" class="home-activity-item">
+                <span class="home-activity-avatar"><?= htmlspecialchars(strtoupper(mb_substr(trim($item['nama'] ?: 'K'), 0, 1))) ?></span>
+                <span class="home-activity-body">
                     <strong><?= htmlspecialchars($item['nama'] ?: 'Tanpa nama') ?></strong>
-                    <small><?= htmlspecialchars(mb_strimwidth(trim($item['message']), 0, 58, '…')) ?></small>
+                    <small><?= htmlspecialchars(mb_strimwidth(trim($item['message']), 0, 64, '…')) ?></small>
                 </span>
-                <time><?= htmlspecialchars(date('H:i', strtotime($item['created_at']))) ?></time>
+                <span class="home-activity-meta">
+                    <time><?= htmlspecialchars(date('H:i', strtotime($item['created_at']))) ?></time>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </span>
             </a>
         <?php endforeach; endif; ?>
     </div>
