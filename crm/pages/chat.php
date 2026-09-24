@@ -5,7 +5,7 @@ $disqualified = crmGetDisqualifiedNumbers($conn);
 $blocked = crmGetBlockedNumbers($conn);
 
 $search = trim((string)($_GET['q'] ?? ''));
-$status = (string)($_GET['status'] ?? 'all');
+$status = (string)($_GET['status'] ?? 'new');
 $selected = trim((string)($_GET['contact'] ?? ''));
 $allowedStatus = ['all', 'new', 'followed'];
 if (!in_array($status, $allowedStatus, true)) $status = 'all';
@@ -52,7 +52,8 @@ if ($selected !== '') {
     $s->bind_param('ss', $selected, $normalized);
     $s->execute();
     $selectedContact = null;
-    while ($candidate = $s->get_result()->fetch_assoc()) {
+    $selectedResult = $s->get_result();
+    while ($candidate = $selectedResult->fetch_assoc()) {
         if (crmIsEligibleProspect($candidate, $disqualified, $blocked)) {
             $selectedContact = $candidate;
             break;
