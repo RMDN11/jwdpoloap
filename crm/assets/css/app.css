@@ -129,3 +129,10 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   .chat-panel:not(.has-contact){display:none}
 }
 @keyframes crmSheetUp{from{transform:translateY(24px);opacity:.7}to{transform:translateY(0);opacity:1}}
+
+.chat-wa-link{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #cfe4d6;border-radius:12px;background:#f5fbf7;color:#187443;text-decoration:none;font-size:10px;font-weight:800}
+.chat-wa-link:hover{background:#eaf7ee}
+.message-label-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.crm-new-chat-toast{position:fixed;right:16px;bottom:96px;z-index:80;display:flex;align-items:center;gap:8px;border:1px solid #cfe4d6;border-radius:14px;background:#fff;padding:11px 14px;box-shadow:0 14px 35px rgba(17,45,31,.16);color:#24613d;font:700 11px inherit;cursor:pointer}
+.crm-new-chat-toast i{color:#168044}
+@media(max-width:768px){.chat-wa-link{margin-top:4px}.crm-new-chat-toast{left:12px;right:12px;bottom:92px;justify-content:center}}
