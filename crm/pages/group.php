@@ -218,7 +218,7 @@ function crmGroupDays(string $value): string {
                 </div>
             <?php endforeach; endif; ?>
         </div>
-    <
+    </div>
 
     <div class="group-card group-message-history-card">
         <div class="group-card-head compact">
