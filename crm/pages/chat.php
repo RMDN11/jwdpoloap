@@ -32,7 +32,7 @@ $sql = "SELECT id, nama, nowa, message, created_at, last_followup_at, last_templ
         LIMIT 80";
 
 $stmt = $conn->prepare($sql);
-if ($types !== '') $stmt->bind_param($types, ...$params);
+if ($types !== '') $stmt->bind_param('sss', $params[0], $params[1], $params[2]);
 $stmt->execute();
 $result = $stmt->get_result();
 
