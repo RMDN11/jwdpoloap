@@ -345,13 +345,31 @@ function crmGroupDays(string $value): string {
                 data.append('hari_rutin', days);
                 if (savedImagePath) data.append('saved_image_path', savedImagePath);
 
-                const response = await fetch(endpoint, {method:'POST', body:data});
-                const json = await response.json();
-                if (json.status === 'success') ok++;
+                try {
+                    const response = await fetch(endpoint, {method:'POST', body:data});
+                    const raw = await response.text();
+                    let json;
+                    try {
+                        json = JSON.parse(raw);
+                    } catch (parseError) {
+                        throw new Error(raw.trim().slice(0, 160) || 'Respons server bukan JSON yang valid.');
+                    }
+                    if (!response.ok) {
+                        throw new Error(json.msg || ('Server error HTTP ' + response.status));
+                    }
+                    if (json.status === 'success') {
+                        ok++;
+                    } else {
+                        throw new Error(json.msg || 'Pengiriman gagal.');
+                    }
+                    progressStatus.textContent = 'Berhasil diproses.';
+                } catch (groupError) {
+                    progressStatus.textContent = 'Gagal: ' + (groupError.message || 'respons server tidak valid.');
+                }
+
                 const percent = Math.round(((index + 1) / groups.length) * 100);
                 progressBar.style.width = percent + '%';
                 progressText.textContent = (index + 1) + ' / ' + groups.length;
-                progressStatus.textContent = json.status === 'success' ? 'Berhasil diproses.' : (json.msg || 'Gagal diproses.');
             }
             loadingTitle.textContent = mode === 'sekarang' ? 'Selesai' : 'Jadwal tersimpan';
             progressStatus.textContent = ok + ' berhasil · ' + (groups.length - ok) + ' gagal';
