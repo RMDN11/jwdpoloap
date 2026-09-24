@@ -1,13 +1,21 @@
 <?php
 $crmTitle = 'Chat';
+require_once __DIR__ . '/../config/prospect.php';
+$disqualified = crmGetDisqualifiedNumbers($conn);
+$blocked = crmGetBlockedNumbers($conn);
 
 $search = trim((string)($_GET['q'] ?? ''));
-$status = (string)($_GET['status'] ?? 'all');
+$status = (string)($_GET['status'] ?? 'new');
 $selected = trim((string)($_GET['contact'] ?? ''));
 $allowedStatus = ['all', 'new', 'followed'];
 if (!in_array($status, $allowedStatus, true)) $status = 'all';
 
-$where = ["message IS NOT NULL", "message != ''", "message != 'Data CSV/Manual'"];
+$where = [
+    "message IS NOT NULL",
+    "message != ''",
+    "message != 'Data CSV/Manual'",
+    "(message LIKE '%bingung mau pilih program%' OR message LIKE '%saya bingung%' OR message LIKE '%ziyadah pemula%' OR message LIKE '%ziyadah lanjutan%' OR message LIKE '%muroja''ah%' OR message LIKE '%murojaah%' OR message LIKE '%tahfidz cilik%' OR message LIKE '%intensif%' OR message LIKE '%normal%' OR message LIKE '%kak, mau%' OR message LIKE '%mau ikut%' OR message LIKE '%minat%')"
+];
 $bind = [];
 $types = '';
 if ($search !== '') {
@@ -19,7 +27,7 @@ if ($search !== '') {
 if ($status === 'new') $where[] = "(last_followup_at IS NULL OR last_followup_at = '0000-00-00 00:00:00')";
 if ($status === 'followed') $where[] = "last_followup_at IS NOT NULL AND last_followup_at != '0000-00-00 00:00:00'";
 
-$stmt = $conn->prepare("SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history FROM log_wa WHERE " . implode(' AND ', $where) . " ORDER BY id DESC LIMIT 100");
+$stmt = $conn->prepare("SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history FROM log_wa WHERE " . implode(' AND ', $where) . " ORDER BY id DESC LIMIT 300");
 if ($types) $stmt->bind_param($types, ...$bind);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -29,7 +37,8 @@ $maxLogId = 0;
 $seen = [];
 while ($row = $result->fetch_assoc()) {
     $maxLogId = max($maxLogId, (int)$row['id']);
-    $number = crmNormalizeNumber((string)$row['nowa']);
+    if (!crmIsEligibleProspect($row, $disqualified, $blocked)) continue;
+    $number = crmProspectNormalizeNumber((string)$row['nowa']);
     if ($number === '' || isset($seen[$number])) continue;
     $seen[$number] = true;
     $row['clean_wa'] = $number;
@@ -42,8 +51,15 @@ if ($selected !== '') {
     $s = $conn->prepare("SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history FROM log_wa WHERE nowa = ? OR nowa = ? ORDER BY id DESC LIMIT 1");
     $s->bind_param('ss', $selected, $normalized);
     $s->execute();
-    $selectedContact = $s->get_result()->fetch_assoc() ?: null;
-    if ($selectedContact) $selectedContact['clean_wa'] = crmNormalizeNumber((string)$selectedContact['nowa']);
+    $selectedContact = null;
+    $selectedResult = $s->get_result();
+    while ($candidate = $selectedResult->fetch_assoc()) {
+        if (crmIsEligibleProspect($candidate, $disqualified, $blocked)) {
+            $selectedContact = $candidate;
+            break;
+        }
+    }
+    if ($selectedContact) $selectedContact['clean_wa'] = crmProspectNormalizeNumber((string)$selectedContact['nowa']);
 }
 
 $templates = [];
