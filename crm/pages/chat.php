@@ -13,8 +13,7 @@ if (!in_array($status, $allowedStatus, true)) $status = 'all';
 $where = [
     "message IS NOT NULL",
     "message != ''",
-    "message != 'Data CSV/Manual'",
-    "(message LIKE '%bingung mau pilih program%' OR message LIKE '%saya bingung%' OR message LIKE '%ziyadah pemula%' OR message LIKE '%ziyadah lanjutan%' OR message LIKE '%muroja''ah%' OR message LIKE '%murojaah%' OR message LIKE '%tahfidz cilik%' OR message LIKE '%intensif%' OR message LIKE '%normal%' OR message LIKE '%kak, mau%' OR message LIKE '%mau ikut%' OR message LIKE '%minat%')"
+    "message != 'Data CSV/Manual'"
 ];
 $bind = [];
 $types = '';
@@ -27,7 +26,7 @@ if ($search !== '') {
 if ($status === 'new') $where[] = "(last_followup_at IS NULL OR last_followup_at = '0000-00-00 00:00:00')";
 if ($status === 'followed') $where[] = "last_followup_at IS NOT NULL AND last_followup_at != '0000-00-00 00:00:00'";
 
-$stmt = $conn->prepare("SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history FROM log_wa WHERE " . implode(' AND ', $where) . " ORDER BY id DESC LIMIT 300");
+$stmt = $conn->prepare("SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history FROM log_wa WHERE " . implode(' AND ', $where) . " ORDER BY id DESC LIMIT 500");
 if ($types) $stmt->bind_param($types, ...$bind);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -37,7 +36,7 @@ $maxLogId = 0;
 $seen = [];
 while ($row = $result->fetch_assoc()) {
     $maxLogId = max($maxLogId, (int)$row['id']);
-    if (!crmIsEligibleProspect($row, $disqualified, $blocked)) continue;
+    if (!crmIsEligibleProspect($row, $disqualified, $blocked, $conn)) continue;
     $number = crmProspectNormalizeNumber((string)$row['nowa']);
     if ($number === '' || isset($seen[$number])) continue;
     $seen[$number] = true;
@@ -57,7 +56,7 @@ if ($selected !== '') {
     $selectedContact = null;
     $selectedResult = $s->get_result();
     while ($candidate = $selectedResult->fetch_assoc()) {
-        if (crmIsEligibleProspect($candidate, $disqualified, $blocked)) {
+        if (crmIsEligibleProspect($candidate, $disqualified, $blocked, $conn)) {
             $selectedContact = $candidate;
             break;
         }
@@ -96,6 +95,8 @@ $templates = [];
 $templateResult = $conn->query("SELECT id,name,content FROM poloap_templates ORDER BY name ASC");
 if ($templateResult) while ($template = $templateResult->fetch_assoc()) $templates[] = $template;
 
+$triggers = crmGetProspectTriggers($conn);
+
 $historyItems = $selectedContact && !empty($selectedContact['template_history'])
     ? array_filter(explode('|||', $selectedContact['template_history'])) : [];
 
@@ -129,20 +130,37 @@ function crmChatUrl(string $search, string $status, string $contact = ''): strin
         <p>Kelola prospek dan follow-up tanpa keluar dari workspace CRM.</p>
     </div>
     <div class="chat-page-actions">
-        <button type="button" class="chat-add-prospect" id="crmAddProspectBtn"><i class="fa-solid fa-user-plus"></i> Tambah Prospek</button>
+        <button type="button" class="chat-add-trigger" id="crmAddTriggerBtn"><i class="fa-solid fa-bolt"></i> Tambah Trigger</button>
         <?php if ($selectedContact): ?>
         <a class="chat-wa-link" href="https://wa.me/<?= htmlspecialchars($selectedContact['clean_wa']) ?>" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
-    <?php endif; ?>
+        <?php endif; ?>
+    </div>
 </section>
 
-<div class="crm-modal" id="crmAddProspectModal" hidden>
-    <div class="crm-modal-card">
-        <div class="crm-modal-head"><div><span class="eyebrow">Chat CRM</span><h2>Tambah Prospek</h2></div><button type="button" id="crmAddProspectClose" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button></div>
-        <form method="post" action="actions/add-prospect.php">
+<div class="crm-modal" id="crmAddTriggerModal" hidden>
+    <div class="crm-modal-card crm-trigger-modal-card">
+        <div class="crm-modal-head">
+            <div>
+                <span class="eyebrow">Chat CRM</span>
+                <h2>Tambah Trigger</h2>
+                <p class="crm-modal-subtitle">Tambahkan frasa chat yang otomatis dianggap sebagai prospek baru.</p>
+            </div>
+            <button type="button" id="crmAddTriggerClose" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="actions/add-trigger.php">
             <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
-            <label><span>Nama</span><input type="text" name="nama" required maxlength="150" placeholder="Nama prospek"></label>
-            <label><span>Nomor WhatsApp</span><input type="tel" name="nowa" required maxlength="30" placeholder="08xxxxxxxxxx"></label>
-            <div class="crm-modal-foot"><button type="button" class="crm-modal-secondary" id="crmAddProspectCancel">Batal</button><button type="submit" class="chat-add-prospect"><i class="fa-solid fa-user-plus"></i> Simpan Prospek</button></div>
+            <label><span>Trigger chat</span><input type="text" name="keyword" required maxlength="120" placeholder="Contoh: paket weekend"></label>
+            <label><span>Kategori</span><input type="text" name="category" required maxlength="100" placeholder="Contoh: Paket Weekend"></label>
+            <div class="trigger-helper"><i class="fa-solid fa-circle-info"></i><span>Trigger dicocokkan dari isi chat. Pertanyaan umum seperti “mau tanya...” tetap tidak dianggap prospek kecuali ada intent ikut/daftar.</span></div>
+            <div class="trigger-current">
+                <div class="section-title-row"><span class="message-label">Trigger aktif</span><small><?= count($triggers) ?> trigger</small></div>
+                <div class="trigger-chip-list">
+                    <?php foreach ($triggers as $trigger): ?>
+                        <span class="trigger-chip"><strong><?= htmlspecialchars($trigger['keyword']) ?></strong><small><?= htmlspecialchars($trigger['category']) ?></small></span>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="crm-modal-foot"><button type="button" class="crm-modal-secondary" id="crmAddTriggerCancel">Batal</button><button type="submit" class="chat-add-trigger"><i class="fa-solid fa-plus"></i> Simpan Trigger</button></div>
         </form>
     </div>
 </div>
@@ -165,10 +183,10 @@ function crmChatUrl(string $search, string $status, string $contact = ''): strin
         <?php if (!$contacts): ?>
             <div class="empty-state"><i class="fa-regular fa-comments"></i><strong>Tidak ada percakapan</strong><p>Belum ada data yang cocok dengan filter ini.</p></div>
         <?php else: foreach ($contacts as $row): ?>
-            <?php $name = crmChatName($row); $isSelected = $selected !== '' && crmNormalizeNumber($selected) === $row['clean_wa']; ?>
+            <?php $name = crmChatName($row); $classification = crmProspectClassifyMessage((string)$row['message'], $conn); $isSelected = $selected !== '' && crmNormalizeNumber($selected) === $row['clean_wa']; ?>
             <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$row['nowa'])) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?>">
                 <span class="activity-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($name,0,1))) ?></span>
-                <span class="chat-body"><strong><?= htmlspecialchars($name) ?></strong><small><?= htmlspecialchars(crmPreview((string)$row['message'])) ?></small></span>
+                <span class="chat-body"><strong><?= htmlspecialchars($name) ?></strong><small><?= htmlspecialchars($classification) ?> · <?= htmlspecialchars(crmPreview((string)$row['message'])) ?></small></span>
                 <span class="chat-meta"><time><?= htmlspecialchars(date('H:i',strtotime($row['created_at']))) ?></time><?php if (!empty($row['last_followup_at'])): ?><i class="fa-solid fa-check-double"></i><?php else: ?><i class="fa-regular fa-circle"></i><?php endif; ?></span>
             </a>
         <?php endforeach; endif; ?>
@@ -252,12 +270,12 @@ function crmChatUrl(string $search, string $status, string $contact = ''): strin
         });
     }
 
-    const modal = document.getElementById('crmAddProspectModal');
-    const openBtn = document.getElementById('crmAddProspectBtn');
-    const closeBtn = document.getElementById('crmAddProspectClose');
-    const cancelBtn = document.getElementById('crmAddProspectCancel');
+    const modal = document.getElementById('crmAddTriggerModal');
+    const openBtn = document.getElementById('crmAddTriggerBtn');
+    const closeBtn = document.getElementById('crmAddTriggerClose');
+    const cancelBtn = document.getElementById('crmAddTriggerCancel');
     const closeModal = () => { if (modal) modal.hidden = true; };
-    if (openBtn && modal) openBtn.onclick = () => { modal.hidden = false; modal.querySelector('input[name="nama"]')?.focus(); };
+    if (openBtn && modal) openBtn.onclick = () => { modal.hidden = false; modal.querySelector('input[name="keyword"]')?.focus(); };
     if (closeBtn) closeBtn.onclick = closeModal;
     if (cancelBtn) cancelBtn.onclick = closeModal;
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });

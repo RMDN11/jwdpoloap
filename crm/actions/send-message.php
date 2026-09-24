@@ -27,7 +27,7 @@ $stmt->bind_param('ss', $contactId, $normalizedContact);
 $stmt->execute();
 $contact = $stmt->get_result()->fetch_assoc();
 
-if (!$contact || !crmIsEligibleProspect($contact, $disqualified, $blocked)) {
+if (!$contact || !crmIsEligibleProspect($contact, $disqualified, $blocked, $conn)) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak tidak ditemukan.'];
     header('Location: ../index.php?page=chat');
     exit;
