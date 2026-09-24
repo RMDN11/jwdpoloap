@@ -8,6 +8,11 @@ $allowedPages = ['home', 'chat', 'action', 'reminder', 'more'];
 if (!in_array($page, $allowedPages, true)) $page = 'home';
 
 $pageFile = __DIR__ . '/pages/' . $page . '.php';
+$crmMaxLogId = 0;
+$crmMaxLogResult = $conn->query("SELECT COALESCE(MAX(id), 0) AS max_id FROM log_wa");
+if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
+    $crmMaxLogId = (int)$crmMaxLogRow['max_id'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -39,7 +44,7 @@ $pageFile = __DIR__ . '/pages/' . $page . '.php';
 </div>
 <script>
 (() => {
-    let lastLogId = <?= (int)($conn->query("SELECT COALESCE(MAX(id),0) AS max_id FROM log_wa")->fetch_assoc()['max_id'] ?? 0) ?>;
+    let lastLogId = <?= $crmMaxLogId ?>;
     let pollBusy = false;
 
     function updateChatBadge(count) {
