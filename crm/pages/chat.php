@@ -14,7 +14,7 @@ $where = [
     "message IS NOT NULL",
     "message != ''",
     "message != 'Data CSV/Manual'",
-    "(message LIKE '%bingung mau pilih program%' OR message LIKE '%saya bingung%' OR message LIKE '%ziyadah pemula%' OR message LIKE '%ziyadah lanjutan%' OR message LIKE '%murojaah%' OR message LIKE '%muroja'ah%' OR message LIKE '%tahfidz cilik%' OR message LIKE '%intensif%' OR message LIKE '%normal%' OR message LIKE '%kak, mau%' OR message LIKE '%mau ikut%' OR message LIKE '%minat%')"
+    "(message LIKE '%bingung mau pilih program%' OR message LIKE '%saya bingung%' OR message LIKE '%ziyadah pemula%' OR message LIKE '%ziyadah lanjutan%' OR message LIKE '%murojaah%' OR message LIKE '%muroja''ah%' OR message LIKE '%tahfidz cilik%' OR message LIKE '%intensif%' OR message LIKE '%normal%' OR message LIKE '%kak, mau%' OR message LIKE '%mau ikut%' OR message LIKE '%minat%')"
 ];
 $bind = [];
 $types = '';
