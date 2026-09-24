@@ -423,7 +423,7 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 @media(max-width:560px){.group-page-head{align-items:flex-start;flex-direction:column}.group-manage-link{align-self:flex-start}.group-composer{padding:14px}.group-modes{gap:5px}.group-mode{padding:10px 5px}.group-side{grid-template-columns:1fr}.group-phone-body{min-height:230px}.group-lower-grid{margin-top:9px}}
 
 /* CRM Group message history / reuse */
-.group-message-history-card{min-width:0;max-height:420px;overflow:hidden}
+.group-message-history-card{min-width:0;max-height:420px;overflow:hidden;padding:15px}
 .group-message-history-card .group-card-head form{margin-left:auto}
 .group-history-clear{border:0;background:transparent;color:#a34b4b;font:inherit;font-size:9px;font-weight:800;padding:7px 8px;border-radius:9px;cursor:pointer}
 .group-history-clear:hover{background:#fff0f0}
@@ -437,7 +437,7 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .group-message-history-arrow{font-size:8px;color:#9aa69f}
 .group-history-hint{margin:8px 2px 0;color:#89958e;font-size:7.5px;line-height:1.4}
 @media(max-width:560px){
-  .group-message-history-card{max-height:350px}
+  .group-message-history-card{max-height:350px;padding:12px}
   .group-message-history-list{max-height:235px}
   .group-message-history-item{grid-template-columns:30px minmax(0,1fr) 16px;padding:7px;gap:7px}
   .group-message-history-icon{width:30px;height:30px}
