@@ -15,7 +15,7 @@ $queries = [
     'overdue' => "SELECT COUNT(*) AS total FROM crm_actions WHERE status='pending' AND due_at IS NOT NULL AND due_at < ?",
     'today' => "SELECT COUNT(*) AS total FROM crm_actions WHERE status='pending' AND due_at >= ? AND due_at < ?",
     'upcoming' => "SELECT COUNT(*) AS total FROM crm_actions WHERE status='pending' AND (due_at >= ? OR due_at IS NULL)",
-    'completed' => "SELECT COUNT(*) AS total FROM crm_actions WHERE status='completed'
+    'completed' => "SELECT COUNT(*) AS total FROM crm_actions WHERE status='completed'"
 ];
 foreach ($queries as $key=>$sql) { $stmt=$conn->prepare($sql); if(!$stmt) continue; if($key==='today') $stmt->bind_param('ss',$todayStart,$tomorrowStart); elseif($key==='overdue') $stmt->bind_param('s',$now); elseif($key==='upcoming') $stmt->bind_param('s',$tomorrowStart); $stmt->execute(); $counts[$key]=(int)($stmt->get_result()->fetch_assoc()['total']??0); $stmt->close(); }
 $actions=[]; $result=$conn->query("SELECT id,contact_nowa,contact_name,title,description,type,priority,status,due_at,created_at FROM crm_actions ORDER BY CASE WHEN status='pending' THEN 0 ELSE 1 END, CASE WHEN due_at IS NULL THEN 1 ELSE 0 END, due_at ASC, id DESC LIMIT 50"); if($result) while($row=$result->fetch_assoc()) $actions[]=$row;
