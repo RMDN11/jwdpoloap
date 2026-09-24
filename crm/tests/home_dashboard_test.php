@@ -2,6 +2,7 @@
 $home = file_get_contents(__DIR__ . '/../pages/home.php');
 $index = file_get_contents(__DIR__ . '/../index.php');
 $css = file_get_contents(__DIR__ . '/../assets/css/app.css');
+$bootstrap = file_get_contents(__DIR__ . '/../config/bootstrap.php');
 
 $checks = [
     'home removes today summary' => strpos($home, 'Ringkasan Hari Ini') === false,
