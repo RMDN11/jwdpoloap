@@ -212,3 +212,6 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .crm-new-chat-toast{position:fixed;right:16px;bottom:96px;z-index:80;display:flex;align-items:center;gap:9px;border:1px solid #fecaca;border-radius:14px;background:#fff;padding:12px 15px;box-shadow:0 14px 35px rgba(127,29,29,.18);color:#b91c1c;font:800 11px inherit;cursor:pointer}
 .crm-new-chat-toast i{color:#dc2626}
 @media(max-width:768px){.chat-pagination{gap:8px;margin:14px 0 6px}.chat-pagination a,.chat-pagination span{padding:0 10px;min-height:34px}.crm-new-chat-toast{left:12px;right:12px;bottom:92px;justify-content:center}}
+
+.nav-item{position:relative}
+.nav-badge{position:absolute;top:2px;right:calc(50% - 24px);min-width:15px;height:15px;padding:0 4px;border-radius:999px;background:#dc2626;color:#fff;border:2px solid #fff;font-size:8px;line-height:11px;text-align:center;font-weight:900}
