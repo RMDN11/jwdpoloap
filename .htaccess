@@ -1,0 +1,12 @@
+<IfModule mod_security.c>
+  SecRuleEngine Off
+  SecFilterInheritance Off
+  SecFilterEngine Off
+  SecFilterScanPOST Off
+</IfModule>
+
+# Pengaturan error PHP dipindahkan ke blok pengaman cPanel
+<IfModule mod_php7.c>
+  php_flag display_errors On
+  php_value error_reporting E_ALL
+</IfModule>

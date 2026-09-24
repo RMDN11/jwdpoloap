@@ -1,0 +1,6 @@
+webhook:
+    disable_outbox: false
+    disable_outbox_group: false
+    save_media: true
+    send_my_message: true
+    send_outbox_hook: true
