@@ -129,6 +129,7 @@ function crmActionDueClass(?string $dueAt,string $status): string { if($status==
     const contactNowa = document.getElementById('crmActionContactNowa');
     const contactHint = document.getElementById('crmActionContactHint');
     const contactOptions = Array.from(document.querySelectorAll('#crmActionContacts option'));
+    const createForm = document.querySelector('.crm-action-create-form');
 
     function syncContact() {
         const value = (contactSearch?.value || '').trim().toLowerCase();
@@ -154,6 +155,14 @@ function crmActionDueClass(?string $dueAt,string $status): string { if($status==
 
     contactSearch?.addEventListener('input', syncContact);
     contactSearch?.addEventListener('change', syncContact);
+    createForm?.addEventListener('submit', (event) => {
+        syncContact();
+        if ((contactSearch?.value || '').trim() !== '' && !(contactNowa?.value || '')) {
+            event.preventDefault();
+            if (contactHint) contactHint.textContent = 'Pilih kontak yang tersedia di daftar prospek aktif.';
+            contactSearch?.focus();
+        }
+    });
     openBtn?.addEventListener('click', openModal);
     closeBtn?.addEventListener('click', closeModal);
     cancelBtn?.addEventListener('click', closeModal);
