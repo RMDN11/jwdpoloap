@@ -1,5 +1,5 @@
 <?php
-$crmTitle = 'Chat';
+$crmTitle = 'Follow Up';
 require_once __DIR__ . '/../config/prospect.php';
 $disqualified = crmGetDisqualifiedNumbers($conn);
 $blocked = crmGetBlockedNumbers($conn);
@@ -194,9 +194,9 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $c
 
 <section class="page-head chat-page-head">
     <div>
-        <span class="eyebrow">Inbox CRM</span>
-        <h1>Chat</h1>
-        <p>Kelola prospek dan follow-up tanpa keluar dari workspace CRM.</p>
+        <span class="eyebrow">CRM Follow Up</span>
+        <h1>Follow Up</h1>
+        <p>Kelola prospek dan tindak lanjuti percakapan tanpa keluar dari workspace CRM.</p>
     </div>
     <div class="chat-page-actions">
         <button type="button" class="chat-add-trigger" id="crmAddTriggerBtn"><i class="fa-solid fa-bolt"></i> Tambah Trigger</button>
@@ -210,7 +210,7 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $c
     <div class="crm-modal-card crm-trigger-modal-card">
         <div class="crm-modal-head">
             <div>
-                <span class="eyebrow">Chat CRM</span>
+                <span class="eyebrow">Follow Up CRM</span>
                 <h2>Tambah Trigger</h2>
                 <p class="crm-modal-subtitle">Tambahkan frasa chat yang otomatis dianggap sebagai prospek baru.</p>
             </div>
