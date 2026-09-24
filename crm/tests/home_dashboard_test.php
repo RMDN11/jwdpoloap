@@ -11,6 +11,7 @@ $checks = [
     'home scene supports reduced motion' => strpos($css, '@media (prefers-reduced-motion: reduce)') !== false && strpos($css, '.home-scene .scene-sun') !== false,
     'home uses Jakarta timezone' => strpos($home, "timeZone: 'Asia/Jakarta'") !== false,
     'home has deterministic time periods' => strpos($home, "return 'sunset'") !== false && strpos($home, "return 'night'") !== false,
+    'home applies time period to scene element' => strpos($home, "document.querySelector('#crmHomeScene .home-scene')") !== false,
     'home scene has sunset styles' => strpos($css, '.home-scene[data-period="sunset"]') !== false,
     'home links activity to activity page' => strpos($home, '?page=activity') !== false,
     'router allows activity page' => strpos($index, "'activity'") !== false,
