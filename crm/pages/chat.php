@@ -247,6 +247,8 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $p
     <?php if ($search): ?><a href="<?= htmlspecialchars(crmChatUrl('', $status)) ?>"><i class="fa-solid fa-xmark"></i></a><?php endif; ?>
 </form>
 
+<div class="chat-sheet-backdrop" id="crmChatSheetBackdrop" aria-hidden="true"></div>
+
 <div class="chat-layout">
     <div class="chat-list">
         <?php if (!$contacts): ?>
@@ -354,6 +356,13 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $p
                 ? '<span class="template-preview-label">Preview pesan</span><p>' + content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</p>'
                 : '<span>Pilih template untuk melihat isi pesan.</span>';
         });
+    }
+
+    const sheetBackdrop = document.getElementById('crmChatSheetBackdrop');
+    const sheetClose = document.querySelector('.chat-panel-close');
+
+    if (sheetBackdrop) {
+        sheetBackdrop.addEventListener('click', () => sheetClose?.click());
     }
 
     const modal = document.getElementById('crmAddTriggerModal');
