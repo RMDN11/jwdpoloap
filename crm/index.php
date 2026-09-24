@@ -17,7 +17,7 @@ $pageFile = __DIR__ . '/pages/' . $page . '.php';
     <meta name="theme-color" content="#166534">
     <meta name="description" content="ReqraWA CRM">
     <title>ReqraWA CRM</title>
-    <link rel="icon" type="image/png" href="assets/logo.png">
+    <link rel="icon" type="image/png" href="assets/logowa.png">
     <link rel="stylesheet" href="assets/css/app.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 </head>
@@ -26,6 +26,12 @@ $pageFile = __DIR__ . '/pages/' . $page . '.php';
     <?php require __DIR__ . '/components/topbar.php'; ?>
 
     <main class="content">
+        <?php if (!empty($_SESSION['crm_flash'])): $flash = $_SESSION['crm_flash']; unset($_SESSION['crm_flash']); ?>
+            <div class="crm-flash <?= htmlspecialchars($flash['type'] ?? 'success') ?>">
+                <i class="fa-solid <?= ($flash['type'] ?? '') === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check' ?>"></i>
+                <span><?= htmlspecialchars($flash['message'] ?? '') ?></span>
+            </div>
+        <?php endif; ?>
         <?php require $pageFile; ?>
     </main>
 
