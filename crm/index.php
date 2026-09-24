@@ -69,7 +69,7 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
         el.id = 'crm-global-chat-toast';
         el.type = 'button';
         el.className = 'crm-new-chat-toast';
-        el.innerHTML = '<i class="fa-solid fa-bell"></i><span>' + count + ' chat baru masuk. Buka inbox</span>';
+        el.innerHTML = '<i class="fa-solid fa-bell"></i><span>' + count + ' follow-up baru masuk. Buka Follow Up</span>';
         el.onclick = () => { window.location.href = '?page=chat&status=new'; };
         document.body.appendChild(el);
 
