@@ -46,6 +46,9 @@ while ($row = $result->fetch_assoc()) {
 }
 
 $selectedContact = null;
+$recentMessages = [];
+$poloapHistory = [];
+
 if ($selected !== '') {
     $normalized = crmNormalizeNumber($selected);
     $s = $conn->prepare("SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history FROM log_wa WHERE nowa = ? OR nowa = ? ORDER BY id DESC LIMIT 30");
@@ -59,7 +62,34 @@ if ($selected !== '') {
             break;
         }
     }
-    if ($selectedContact) $selectedContact['clean_wa'] = crmProspectNormalizeNumber((string)$selectedContact['nowa']);
+    if ($selectedContact) {
+        $selectedContact['clean_wa'] = crmProspectNormalizeNumber((string)$selectedContact['nowa']);
+
+        $historyStmt = $conn->prepare("SELECT id,nama,nowa,message,created_at,is_form_sent,last_template_name FROM log_wa WHERE nowa = ? OR nowa = ? ORDER BY created_at DESC, id DESC LIMIT 20");
+        $historyStmt->bind_param('ss', $selectedContact['nowa'], $selectedContact['clean_wa']);
+        $historyStmt->execute();
+        $historyResult = $historyStmt->get_result();
+        while ($historyRow = $historyResult->fetch_assoc()) $recentMessages[] = $historyRow;
+        $historyStmt->close();
+
+        $outboundStmt = $conn->prepare("SELECT id,template_id,template_name,message,sent_at,status FROM crm_message_history WHERE nowa = ? OR nowa = ? ORDER BY sent_at DESC, id DESC LIMIT 20");
+        $outboundStmt->bind_param('ss', $selectedContact['nowa'], $selectedContact['clean_wa']);
+        $outboundStmt->execute();
+        $outboundResult = $outboundStmt->get_result();
+        while ($historyRow = $outboundResult->fetch_assoc()) $poloapHistory[] = $historyRow;
+        $outboundStmt->close();
+
+        if (!$poloapHistory && !empty($selectedContact['template_history'])) {
+            foreach (array_reverse(array_filter(explode('|||', $selectedContact['template_history']))) as $legacyHistory) {
+                $poloapHistory[] = [
+                    'sent_at' => null,
+                    'template_name' => $legacyHistory,
+                    'message' => '',
+                    'status' => 'legacy'
+                ];
+            }
+        }
+    }
 }
 
 $templates = [];
@@ -79,6 +109,11 @@ function crmChatName(array $row): string {
 function crmPreview(string $text, int $length = 68): string {
     return mb_strimwidth(trim(preg_replace('/\s+/', ' ', $text) ?? ''), 0, $length, '…');
 }
+function crmChatDate(?string $date): string {
+    if (!$date) return '';
+    $timestamp = strtotime($date);
+    return $timestamp ? date('d M Y, H:i', $timestamp) : '';
+}
 function crmChatUrl(string $search, string $status, string $contact = ''): string {
     $params = ['page'=>'chat','status'=>$status];
     if ($search !== '') $params['q'] = $search;
@@ -93,10 +128,24 @@ function crmChatUrl(string $search, string $status, string $contact = ''): strin
         <h1>Chat</h1>
         <p>Kelola prospek dan follow-up tanpa keluar dari workspace CRM.</p>
     </div>
-    <?php if ($selectedContact): ?>
+    <div class="chat-page-actions">
+        <button type="button" class="chat-add-prospect" id="crmAddProspectBtn"><i class="fa-solid fa-user-plus"></i> Tambah Prospek</button>
+        <?php if ($selectedContact): ?>
         <a class="chat-wa-link" href="https://wa.me/<?= htmlspecialchars($selectedContact['clean_wa']) ?>" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
     <?php endif; ?>
 </section>
+
+<div class="crm-modal" id="crmAddProspectModal" hidden>
+    <div class="crm-modal-card">
+        <div class="crm-modal-head"><div><span class="eyebrow">Chat CRM</span><h2>Tambah Prospek</h2></div><button type="button" id="crmAddProspectClose" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button></div>
+        <form method="post" action="actions/add-prospect.php">
+            <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+            <label><span>Nama</span><input type="text" name="nama" required maxlength="150" placeholder="Nama prospek"></label>
+            <label><span>Nomor WhatsApp</span><input type="tel" name="nowa" required maxlength="30" placeholder="08xxxxxxxxxx"></label>
+            <div class="crm-modal-foot"><button type="button" class="crm-modal-secondary" id="crmAddProspectCancel">Batal</button><button type="submit" class="chat-add-prospect"><i class="fa-solid fa-user-plus"></i> Simpan Prospek</button></div>
+        </form>
+    </div>
+</div>
 
 <div class="chat-stats">
     <a class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all')) ?>"><strong><?= count($contacts) ?></strong><span>Semua</span></a>
@@ -134,15 +183,38 @@ function crmChatUrl(string $search, string $status, string $contact = ''): strin
                 <div class="chat-panel-contact"><strong><?= htmlspecialchars($selectedName) ?></strong><small><?= htmlspecialchars($selectedContact['nowa']) ?></small></div>
                 <a class="chat-panel-close" href="<?= htmlspecialchars(crmChatUrl($search,$status)) ?>" aria-label="Tutup percakapan"><i class="fa-solid fa-xmark"></i></a>
             </div>
-            <div class="chat-message">
-                <div class="message-label-row"><span class="message-label">Pesan terakhir</span><time><?= htmlspecialchars(date('d M Y H:i',strtotime($selectedContact['created_at']))) ?></time></div>
-                <p><?= nl2br(htmlspecialchars((string)$selectedContact['message'])) ?></p>
+            <div class="chat-history-section">
+                <div class="section-title-row"><span class="message-label">Percakapan terbaru</span><small><?= count($recentMessages) ?> log terakhir</small></div>
+                <div class="chat-history-scroll">
+                    <?php foreach (array_reverse($recentMessages) as $historyRow): ?>
+                        <div class="chat-log-item">
+                            <div class="chat-log-meta">
+                                <time><?= htmlspecialchars(crmChatDate($historyRow['created_at'])) ?></time>
+                                <?php if (!empty($historyRow['is_form_sent'])): ?><span class="chat-log-badge">Form</span><?php endif; ?>
+                            </div>
+                            <p><?= nl2br(htmlspecialchars((string)$historyRow['message'])) ?></p>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
-            <?php if ($historyItems): ?><div class="followup-history"><span class="message-label">Riwayat follow-up</span><?php foreach (array_slice($historyItems,-5) as $history): ?><div><i class="fa-solid fa-check"></i><?= htmlspecialchars($history) ?></div><?php endforeach; ?></div><?php endif; ?>
+            <div class="poloap-history-section">
+                <div class="section-title-row"><span class="message-label">Riwayat Poloap</span><small><?= count($poloapHistory) ?> follow-up</small></div>
+                <div class="poloap-history-list">
+                    <?php if (!$poloapHistory): ?>
+                        <div class="history-empty">Belum ada riwayat Poloap untuk kontak ini.</div>
+                    <?php else: foreach ($poloapHistory as $history): ?>
+                        <div class="poloap-history-item">
+                            <div><strong><?= htmlspecialchars((string)($history['template_name'] ?? 'Pesan')) ?></strong><time><?= htmlspecialchars($history['sent_at'] ? crmChatDate($history['sent_at']) : 'Riwayat lama') ?></time></div>
+                            <?php if (!empty($history['message'])): ?><p><?= nl2br(htmlspecialchars((string)$history['message'])) ?></p><?php endif; ?>
+                        </div>
+                    <?php endforeach; endif; ?>
+                </div>
+            </div>
             <form class="send-box" method="post" action="actions/send-message.php">
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
                 <input type="hidden" name="contact_id" value="<?= htmlspecialchars($selectedContact['nowa']) ?>">
-                <label><span>Template</span><select name="template_id"><option value="">Pilih template...</option><?php foreach ($templates as $template): ?><option value="<?= (int)$template['id'] ?>"><?= htmlspecialchars($template['name']) ?></option><?php endforeach; ?></select></label>
+                <label><span>Template</span><select name="template_id" id="crmTemplateSelect"><option value="">Pilih template...</option><?php foreach ($templates as $template): ?><option value="<?= (int)$template['id'] ?>" data-content="<?= htmlspecialchars($template['content'], ENT_QUOTES) ?>"><?= htmlspecialchars($template['name']) ?></option><?php endforeach; ?></select></label>
+                <div class="template-preview" id="crmTemplatePreview"><span>Pilih template untuk melihat isi pesan.</span></div>
                 <label><span>Pesan custom <small>(opsional, menggantikan template)</small></span><textarea name="custom_message" rows="4" placeholder="Tulis pesan untuk <?= htmlspecialchars($selectedName) ?>..."></textarea></label>
                 <div class="send-box-foot"><small><i class="fa-solid fa-circle-info"></i> [nama] akan otomatis diganti.</small><button type="submit"><i class="fa-solid fa-paper-plane"></i> Kirim</button></div>
             </form>
@@ -166,6 +238,28 @@ function crmChatUrl(string $search, string $status, string $contact = ''): strin
             }
         }).catch(() => {});
     }
+    const templateSelect = document.getElementById('crmTemplateSelect');
+    const templatePreview = document.getElementById('crmTemplatePreview');
+    if (templateSelect && templatePreview) {
+        templateSelect.addEventListener('change', () => {
+            const option = templateSelect.options[templateSelect.selectedIndex];
+            const content = option?.dataset?.content || '';
+            templatePreview.innerHTML = content
+                ? '<span class="template-preview-label">Preview pesan</span><p>' + content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</p>'
+                : '<span>Pilih template untuk melihat isi pesan.</span>';
+        });
+    }
+
+    const modal = document.getElementById('crmAddProspectModal');
+    const openBtn = document.getElementById('crmAddProspectBtn');
+    const closeBtn = document.getElementById('crmAddProspectClose');
+    const cancelBtn = document.getElementById('crmAddProspectCancel');
+    const closeModal = () => { if (modal) modal.hidden = true; };
+    if (openBtn && modal) openBtn.onclick = () => { modal.hidden = false; modal.querySelector('input[name="nama"]')?.focus(); };
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
     setInterval(poll,10000);
 })();
 </script>
