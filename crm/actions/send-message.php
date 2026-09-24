@@ -21,13 +21,9 @@ if ($contactId === '') {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT nowa, nama, message, template_history FROM log_wa WHERE nowa = ? OR nowa = ? LIMIT 1");
-$normalizedContact = crmProspectNormalizeNumber($contactId);
-$stmt->bind_param('ss', $contactId, $normalizedContact);
-$stmt->execute();
-$contact = $stmt->get_result()->fetch_assoc();
+$contact = crmFindEligibleProspectByNumber($conn, $contactId, $disqualified, $blocked);
 
-if (!$contact || !crmIsEligibleProspect($contact, $disqualified, $blocked, $conn)) {
+if (!$contact) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak tidak ditemukan.'];
     header('Location: ../index.php?page=chat');
     exit;
@@ -106,8 +102,9 @@ $historyEntry = date('d/m/Y H:i') . ' - ' . $templateName;
 $newHistory = $oldHistory !== '' ? $oldHistory . '|||' . $historyEntry : $historyEntry;
 $isForm = (stripos($messageTemplate, 'penempatan halaqoh') !== false || stripos($messageTemplate, 'silahkan isi link form berikut') !== false || stripos($messageTemplate, 'silakan isi link form berikut') !== false) ? 1 : 0;
 
-$update = $conn->prepare("UPDATE log_wa SET last_followup_at = NOW(), is_form_sent = GREATEST(is_form_sent, ?), last_template_name = ?, template_history = ? WHERE nowa = ?");
-$update->bind_param('isss', $isForm, $templateName, $newHistory, $contactId);
+$update = $conn->prepare("UPDATE log_wa SET last_followup_at = NOW(), is_form_sent = GREATEST(is_form_sent, ?), last_template_name = ?, template_history = ? WHERE nowa = ? OR nowa = ?");
+$normalizedContact = crmProspectNormalizeNumber($contact['nowa']);
+$update->bind_param('issss', $isForm, $templateName, $newHistory, $contact['nowa'], $normalizedContact);
 $update->execute();
 
 $historyStmt = $conn->prepare("INSERT INTO crm_message_history (nowa, nama, template_id, template_name, message, sent_at, status) VALUES (?, ?, NULLIF(?, 0), ?, ?, NOW(), 'sent')");
