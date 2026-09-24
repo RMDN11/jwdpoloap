@@ -31,6 +31,16 @@ $checks['action table exists in bootstrap'] = strpos($bootstrap, 'CREATE TABLE I
 $checks['action workspace exists'] = strpos($action, 'action-summary-grid') !== false && strpos($action, 'action-workspace-list') !== false;
 $checks['action csrf complete exists'] = strpos($action, 'crmVerifyCsrf') !== false && strpos($action, 'complete_action') !== false;
 $checks['action mobile css exists'] = strpos($css, '/* Action V2 core */') !== false;
+$checks['action create endpoint exists'] = file_exists(__DIR__ . '/../actions/create-action.php');
+$createAction = file_get_contents(__DIR__ . '/../actions/create-action.php');
+$checks['action create endpoint is csrf protected'] = strpos($createAction, 'crmVerifyCsrf') !== false;
+$checks['action create validates contact'] = strpos($createAction, 'crmFindEligibleProspectByNumber') !== false;
+$checks['action create uses Jakarta deadline'] = strpos($createAction, 'Asia/Jakarta') !== false;
+$checks['action create modal exists'] = strpos($action, 'crmCreateActionModal') !== false && strpos($action, 'actions/create-action.php') !== false;
+$checks['action create button enabled'] = strpos($action, 'id="crmCreateActionBtn"') !== false && strpos($action, 'disabled title="Create Action akan masuk tahap berikutnya"') === false;
+$checks['action create mobile styles exist'] = strpos($css, '/* Action V2 create form */') !== false;
+$checks['action contact picker has hidden number binding'] = strpos($action, 'crmActionContactNowa') !== false && strpos($action, 'crmActionContactSearch') !== false;
+$checks['action contact picker validates selection'] = strpos($action, 'Pilih kontak yang tersedia di daftar prospek aktif.') !== false;
 
 $failed = array_keys(array_filter($checks, fn($ok) => !$ok));
 foreach ($checks as $name => $ok) echo ($ok ? "PASS" : "FAIL") . " - $name\n";
