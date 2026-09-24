@@ -2,6 +2,7 @@
 $home = file_get_contents(__DIR__ . '/../pages/home.php');
 $index = file_get_contents(__DIR__ . '/../index.php');
 $css = file_get_contents(__DIR__ . '/../assets/css/app.css');
+$bootstrap = file_get_contents(__DIR__ . '/../config/bootstrap.php');
 
 $checks = [
     'home removes today summary' => strpos($home, 'Ringkasan Hari Ini') === false,
@@ -22,25 +23,23 @@ $checks = [
     'home hides global timebar' => strpos($index, "$page !== 'home'") !== false && strpos($index, "components/topbar.php") !== false,
     'home icon grid styles exist' => strpos($css, '.home-tools-grid') !== false,
     'home tools have compact centered styles' => strpos($css, '.home-tools-grid strong{font-size:10px') !== false && strpos($css, 'align-items:center') !== false,
-    'home tools use original feature routes' => strpos($home, '../kirimgrup.php') !== false && strpos($home, '../pesan.php') !== false && strpos($home, '../manage_templates.php') !== false,
+    'home tools use rebuilt feature routes' => strpos($home, '?page=group') !== false && strpos($home, '?page=chat') !== false && strpos($home, '?page=reminder') !== false && strpos($home, '../manage_templates.php') !== false,
 ];
 
-$action = file_get_contents(__DIR__ . '/../pages/action.php');
-$bootstrap = file_get_contents(__DIR__ . '/../config/bootstrap.php');
-$checks['action table exists in bootstrap'] = strpos($bootstrap, 'CREATE TABLE IF NOT EXISTS crm_actions') !== false;
-$checks['action workspace exists'] = strpos($action, 'action-summary-grid') !== false && strpos($action, 'action-workspace-list') !== false;
-$checks['action csrf complete exists'] = strpos($action, 'crmVerifyCsrf') !== false && strpos($action, 'complete_action') !== false;
-$checks['action mobile css exists'] = strpos($css, '/* Action V2 core */') !== false;
-$checks['action create endpoint exists'] = file_exists(__DIR__ . '/../actions/create-action.php');
-$createAction = file_get_contents(__DIR__ . '/../actions/create-action.php');
-$checks['action create endpoint is csrf protected'] = strpos($createAction, 'crmVerifyCsrf') !== false;
-$checks['action create validates contact'] = strpos($createAction, 'crmFindEligibleProspectByNumber') !== false;
-$checks['action create uses Jakarta deadline'] = strpos($createAction, 'Asia/Jakarta') !== false;
-$checks['action create modal exists'] = strpos($action, 'crmCreateActionModal') !== false && strpos($action, 'actions/create-action.php') !== false;
-$checks['action create button enabled'] = strpos($action, 'id="crmCreateActionBtn"') !== false && strpos($action, 'disabled title="Create Action akan masuk tahap berikutnya"') === false;
-$checks['action create mobile styles exist'] = strpos($css, '/* Action V2 create form */') !== false;
-$checks['action contact picker has hidden number binding'] = strpos($action, 'crmActionContactNowa') !== false && strpos($action, 'crmActionContactSearch') !== false;
-$checks['action contact picker validates selection'] = strpos($action, 'Pilih kontak yang tersedia di daftar prospek aktif.') !== false;
+$nav = file_get_contents(__DIR__ . '/../components/bottom-nav.php');
+$checks['action route removed'] = strpos($index, "'action'") === false;
+$checks['bottom nav uses Group'] = strpos($nav, "'group' => ['label' => 'Grup'") !== false;
+$checks['bottom nav uses Follow Up'] = strpos($nav, "'chat' => ['label' => 'Follow Up'") !== false;
+$checks['bottom nav keeps Home centered'] = strpos($nav, "'home' => ['label' => 'Home'") !== false && strpos($nav, 'home-button') !== false;
+$checks['bottom nav uses payment Reminder'] = strpos($nav, "'reminder' => ['label' => 'Reminder'") !== false;
+$checks['action page removed'] = !file_exists(__DIR__ . '/../pages/action.php');
+$checks['action create endpoint removed'] = !file_exists(__DIR__ . '/../actions/create-action.php');
+$checks['bootstrap no longer creates Action table'] = strpos($bootstrap, 'CREATE TABLE IF NOT EXISTS crm_actions') === false;
+$checks['home has Follow Up shortcut'] = strpos($home, '>Follow Up<') !== false;
+$checks['home has Group shortcut'] = strpos($home, '?page=group') !== false;
+$checks['home no longer links Action'] = strpos($home, '?page=action') === false;
+$checks['reminder is payment workflow'] = strpos(file_get_contents(__DIR__ . '/../pages/reminder.php'), 'Reminder Pembayaran') !== false;
+$checks['chat workspace is Follow Up'] = strpos(file_get_contents(__DIR__ . '/../pages/chat.php'), '$crmTitle = \'Follow Up\';') !== false;
 
 $failed = array_keys(array_filter($checks, fn($ok) => !$ok));
 foreach ($checks as $name => $ok) echo ($ok ? "PASS" : "FAIL") . " - $name\n";
