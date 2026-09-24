@@ -8,6 +8,11 @@ $allowedPages = ['home', 'chat', 'action', 'reminder', 'more'];
 if (!in_array($page, $allowedPages, true)) $page = 'home';
 
 $pageFile = __DIR__ . '/pages/' . $page . '.php';
+$crmMaxLogId = 0;
+$crmMaxLogResult = $conn->query("SELECT COALESCE(MAX(id), 0) AS max_id FROM log_wa");
+if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
+    $crmMaxLogId = (int)$crmMaxLogRow['max_id'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -37,5 +42,58 @@ $pageFile = __DIR__ . '/pages/' . $page . '.php';
 
     <?php require __DIR__ . '/components/bottom-nav.php'; ?>
 </div>
+<script>
+(() => {
+    let lastLogId = <?= $crmMaxLogId ?>;
+    let pollBusy = false;
+
+    function updateChatBadge(count) {
+        const badge = document.getElementById('crmChatBadge');
+        if (!badge) return;
+        badge.textContent = String(count);
+        badge.hidden = count <= 0;
+    }
+
+    function showChatToast(count) {
+        const old = document.getElementById('crm-global-chat-toast');
+        if (old) old.remove();
+
+        updateChatBadge(count);
+
+        const el = document.createElement('button');
+        el.id = 'crm-global-chat-toast';
+        el.type = 'button';
+        el.className = 'crm-new-chat-toast';
+        el.innerHTML = '<i class="fa-solid fa-bell"></i><span>' + count + ' chat baru masuk. Buka inbox</span>';
+        el.onclick = () => { window.location.href = '?page=chat&status=new'; };
+        document.body.appendChild(el);
+
+        window.setTimeout(() => {
+            if (el.isConnected) el.remove();
+        }, 9000);
+    }
+
+    function pollChat() {
+        if (!lastLogId || pollBusy) return;
+        pollBusy = true;
+
+        fetch('pages/chat-poll.php?last_id=' + encodeURIComponent(lastLogId), {
+            headers: {'X-Requested-With':'XMLHttpRequest'},
+            cache: 'no-store'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status !== 'success') return;
+            const nextId = Number(data.max_id || 0);
+            if (nextId > lastLogId) lastLogId = nextId;
+            if (Number(data.new_count || 0) > 0) showChatToast(Number(data.new_count));
+        })
+        .catch(() => {})
+        .finally(() => { pollBusy = false; });
+    }
+
+    window.setInterval(pollChat, 10000);
+})();
+</script>
 </body>
 </html>
