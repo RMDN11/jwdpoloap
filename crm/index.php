@@ -28,7 +28,9 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
 </head>
 <body>
 <div class="app-shell">
-    <?php require __DIR__ . '/components/topbar.php'; ?>
+    <?php if ($page !== 'home'): ?>
+        <?php require __DIR__ . '/components/topbar.php'; ?>
+    <?php endif; ?>
 
     <main class="content">
         <?php if (!empty($_SESSION['crm_flash'])): $flash = $_SESSION['crm_flash']; unset($_SESSION['crm_flash']); ?>
