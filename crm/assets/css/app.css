@@ -224,3 +224,9 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   .chat-panel.has-contact{z-index:70}
   .chat-panel.has-contact .send-box-foot button{min-height:42px;padding-inline:16px}
 }
+
+/* CRM V2: explicit active bottom-nav state */
+.bottom-nav .nav-item.active,
+.bottom-nav .nav-item.active > i,
+.bottom-nav .nav-item.active > span:not(.action-button){color:#168044!important}
+.bottom-nav .nav-item.active > i{opacity:1}
