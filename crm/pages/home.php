@@ -9,7 +9,7 @@ if ($result) {
 ?>
 <section class="home-time-card">
     <div class="home-time-copy">
-        <span class="eyebrow">CRM Jawwada</span>
+        <span class="eyebrow">Halo Han!</span>
         <h1 id="crmHomeDay">Hari ini</h1>
         <p id="crmHomeDate">Memuat tanggal...</p>
         <div class="home-clock-row">
@@ -22,7 +22,7 @@ if ($result) {
             <div>
                 <span class="home-clock-label">Waktu sekarang</span>
                 <strong id="crmDigitalClock">--:--</strong>
-                <small>WIB · waktu lokal CRM</small>
+                <small>WIB · waktu lokalmu</small>
             </div>
         </div>
     </div>
