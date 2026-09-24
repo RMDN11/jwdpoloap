@@ -36,20 +36,7 @@ if ($customMessage !== '') {
     $messageTemplate = $customMessage;
     $templateName = 'Pesan Custom Langsung';
 
-    $conn->query("CREATE TABLE IF NOT EXISTS custom_msg_history (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        msg_text TEXT,
-        created_at DATETIME
-    )");
-
-    $historyCheck = $conn->prepare("SELECT id FROM custom_msg_history WHERE msg_text = ? LIMIT 1");
-    $historyCheck->bind_param('s', $customMessage);
-    $historyCheck->execute();
-    if ($historyCheck->get_result()->num_rows === 0) {
-        $historyInsert = $conn->prepare("INSERT INTO custom_msg_history (msg_text, created_at) VALUES (?, NOW())");
-        $historyInsert->bind_param('s', $customMessage);
-        $historyInsert->execute();
-    }
+    
 } elseif ($templateId > 0) {
     $templateStmt = $conn->prepare("SELECT name, content FROM poloap_templates WHERE id = ? LIMIT 1");
     $templateStmt->bind_param('i', $templateId);
