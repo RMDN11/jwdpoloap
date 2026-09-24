@@ -472,3 +472,9 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   .home-scene .scene-sun,.home-scene .scene-moon,.home-scene .scene-cloud{animation:none!important;transition:none!important}
   .home-scene .scene-stars{transition:none!important}
 }
+
+/* Home time scene: deterministic WIB periods */
+.home-scene[data-period="sunset"]:before{background:linear-gradient(135deg,rgba(255,225,188,.28),rgba(246,200,95,.18))}
+.home-scene[data-period="sunset"] .scene-sun{background:#f1a35b;box-shadow:0 0 0 12px rgba(241,163,91,.12),0 0 34px rgba(241,163,91,.2);transform:translateY(12px) scale(.9)}
+.home-scene[data-period="sunset"] .scene-cloud{opacity:.55}
+.home-scene[data-period="sunset"] .scene-moon,.home-scene[data-period="sunset"] .scene-stars{opacity:0}
