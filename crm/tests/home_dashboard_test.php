@@ -7,6 +7,8 @@ $checks = [
     'home removes today summary' => strpos($home, 'Ringkasan Hari Ini') === false,
     'home has clock and calendar' => strpos($home, 'crmAnalogClock') !== false && strpos($home, 'crmCalendarGrid') !== false,
     'home removes hero date line' => strpos($home, 'id="crmHomeDate"') === false,
+    'home has time scene' => strpos($home, 'id="crmHomeScene"') !== false && strpos($home, 'scene-moon') !== false && strpos($home, 'scene-sun') !== false,
+    'home scene supports reduced motion' => strpos($css, '@media (prefers-reduced-motion: reduce)') !== false && strpos($css, '.home-scene .scene-sun') !== false,
     'home links activity to activity page' => strpos($home, '?page=activity') !== false,
     'router allows activity page' => strpos($index, "'activity'") !== false,
     'home hides global timebar' => strpos($index, "$page !== 'home'") !== false && strpos($index, "components/topbar.php") !== false,

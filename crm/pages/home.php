@@ -8,7 +8,14 @@ if ($result) {
 }
 ?>
 <section class="home-time-card">
-    <div class="home-time-copy">
+    <div class="home-time-copy" id="crmHomeScene">
+        <div class="home-scene" aria-hidden="true">
+            <span class="scene-sun"></span>
+            <span class="scene-moon"></span>
+            <span class="scene-cloud scene-cloud-a"></span>
+            <span class="scene-cloud scene-cloud-b"></span>
+            <span class="scene-stars"></span>
+        </div>
         <span class="eyebrow">Halo Han!</span>
         <h1 id="crmHomeDay">Hari ini</h1>
         <div class="home-clock-row">
@@ -110,6 +117,11 @@ if ($result) {
         const m = now.getMinutes();
         const s = now.getSeconds();
         if (dayEl) dayEl.textContent = dayNames[now.getDay()];
+        const sceneEl = document.getElementById('crmHomeScene');
+        if (sceneEl) {
+            const period = (h >= 18 || h < 5) ? 'night' : (h < 7 ? 'dawn' : 'day');
+            sceneEl.dataset.period = period;
+        }
         if (digitalEl) digitalEl.textContent = [h,m].map(v => String(v).padStart(2,'0')).join(':');
         if (hourHand) hourHand.style.transform = 'translateX(-50%) rotate(' + ((h % 12) * 30 + m * .5) + 'deg)';
         if (minuteHand) minuteHand.style.transform = 'translateX(-50%) rotate(' + (m * 6 + s * .1) + 'deg)';
