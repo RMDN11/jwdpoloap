@@ -260,8 +260,8 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .bottom-nav .nav-item.active > i{opacity:1}
 
 /* CRM V2 Home dashboard */
-.home-time-card{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:12px;margin-bottom:20px}
-.home-time-copy,.home-calendar-card{border:1px solid #e1ebe5;border-radius:24px;background:#fff;box-shadow:0 10px 32px rgba(24,55,41,.045)}
+.home-time-card{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:0;margin-bottom:20px;border:1px solid #e1ebe5;border-radius:24px;background:#fff;box-shadow:0 10px 32px rgba(24,55,41,.045);overflow:hidden}
+.home-time-copy,.home-calendar-card{border:0;border-radius:0;box-shadow:none;background:transparent}
 .home-time-copy{position:relative;overflow:hidden;padding:24px;background:linear-gradient(145deg,#f5fbf7 0%,#fff 62%)}
 .home-time-copy:after{content:"";position:absolute;width:180px;height:180px;right:-90px;top:-90px;border-radius:50%;background:#dff3e6;opacity:.7}
 .home-time-copy h1{margin:5px 0 2px;font-size:31px;letter-spacing:-.04em;color:#10291e}
@@ -278,7 +278,7 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .clock-minute{height:31px;background:#168044}
 .clock-second{height:34px;width:1px;background:#e65f5f}
 .clock-center{position:absolute;left:50%;top:50%;width:7px;height:7px;transform:translate(-50%,-50%);border-radius:50%;background:#168044;border:2px solid #fff;box-sizing:content-box}
-.home-calendar-card{padding:17px}
+.home-calendar-card{padding:24px 22px;border-left:1px solid #e6eee9}
 .home-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 .home-calendar-kicker{display:block;color:#7d8b84;font-size:9px;text-transform:uppercase;letter-spacing:.08em;font-weight:800}
 .home-calendar-head strong{display:block;margin-top:2px;color:#19382a;font-size:14px}
@@ -299,7 +299,7 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .activity-log-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;padding:0 2px;color:#7f8c85;font-size:10px}.activity-log-head strong{color:#234335;font-size:12px}
 .activity-log-list{display:grid;gap:8px}.activity-log-item{display:flex;align-items:center;gap:11px;padding:13px;background:#fff;border:1px solid #e3ebe6;border-radius:17px;text-decoration:none;color:#18352a;box-shadow:0 4px 14px rgba(24,55,41,.035)}.activity-log-item .activity-body em{display:block;margin-top:4px;color:#a0aaa4;font-size:9px;font-style:normal}.activity-log-item time{font-size:9px;color:#929e97;white-space:nowrap;align-self:flex-start}.activity-pagination{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px}.activity-pagination a,.activity-pagination span{display:inline-flex;align-items:center;gap:6px;min-height:35px;padding:0 11px;border:1px solid #e2e9e4;border-radius:10px;background:#fff;color:#42554b;text-decoration:none;font-size:10px;font-weight:700}.activity-pagination .disabled{color:#c1c8c3;background:#f8faf9}.activity-pagination strong{color:#7b8981;font-size:10px}
 .activity-back{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #dce7e0;border-radius:11px;color:#4e6257;background:#fff;text-decoration:none;font-size:10px;font-weight:700}
-@media(max-width:850px){.home-time-card{grid-template-columns:1fr}.home-time-copy{padding:20px}.home-tools-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:850px){.home-time-card{grid-template-columns:1fr}.home-time-copy{padding:20px}.home-calendar-card{border-left:0;border-top:1px solid #e6eee9;padding:18px 20px}.home-tools-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.home-time-copy h1{font-size:26px}.home-clock-row{margin-top:20px}.home-analog-clock{width:76px;height:76px;flex-basis:76px}.clock-hour{height:20px}.clock-minute{height:27px}.clock-second{height:30px}.home-clock-row strong{font-size:24px}.home-calendar-card{padding:14px}.home-calendar-grid span{min-height:27px}.home-tools-grid{gap:7px}.home-tools-grid>a{padding:11px}.home-tools-grid small{font-size:8px}.activity-log-item{align-items:flex-start}.activity-log-item time{font-size:8px}}
 
 /* CRM V2 global timebar: replaces the old branded header */
