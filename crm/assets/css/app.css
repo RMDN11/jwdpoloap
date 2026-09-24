@@ -136,3 +136,47 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .crm-new-chat-toast{position:fixed;right:16px;bottom:96px;z-index:80;display:flex;align-items:center;gap:8px;border:1px solid #cfe4d6;border-radius:14px;background:#fff;padding:11px 14px;box-shadow:0 14px 35px rgba(17,45,31,.16);color:#24613d;font:700 11px inherit;cursor:pointer}
 .crm-new-chat-toast i{color:#168044}
 @media(max-width:768px){.chat-wa-link{margin-top:4px}.crm-new-chat-toast{left:12px;right:12px;bottom:92px;justify-content:center}}
+
+/* Chat V2: history, template preview, add prospect */
+.chat-page-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chat-add-prospect{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:10px 14px;background:#1f8f57;color:#fff;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;box-shadow:0 8px 20px rgba(31,143,87,.16)}
+.chat-add-prospect:hover{filter:brightness(.97)}
+.chat-history-section,.poloap-history-section{margin-top:12px;padding:14px;border:1px solid #e3ebe6;border-radius:16px;background:#fbfdfc}
+.section-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.section-title-row small{color:#849189;font-size:11px}
+.chat-history-scroll{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto;padding-right:2px}
+.chat-log-item{padding:10px 12px;border-radius:13px;background:#fff;border:1px solid #e7eee9}
+.chat-log-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;color:#8a968f;font-size:10px}
+.chat-log-item p,.poloap-history-item p{margin:0;color:#34443b;font-size:13px;line-height:1.55;white-space:normal;overflow-wrap:anywhere}
+.chat-log-badge{padding:3px 7px;border-radius:999px;background:#fff1f1;color:#c85a5a;font-size:9px;font-weight:700}
+.poloap-history-list{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto}
+.poloap-history-item{padding:10px 12px;border-radius:13px;background:#fff;border:1px solid #e7eee9}
+.poloap-history-item>div{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+.poloap-history-item strong{font-size:12px;color:#1d3428}
+.poloap-history-item time{font-size:10px;color:#8a968f}
+.history-empty{padding:12px;text-align:center;color:#8a968f;font-size:12px}
+.template-preview{margin-top:-3px;margin-bottom:10px;padding:11px 12px;border-radius:13px;border:1px solid #dce9e1;background:#f3faf5;color:#3e5147}
+.template-preview-label{display:block;margin-bottom:5px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#6d7f74}
+.template-preview p{margin:0;font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.crm-modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:18px;background:rgba(15,35,25,.38);backdrop-filter:blur(6px)}
+.crm-modal[hidden]{display:none}
+.crm-modal-card{width:min(100%,460px);padding:20px;border:1px solid #dfe9e3;border-radius:20px;background:#fff;box-shadow:0 24px 70px rgba(15,35,25,.2)}
+.crm-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}
+.crm-modal-head h2{margin:3px 0 0;font-size:22px}
+.crm-modal-head button{width:36px;height:36px;border:1px solid #e0e9e3;border-radius:11px;background:#f8fbf9;color:#718078;cursor:pointer}
+.crm-modal-card form{display:flex;flex-direction:column;gap:14px}
+.crm-modal-card label{display:flex;flex-direction:column;gap:7px}
+.crm-modal-card label>span{font-size:12px;font-weight:700;color:#526159}
+.crm-modal-card input{width:100%;border:1px solid #dce6e0;border-radius:12px;padding:12px 13px;font:inherit;outline:0}
+.crm-modal-card input:focus{border-color:#7ac49a;box-shadow:0 0 0 3px rgba(122,196,154,.14)}
+.crm-modal-foot{display:flex;justify-content:flex-end;gap:9px;margin-top:3px}
+.crm-modal-secondary{border:1px solid #dce6e0;border-radius:12px;padding:10px 14px;background:#fff;color:#526159;font:inherit;font-weight:700;cursor:pointer}
+@media(max-width:768px){
+ .chat-page-actions{width:100%;margin-top:4px}
+ .chat-page-actions .chat-add-prospect,.chat-page-actions .chat-wa-link{flex:1}
+ .chat-history-section,.poloap-history-section{padding:12px}
+ .chat-history-scroll{max-height:230px}
+ .poloap-history-list{max-height:220px}
+ .crm-modal{align-items:end;padding:10px}
+ .crm-modal-card{border-radius:20px 20px 14px 14px;padding:18px}
+}
