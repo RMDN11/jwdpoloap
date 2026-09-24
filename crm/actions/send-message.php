@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
+require_once __DIR__ . '/../config/prospect.php';
+$disqualified = crmGetDisqualifiedNumbers($conn);
+$blocked = crmGetBlockedNumbers($conn);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? null)) {
     http_response_code(403);
@@ -18,12 +21,13 @@ if ($contactId === '') {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT nama, message, template_history FROM log_wa WHERE nowa = ? LIMIT 1");
-$stmt->bind_param('s', $contactId);
+$stmt = $conn->prepare("SELECT nowa, nama, message, template_history FROM log_wa WHERE nowa = ? OR nowa = ? LIMIT 1");
+$normalizedContact = crmProspectNormalizeNumber($contactId);
+$stmt->bind_param('ss', $contactId, $normalizedContact);
 $stmt->execute();
 $contact = $stmt->get_result()->fetch_assoc();
 
-if (!$contact) {
+if (!$contact || !crmIsEligibleProspect($contact, $disqualified, $blocked)) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak tidak ditemukan.'];
     header('Location: ../index.php?page=chat');
     exit;
