@@ -25,6 +25,13 @@ $checks = [
     'home tools use original feature routes' => strpos($home, '../kirimgrup.php') !== false && strpos($home, '../pesan.php') !== false && strpos($home, '../manage_templates.php') !== false,
 ];
 
+$action = file_get_contents(__DIR__ . '/../pages/action.php');
+$bootstrap = file_get_contents(__DIR__ . '/../config/bootstrap.php');
+$checks['action table exists in bootstrap'] = strpos($bootstrap, 'CREATE TABLE IF NOT EXISTS crm_actions') !== false;
+$checks['action workspace exists'] = strpos($action, 'action-summary-grid') !== false && strpos($action, 'action-workspace-list') !== false;
+$checks['action csrf complete exists'] = strpos($action, 'crmVerifyCsrf') !== false && strpos($action, 'complete_action') !== false;
+$checks['action mobile css exists'] = strpos($css, '/* Action V2 core */') !== false;
+
 $failed = array_keys(array_filter($checks, fn($ok) => !$ok));
 foreach ($checks as $name => $ok) echo ($ok ? "PASS" : "FAIL") . " - $name\n";
 if ($failed) exit(1);
