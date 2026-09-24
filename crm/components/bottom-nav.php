@@ -11,7 +11,7 @@ $nav = [
 <nav class="bottom-nav" aria-label="Navigasi CRM">
     <?php foreach ($nav as $key => $item): ?>
         <?php $active = $currentPage === $key; ?>
-        <a href="?page=<?= urlencode($key) ?>" class="nav-item <?= $active ? 'active' : '' ?> <?= $key === 'action' ? 'action-item' : '' ?>">
+        <a href="?page=<?= urlencode($key) ?>" class="nav-item <?= $active ? 'active' : '' ?> <?= $key === 'action' ? 'action-item' : '' ?>" <?= $active ? 'aria-current="page"' : '' ?>>
             <?php if ($key === 'action'): ?>
                 <span class="action-button"><i class="fa-solid fa-plus"></i></span>
                 <span><?= $item['label'] ?></span>
