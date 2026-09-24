@@ -15,7 +15,7 @@ $result = $stmt->get_result();
 
 $newCount = 0;
 while ($row = $result->fetch_assoc()) {
-    if (crmIsEligibleProspect($row, $disqualified, $blocked)) {
+    if (crmIsEligibleProspect($row, $disqualified, $blocked, $conn)) {
         $newCount++;
     }
 }
