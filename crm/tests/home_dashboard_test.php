@@ -15,6 +15,8 @@ $checks = [
     'home scene has sunset styles' => strpos($css, '.home-scene[data-period="sunset"]') !== false,
     'home night text contrast exists' => strpos($css, '.home-time-copy:has(.home-scene[data-period="night"])') !== false,
     'calendar label removed' => strpos($home, 'home-calendar-kicker') === false && strpos($home, '>Kalender<') === false,
+    'mobile activity cards are contained' => strpos($css, '.activity-item{') !== false && strpos($css, 'max-width:100%') !== false && strpos($css, 'box-sizing:border-box') !== false,
+    'mobile activity cards are compact' => strpos($css, '@media(max-width:560px)') !== false && strpos($css, '.activity-item{gap:9px;padding:11px 10px;border-radius:15px}') !== false,
     'home links activity to activity page' => strpos($home, '?page=activity') !== false,
     'router allows activity page' => strpos($index, "'activity'") !== false,
     'home hides global timebar' => strpos($index, "$page !== 'home'") !== false && strpos($index, "components/topbar.php") !== false,
