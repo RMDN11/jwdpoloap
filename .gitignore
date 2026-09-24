@@ -1,1 +1,15 @@
-Nothing should be ignored based on the provided file changes. The only modified file is `cron_grup.php`, which is a source code file and should not be added to .gitignore.
+# Runtime logs and generated diagnostics
+*.log
+*.log.*
+cron_health.txt
+test_log.txt
+
+# Local environment / secrets
+.env
+.env.*
+config.local.php
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
