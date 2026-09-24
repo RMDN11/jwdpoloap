@@ -467,3 +467,8 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   .group-message-history-body small,.group-history-hint{font-size:7px}
   .group-history-clear{font-size:8px;padding:6px}
 }
+
+@media (prefers-reduced-motion: reduce){
+  .home-scene .scene-sun,.home-scene .scene-moon,.home-scene .scene-cloud{animation:none!important;transition:none!important}
+  .home-scene .scene-stars{transition:none!important}
+}
