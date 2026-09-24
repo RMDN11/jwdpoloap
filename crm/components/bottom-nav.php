@@ -18,6 +18,7 @@ $nav = [
             <?php else: ?>
                 <i class="fa-solid <?= $item['icon'] ?>"></i>
                 <span><?= $item['label'] ?></span>
+                <?php if ($key === 'chat'): ?><b class="nav-badge" id="crmChatBadge" hidden>0</b><?php endif; ?>
             <?php endif; ?>
         </a>
     <?php endforeach; ?>
