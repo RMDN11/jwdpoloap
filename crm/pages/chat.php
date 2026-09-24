@@ -71,21 +71,26 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-$contacts = [];
+$allContacts = [];
 foreach ($contactBuckets as $number => $bucket) {
     if (!$bucket['eligible']) continue;
 
     $latest = $bucket['latest'];
-    $eligible = $bucket['eligible'];
     $latest['clean_wa'] = $number;
-    $latest['eligible_row'] = $eligible;
+    $latest['eligible_row'] = $bucket['eligible'];
     $latest['has_new_message'] = crmChatHasNewMessage($latest);
-
-    if ($status === 'new' && !$latest['has_new_message']) continue;
-    if ($status === 'followed' && $latest['has_new_message']) continue;
-
-    $contacts[] = $latest;
+    $allContacts[] = $latest;
 }
+
+$allContactCount = count($allContacts);
+$newContactCount = count(array_filter($allContacts, static fn(array $row): bool => !empty($row['has_new_message'])));
+$followedContactCount = $allContactCount - $newContactCount;
+
+$contacts = array_values(array_filter($allContacts, static function (array $row) use ($status): bool {
+    if ($status === 'new') return !empty($row['has_new_message']);
+    if ($status === 'followed') return empty($row['has_new_message']);
+    return true;
+}));
 
 usort($contacts, static function (array $a, array $b) use ($status): int {
     if ($status === 'followed') {
@@ -230,24 +235,9 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $p
 </div>
 
 <div class="chat-stats">
-    <a class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all')) ?>"><strong><?= $status === 'all' ? $totalContacts : 'Semua' ?></strong><span>Semua</span></a>
-    <?php
-        $allContactsForStats = $totalContacts;
-        $newCount = 0;
-        $followedCount = 0;
-        if ($status === 'new') {
-            $newCount = $totalContacts;
-        } elseif ($status === 'followed') {
-            $followedCount = $totalContacts;
-        } else {
-            foreach ($contacts as $row) {
-                if (!empty($row['has_new_message'])) $newCount++;
-                else $followedCount++;
-            }
-        }
-    ?>
-    <a class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new')) ?>"><strong><?= $status === 'new' ? $totalContacts : 'Baru' ?></strong><span>Pesan baru</span></a>
-    <a class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed')) ?>"><strong><?= $status === 'followed' ? $totalContacts : 'Follow-up' ?></strong><span>Sudah ditangani</span></a>
+    <a class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all')) ?>"><strong><?= $allContactCount ?></strong><span>Semua</span></a>
+    <a class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new')) ?>"><strong><?= $newContactCount ?></strong><span>Baru</span></a>
+    <a class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed')) ?>"><strong><?= $followedContactCount ?></strong><span>Follow-up</span></a>
 </div>
 
 <form class="search-box" method="get">
