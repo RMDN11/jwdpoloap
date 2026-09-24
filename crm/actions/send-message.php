@@ -21,14 +21,11 @@ if ($contactId === '') {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT nowa, nama, message, template_history FROM log_wa WHERE nowa = ? OR nowa = ? LIMIT 1");
 $normalizedContact = crmProspectNormalizeNumber($contactId);
-$stmt->bind_param('ss', $contactId, $normalizedContact);
-$stmt->execute();
-$contact = $stmt->get_result()->fetch_assoc();
+$contact = crmFindEligibleProspectByNumber($conn, $contactId, $disqualified, $blocked);
 
-if (!$contact || !crmIsEligibleProspect($contact, $disqualified, $blocked, $conn)) {
-    $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak tidak ditemukan.'];
+if (!$contact) {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak tidak ditemukan atau sudah tidak eligible untuk follow-up.'];
     header('Location: ../index.php?page=chat');
     exit;
 }
@@ -95,27 +92,45 @@ $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curlError = curl_error($ch);
 curl_close($ch);
 
-if ($curlError || $httpCode !== 200) {
+if ($curlError || $httpCode < 200 || $httpCode >= 300) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => $curlError ?: 'Pesan gagal dikirim. API mengembalikan kode ' . $httpCode . '.'];
     header('Location: ../index.php?page=chat&contact=' . urlencode($contactId));
     exit;
 }
 
-$oldHistory = (string)($contact['template_history'] ?? '');
+$historyStmtLegacy = $conn->prepare("SELECT template_history FROM log_wa WHERE nowa = ? OR nowa = ? ORDER BY id DESC LIMIT 1");
+$historyStmtLegacy->bind_param('ss', $contact['nowa'], $normalizedContact);
+$historyStmtLegacy->execute();
+$legacyRow = $historyStmtLegacy->get_result()->fetch_assoc();
+$historyStmtLegacy->close();
+
+$oldHistory = (string)($legacyRow['template_history'] ?? '');
 $historyEntry = date('d/m/Y H:i') . ' - ' . $templateName;
 $newHistory = $oldHistory !== '' ? $oldHistory . '|||' . $historyEntry : $historyEntry;
 $isForm = (stripos($messageTemplate, 'penempatan halaqoh') !== false || stripos($messageTemplate, 'silahkan isi link form berikut') !== false || stripos($messageTemplate, 'silakan isi link form berikut') !== false) ? 1 : 0;
 
+$updateOk = false;
 $update = $conn->prepare("UPDATE log_wa SET last_followup_at = NOW(), is_form_sent = GREATEST(is_form_sent, ?), last_template_name = ?, template_history = ? WHERE nowa = ? OR nowa = ?");
-$normalizedContact = crmProspectNormalizeNumber($contact['nowa']);
-$update->bind_param('issss', $isForm, $templateName, $newHistory, $contact['nowa'], $normalizedContact);
-$update->execute();
+if ($update) {
+    $update->bind_param('issss', $isForm, $templateName, $newHistory, $contact['nowa'], $normalizedContact);
+    $updateOk = $update->execute();
+    $update->close();
+}
 
+$historyOk = false;
 $historyStmt = $conn->prepare("INSERT INTO crm_message_history (nowa, nama, template_id, template_name, message, sent_at, status) VALUES (?, ?, NULLIF(?, 0), ?, ?, NOW(), 'sent')");
-$historyStmt->bind_param('ssiss', $contact['nowa'], $name, $templateId, $templateName, $message);
-$historyStmt->execute();
-$historyStmt->close();
+if ($historyStmt) {
+    $historyStmt->bind_param('ssiss', $contact['nowa'], $name, $templateId, $templateName, $message);
+    $historyOk = $historyStmt->execute();
+    $historyStmt->close();
+}
 
-$_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pesan berhasil dikirim ke ' . $name . '.'];
+if (!$historyOk) {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pesan terkirim ke ' . $name . ', tetapi riwayat CRM gagal disimpan.'];
+} elseif (!$updateOk) {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pesan terkirim ke ' . $name . ', tetapi status follow-up gagal diperbarui.'];
+} else {
+    $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pesan berhasil dikirim ke ' . $name . '.'];
+}
 header('Location: ../index.php?page=chat&contact=' . urlencode($contactId));
 exit;
