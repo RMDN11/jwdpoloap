@@ -247,6 +247,8 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $p
     <?php if ($search): ?><a href="<?= htmlspecialchars(crmChatUrl('', $status)) ?>"><i class="fa-solid fa-xmark"></i></a><?php endif; ?>
 </form>
 
+<div class="chat-sheet-backdrop" id="crmChatSheetBackdrop" aria-hidden="true"></div>
+
 <div class="chat-layout">
     <div class="chat-list">
         <?php if (!$contacts): ?>
@@ -342,56 +344,11 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $p
 
 <script>
 (() => {
-    let lastLogId = <?= (int)$maxLogId ?>;
-    let pollBusy = false;
+    document.body.classList.toggle('crm-chat-sheet-open', <?= $selectedContact ? 'true' : 'false' ?>);
 
-    function updateChatBadge(count) {
-        const badge = document.getElementById('crmChatBadge');
-        if (!badge) return;
-        badge.textContent = String(count);
-        badge.hidden = count <= 0;
-    }
-
-    function showNewChatToast(count) {
-        updateChatBadge(count);
-        const old = document.getElementById('crm-new-chat-toast');
-        if (old) old.remove();
-
-        const el = document.createElement('button');
-        el.id = 'crm-new-chat-toast';
-        el.type = 'button';
-        el.className = 'crm-new-chat-toast';
-        el.innerHTML = '<i class="fa-solid fa-bell"></i><span>' + count + ' chat baru masuk. Buka inbox</span>';
-        el.onclick = () => location.href = <?= json_encode(crmChatUrl($search, 'new', '', 1)) ?>;
-        document.body.appendChild(el);
-
-        window.setTimeout(() => {
-            if (el.isConnected) el.remove();
-        }, 9000);
-    }
-
-    function poll() {
-        if (!lastLogId || pollBusy) return;
-        pollBusy = true;
-
-        fetch('pages/chat-poll.php?last_id=' + encodeURIComponent(lastLogId), {
-            headers:{'X-Requested-With':'XMLHttpRequest'},
-            cache:'no-store'
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.status !== 'success') return;
-
-            const nextId = Number(data.max_id || 0);
-            if (nextId > lastLogId) lastLogId = nextId;
-
-            if (Number(data.new_count || 0) > 0) {
-                showNewChatToast(Number(data.new_count));
-            }
-        })
-        .catch(() => {})
-        .finally(() => { pollBusy = false; });
-    }
+    const sheetBackdrop = document.getElementById('crmChatSheetBackdrop');
+    const sheetClose = document.querySelector('.chat-panel-close');
+    if (sheetBackdrop) sheetBackdrop.addEventListener('click', () => sheetClose?.click());
 
     const templateSelect = document.getElementById('crmTemplateSelect');
     const templatePreview = document.getElementById('crmTemplatePreview');
