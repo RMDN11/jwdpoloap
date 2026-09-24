@@ -30,14 +30,13 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 $newContacts = [];
-$eligibleHistoryCache = [];
-
 while ($row = $result->fetch_assoc()) {
     $number = crmProspectNormalizeNumber((string)$row['nowa']);
     if ($number === '') continue;
     $newContacts[$number][] = $row;
 }
 
+$eligibleNewNumbers = [];
 foreach ($newContacts as $number => $rows) {
     $isEligible = false;
 
@@ -53,28 +52,14 @@ foreach ($newContacts as $number => $rows) {
      * is not enough to create a new prospect, but it is still a new chat
      * event for an already-qualified contact.
      */
-    if (!$isEligible && !isset($eligibleHistoryCache[$number])) {
-        $eligibleHistoryCache[$number] = crmFindEligibleProspectByNumber($conn, $number, $disqualified, $blocked) !== null;
+    if (!$isEligible) {
+        $isEligible = crmFindEligibleProspectByNumber($conn, $number, $disqualified, $blocked) !== null;
     }
-    if (!$isEligible) $isEligible = $eligibleHistoryCache[$number] ?? false;
 
-    if (!$isEligible) continue;
+    if ($isEligible) $eligibleNewNumbers[$number] = true;
 }
 
-$newCount = count(array_filter($newContacts, static function (array $rows) use ($disqualified, $blocked, $conn): bool {
-    $number = '';
-    foreach ($rows as $row) {
-        $number = crmProspectNormalizeNumber((string)$row['nowa']);
-        if ($number !== '') break;
-    }
-    if ($number === '') return false;
-
-    foreach ($rows as $row) {
-        if (crmIsEligibleProspect($row, $disqualified, $blocked, $conn)) return true;
-    }
-
-    return crmFindEligibleProspectByNumber($conn, $number, $disqualified, $blocked) !== null;
-}));
+$newCount = count($eligibleNewNumbers);
 
 echo json_encode([
     'status' => 'success',
