@@ -176,6 +176,34 @@ function crmGroupDays(string $value): string {
             <div class="group-summary-row"><span>Mode</span><strong id="groupSummaryMode">Sekarang</strong></div>
             <div class="group-summary-row"><span>Media</span><strong id="groupSummaryMedia">Tidak ada</strong></div>
         </div>
+
+    <div class="group-card group-message-history-card">
+        <div class="group-card-head compact">
+            <div><span class="group-kicker">Pesan tersimpan</span><h2>Gunakan Lagi</h2></div>
+            <form method="post" action="actions/group-history.php" onsubmit="return confirm('Hapus semua riwayat pesan grup?');">
+                <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                <input type="hidden" name="action" value="delete_all">
+                <button type="submit" class="group-history-clear"><i class="fa-solid fa-trash-can"></i> Hapus</button>
+            </form>
+        </div>
+        <div class="group-message-history-list">
+            <?php if (!$groupMessageHistory): ?>
+                <div class="group-empty compact"><i class="fa-regular fa-message"></i><span>Belum ada pesan tersimpan.</span></div>
+            <?php else: foreach ($groupMessageHistory as $savedMessage): ?>
+                <button type="button" class="group-message-history-item" data-message="<?= htmlspecialchars($savedMessage['sent_content'], ENT_QUOTES, 'UTF-8') ?>">
+                    <span class="group-message-history-icon"><i class="fa-regular fa-copy"></i></span>
+                    <span class="group-message-history-body">
+                        <strong><?= htmlspecialchars(mb_strimwidth($savedMessage['sent_content'], 0, 120, '…')) ?></strong>
+                        <small><?= (int)$savedMessage['usage_count'] ?>x digunakan · <?= htmlspecialchars(date('d M, H:i', strtotime($savedMessage['latest_at']))) ?></small>
+                    </span>
+                    <i class="fa-solid fa-arrow-up-right-from-square group-message-history-arrow"></i>
+                </button>
+            <?php endforeach; endif; ?>
+        </div>
+        <?php if ($groupMessageHistory): ?>
+            <p class="group-history-hint"><i class="fa-solid fa-circle-info"></i> Tap pesan untuk memasukkannya kembali ke composer.</p>
+        <?php endif; ?>
+    </div>/
     </aside>
 </section>
 
@@ -220,33 +248,7 @@ function crmGroupDays(string $value): string {
         </div>
     </div>
 
-    <div class="group-card group-message-history-card">
-        <div class="group-card-head compact">
-            <div><span class="group-kicker">Pesan tersimpan</span><h2>Gunakan Lagi</h2></div>
-            <form method="post" action="actions/group-history.php" onsubmit="return confirm('Hapus semua riwayat pesan grup?');">
-                <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
-                <input type="hidden" name="action" value="delete_all">
-                <button type="submit" class="group-history-clear"><i class="fa-solid fa-trash-can"></i> Hapus</button>
-            </form>
-        </div>
-        <div class="group-message-history-list">
-            <?php if (!$groupMessageHistory): ?>
-                <div class="group-empty compact"><i class="fa-regular fa-message"></i><span>Belum ada pesan tersimpan.</span></div>
-            <?php else: foreach ($groupMessageHistory as $savedMessage): ?>
-                <button type="button" class="group-message-history-item" data-message="<?= htmlspecialchars($savedMessage['sent_content'], ENT_QUOTES, 'UTF-8') ?>">
-                    <span class="group-message-history-icon"><i class="fa-regular fa-copy"></i></span>
-                    <span class="group-message-history-body">
-                        <strong><?= htmlspecialchars(mb_strimwidth($savedMessage['sent_content'], 0, 120, '…')) ?></strong>
-                        <small><?= (int)$savedMessage['usage_count'] ?>x digunakan · <?= htmlspecialchars(date('d M, H:i', strtotime($savedMessage['latest_at']))) ?></small>
-                    </span>
-                    <i class="fa-solid fa-arrow-up-right-from-square group-message-history-arrow"></i>
-                </button>
-            <?php endforeach; endif; ?>
-        </div>
-        <?php if ($groupMessageHistory): ?>
-            <p class="group-history-hint"><i class="fa-solid fa-circle-info"></i> Tap pesan untuk memasukkannya kembali ke composer.</p>
-        <?php endif; ?>
-    </div>/div>
+div>
 </section>
 
 <script>
