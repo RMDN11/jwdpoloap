@@ -504,3 +504,23 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .home-time-copy:has(.home-scene[data-period="night"]) .home-clock-row small{
   color:#a9c0b6;
 }
+
+/* Home Activity: keep cards contained and readable on narrow mobile screens */
+.activity-list{min-width:0}
+.activity-item{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  overflow:hidden;
+}
+.activity-body{min-width:0;max-width:100%;overflow:hidden}
+.activity-item time{flex:0 0 auto;min-width:34px;text-align:right}
+@media(max-width:560px){
+  .activity-list{gap:7px}
+  .activity-item{gap:9px;padding:11px 10px;border-radius:15px}
+  .activity-avatar{width:38px;height:38px;flex-basis:38px;border-radius:13px;font-size:12px}
+  .activity-body strong{font-size:11px}
+  .activity-body small{font-size:9px;line-height:1.35}
+  .activity-item time{min-width:32px;font-size:9px}
+}
