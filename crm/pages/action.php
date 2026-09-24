@@ -60,13 +60,15 @@ function crmActionDueClass(?string $dueAt,string $status): string { if($status==
 
             <label>
                 <span>Kontak <small>(opsional)</small></span>
-                <input type="text" name="contact_nowa" list="crmActionContacts" inputmode="tel" placeholder="Cari nama atau nomor WhatsApp...">
+                <input type="hidden" name="contact_nowa" id="crmActionContactNowa">
+                <input type="text" id="crmActionContactSearch" list="crmActionContacts" autocomplete="off" placeholder="Cari nama atau nomor WhatsApp...">
                 <datalist id="crmActionContacts">
                     <?php foreach ($actionContacts as $contact): ?>
-                        <option value="<?= htmlspecialchars($contact['nowa']) ?>" label="<?= htmlspecialchars($contact['nama']) ?>"></option>
+                        <option value="<?= htmlspecialchars($contact['nama']) ?>" data-nowa="<?= htmlspecialchars($contact['nowa']) ?>" label="<?= htmlspecialchars($contact['nowa']) ?>"></option>
+                        <option value="<?= htmlspecialchars($contact['nowa']) ?>" data-nowa="<?= htmlspecialchars($contact['nowa']) ?>" label="<?= htmlspecialchars($contact['nama']) ?>"></option>
                     <?php endforeach; ?>
                 </datalist>
-                <small class="crm-field-hint">Pilih nomor dari prospek aktif agar Action terhubung ke kontak CRM.</small>
+                <small class="crm-field-hint" id="crmActionContactHint">Pilih kontak dari prospek aktif agar Action terhubung ke kontak CRM.</small>
             </label>
 
             <label>
@@ -123,6 +125,21 @@ function crmActionDueClass(?string $dueAt,string $status): string { if($status==
     const openBtn = document.getElementById('crmCreateActionBtn');
     const closeBtn = document.getElementById('crmCreateActionClose');
     const cancelBtn = document.getElementById('crmCreateActionCancel');
+    const contactSearch = document.getElementById('crmActionContactSearch');
+    const contactNowa = document.getElementById('crmActionContactNowa');
+    const contactHint = document.getElementById('crmActionContactHint');
+    const contactOptions = Array.from(document.querySelectorAll('#crmActionContacts option'));
+
+    function syncContact() {
+        const value = (contactSearch?.value || '').trim().toLowerCase();
+        const match = contactOptions.find(option => (option.value || '').trim().toLowerCase() === value);
+        if (contactNowa) contactNowa.value = match?.dataset.nowa || '';
+        if (contactHint) {
+            contactHint.textContent = match
+                ? 'Kontak terhubung: ' + (match.dataset.nowa || '')
+                : 'Pilih kontak dari daftar prospek aktif.';
+        }
+    }
 
     function closeModal() {
         if (modal) modal.hidden = true;
@@ -135,6 +152,8 @@ function crmActionDueClass(?string $dueAt,string $status): string { if($status==
         window.setTimeout(() => modal?.querySelector('input[name="title"]')?.focus(), 30);
     }
 
+    contactSearch?.addEventListener('input', syncContact);
+    contactSearch?.addEventListener('change', syncContact);
     openBtn?.addEventListener('click', openModal);
     closeBtn?.addEventListener('click', closeModal);
     cancelBtn?.addEventListener('click', closeModal);
