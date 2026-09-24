@@ -14,6 +14,24 @@ $groupHistory = [];
 $historyResult = $conn->query("SELECT id, nama, message, created_at FROM log_wa WHERE message LIKE '%[GRUP]%' ORDER BY created_at DESC LIMIT 12");
 if ($historyResult) $groupHistory = $historyResult->fetch_all(MYSQLI_ASSOC);
 
+$groupMessageHistory = [];
+$messageHistoryResult = $conn->query("
+    SELECT SUBSTRING_INDEX(message, ' :: ', -1) AS sent_content,
+           MAX(id) AS latest_id,
+           MAX(created_at) AS latest_at,
+           COUNT(*) AS usage_count
+    FROM log_wa
+    WHERE message LIKE '%[GRUP]%'
+      AND message LIKE '% :: %'
+      AND TRIM(SUBSTRING_INDEX(message, ' :: ', -1)) <> ''
+    GROUP BY sent_content
+    ORDER BY latest_id DESC
+    LIMIT 12
+");
+if ($messageHistoryResult) {
+    $groupMessageHistory = $messageHistoryResult->fetch_all(MYSQLI_ASSOC);
+}
+
 $jadwalBerjalan = [];
 $jadwalQuery = "
 SELECT j.pesan, j.tipe_jadwal, j.jadwal_kirim, j.jam_harian, j.hari_rutin, j.media_path,
@@ -200,7 +218,35 @@ function crmGroupDays(string $value): string {
                 </div>
             <?php endforeach; endif; ?>
         </div>
-    </div>
+    <
+
+    <div class="group-card group-message-history-card">
+        <div class="group-card-head compact">
+            <div><span class="group-kicker">Pesan tersimpan</span><h2>Gunakan Lagi</h2></div>
+            <form method="post" action="actions/group-history.php" onsubmit="return confirm('Hapus semua riwayat pesan grup?');">
+                <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                <input type="hidden" name="action" value="delete_all">
+                <button type="submit" class="group-history-clear"><i class="fa-solid fa-trash-can"></i> Hapus</button>
+            </form>
+        </div>
+        <div class="group-message-history-list">
+            <?php if (!$groupMessageHistory): ?>
+                <div class="group-empty compact"><i class="fa-regular fa-message"></i><span>Belum ada pesan tersimpan.</span></div>
+            <?php else: foreach ($groupMessageHistory as $savedMessage): ?>
+                <button type="button" class="group-message-history-item" data-message="<?= htmlspecialchars($savedMessage['sent_content'], ENT_QUOTES, 'UTF-8') ?>">
+                    <span class="group-message-history-icon"><i class="fa-regular fa-copy"></i></span>
+                    <span class="group-message-history-body">
+                        <strong><?= htmlspecialchars(mb_strimwidth($savedMessage['sent_content'], 0, 120, '…')) ?></strong>
+                        <small><?= (int)$savedMessage['usage_count'] ?>x digunakan · <?= htmlspecialchars(date('d M, H:i', strtotime($savedMessage['latest_at']))) ?></small>
+                    </span>
+                    <i class="fa-solid fa-arrow-up-right-from-square group-message-history-arrow"></i>
+                </button>
+            <?php endforeach; endif; ?>
+        </div>
+        <?php if ($groupMessageHistory): ?>
+            <p class="group-history-hint"><i class="fa-solid fa-circle-info"></i> Tap pesan untuk memasukkannya kembali ke composer.</p>
+        <?php endif; ?>
+    </div>/div>
 </section>
 
 <script>
@@ -295,6 +341,16 @@ function crmGroupDays(string $value): string {
         updatePreview();
     });
     message.addEventListener('input', updatePreview);
+
+    document.querySelectorAll('.group-message-history-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const savedMessage = item.dataset.message || '';
+            message.value = savedMessage;
+            message.dispatchEvent(new Event('input', { bubbles: true }));
+            message.focus();
+            document.querySelector('.group-composer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
 
     form.addEventListener('submit', async e => {
         e.preventDefault();
