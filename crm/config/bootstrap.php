@@ -27,3 +27,16 @@ function crmNormalizeNumber(string $number): string {
     if (str_starts_with($number, '0')) $number = '62' . substr($number, 1);
     return $number;
 }
+
+
+if (empty($_SESSION['crm_csrf'])) {
+    $_SESSION['crm_csrf'] = bin2hex(random_bytes(32));
+}
+
+function crmCsrfToken(): string {
+    return (string)($_SESSION['crm_csrf'] ?? '');
+}
+
+function crmVerifyCsrf(?string $token): bool {
+    return is_string($token) && $token !== '' && hash_equals(crmCsrfToken(), $token);
+}
