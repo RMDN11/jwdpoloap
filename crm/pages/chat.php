@@ -345,7 +345,15 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $p
     let lastLogId = <?= (int)$maxLogId ?>;
     let pollBusy = false;
 
+    function updateChatBadge(count) {
+        const badge = document.getElementById('crmChatBadge');
+        if (!badge) return;
+        badge.textContent = String(count);
+        badge.hidden = count <= 0;
+    }
+
     function showNewChatToast(count) {
+        updateChatBadge(count);
         const old = document.getElementById('crm-new-chat-toast');
         if (old) old.remove();
 
