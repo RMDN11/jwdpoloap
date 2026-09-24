@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/bootstrap.php';
 
 $page = $_GET['page'] ?? 'home';
-$allowedPages = ['home', 'chat', 'action', 'reminder', 'more', 'activity', 'group'];
+$allowedPages = ['home', 'chat', 'reminder', 'more', 'activity', 'group'];
 if (!in_array($page, $allowedPages, true)) $page = 'home';
 
 $pageFile = __DIR__ . '/pages/' . $page . '.php';
