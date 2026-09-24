@@ -48,13 +48,19 @@ if ($contactNowa !== '') {
 
 $dueAt = null;
 if ($dueAtInput !== '') {
-    $dueTimestamp = strtotime($dueAtInput);
-    if ($dueTimestamp === false) {
+    $dueDate = DateTime::createFromFormat('Y-m-d\\TH:i', $dueAtInput, new DateTimeZone('Asia/Jakarta'));
+    $dateErrors = DateTime::getLastErrors();
+    $hasDateErrors = is_array($dateErrors)
+        ? ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0)
+        : false;
+
+    if (!$dueDate || $hasDateErrors) {
         $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Format deadline tidak valid.'];
         header('Location: ../index.php?page=action');
         exit;
     }
-    $dueAt = date('Y-m-d H:i:s', $dueTimestamp);
+
+    $dueAt = $dueDate->format('Y-m-d H:i:s');
 }
 
 $stmt = $conn->prepare(
