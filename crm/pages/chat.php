@@ -7,7 +7,7 @@ $blocked = crmGetBlockedNumbers($conn);
 $search = trim((string)($_GET['q'] ?? ''));
 $status = (string)($_GET['status'] ?? 'new');
 $selected = trim((string)($_GET['contact'] ?? ''));
-$page = max(1, (int)($_GET['p'] ?? 1));
+$chatPage = max(1, (int)($_GET['p'] ?? 1));
 $perPage = 10;
 $allowedStatus = ['all', 'new', 'followed'];
 if (!in_array($status, $allowedStatus, true)) $status = 'all';
@@ -107,8 +107,8 @@ usort($contacts, static function (array $a, array $b) use ($status): int {
 
 $totalContacts = count($contacts);
 $totalPages = max(1, (int)ceil($totalContacts / $perPage));
-$page = min($page, $totalPages);
-$offset = ($page - 1) * $perPage;
+$chatPage = min($chatPage, $totalPages);
+$offset = ($chatPage - 1) * $perPage;
 $contacts = array_slice($contacts, $offset, $perPage);
 
 $maxLogId = 0;
@@ -183,11 +183,11 @@ function crmChatDate(?string $date): string {
     $timestamp = strtotime($date);
     return $timestamp ? date('d M Y, H:i', $timestamp) : '';
 }
-function crmChatUrl(string $search, string $status, string $contact = '', int $page = 1): string {
+function crmChatUrl(string $search, string $status, string $contact = '', int $chatPage = 1): string {
     $params = ['page'=>'chat','status'=>$status];
     if ($search !== '') $params['q'] = $search;
     if ($contact !== '') $params['contact'] = $contact;
-    if ($page > 1) $params['p'] = $page;
+    if ($chatPage > 1) $params['p'] = $chatPage;
     return '?' . http_build_query($params);
 }
 ?>
@@ -260,7 +260,7 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $p
                 $classification = crmProspectClassifyMessage((string)$displayRow['message'], $conn);
                 $isSelected = $selected !== '' && crmProspectNormalizeNumber($selected) === $row['clean_wa'];
             ?>
-            <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$row['nowa'],$page)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?>">
+            <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$row['nowa'],$chatPage)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?>">
                 <span class="activity-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($name,0,1))) ?></span>
                 <span class="chat-body">
                     <strong><?= htmlspecialchars($name) ?></strong>
@@ -285,7 +285,7 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $p
             <div class="chat-panel-head">
                 <div class="contact-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($selectedName,0,1))) ?></div>
                 <div class="chat-panel-contact"><strong><?= htmlspecialchars($selectedName) ?></strong><small><?= htmlspecialchars($selectedContact['nowa']) ?></small></div>
-                <a class="chat-panel-close" href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$page)) ?>" aria-label="Tutup percakapan"><i class="fa-solid fa-xmark"></i></a>
+                <a class="chat-panel-close" href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$chatPage)) ?>" aria-label="Tutup percakapan"><i class="fa-solid fa-xmark"></i></a>
             </div>
             <div class="chat-history-section">
                 <div class="section-title-row"><span class="message-label">Percakapan terbaru</span><small><?= count($recentMessages) ?> log terakhir</small></div>
@@ -328,14 +328,14 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $p
 
 <?php if ($totalPages > 1): ?>
 <nav class="chat-pagination" aria-label="Pagination Chat">
-    <?php if ($page > 1): ?>
-        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$page - 1)) ?>"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</a>
+    <?php if ($chatPage > 1): ?>
+        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$chatPage - 1)) ?>"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</a>
     <?php else: ?>
         <span class="disabled"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</span>
     <?php endif; ?>
-    <strong>Halaman <?= $page ?> / <?= $totalPages ?></strong>
-    <?php if ($page < $totalPages): ?>
-        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$page + 1)) ?>">Berikutnya <i class="fa-solid fa-chevron-right"></i></a>
+    <strong>Halaman <?= $chatPage ?> / <?= $totalPages ?></strong>
+    <?php if ($chatPage < $totalPages): ?>
+        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$chatPage + 1)) ?>">Berikutnya <i class="fa-solid fa-chevron-right"></i></a>
     <?php else: ?>
         <span class="disabled">Berikutnya <i class="fa-solid fa-chevron-right"></i></span>
     <?php endif; ?>
