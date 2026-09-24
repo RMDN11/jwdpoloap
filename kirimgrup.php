@@ -263,7 +263,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_grup'])) {
     echo json_encode([
         'status' => ($result['status'] == 'TERKIRIM') ? 'success' : 'error',
         'msg' => $result['message']
-    ]);
+    ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
