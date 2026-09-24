@@ -230,3 +230,46 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .bottom-nav .nav-item.active > i,
 .bottom-nav .nav-item.active > span:not(.action-button){color:#168044!important}
 .bottom-nav .nav-item.active > i{opacity:1}
+
+/* CRM V2 Home dashboard */
+.home-time-card{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:12px;margin-bottom:20px}
+.home-time-copy,.home-calendar-card{border:1px solid #e1ebe5;border-radius:24px;background:#fff;box-shadow:0 10px 32px rgba(24,55,41,.045)}
+.home-time-copy{position:relative;overflow:hidden;padding:24px;background:linear-gradient(145deg,#f5fbf7 0%,#fff 62%)}
+.home-time-copy:after{content:"";position:absolute;width:180px;height:180px;right:-90px;top:-90px;border-radius:50%;background:#dff3e6;opacity:.7}
+.home-time-copy h1{margin:5px 0 2px;font-size:31px;letter-spacing:-.04em;color:#10291e}
+.home-time-copy p{margin:0;color:#7a8981;font-size:12px}
+.home-clock-row{display:flex;align-items:center;gap:16px;margin-top:24px}
+.home-clock-label{display:block;color:#7c8b83;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.home-clock-row strong{display:block;margin-top:3px;color:#143f29;font-size:27px;letter-spacing:-.04em}
+.home-clock-row small{display:block;margin-top:2px;color:#9aa69f;font-size:9px}
+.home-analog-clock{position:relative;width:88px;height:88px;flex:0 0 88px;border:5px solid #e2f1e7;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 1px #d8e9de,0 8px 20px rgba(22,101,52,.08)}
+.home-analog-clock:before,.home-analog-clock:after{content:"";position:absolute;left:50%;top:5px;width:2px;height:7px;background:#a8b9af;transform:translateX(-50%);box-shadow:0 63px 0 #a8b9af}
+.home-analog-clock:after{top:50%;left:5px;width:7px;height:2px;transform:translateY(-50%);box-shadow:63px 0 0 #a8b9af}
+.clock-hand{position:absolute;left:50%;bottom:50%;width:2px;border-radius:999px;transform-origin:50% 100%;transform:translateX(-50%) rotate(0deg)}
+.clock-hour{height:23px;background:#173f2b}
+.clock-minute{height:31px;background:#168044}
+.clock-second{height:34px;width:1px;background:#e65f5f}
+.clock-center{position:absolute;left:50%;top:50%;width:7px;height:7px;transform:translate(-50%,-50%);border-radius:50%;background:#168044;border:2px solid #fff;box-sizing:content-box}
+.home-calendar-card{padding:17px}
+.home-calendar-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.home-calendar-kicker{display:block;color:#7d8b84;font-size:9px;text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.home-calendar-head strong{display:block;margin-top:2px;color:#19382a;font-size:14px}
+.home-calendar-head>i{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#edf8f1;color:#168044}
+.home-calendar-week,.home-calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.home-calendar-week{margin-bottom:5px;color:#9aa69f;font-size:8px;font-weight:800}
+.home-calendar-grid span{display:grid;place-items:center;min-height:29px;border-radius:8px;color:#42554b;font-size:9px}
+.home-calendar-grid span.muted{color:#c8d1cc}
+.home-calendar-grid span.today{background:#168044;color:#fff;font-weight:800;box-shadow:0 4px 10px rgba(22,128,68,.2)}
+.home-tools-section{margin-top:2px}
+.home-tools-caption{color:#8c9992;font-size:10px}
+.home-tools-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.home-tools-grid>a{min-width:0;padding:12px;border:1px solid #e2ebe5;border-radius:17px;background:#fff;text-decoration:none;color:#203a2d;box-shadow:0 5px 16px rgba(24,55,41,.035);transition:transform .15s ease,border-color .15s ease}
+.home-tools-grid>a:hover{transform:translateY(-1px);border-color:#c9dfd1}
+.home-tool-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:10px;margin-bottom:9px;font-size:12px}
+.home-tool-icon.green{background:#e8f6ed;color:#168044}.home-tool-icon.blue{background:#edf4ff;color:#3674bd}.home-tool-icon.amber{background:#fff7e7;color:#bd7b18}.home-tool-icon.red{background:#fff0f0;color:#c65d5d}.home-tool-icon.purple{background:#f4efff;color:#7758b8}.home-tool-icon.teal{background:#e9f8f6;color:#218c83}.home-tool-icon.slate{background:#eef3f1;color:#63756c}.home-tool-icon.indigo{background:#eef0ff;color:#5967b0}
+.home-tools-grid strong{display:block;font-size:11px}.home-tools-grid small{display:block;margin-top:3px;color:#8a9891;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.activity-log-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;padding:0 2px;color:#7f8c85;font-size:10px}.activity-log-head strong{color:#234335;font-size:12px}
+.activity-log-list{display:grid;gap:8px}.activity-log-item{display:flex;align-items:center;gap:11px;padding:13px;background:#fff;border:1px solid #e3ebe6;border-radius:17px;text-decoration:none;color:#18352a;box-shadow:0 4px 14px rgba(24,55,41,.035)}.activity-log-item .activity-body em{display:block;margin-top:4px;color:#a0aaa4;font-size:9px;font-style:normal}.activity-log-item time{font-size:9px;color:#929e97;white-space:nowrap;align-self:flex-start}.activity-pagination{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px}.activity-pagination a,.activity-pagination span{display:inline-flex;align-items:center;gap:6px;min-height:35px;padding:0 11px;border:1px solid #e2e9e4;border-radius:10px;background:#fff;color:#42554b;text-decoration:none;font-size:10px;font-weight:700}.activity-pagination .disabled{color:#c1c8c3;background:#f8faf9}.activity-pagination strong{color:#7b8981;font-size:10px}
+.activity-back{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #dce7e0;border-radius:11px;color:#4e6257;background:#fff;text-decoration:none;font-size:10px;font-weight:700}
+@media(max-width:850px){.home-time-card{grid-template-columns:1fr}.home-time-copy{padding:20px}.home-tools-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.home-time-copy h1{font-size:26px}.home-clock-row{margin-top:20px}.home-analog-clock{width:76px;height:76px;flex-basis:76px}.clock-hour{height:20px}.clock-minute{height:27px}.clock-second{height:30px}.home-clock-row strong{font-size:24px}.home-calendar-card{padding:14px}.home-calendar-grid span{min-height:27px}.home-tools-grid{gap:7px}.home-tools-grid>a{padding:11px}.home-tools-grid small{font-size:8px}.activity-log-item{align-items:flex-start}.activity-log-item time{font-size:8px}}
