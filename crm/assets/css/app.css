@@ -200,3 +200,15 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
  .crm-trigger-modal-card{max-height:calc(90dvh - env(safe-area-inset-bottom,0px));overflow:auto}
  .trigger-chip-list{max-height:140px}
 }
+
+/* CRM Chat inbox optimization */
+.chat-item.is-new{border-color:#fecaca;background:#fffafa}
+.chat-new-badge{display:inline-flex;align-items:center;justify-content:center;margin-top:4px;padding:3px 6px;border-radius:999px;background:#dc2626;color:#fff;font-size:8px;line-height:1;font-weight:800;letter-spacing:.04em}
+.chat-pagination{display:flex;align-items:center;justify-content:center;gap:14px;margin:18px 0 8px;font-size:12px}
+.chat-pagination a,.chat-pagination span{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:0 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;text-decoration:none;color:#374151;font-weight:700}
+.chat-pagination a:hover{border-color:#d1d5db;background:#f9fafb}
+.chat-pagination strong{font-size:12px;color:#6b7280}
+.chat-pagination .disabled{color:#c4c7cc;background:#f8f8f8}
+.crm-new-chat-toast{position:fixed;right:16px;bottom:96px;z-index:80;display:flex;align-items:center;gap:9px;border:1px solid #fecaca;border-radius:14px;background:#fff;padding:12px 15px;box-shadow:0 14px 35px rgba(127,29,29,.18);color:#b91c1c;font:800 11px inherit;cursor:pointer}
+.crm-new-chat-toast i{color:#dc2626}
+@media(max-width:768px){.chat-pagination{gap:8px;margin:14px 0 6px}.chat-pagination a,.chat-pagination span{padding:0 10px;min-height:34px}.crm-new-chat-toast{left:12px;right:12px;bottom:92px;justify-content:center}}
