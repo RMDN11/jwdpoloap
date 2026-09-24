@@ -22,6 +22,18 @@ header('X-Frame-Options: SAMEORIGIN');
 
 $conn->set_charset('utf8mb4');
 
+$conn->query("CREATE TABLE IF NOT EXISTS crm_message_history (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    nowa VARCHAR(50) NOT NULL,
+    nama VARCHAR(150) NULL,
+    template_id INT NULL,
+    template_name VARCHAR(150) NULL,
+    message TEXT NOT NULL,
+    sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(30) NOT NULL DEFAULT 'sent',
+    INDEX idx_crm_history_nowa_sent (nowa, sent_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
 function crmCount(mysqli $conn, string $sql): int {
     $result = $conn->query($sql);
     if (!$result) return 0;

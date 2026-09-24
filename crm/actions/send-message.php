@@ -104,11 +104,16 @@ if ($curlError || $httpCode !== 200) {
 $oldHistory = (string)($contact['template_history'] ?? '');
 $historyEntry = date('d/m/Y H:i') . ' - ' . $templateName;
 $newHistory = $oldHistory !== '' ? $oldHistory . '|||' . $historyEntry : $historyEntry;
-$isForm = stripos($messageTemplate, 'penempatan halaqoh') !== false ? 1 : 0;
+$isForm = (stripos($messageTemplate, 'penempatan halaqoh') !== false || stripos($messageTemplate, 'silahkan isi link form berikut') !== false || stripos($messageTemplate, 'silakan isi link form berikut') !== false) ? 1 : 0;
 
 $update = $conn->prepare("UPDATE log_wa SET last_followup_at = NOW(), is_form_sent = GREATEST(is_form_sent, ?), last_template_name = ?, template_history = ? WHERE nowa = ?");
 $update->bind_param('isss', $isForm, $templateName, $newHistory, $contactId);
 $update->execute();
+
+$historyStmt = $conn->prepare("INSERT INTO crm_message_history (nowa, nama, template_id, template_name, message, sent_at, status) VALUES (?, ?, NULLIF(?, 0), ?, ?, NOW(), 'sent')");
+$historyStmt->bind_param('ssiss', $contact['nowa'], $name, $templateId, $templateName, $message);
+$historyStmt->execute();
+$historyStmt->close();
 
 $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pesan berhasil dikirim ke ' . $name . '.'];
 header('Location: ../index.php?page=chat&contact=' . urlencode($contactId));
