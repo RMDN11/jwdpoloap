@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
+require_once __DIR__ . '/../config/prospect.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? null)) {
     http_response_code(403);
@@ -25,6 +26,14 @@ $contact = $stmt->get_result()->fetch_assoc();
 
 if (!$contact) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak tidak ditemukan.'];
+    header('Location: ../index.php?page=chat');
+    exit;
+}
+
+$disqualified = crmGetDisqualifiedNumbers($conn);
+$blocked = crmGetBlockedNumbers($conn);
+if (!crmIsEligibleProspect($contact, $disqualified, $blocked)) {
+    $_SESSION['crm_flash'] = ['type'=>'error','message'=>'Prospek ini tidak tersedia untuk follow-up.'];
     header('Location: ../index.php?page=chat');
     exit;
 }
