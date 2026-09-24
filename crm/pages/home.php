@@ -51,7 +51,7 @@ if ($result) {
         <a href="?page=action"><span class="home-tool-icon blue"><i class="fa-solid fa-user-plus"></i></span><strong>Prospek</strong></a>
         <a href="../pesan.php"><span class="home-tool-icon amber"><i class="fa-regular fa-paper-plane"></i></span><strong>Follow-up</strong></a>
         <a href="?page=reminder"><span class="home-tool-icon red"><i class="fa-regular fa-bell"></i></span><strong>Reminder</strong></a>
-        <a href="../kirimgrup.php"><span class="home-tool-icon purple"><i class="fa-solid fa-users"></i></span><strong>Grup</strong></a>
+        <a href="?page=group"><span class="home-tool-icon purple"><i class="fa-solid fa-users"></i></span><strong>Grup</strong></a>
         <a href="../promosi.php"><span class="home-tool-icon teal"><i class="fa-solid fa-bullhorn"></i></span><strong>Promosi</strong></a>
         <a href="../manage_templates.php"><span class="home-tool-icon slate"><i class="fa-regular fa-file-lines"></i></span><strong>Template</strong></a>
         <a href="../grafik.php"><span class="home-tool-icon indigo"><i class="fa-solid fa-chart-simple"></i></span><strong>Data</strong></a>
