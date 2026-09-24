@@ -203,7 +203,7 @@ function crmGroupDays(string $value): string {
         <?php if ($groupMessageHistory): ?>
             <p class="group-history-hint"><i class="fa-solid fa-circle-info"></i> Tap pesan untuk memasukkannya kembali ke composer.</p>
         <?php endif; ?>
-    </div>/
+    </div>
     </aside>
 </section>
 
@@ -248,7 +248,6 @@ function crmGroupDays(string $value): string {
         </div>
     </div>
 
-div>
 </section>
 
 <script>
