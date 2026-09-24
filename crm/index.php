@@ -26,6 +26,12 @@ $pageFile = __DIR__ . '/pages/' . $page . '.php';
     <?php require __DIR__ . '/components/topbar.php'; ?>
 
     <main class="content">
+        <?php if (!empty($_SESSION['crm_flash'])): $flash = $_SESSION['crm_flash']; unset($_SESSION['crm_flash']); ?>
+            <div class="crm-flash <?= htmlspecialchars($flash['type'] ?? 'success') ?>">
+                <i class="fa-solid <?= ($flash['type'] ?? '') === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check' ?>"></i>
+                <span><?= htmlspecialchars($flash['message'] ?? '') ?></span>
+            </div>
+        <?php endif; ?>
         <?php require $pageFile; ?>
     </main>
 
