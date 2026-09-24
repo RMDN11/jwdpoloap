@@ -77,3 +77,27 @@ function crmIsEligibleProspect(array $row, array $disqualified, array $blocked):
     $classification = crmProspectClassifyMessage((string)($row['message'] ?? ''));
     return $classification !== 'Lainnya' && $classification !== 'Data CSV/Manual';
 }
+
+
+function crmFindEligibleProspectByNumber(mysqli $conn, string $contactId, array $disqualified, array $blocked): ?array {
+    $contactId = trim($contactId);
+    $normalized = crmProspectNormalizeNumber($contactId);
+    if ($contactId === '' || $normalized === '') return null;
+
+    $stmt = $conn->prepare("SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history FROM log_wa WHERE nowa = ? OR nowa = ? ORDER BY id DESC LIMIT 100");
+    if (!$stmt) return null;
+
+    $stmt->bind_param('ss', $contactId, $normalized);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+        if (crmIsEligibleProspect($row, $disqualified, $blocked, $conn)) {
+            $stmt->close();
+            return $row;
+        }
+    }
+
+    $stmt->close();
+    return null;
+}
