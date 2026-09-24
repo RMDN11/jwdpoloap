@@ -39,6 +39,8 @@ $checks['action create uses Jakarta deadline'] = strpos($createAction, 'Asia/Jak
 $checks['action create modal exists'] = strpos($action, 'crmCreateActionModal') !== false && strpos($action, 'actions/create-action.php') !== false;
 $checks['action create button enabled'] = strpos($action, 'id="crmCreateActionBtn"') !== false && strpos($action, 'disabled title="Create Action akan masuk tahap berikutnya"') === false;
 $checks['action create mobile styles exist'] = strpos($css, '/* Action V2 create form */') !== false;
+$checks['action contact picker has hidden number binding'] = strpos($action, 'crmActionContactNowa') !== false && strpos($action, 'crmActionContactSearch') !== false;
+$checks['action contact picker validates selection'] = strpos($action, 'Pilih kontak yang tersedia di daftar prospek aktif.') !== false;
 
 $failed = array_keys(array_filter($checks, fn($ok) => !$ok));
 foreach ($checks as $name => $ok) echo ($ok ? "PASS" : "FAIL") . " - $name\n";
