@@ -98,20 +98,4 @@ function crmVerifyCsrf(?string $token): bool {
 }
 
 
-$conn->query("CREATE TABLE IF NOT EXISTS crm_actions (
-    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    contact_nowa VARCHAR(50) NULL,
-    contact_name VARCHAR(150) NULL,
-    title VARCHAR(180) NOT NULL,
-    description TEXT NULL,
-    type VARCHAR(30) NOT NULL DEFAULT 'task',
-    priority VARCHAR(20) NOT NULL DEFAULT 'normal',
-    status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    due_at DATETIME NULL,
-    completed_at DATETIME NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_crm_actions_status_due (status, due_at),
-    INDEX idx_crm_actions_contact (contact_nowa),
-    INDEX idx_crm_actions_created (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
