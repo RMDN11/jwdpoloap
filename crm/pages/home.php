@@ -88,23 +88,58 @@ if ($result) {
     const digitalEl = document.getElementById('crmDigitalClock');
     const monthEl = document.getElementById('crmCalendarMonth');
     const gridEl = document.getElementById('crmCalendarGrid');
+    const sceneEl = document.getElementById('crmHomeScene');
     const hourHand = document.querySelector('.clock-hour');
     const minuteHand = document.querySelector('.clock-minute');
     const secondHand = document.querySelector('.clock-second');
     const dayNames = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
     const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
+    function getJakartaParts() {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Jakarta',
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            weekday: 'short',
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: false
+        }).formatToParts(new Date());
+        const value = {};
+        parts.forEach(part => { if (part.type !== 'literal') value[part.type] = part.value; });
+        const weekdayMap = {Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6};
+        return {
+            year: Number(value.year),
+            month: Number(value.month) - 1,
+            day: Number(value.day),
+            weekday: weekdayMap[value.weekday] ?? 0,
+            hour: Number(value.hour) % 24,
+            minute: Number(value.minute),
+            second: Number(value.second)
+        };
+    }
+
+    function getTimePeriod(hour, minute) {
+        const total = hour * 60 + minute;
+        if (total >= 300 && total < 420) return 'dawn';
+        if (total >= 420 && total < 1020) return 'day';
+        if (total >= 1020 && total < 1080) return 'sunset';
+        return 'night';
+    }
+
     function renderCalendar(now) {
         if (!gridEl || !monthEl) return;
-        const year = now.getFullYear();
-        const month = now.getMonth();
+        const year = now.year;
+        const month = now.month;
         monthEl.textContent = monthNames[month] + ' ' + year;
         const firstDay = new Date(year, month, 1).getDay();
         const totalDays = new Date(year, month + 1, 0).getDate();
         const prevDays = new Date(year, month, 0).getDate();
         const cells = [];
         for (let i = firstDay - 1; i >= 0; i--) cells.push({day: prevDays - i, muted: true});
-        for (let day = 1; day <= totalDays; day++) cells.push({day, muted: false, today: day === now.getDate()});
+        for (let day = 1; day <= totalDays; day++) cells.push({day, muted: false, today: day === now.day});
         while (cells.length < 42) cells.push({day: cells.length - firstDay - totalDays + 1, muted: true});
         gridEl.innerHTML = cells.slice(0, 42).map(cell =>
             '<span class="' + (cell.muted ? 'muted ' : '') + (cell.today ? 'today' : '') + '">' + cell.day + '</span>'
@@ -112,22 +147,16 @@ if ($result) {
     }
 
     function tick() {
-        const now = new Date();
-        const h = now.getHours();
-        const m = now.getMinutes();
-        const s = now.getSeconds();
-        if (dayEl) dayEl.textContent = dayNames[now.getDay()];
-        const sceneEl = document.getElementById('crmHomeScene');
-        if (sceneEl) {
-            const period = (h >= 18 || h < 5) ? 'night' : (h < 7 ? 'dawn' : 'day');
-            sceneEl.dataset.period = period;
-        }
-        if (digitalEl) digitalEl.textContent = [h,m].map(v => String(v).padStart(2,'0')).join(':');
-        if (hourHand) hourHand.style.transform = 'translateX(-50%) rotate(' + ((h % 12) * 30 + m * .5) + 'deg)';
-        if (minuteHand) minuteHand.style.transform = 'translateX(-50%) rotate(' + (m * 6 + s * .1) + 'deg)';
-        if (secondHand) secondHand.style.transform = 'translateX(-50%) rotate(' + (s * 6) + 'deg)';
+        const now = getJakartaParts();
+        if (dayEl) dayEl.textContent = dayNames[now.weekday];
+        if (sceneEl) sceneEl.dataset.period = getTimePeriod(now.hour, now.minute);
+        if (digitalEl) digitalEl.textContent = [now.hour, now.minute].map(v => String(v).padStart(2,'0')).join(':');
+        if (hourHand) hourHand.style.transform = 'translateX(-50%) rotate(' + ((now.hour % 12) * 30 + now.minute * .5) + 'deg)';
+        if (minuteHand) minuteHand.style.transform = 'translateX(-50%) rotate(' + (now.minute * 6 + now.second * .1) + 'deg)';
+        if (secondHand) secondHand.style.transform = 'translateX(-50%) rotate(' + (now.second * 6) + 'deg)';
         renderCalendar(now);
     }
+
     tick();
     setInterval(tick, 1000);
 })();
