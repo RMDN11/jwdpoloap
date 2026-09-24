@@ -46,3 +46,63 @@
 
 .crm-flash{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:11px 13px;border:1px solid #cfe6d7;border-radius:14px;background:#f2fbf5;color:#28623e;font-size:11px;font-weight:700}
 .crm-flash.error{border-color:#f2caca;background:#fff6f6;color:#a43b3b}
+
+
+/* CRM V2 mobile UI polish */
+html{width:100%;min-width:0;overflow-x:hidden}
+body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+.app-shell{width:100%;min-width:0;min-height:100dvh}
+.topbar{width:100%;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));}
+.brand{min-width:0}
+.brand-link{min-width:0}
+.brand-link>div:last-child{min-width:0}
+.top-actions{min-width:max-content}
+.content{width:100%;min-width:0;padding-bottom:32px}
+.chat-layout{min-width:0}
+.chat-list,.chat-panel{min-width:0}
+.chat-item{min-height:64px;padding:10px 12px;border-radius:15px}
+.activity-avatar{width:40px;height:40px;flex-basis:40px;border-radius:12px}
+.chat-body strong{font-size:13px}
+.chat-body small{font-size:10px;margin-top:2px}
+.chat-meta{gap:4px}
+.chat-meta time{font-size:9px}
+.chat-stats{gap:7px;margin:12px 0}
+.chat-stats a{min-width:0;padding:10px 9px;border-radius:14px}
+.chat-stats strong{font-size:14px;white-space:nowrap}
+.chat-stats span{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-box{height:46px;border-radius:15px}
+.chat-list{margin-top:10px;gap:7px}
+.bottom-nav{height:auto;min-height:76px;padding:7px 8px calc(8px + env(safe-area-inset-bottom,0px));}
+.nav-item{min-width:0}
+.nav-item>span:last-child{white-space:nowrap}
+.action-button{width:50px;height:50px;border-radius:17px}
+@media(max-width:768px){
+  .content{max-width:none;margin:0;padding:16px 12px 28px}
+  .page-head{padding:10px 4px 14px}
+  .page-head h1{font-size:25px}
+  .page-head p{max-width:34rem;line-height:1.5}
+  .chat-page-head{display:block}
+  .chat-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .chat-layout{display:flex;flex-direction:column;gap:10px}
+  .chat-list{order:2}
+  .chat-panel{order:1;padding:14px;border-radius:17px}
+  .chat-panel:not(.has-contact){display:none}
+  .chat-panel.has-contact{display:block}
+}
+@media(max-width:390px){
+  .topbar{height:64px;padding-inline:12px}
+  .brand-mark{width:36px;height:36px;border-radius:11px}
+  .brand-name{font-size:16px}
+  .brand-subtitle{font-size:9px}
+  .icon-btn{width:34px;height:34px}
+  .avatar{width:32px;height:32px}
+  .content{padding-inline:10px}
+  .chat-stats{gap:5px}
+  .chat-stats a{padding-inline:7px}
+  .chat-stats strong{font-size:13px}
+  .chat-item{padding-inline:10px}
+}
+@media(min-width:769px){
+  body{padding-bottom:0}
+  .content{width:auto}
+}
