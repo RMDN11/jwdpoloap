@@ -95,5 +95,32 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     window.setInterval(pollChat, 10000);
 })();
 </script>
+
+<script>
+(() => {
+    const dayEl = document.getElementById('crmGlobalDay');
+    const dateEl = document.getElementById('crmGlobalDate');
+    const timeEl = document.getElementById('crmGlobalTime');
+    const hourHand = document.querySelector('.crm-mini-hour');
+    const minuteHand = document.querySelector('.crm-mini-minute');
+    const secondHand = document.querySelector('.crm-mini-second');
+    const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+    function tickGlobalClock() {
+        const now = new Date();
+        const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+        if (dayEl) dayEl.textContent = days[now.getDay()];
+        if (dateEl) dateEl.textContent = now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+        if (timeEl) timeEl.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+        if (hourHand) hourHand.style.transform = 'translateX(-50%) rotate(' + ((h % 12) * 30 + m * .5) + 'deg)';
+        if (minuteHand) minuteHand.style.transform = 'translateX(-50%) rotate(' + (m * 6 + s * .1) + 'deg)';
+        if (secondHand) secondHand.style.transform = 'translateX(-50%) rotate(' + (s * 6) + 'deg)';
+    }
+    tickGlobalClock();
+    window.setInterval(tickGlobalClock, 1000);
+})();
+</script>
+
 </body>
 </html>

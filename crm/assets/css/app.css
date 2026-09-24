@@ -284,3 +284,30 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .activity-back{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #dce7e0;border-radius:11px;color:#4e6257;background:#fff;text-decoration:none;font-size:10px;font-weight:700}
 @media(max-width:850px){.home-time-card{grid-template-columns:1fr}.home-time-copy{padding:20px}.home-tools-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.home-time-copy h1{font-size:26px}.home-clock-row{margin-top:20px}.home-analog-clock{width:76px;height:76px;flex-basis:76px}.clock-hour{height:20px}.clock-minute{height:27px}.clock-second{height:30px}.home-clock-row strong{font-size:24px}.home-calendar-card{padding:14px}.home-calendar-grid span{min-height:27px}.home-tools-grid{gap:7px}.home-tools-grid>a{padding:11px}.home-tools-grid small{font-size:8px}.activity-log-item{align-items:flex-start}.activity-log-item time{font-size:8px}}
+
+/* CRM V2 global timebar: replaces the old branded header */
+.crm-timebar{height:64px;position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 max(18px,env(safe-area-inset-left,0px)) 0 max(18px,env(safe-area-inset-right,0px));background:rgba(255,255,255,.92);border-bottom:1px solid #e5ece7;backdrop-filter:blur(18px)}
+.crm-timebar-date{min-width:0;display:flex;align-items:baseline;gap:9px}
+.crm-timebar-day{font-size:14px;font-weight:800;letter-spacing:-.02em;color:#163c28;white-space:nowrap}
+.crm-timebar-full-date{font-size:10px;color:#8a9891;white-space:nowrap}
+.crm-timebar-clock{display:flex;align-items:center;gap:8px;color:#173c29}
+.crm-timebar-clock strong{font-size:16px;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.crm-timebar-clock small{font-size:8px;color:#93a099;font-weight:800;letter-spacing:.08em}
+.crm-mini-clock{position:relative;width:31px;height:31px;border:2px solid #dcebe2;border-radius:50%;background:#fff;box-shadow:0 3px 10px rgba(22,101,52,.07)}
+.crm-mini-clock:before,.crm-mini-clock:after{content:"";position:absolute;background:#9cafa4}
+.crm-mini-clock:before{width:1px;height:4px;left:50%;top:2px;transform:translateX(-50%);background:#9aaca2;box-shadow:0 21px 0 #9aaca2}
+.crm-mini-clock:after{height:1px;width:4px;left:2px;top:50%;transform:translateY(-50%);background:#9aaca2;box-shadow:21px 0 0 #9aaca2}
+.crm-mini-hour,.crm-mini-minute,.crm-mini-second{position:absolute;left:50%;bottom:50%;width:1.5px;border-radius:9px;transform-origin:50% 100%;transform:translateX(-50%) rotate(0deg)}
+.crm-mini-hour{height:8px;background:#183c2a}.crm-mini-minute{height:11px;background:#168044}.crm-mini-second{height:12px;width:1px;background:#df6969}.crm-mini-center{position:absolute;left:50%;top:50%;width:4px;height:4px;border-radius:50%;transform:translate(-50%,-50%);background:#168044;border:1px solid #fff}
+@media(max-width:560px){
+ .crm-timebar{height:58px;padding-inline:14px}
+ .crm-timebar-date{display:block}
+ .crm-timebar-day{display:block;font-size:13px}
+ .crm-timebar-full-date{display:block;margin-top:1px;font-size:9px}
+ .crm-timebar-clock{gap:6px}
+ .crm-mini-clock{width:27px;height:27px}
+ .crm-timebar-clock strong{font-size:14px}
+ .crm-timebar-clock small{font-size:7px}
+ .crm-mini-clock:before{box-shadow:0 18px 0 #9aaca2}
+ .crm-mini-clock:after{box-shadow:18px 0 0 #9aaca2}
+}
