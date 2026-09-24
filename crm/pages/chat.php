@@ -243,7 +243,9 @@ function crmChatUrl(string $search, string $status, string $contact = ''): strin
     if (templateSelect && templatePreview) {
         templateSelect.addEventListener('change', () => {
             const option = templateSelect.options[templateSelect.selectedIndex];
-            const content = option?.dataset?.content || '';
+            let content = option?.dataset?.content || '';
+            const contactName = <?= json_encode($selectedContact['nama'] ?? 'Kak', JSON_UNESCAPED_UNICODE) ?>;
+            content = content.replace(/\[(nama|NAMA)\]|\{(nama|NAMA)\}/g, contactName);
             templatePreview.innerHTML = content
                 ? '<span class="template-preview-label">Preview pesan</span><p>' + content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</p>'
                 : '<span>Pilih template untuk melihat isi pesan.</span>';
