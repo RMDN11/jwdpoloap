@@ -43,23 +43,23 @@ if ($result) {
 
 <section class="section home-tools-section">
     <div class="section-heading">
-        <div><span class="eyebrow">Workspace</span><h2>Tools CRM</h2></div>
-        <span class="home-tools-caption">Akses cepat</span>
+        <h2>Tools</h2>
+        <a href="?page=more">Semua <i class="fa-solid fa-arrow-right"></i></a>
     </div>
     <div class="home-tools-grid">
-        <a href="?page=chat"><span class="home-tool-icon green"><i class="fa-regular fa-comments"></i></span><strong>Chat</strong><small>Inbox prospek</small></a>
-        <a href="?page=action"><span class="home-tool-icon blue"><i class="fa-solid fa-user-plus"></i></span><strong>Prospek</strong><small>Tambah & follow-up</small></a>
-        <a href="?page=action"><span class="home-tool-icon amber"><i class="fa-regular fa-paper-plane"></i></span><strong>Follow-up</strong><small>Kirim pesan</small></a>
-        <a href="?page=reminder"><span class="home-tool-icon red"><i class="fa-regular fa-bell"></i></span><strong>Reminder</strong><small>Jadwal pengingat</small></a>
-        <a href="?page=action"><span class="home-tool-icon purple"><i class="fa-solid fa-bullhorn"></i></span><strong>Broadcast</strong><small>Kirim ke grup</small></a>
-        <a href="?page=more"><span class="home-tool-icon teal"><i class="fa-regular fa-file-lines"></i></span><strong>Template</strong><small>Pesan siap pakai</small></a>
-        <a href="?page=more"><span class="home-tool-icon slate"><i class="fa-solid fa-users"></i></span><strong>Group</strong><small>Kelola kontak</small></a>
-        <a href="?page=more"><span class="home-tool-icon indigo"><i class="fa-solid fa-chart-simple"></i></span><strong>Analytics</strong><small>Lihat performa</small></a>
+        <a href="?page=chat"><span class="home-tool-icon green"><i class="fa-regular fa-comments"></i></span><strong>Chat</strong></a>
+        <a href="?page=action"><span class="home-tool-icon blue"><i class="fa-solid fa-user-plus"></i></span><strong>Prospek</strong></a>
+        <a href="../pesan.php"><span class="home-tool-icon amber"><i class="fa-regular fa-paper-plane"></i></span><strong>Follow-up</strong></a>
+        <a href="?page=reminder"><span class="home-tool-icon red"><i class="fa-regular fa-bell"></i></span><strong>Reminder</strong></a>
+        <a href="../kirimgrup.php"><span class="home-tool-icon purple"><i class="fa-solid fa-users"></i></span><strong>Grup</strong></a>
+        <a href="../promosi.php"><span class="home-tool-icon teal"><i class="fa-solid fa-bullhorn"></i></span><strong>Promosi</strong></a>
+        <a href="../manage_templates.php"><span class="home-tool-icon slate"><i class="fa-regular fa-file-lines"></i></span><strong>Template</strong></a>
+        <a href="../grafik.php"><span class="home-tool-icon indigo"><i class="fa-solid fa-chart-simple"></i></span><strong>Data</strong></a>
     </div>
 </section>
 
 <section class="section">
-    <div class="section-heading"><h2>Aktivitas Terbaru</h2><a href="?page=activity">Lihat semua <i class="fa-solid fa-arrow-right"></i></a></div>
+    <div class="section-heading"><h2>Aktivitas</h2><a href="?page=activity">Semua <i class="fa-solid fa-arrow-right"></i></a></div>
     <div class="activity-list">
         <?php if (!$recent): ?>
             <div class="empty-state"><i class="fa-regular fa-comments"></i><strong>Belum ada aktivitas</strong><p>Data percakapan akan muncul di sini.</p></div>

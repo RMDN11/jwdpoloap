@@ -9,6 +9,8 @@ $checks = [
     'home links activity to activity page' => strpos($home, '?page=activity') !== false,
     'router allows activity page' => strpos($index, "'activity'") !== false,
     'home icon grid styles exist' => strpos($css, '.home-tools-grid') !== false,
+    'home tools have compact centered styles' => strpos($css, '.home-tools-grid strong{font-size:10px') !== false && strpos($css, 'align-items:center') !== false,
+    'home tools use original feature routes' => strpos($home, '../kirimgrup.php') !== false && strpos($home, '../pesan.php') !== false && strpos($home, '../manage_templates.php') !== false,
 ];
 
 $failed = array_keys(array_filter($checks, fn($ok) => !$ok));
