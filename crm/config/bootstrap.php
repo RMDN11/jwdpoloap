@@ -34,6 +34,40 @@ $conn->query("CREATE TABLE IF NOT EXISTS crm_message_history (
     INDEX idx_crm_history_nowa_sent (nowa, sent_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+$conn->query("CREATE TABLE IF NOT EXISTS crm_prospect_triggers (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    keyword VARCHAR(120) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_crm_trigger_keyword (keyword),
+    INDEX idx_crm_trigger_active (active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+$defaultTriggers = [
+    ['bingung mau pilih program', 'Bingung'],
+    ['saya bingung', 'Bingung'],
+    ['ziyadah pemula', 'Ziyadah Pemula'],
+    ['ziyadah lanjutan', 'Ziyadah Lanjutan'],
+    ["muroja'ah", "Muroja'ah"],
+    ['murojaah', "Muroja'ah"],
+    ['tahfidz cilik', 'Tahfidz Cilik'],
+    ['intensif', 'Mode Intensif'],
+    ['normal', 'Mode Normal'],
+    ['kak, mau', 'Ekspresi Minat'],
+    ['mau ikut', 'Ekspresi Minat'],
+    ['minat', 'Ekspresi Minat'],
+];
+
+$triggerSeed = $conn->prepare("INSERT IGNORE INTO crm_prospect_triggers (keyword, category) VALUES (?, ?)");
+if ($triggerSeed) {
+    foreach ($defaultTriggers as [$keyword, $category]) {
+        $triggerSeed->bind_param('ss', $keyword, $category);
+        $triggerSeed->execute();
+    }
+    $triggerSeed->close();
+}
+
 function crmCount(mysqli $conn, string $sql): int {
     $result = $conn->query($sql);
     if (!$result) return 0;
