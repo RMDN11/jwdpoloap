@@ -43,3 +43,6 @@
 .send-box-foot button{border:0;border-radius:12px;background:#168044;color:#fff;padding:10px 14px;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
 @media(max-width:850px){.chat-layout{grid-template-columns:1fr}.chat-panel{min-height:0}.chat-panel-empty{min-height:240px}}
 @media(max-width:560px){.chat-stats strong{font-size:12px}.chat-stats span{font-size:8px}.chat-layout{gap:8px}}
+
+.crm-flash{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:11px 13px;border:1px solid #cfe6d7;border-radius:14px;background:#f2fbf5;color:#28623e;font-size:11px;font-weight:700}
+.crm-flash.error{border-color:#f2caca;background:#fff6f6;color:#a43b3b}
