@@ -8,6 +8,7 @@ $checks = [
     'home has clock and calendar' => strpos($home, 'crmAnalogClock') !== false && strpos($home, 'crmCalendarGrid') !== false,
     'home links activity to activity page' => strpos($home, '?page=activity') !== false,
     'router allows activity page' => strpos($index, "'activity'") !== false,
+    'home hides global timebar' => strpos($index, "$page !== 'home'") !== false && strpos($index, "components/topbar.php") !== false,
     'home icon grid styles exist' => strpos($css, '.home-tools-grid') !== false,
     'home tools have compact centered styles' => strpos($css, '.home-tools-grid strong{font-size:10px') !== false && strpos($css, 'align-items:center') !== false,
     'home tools use original feature routes' => strpos($home, '../kirimgrup.php') !== false && strpos($home, '../pesan.php') !== false && strpos($home, '../manage_templates.php') !== false,
