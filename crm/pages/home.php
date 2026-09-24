@@ -9,7 +9,7 @@ if ($result) {
 ?>
 <section class="home-time-card">
     <div class="home-time-copy">
-        <span class="eyebrow">CRM Jawwada</span>
+        <span class="eyebrow">Dashboard</span>
         <h1 id="crmHomeDay">Hari ini</h1>
         <p id="crmHomeDate">Memuat tanggal...</p>
         <div class="home-clock-row">
@@ -22,7 +22,7 @@ if ($result) {
             <div>
                 <span class="home-clock-label">Waktu sekarang</span>
                 <strong id="crmDigitalClock">--:--</strong>
-                <small>WIB · waktu lokal CRM</small>
+                <small>WIB · waktu lokalmu</small>
             </div>
         </div>
     </div>
@@ -42,24 +42,25 @@ if ($result) {
 </section>
 
 <section class="section home-tools-section">
-    <div class="section-heading">
-        <div><span class="eyebrow">Workspace</span><h2>Tools CRM</h2></div>
-        <span class="home-tools-caption">Akses cepat</span>
+    <div class="section-heading home-section-heading">
+        <h2>Tools</h2><a href="?page=action">Semua <i class="fa-solid fa-arrow-right"></i></a>
     </div>
     <div class="home-tools-grid">
-        <a href="?page=chat"><span class="home-tool-icon green"><i class="fa-regular fa-comments"></i></span><strong>Chat</strong><small>Inbox prospek</small></a>
-        <a href="?page=action"><span class="home-tool-icon blue"><i class="fa-solid fa-user-plus"></i></span><strong>Prospek</strong><small>Tambah & follow-up</small></a>
-        <a href="?page=action"><span class="home-tool-icon amber"><i class="fa-regular fa-paper-plane"></i></span><strong>Follow-up</strong><small>Kirim pesan</small></a>
-        <a href="?page=reminder"><span class="home-tool-icon red"><i class="fa-regular fa-bell"></i></span><strong>Reminder</strong><small>Jadwal pengingat</small></a>
-        <a href="?page=action"><span class="home-tool-icon purple"><i class="fa-solid fa-bullhorn"></i></span><strong>Broadcast</strong><small>Kirim ke grup</small></a>
-        <a href="?page=more"><span class="home-tool-icon teal"><i class="fa-regular fa-file-lines"></i></span><strong>Template</strong><small>Pesan siap pakai</small></a>
-        <a href="?page=more"><span class="home-tool-icon slate"><i class="fa-solid fa-users"></i></span><strong>Group</strong><small>Kelola kontak</small></a>
-        <a href="?page=more"><span class="home-tool-icon indigo"><i class="fa-solid fa-chart-simple"></i></span><strong>Analytics</strong><small>Lihat performa</small></a>
+        <a href="?page=chat" aria-label="Chat"><span class="home-tool-icon green"><i class="fa-regular fa-comments"></i></span><strong>Chat</strong></a>
+        <a href="?page=action" aria-label="Prospek"><span class="home-tool-icon blue"><i class="fa-solid fa-user-plus"></i></span><strong>Prospek</strong></a>
+        <a href="../pesan.php" aria-label="Follow-up"><span class="home-tool-icon amber"><i class="fa-regular fa-paper-plane"></i></span><strong>Follow-up</strong></a>
+        <a href="?page=reminder" aria-label="Reminder"><span class="home-tool-icon red"><i class="fa-regular fa-bell"></i></span><strong>Reminder</strong></a>
+        <a href="../kirimgrup.php" aria-label="Pesan Grup"><span class="home-tool-icon purple"><i class="fa-solid fa-bullhorn"></i></span><strong>Grup</strong></a>
+        <a href="../manage_templates.php" aria-label="Template"><span class="home-tool-icon teal"><i class="fa-regular fa-file-lines"></i></span><strong>Template</strong></a>
+        <a href="../kelola_grup.php" aria-label="Kelola Grup"><span class="home-tool-icon slate"><i class="fa-solid fa-users"></i></span><strong>Kontak</strong></a>
+        <a href="../grafik.php" aria-label="Analytics"><span class="home-tool-icon indigo"><i class="fa-solid fa-chart-simple"></i></span><strong>Data</strong></a>
     </div>
 </section>
 
 <section class="section">
-    <div class="section-heading"><h2>Aktivitas Terbaru</h2><a href="?page=activity">Lihat semua <i class="fa-solid fa-arrow-right"></i></a></div>
+    <div class="section-heading home-section-heading">
+        <h2>Aktivitas</h2><a href="?page=activity">Semua <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
     <div class="activity-list">
         <?php if (!$recent): ?>
             <div class="empty-state"><i class="fa-regular fa-comments"></i><strong>Belum ada aktivitas</strong><p>Data percakapan akan muncul di sini.</p></div>
