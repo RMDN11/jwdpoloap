@@ -524,3 +524,40 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   .activity-body small{font-size:9px;line-height:1.35}
   .activity-item time{min-width:32px;font-size:9px}
 }
+
+/* Home mobile activity cards: prevent width overflow and tighten the row */
+@media (max-width: 768px){
+  .home-tools-section,
+  .home-tools-grid,
+  .activity-list,
+  .activity-item{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+  }
+  .activity-list{gap:7px}
+  .activity-item{
+    box-sizing:border-box;
+    gap:9px;
+    padding:11px 12px;
+    border-radius:16px;
+    overflow:hidden;
+  }
+  .activity-avatar{
+    width:36px;
+    height:36px;
+    flex:0 0 36px;
+    border-radius:12px;
+    font-size:12px;
+  }
+  .activity-body{
+    min-width:0;
+    width:0;
+  }
+  .activity-body strong{font-size:11px}
+  .activity-body small{font-size:9px}
+  .activity-item time{
+    flex:0 0 auto;
+    font-size:9px;
+  }
+}
