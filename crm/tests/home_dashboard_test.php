@@ -23,7 +23,7 @@ $checks = [
     'home hides global timebar' => strpos($index, "$page !== 'home'") !== false && strpos($index, "components/topbar.php") !== false,
     'home icon grid styles exist' => strpos($css, '.home-tools-grid') !== false,
     'home tools have compact centered styles' => strpos($css, '.home-tools-grid strong{font-size:10px') !== false && strpos($css, 'align-items:center') !== false,
-    'home tools use original feature routes' => strpos($home, '../kirimgrup.php') !== false && strpos($home, '../pesan.php') !== false && strpos($home, '../manage_templates.php') !== false,
+    'home tools use rebuilt feature routes' => strpos($home, '?page=group') !== false && strpos($home, '?page=chat') !== false && strpos($home, '?page=reminder') !== false && strpos($home, '../manage_templates.php') !== false,
 ];
 
 $nav = file_get_contents(__DIR__ . '/../components/bottom-nav.php');
@@ -39,6 +39,7 @@ $checks['home has Follow Up shortcut'] = strpos($home, '>Follow Up<') !== false;
 $checks['home has Group shortcut'] = strpos($home, '?page=group') !== false;
 $checks['home no longer links Action'] = strpos($home, '?page=action') === false;
 $checks['reminder is payment workflow'] = strpos(file_get_contents(__DIR__ . '/../pages/reminder.php'), 'Reminder Pembayaran') !== false;
+$checks['chat workspace is Follow Up'] = strpos(file_get_contents(__DIR__ . '/../pages/chat.php'), '$crmTitle = \'Follow Up\';') !== false;
 
 $failed = array_keys(array_filter($checks, fn($ok) => !$ok));
 foreach ($checks as $name => $ok) echo ($ok ? "PASS" : "FAIL") . " - $name\n";
