@@ -13,6 +13,8 @@ $checks = [
     'home has deterministic time periods' => strpos($home, "return 'sunset'") !== false && strpos($home, "return 'night'") !== false,
     'home applies time period to scene element' => strpos($home, "document.querySelector('#crmHomeScene .home-scene')") !== false,
     'home scene has sunset styles' => strpos($css, '.home-scene[data-period="sunset"]') !== false,
+    'home night text contrast exists' => strpos($css, '.home-time-copy:has(.home-scene[data-period="night"])') !== false,
+    'calendar label removed' => strpos($home, 'home-calendar-kicker') === false && strpos($home, '>Kalender<') === false,
     'home links activity to activity page' => strpos($home, '?page=activity') !== false,
     'router allows activity page' => strpos($index, "'activity'") !== false,
     'home hides global timebar' => strpos($index, "$page !== 'home'") !== false && strpos($index, "components/topbar.php") !== false,

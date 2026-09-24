@@ -35,7 +35,6 @@ if ($result) {
     <div class="home-calendar-card">
         <div class="home-calendar-head">
             <div>
-                <span class="home-calendar-kicker">Kalender</span>
                 <strong id="crmCalendarMonth">Bulan ini</strong>
             </div>
             <i class="fa-regular fa-calendar"></i>

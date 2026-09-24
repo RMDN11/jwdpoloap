@@ -478,3 +478,29 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .home-scene[data-period="sunset"] .scene-sun{background:#f1a35b;box-shadow:0 0 0 12px rgba(241,163,91,.12),0 0 34px rgba(241,163,91,.2);transform:translateY(12px) scale(.9)}
 .home-scene[data-period="sunset"] .scene-cloud{opacity:.55}
 .home-scene[data-period="sunset"] .scene-moon,.home-scene[data-period="sunset"] .scene-stars{opacity:0}
+
+/* Home night state: keep typography readable against the dark scene */
+.home-time-copy:has(.home-scene[data-period="night"]){
+  background:linear-gradient(145deg,#102c24 0%,#173f34 62%,#1b4a3c 100%);
+  color:#f3fbf6;
+}
+.home-time-copy:has(.home-scene[data-period="night"]):after{
+  background:#285848;
+  opacity:.55;
+}
+.home-time-copy:has(.home-scene[data-period="night"]) .eyebrow{
+  color:#b9d8c8;
+  opacity:.9;
+}
+.home-time-copy:has(.home-scene[data-period="night"]) h1{
+  color:#f3fbf6;
+}
+.home-time-copy:has(.home-scene[data-period="night"]) .home-clock-label{
+  color:#b7cec3;
+}
+.home-time-copy:has(.home-scene[data-period="night"]) .home-clock-row strong{
+  color:#ffffff;
+}
+.home-time-copy:has(.home-scene[data-period="night"]) .home-clock-row small{
+  color:#a9c0b6;
+}
