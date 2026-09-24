@@ -8,6 +8,7 @@ $allowedPages = ['home', 'chat', 'action', 'reminder', 'more'];
 if (!in_array($page, $allowedPages, true)) $page = 'home';
 
 $pageFile = __DIR__ . '/pages/' . $page . '.php';
+$cssVersion = @filemtime(__DIR__ . '/assets/css/app.css') ?: '1';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -18,7 +19,7 @@ $pageFile = __DIR__ . '/pages/' . $page . '.php';
     <meta name="description" content="ReqraWA CRM">
     <title>ReqraWA CRM</title>
     <link rel="icon" type="image/png" href="assets/logowa.png">
-    <link rel="stylesheet" href="assets/css/app.css">
+    <link rel="stylesheet" href="assets/css/app.css?v=<?= urlencode((string)$cssVersion) ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 </head>
 <body>
