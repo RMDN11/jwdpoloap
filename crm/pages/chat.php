@@ -244,7 +244,7 @@ function crmChatUrl(string $search, string $status, string $contact = ''): strin
         templateSelect.addEventListener('change', () => {
             const option = templateSelect.options[templateSelect.selectedIndex];
             let content = option?.dataset?.content || '';
-            const contactName = <?= json_encode($selectedContact['nama'] ?? 'Kak', JSON_UNESCAPED_UNICODE) ?>;
+            const contactName = <?= json_encode($selectedName ?? 'Kak', JSON_UNESCAPED_UNICODE) ?>;
             content = content.replace(/\[(nama|NAMA)\]|\{(nama|NAMA)\}/g, contactName);
             templatePreview.innerHTML = content
                 ? '<span class="template-preview-label">Preview pesan</span><p>' + content.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</p>'
