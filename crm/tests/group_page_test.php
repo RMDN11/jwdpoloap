@@ -12,6 +12,8 @@ $checks = [
     'group page has scheduling modes' => strpos($group, 'groupSchedule') !== false && strpos($group, 'harian') !== false,
     'group page has preview' => strpos($group, 'crmGroupPreview') !== false,
     'group page has compact styles' => strpos($css, '.group-compose-grid') !== false && strpos($css, '.group-phone') !== false,
+    'group history has bounded scroll areas' => strpos($css, '.group-message-history-list') !== false && strpos($css, '.group-history-list') !== false && strpos($css, 'overflow-y:auto') !== false,
+    'group reuse card is compact' => strpos($css, '.group-message-history-card') !== false && strpos($css, 'max-height:420px') !== false,
     'home routes group tool to CRM' => strpos($home, '?page=group') !== false,
 ];
 
