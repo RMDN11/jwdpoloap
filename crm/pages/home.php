@@ -52,9 +52,9 @@ if ($result) {
         <a href="?page=more">Semua <i class="fa-solid fa-arrow-right"></i></a>
     </div>
     <div class="home-tools-grid">
-        <a href="?page=chat"><span class="home-tool-icon green"><i class="fa-regular fa-comments"></i></span><strong>Chat</strong></a>
-        <a href="?page=action"><span class="home-tool-icon blue"><i class="fa-solid fa-user-plus"></i></span><strong>Prospek</strong></a>
-        <a href="../pesan.php"><span class="home-tool-icon amber"><i class="fa-regular fa-paper-plane"></i></span><strong>Follow-up</strong></a>
+        <a href="?page=chat"><span class="home-tool-icon green"><i class="fa-solid fa-paper-plane"></i></span><strong>Follow Up</strong></a>
+        <a href="?page=group"><span class="home-tool-icon blue"><i class="fa-solid fa-users"></i></span><strong>Grup</strong></a>
+        <a href="?page=chat"><span class="home-tool-icon amber"><i class="fa-solid fa-user-plus"></i></span><strong>Prospek</strong></a>
         <a href="?page=reminder"><span class="home-tool-icon red"><i class="fa-regular fa-bell"></i></span><strong>Reminder</strong></a>
         <a href="?page=group"><span class="home-tool-icon purple"><i class="fa-solid fa-users"></i></span><strong>Grup</strong></a>
         <a href="../promosi.php"><span class="home-tool-icon teal"><i class="fa-solid fa-bullhorn"></i></span><strong>Promosi</strong></a>
