@@ -252,6 +252,10 @@ function crmGroupDays(string $value): string {
 
 <script>
 (() => {
+    document.querySelectorAll('.group-message-history-list, .group-history-list').forEach(list => {
+        list.scrollTop = 0;
+    });
+
     const endpoint = '../kirimgrup.php';
     const form = document.getElementById('crmGroupForm');
     const message = document.getElementById('crmGroupMessage');
