@@ -11,7 +11,6 @@ if ($result) {
     <div class="home-time-copy">
         <span class="eyebrow">Halo Han!</span>
         <h1 id="crmHomeDay">Hari ini</h1>
-        <p id="crmHomeDate">Memuat tanggal...</p>
         <div class="home-clock-row">
             <div class="home-analog-clock" id="crmAnalogClock" aria-label="Jam analog">
                 <span class="clock-hand clock-hour"></span>
@@ -79,7 +78,6 @@ if ($result) {
 <script>
 (() => {
     const dayEl = document.getElementById('crmHomeDay');
-    const dateEl = document.getElementById('crmHomeDate');
     const digitalEl = document.getElementById('crmDigitalClock');
     const monthEl = document.getElementById('crmCalendarMonth');
     const gridEl = document.getElementById('crmCalendarGrid');
@@ -112,7 +110,6 @@ if ($result) {
         const m = now.getMinutes();
         const s = now.getSeconds();
         if (dayEl) dayEl.textContent = dayNames[now.getDay()];
-        if (dateEl) dateEl.textContent = now.getDate() + ' ' + monthNames[now.getMonth()] + ' ' + now.getFullYear();
         if (digitalEl) digitalEl.textContent = [h,m].map(v => String(v).padStart(2,'0')).join(':');
         if (hourHand) hourHand.style.transform = 'translateX(-50%) rotate(' + ((h % 12) * 30 + m * .5) + 'deg)';
         if (minuteHand) minuteHand.style.transform = 'translateX(-50%) rotate(' + (m * 6 + s * .1) + 'deg)';
