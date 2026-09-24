@@ -20,6 +20,9 @@ function crmIsGenericInquiry(?string $message): bool {
 }
 
 function crmGetProspectTriggers(mysqli $conn): array {
+    static $cache = null;
+    if (is_array($cache)) return $cache;
+
     $fallback = [
         ['id'=>0, 'keyword'=>'bingung mau pilih program', 'category'=>'Bingung'],
         ['id'=>0, 'keyword'=>'saya bingung', 'category'=>'Bingung'],
@@ -36,7 +39,10 @@ function crmGetProspectTriggers(mysqli $conn): array {
     ];
 
     $result = $conn->query("SELECT id,keyword,category FROM crm_prospect_triggers WHERE active = 1 ORDER BY category ASC, id ASC");
-    if (!$result) return $fallback;
+    if (!$result) {
+        $cache = $fallback;
+        return $cache;
+    }
 
     $triggers = [];
     while ($row = $result->fetch_assoc()) {
@@ -47,7 +53,8 @@ function crmGetProspectTriggers(mysqli $conn): array {
         ];
     }
 
-    return $triggers ?: $fallback;
+    $cache = $triggers ?: $fallback;
+    return $cache;
 }
 
 function crmProspectClassifyMessage(?string $message, ?mysqli $conn = null): string {
