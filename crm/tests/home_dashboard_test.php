@@ -1,11 +1,11 @@
 <?php
-$home = file_get_contents(__DIR__ . '/home.php');
+$home = file_get_contents(__DIR__ . '/../pages/home.php');
 $index = file_get_contents(__DIR__ . '/../index.php');
 $css = file_get_contents(__DIR__ . '/../assets/css/app.css');
 
 $checks = [
     'home removes today summary' => strpos($home, 'Ringkasan Hari Ini') === false,
-    'home has clock and calendar' => strpos($home, 'crm-clock') !== false && strpos($home, 'crm-calendar') !== false,
+    'home has clock and calendar' => strpos($home, 'crmAnalogClock') !== false && strpos($home, 'crmCalendarGrid') !== false,
     'home links activity to activity page' => strpos($home, '?page=activity') !== false,
     'router allows activity page' => strpos($index, "'activity'") !== false,
     'home icon grid styles exist' => strpos($css, '.home-tools-grid') !== false,
