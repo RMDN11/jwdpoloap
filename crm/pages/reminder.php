@@ -5,7 +5,7 @@ $crmTitle = 'Reminder';
 
 $tabs = [
     ['label' => 'Pembayaran', 'icon' => 'fa-wallet', 'href' => '?page=reminder-pembayaran', 'desc' => 'Pengingat pembayaran peserta'],
-    ['label' => 'Pengajar', 'icon' => 'fa-chalkboard-user', 'href' => '../wa-tut.php', 'desc' => 'Kirim pengingat kepada pengajar'],
+    ['label' => 'Pengajar', 'icon' => 'fa-chalkboard-user', 'href' => '?page=reminder-pengajar', 'desc' => 'Kirim pesan kepada pengajar'],
     ['label' => 'Promosi', 'icon' => 'fa-bullhorn', 'href' => '../promosi.php', 'desc' => 'Kirim promosi dan broadcast peserta'],
     ['label' => 'Pengingat Peserta', 'icon' => 'fa-clock', 'href' => '../kelola_reminder.php', 'desc' => 'Kelola reminder dan follow-up peserta'],
 ];
