@@ -123,8 +123,9 @@ if ($result) {
     function getTimePeriod(hour, minute) {
         const total = hour * 60 + minute;
         if (total >= 300 && total < 420) return 'dawn';
-        if (total >= 420 && total < 1020) return 'day';
-        if (total >= 1020 && total < 1080) return 'sunset';
+        if (total >= 420 && total < 900) return 'day';
+        if (total >= 900 && total < 1050) return 'afternoon';
+        if (total >= 1050 && total < 1110) return 'sunset';
         return 'night';
     }
 
