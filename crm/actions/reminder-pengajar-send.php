@@ -43,7 +43,7 @@ $types = str_repeat('i', count($ids));
 $params = $ids;
 
 $stmt = $conn->prepare("
-    SELECT id, nama, nowa
+    SELECT id, nama, nowa, halaqoh
     FROM pengampu
     WHERE id IN ($placeholders)
       AND nowa IS NOT NULL
@@ -81,6 +81,7 @@ $errors = [];
 
 foreach ($targets as $target) {
     $name = trim((string)$target['nama']) ?: 'Pengajar';
+    $halaqoh = trim((string)($target['halaqoh'] ?? ''));
     $number = crmNormalizeNumber((string)$target['nowa']);
 
     if ($number === '') {
@@ -91,7 +92,7 @@ foreach ($targets as $target) {
 
     $personalMessage = str_ireplace(
         ['{nama}', '{NAMA}', '[nama]', '[NAMA]', '{halaqoh}', '{HALAQOH}', '[halaqoh]', '[HALAQOH]'],
-        [$name, $name, $name, $name, '', '', '', ''],
+        [$name, $name, $name, $name, $halaqoh, $halaqoh, $halaqoh, $halaqoh],
         $message
     );
 
@@ -131,7 +132,7 @@ foreach ($targets as $target) {
         }
 
         if ($historyStmt) {
-            $historyStmt->bind_param('sss', $number, $name, $personalMessage);
+            $historyStmt->bind_param('sss', $number, $name, $message);
             $historyStmt->execute();
         }
     } else {
