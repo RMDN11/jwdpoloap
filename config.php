@@ -46,9 +46,9 @@ try {
     $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
     $conn->set_charset('utf8mb4');
     
-    // Koneksi PDO
-    $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // CRM dan file aplikasi saat ini menggunakan mysqli.
+    // Hindari membuka koneksi PDO kedua pada setiap request karena dapat
+    // menggandakan penggunaan koneksi MySQL dan memicu "Too many connections".
     
 } catch (Exception $e) {
     // Log error tapi jangan tampilkan ke user

@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/bootstrap.php';
 
 $page = $_GET['page'] ?? 'home';
-$allowedPages = ['home', 'chat', 'reminder', 'more', 'activity', 'group'];
+$allowedPages = ['home', 'chat', 'reminder', 'reminder-pembayaran', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'more', 'activity', 'group'];
 if (!in_array($page, $allowedPages, true)) $page = 'home';
 
 $pageFile = __DIR__ . '/pages/' . $page . '.php';
@@ -27,9 +27,8 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     <?php if ($page === 'group'): ?>
         <link rel="stylesheet" href="assets/css/group-mobile.css?v=<?= filemtime(__DIR__ . '/assets/css/group-mobile.css') ?>">
     <?php endif; ?>
-    <?php if ($page === 'reminder'): ?>
+    <?php if (str_starts_with($page, 'reminder')): ?>
         <link rel="stylesheet" href="assets/css/reminder.css?v=<?= filemtime(__DIR__ . '/assets/css/reminder.css') ?>">
-        <link rel="stylesheet" href="assets/css/reminder-v2.css?v=<?= filemtime(__DIR__ . '/assets/css/reminder-v2.css') ?>">
     <?php endif; ?>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 </head>
