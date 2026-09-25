@@ -65,15 +65,13 @@ if ($bulan !== '') {
     $types = 's' . $types;
     if ($statusBayar === 'lunas') $where[] = "bp.peserta_id IS NOT NULL";
     elseif ($statusBayar === 'belum_lunas') $where[] = "bp.peserta_id IS NULL";
-} elseif ($statusBayar === 'belum_lunas') {
-    $where[] = "NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id)";
-} elseif ($statusBayar === 'lunas') {
-    $where[] = "EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id)";
+} else {
+    $paymentJoin = " LEFT JOIN pembayaran pemb ON p.id = pemb.peserta_id ";
 }
 
 $paymentStatusSql = $bulan !== ''
     ? "CASE WHEN bp.peserta_id IS NOT NULL THEN 1 ELSE 0 END"
-    : "CASE WHEN EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id) THEN 1 ELSE 0 END";
+    : "CASE WHEN pemb.id IS NOT NULL THEN 1 ELSE 0 END";
 
 /*
  * Build reminder history once and JOIN it.
@@ -185,7 +183,7 @@ if ($hasFilter) {
         <div class="reminder-filter-box">
         <form class="reminder-filters" method="get">
             <input type="hidden" name="page" value="reminder-pembayaran">
-            <label><span>Cari peserta</span><input name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Nama atau nomor WhatsApp"></label>
+            <label><span>Cari peserta</span><input name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Nama peserta"></label>
             <label><span>Bulan pembayaran</span><select name="bulan"><option value="">Semua bulan</option><?php foreach ($bulanList as $item): ?><option value="<?= htmlspecialchars($item) ?>" <?= $bulan===$item?'selected':'' ?>><?= htmlspecialchars($item) ?></option><?php endforeach; ?></select></label>
             <label><span>Halaqoh</span><select name="halaqoh"><option value="">Semua halaqoh</option><?php foreach ($halaqohList as $item): ?><option value="<?= htmlspecialchars($item) ?>" <?= $halaqoh===$item?'selected':'' ?>><?= htmlspecialchars($item) ?></option><?php endforeach; ?></select></label>
             <label><span>Status peserta</span><select name="status_peserta"><option value="semua">Semua</option><?php foreach ($statusList as $item): ?><option value="<?= htmlspecialchars($item) ?>" <?= $statusPeserta===$item?'selected':'' ?>><?= htmlspecialchars($item) ?></option><?php endforeach; ?></select></label>
