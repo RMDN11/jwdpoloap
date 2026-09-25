@@ -13,8 +13,8 @@ $nav = [
         <?php $active = $currentPage === $key; ?>
         <a href="?page=<?= urlencode($key) ?>" class="nav-item <?= $active ? 'active' : '' ?> <?= $key === 'home' ? 'home-item' : '' ?> <?= $key === 'more' ? 'more-item' : '' ?>" <?= $active ? 'aria-current="page"' : '' ?>>
             <?php if ($key === 'home'): ?>
-                <span class="home-button"><i class="fa-solid fa-house"></i></span>
-                <span><?= $item['label'] ?></span>
+                <span class="home-button" aria-hidden="true"><i class="fa-solid fa-house"></i></span>
+                <span class="sr-only"><?= $item['label'] ?></span>
             <?php else: ?>
                 <i class="fa-solid <?= $item['icon'] ?>" aria-hidden="true"></i>
                 <span class="sr-only"><?= $item['label'] ?></span>
