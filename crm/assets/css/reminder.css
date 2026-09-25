@@ -65,15 +65,3 @@
   .reminder-person-status{display:none}
 }
 
-/* Reminder icon-only workspace */
-.reminder-icon-page{padding:4px 0 28px}
-.reminder-icon-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;max-width:520px}
-.reminder-icon-box{width:100%;aspect-ratio:1;border:1px solid #e5e7eb;border-radius:18px;background:#fff;color:#64748b;display:grid;place-items:center;text-decoration:none;font-size:22px;box-shadow:0 1px 2px rgba(15,23,42,.04);transition:transform .2s,border-color .2s,background .2s,color .2s,box-shadow .2s}
-.reminder-icon-box:hover{transform:translateY(-2px);border-color:#cbd5e1;background:#f8fafc;color:#166534;box-shadow:0 6px 18px rgba(15,23,42,.06)}
-.reminder-icon-box.active{background:#166534;border-color:#166534;color:#fff;box-shadow:0 6px 18px rgba(22,101,52,.16)}
-.reminder-icon-box:focus-visible{outline:3px solid rgba(22,101,52,.18);outline-offset:2px}
-@media(max-width:640px){
-  .reminder-icon-page{padding-bottom:20px}
-  .reminder-icon-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-width:100%;gap:10px}
-  .reminder-icon-box{border-radius:16px;font-size:20px}
-}
