@@ -29,6 +29,7 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     <?php endif; ?>
     <?php if ($page === 'reminder'): ?>
         <link rel="stylesheet" href="assets/css/reminder.css?v=<?= filemtime(__DIR__ . '/assets/css/reminder.css') ?>">
+        <link rel="stylesheet" href="assets/css/reminder-v2.css?v=<?= filemtime(__DIR__ . '/assets/css/reminder-v2.css') ?>">
     <?php endif; ?>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 </head>
