@@ -576,3 +576,18 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   .bottom-nav .home-item{margin-top:-22px}
   .bottom-nav .home-button{width:54px;height:54px;font-size:21px}
 }
+
+
+/* Keep the centered Home icon clearly white on its green anchor */
+.bottom-nav .home-button{color:#fff!important}
+.bottom-nav .home-button i{color:#fff!important}
+
+
+/* Home icon: force Font Awesome glyph to pure white */
+.bottom-nav .home-button i.fa-solid,
+.bottom-nav .home-button i.fa-house{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+  opacity:1!important;
+  text-shadow:none!important;
+}
