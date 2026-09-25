@@ -7,7 +7,7 @@ $allowedTabs = ['pembayaran', 'pengajar', 'promosi', 'peserta'];
 if (!in_array($tab, $allowedTabs, true)) $tab = 'pembayaran';
 
 $tabs = [
-    'pembayaran' => ['label'=>'Pembayaran','icon'=>'fa-wallet','description'=>'Pengingat tagihan dan status pembayaran.','legacy'=>'../reminder.php'],
+    'pembayaran' => ['label'=>'Pembayaran','icon'=>'fa-wallet','description'=>'Pengingat tagihan dan status pembayaran.','legacy'=>'?page=reminder-pembayaran'],
     'pengajar' => ['label'=>'Pengajar','icon'=>'fa-chalkboard-user','description'=>'Pesan WhatsApp untuk pengajar berdasarkan halaqoh.','legacy'=>'../wa-tut.php'],
     'promosi' => ['label'=>'Promosi','icon'=>'fa-bullhorn','description'=>'Broadcast promosi dengan target peserta dan media.','legacy'=>'../promosi.php'],
     'peserta' => ['label'=>'Pengingat Peserta','icon'=>'fa-clock','description'=>'Request pengingat peserta yang telat kelas atau perlu tindak lanjut.','legacy'=>'../kelola_reminder.php'],
@@ -48,12 +48,12 @@ if ($r && ($row=$r->fetch_assoc())) $stats['today']=(int)$row['total'];
 <section class="reminder-v2-shell">
   <div class="reminder-v2-hero">
     <div><span class="reminder-v2-kicker">Workspace aktif</span><h2><?= htmlspecialchars($tabs[$tab]['label']) ?></h2><p><?= htmlspecialchars($tabs[$tab]['description']) ?></p></div>
-    <a class="reminder-v2-legacy-link" href="<?= htmlspecialchars($tabs[$tab]['legacy']) ?>" target="_blank" rel="noopener"><i class="fa-solid fa-up-right-from-square"></i> Buka baseline</a>
+    <a class="reminder-v2-legacy-link" href="<?= htmlspecialchars($tabs[$tab]['legacy']) ?>"><i class="fa-solid fa-up-right-from-square"></i> Buka baseline</a>
   </div>
 
   <?php if ($tab==='pembayaran'): ?>
     <div class="reminder-v2-workspace">
-      <div class="reminder-v2-section-head"><div><span class="reminder-v2-kicker">Baseline: reminder.php</span><h3>Pembayaran</h3><p>Target utama: peserta yang perlu diingatkan pembayaran. Baseline punya pencarian, halaqoh, status peserta, bulan pembayaran, riwayat log, template, dan kirim langsung.</p></div><a class="reminder-v2-primary" href="<?= $tabs[$tab]['legacy'] ?>">Buka pembayaran <i class="fa-solid fa-arrow-right"></i></a></div>
+      <div class="reminder-v2-section-head"><div><span class="reminder-v2-kicker">Workspace pembayaran</span><h3>Pembayaran</h3><p>Kelola target reminder pembayaran dengan filter peserta, bulan, halaqoh, status pembayaran, template, dan pengiriman langsung.</p></div><a class="reminder-v2-primary" href="<?= $tabs[$tab]['legacy'] ?>">Buka pembayaran <i class="fa-solid fa-arrow-right"></i></a></div>
       <div class="reminder-v2-feature-list"><span>Filter peserta</span><span>Bulan pembayaran</span><span>Lunas / belum lunas</span><span>Template WA</span><span>Riwayat log</span></div>
     </div>
   <?php elseif ($tab==='pengajar'): ?>
