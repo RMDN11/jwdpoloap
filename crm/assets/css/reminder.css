@@ -28,7 +28,7 @@
 .reminder-back-btn{width:40px;height:40px;display:inline-grid;place-items:center;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:#334155;text-decoration:none;box-shadow:0 1px 2px rgba(15,23,42,.04);transition:.2s}
 .reminder-back-btn:hover{background:#f8fafc;border-color:#cbd5e1;transform:translateY(-1px)}
 .reminder-stats-compact{grid-template-columns:repeat(2,minmax(0,1fr));margin:0 0 16px}
-.reminder-filter-box{margin:0 0 16px;padding:14px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(3,minmax(135px,1fr)) auto;gap:10px;align-items:end}
+.reminder-filter-box{margin:0 0 16px;padding:14px;border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(4,minmax(125px,1fr)) auto;gap:10px;align-items:end}
 .reminder-filter-box label{min-width:0}
 .reminder-filter-box label>span{display:block;margin:0 0 6px;font-size:11px;font-weight:700;color:#64748b}
 .reminder-filter-box input,.reminder-filter-box select{width:100%;height:40px;border:1px solid #dbe3ec;border-radius:10px;background:#fff;color:#334155;padding:0 11px;font-size:13px;outline:none}
