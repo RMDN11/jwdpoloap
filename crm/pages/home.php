@@ -26,9 +26,8 @@ if ($result) {
                 <span class="clock-center"></span>
             </div>
             <div>
-                <span class="home-clock-label">Waktu sekarang</span>
                 <strong id="crmDigitalClock">--:--</strong>
-                <small>WIB · waktu lokalmu</small>
+                <small>WIB</small>
             </div>
         </div>
     </div>
