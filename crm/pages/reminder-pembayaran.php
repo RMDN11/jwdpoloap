@@ -89,61 +89,46 @@ $reminderHistoryJoin = " LEFT JOIN (
     GROUP BY normalized_phone
 ) rh ON rh.normalized_phone = {$normalizedPhoneSql} ";
 
+$paymentHaving = "";
+if ($bulan === "") {
+    if ($statusBayar === "lunas") $paymentHaving = " HAVING MAX(pemb.id) IS NOT NULL";
+    elseif ($statusBayar === "belum_lunas") $paymentHaving = " HAVING MAX(pemb.id) IS NULL";
+}
+
 $sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status,
         {$paymentStatusSql} AS is_lunas,
         COALESCE(rh.reminder_count, 0) AS reminder_count,
         rh.reminder_last
         FROM peserta p {$paymentJoin} {$reminderHistoryJoin}
-        WHERE " . implode(' AND ', $where) . "
-        ORDER BY p.halaqoh, p.nama_lengkap LIMIT 100";
+        WHERE " . implode(" AND ", $where) . "
+        GROUP BY p.id" . $paymentHaving . "
+        ORDER BY p.halaqoh, p.nama_lengkap LIMIT 50";
 
-$whereSql = implode(' AND ', $where);
-$unpaidWhere = $where;
-if ($bulan !== '') {
-    $unpaidWhere[] = "bp.peserta_id IS NULL";
-} else {
-    $unpaidWhere[] = "NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id)";
-}
-$unpaidWhereSql = implode(' AND ', $unpaidWhere);
-
+$whereSql = implode(" AND ", $where);
 $belumBayar = 0;
-$stmtUnpaid = $conn->prepare("SELECT COUNT(*) total FROM peserta p {$paymentJoin} WHERE {$unpaidWhereSql}");
-if ($stmtUnpaid) {
-    if ($params) {
-        $unpaidParams = $params;
-        $unpaidTypes = $types;
-        $unpaidRefs = [];
-        foreach ($unpaidParams as $key => &$value) $unpaidRefs[$key] = &$value;
-        call_user_func_array([$stmtUnpaid, 'bind_param'], array_merge([$unpaidTypes], $unpaidRefs));
-    }
-    $stmtUnpaid->execute();
-    $unpaidRow = $stmtUnpaid->get_result()->fetch_assoc();
-    $belumBayar = (int)($unpaidRow['total'] ?? 0);
-    $stmtUnpaid->close();
-}
-
 $totalFiltered = 0;
 $todaySent = 0;
 $participants = [];
 
 if ($hasFilter) {
-    $stmtCount = $conn->prepare("SELECT
-        COUNT(*) AS total,
+    $countSql = "SELECT COUNT(*) AS total,
         COALESCE(SUM(CASE WHEN COALESCE(rh.reminded_today, 0) = 1 THEN 1 ELSE 0 END), 0) AS today_sent
         FROM peserta p {$paymentJoin} {$reminderHistoryJoin}
-        WHERE {$whereSql}");
+        WHERE {$whereSql}
+        GROUP BY p.id" . $paymentHaving;
+
+    $stmtCount = $conn->prepare($countSql);
     if ($stmtCount) {
         if ($params) {
             $countParams = $params;
-            $countTypes = $types;
             $countRefs = [];
             foreach ($countParams as $key => &$value) $countRefs[$key] = &$value;
-            call_user_func_array([$stmtCount, 'bind_param'], array_merge([$countTypes], $countRefs));
+            call_user_func_array([$stmtCount, "bind_param"], array_merge([$types], $countRefs));
         }
         $stmtCount->execute();
-        $countRow = $stmtCount->get_result()->fetch_assoc();
-        $totalFiltered = (int)($countRow['total'] ?? 0);
-        $todaySent = (int)($countRow['today_sent'] ?? 0);
+        $countRows = $stmtCount->get_result()->fetch_all(MYSQLI_ASSOC);
+        $totalFiltered = count($countRows);
+        foreach ($countRows as $countRow) $todaySent += (int)($countRow["today_sent"] ?? 0);
         $stmtCount->close();
     }
 
@@ -152,11 +137,32 @@ if ($hasFilter) {
         if ($params) {
             $refs = [];
             foreach ($params as $key => &$value) $refs[$key] = &$value;
-            call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
+            call_user_func_array([$stmt, "bind_param"], array_merge([$types], $refs));
         }
         $stmt->execute();
         $participants = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
+    }
+
+    $unpaidWhere = $where;
+    if ($bulan !== "") $unpaidWhere[] = "bp.peserta_id IS NULL";
+    else $unpaidWhere[] = "pemb.id IS NULL";
+    $unpaidSql = "SELECT COUNT(*) AS total FROM (SELECT p.id
+        FROM peserta p {$paymentJoin}
+        WHERE " . implode(" AND ", $unpaidWhere) . "
+        GROUP BY p.id" . ($bulan === "" ? " HAVING MAX(pemb.id) IS NULL" : "") . ") unpaid";
+    $stmtUnpaid = $conn->prepare($unpaidSql);
+    if ($stmtUnpaid) {
+        if ($params) {
+            $unpaidParams = $params;
+            $unpaidRefs = [];
+            foreach ($unpaidParams as $key => &$value) $unpaidRefs[$key] = &$value;
+            call_user_func_array([$stmtUnpaid, "bind_param"], array_merge([$types], $unpaidRefs));
+        }
+        $stmtUnpaid->execute();
+        $unpaidRow = $stmtUnpaid->get_result()->fetch_assoc();
+        $belumBayar = (int)($unpaidRow["total"] ?? 0);
+        $stmtUnpaid->close();
     }
 }
 
