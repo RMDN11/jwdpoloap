@@ -591,3 +591,25 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   opacity:1!important;
   text-shadow:none!important;
 }
+
+
+/* Home clock refinement: compact WIB, calmer calendar, golden afternoon */
+.home-clock-row > div:last-child{display:flex;align-items:baseline;gap:7px;min-width:0}
+.home-clock-row strong{margin-top:0;line-height:.95}
+.home-clock-row small{margin-top:0;font-size:12px;font-weight:750;letter-spacing:.03em;color:#82928a}
+.home-calendar-card{padding-top:22px;padding-bottom:22px}
+.home-calendar-head{margin-bottom:11px}
+.home-calendar-week{margin-bottom:3px}
+.home-calendar-grid{gap:2px}
+.home-calendar-grid span{min-height:27px;border-radius:8px}
+.home-scene[data-period="afternoon"]:before{background:linear-gradient(135deg,rgba(255,248,232,.3),rgba(246,213,145,.18) 58%,rgba(223,243,230,.18))}
+.home-scene[data-period="afternoon"] .scene-sun{background:#f4bc5b;box-shadow:0 0 0 11px rgba(244,188,91,.12),0 0 34px rgba(244,188,91,.2);transform:translateY(8px) scale(.94)}
+.home-scene[data-period="afternoon"] .scene-cloud{opacity:.62}
+.home-scene[data-period="sunset"]:before{background:linear-gradient(135deg,rgba(255,231,205,.34),rgba(244,178,105,.2) 56%,rgba(223,239,230,.16))}
+.home-scene[data-period="sunset"] .scene-sun{background:#ef9f58;box-shadow:0 0 0 12px rgba(239,159,88,.12),0 0 38px rgba(239,159,88,.22);transform:translateY(17px) scale(.86)}
+@media(max-width:560px){
+  .home-clock-row > div:last-child{gap:5px}
+  .home-clock-row small{font-size:10px}
+  .home-calendar-card{padding-top:14px;padding-bottom:14px}
+  .home-calendar-grid span{min-height:27px}
+}
