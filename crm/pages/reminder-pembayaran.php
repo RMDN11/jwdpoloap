@@ -6,7 +6,8 @@ $search = trim((string)($_GET['q'] ?? ''));
 $halaqoh = trim((string)($_GET['halaqoh'] ?? ''));
 $bulan = trim((string)($_GET['bulan'] ?? ''));
 $statusBayar = (string)($_GET['status_bayar'] ?? 'belum_lunas');
-$hasFilter = isset($_GET['q']) || isset($_GET['halaqoh']) || isset($_GET['bulan']) || isset($_GET['status_bayar']);
+$statusPeserta = (string)($_GET['status_peserta'] ?? 'proses');
+$hasFilter = isset($_GET['q']) || isset($_GET['halaqoh']) || isset($_GET['bulan']) || isset($_GET['status_bayar']) || isset($_GET['status_peserta']);
 
 $halaqohList = [];
 $r = $conn->query("SELECT DISTINCT halaqoh FROM peserta WHERE halaqoh IS NOT NULL AND halaqoh <> '' ORDER BY halaqoh");
@@ -40,6 +41,12 @@ if ($search !== '') {
 if ($halaqoh !== '') {
     $where[] = "p.halaqoh = ?";
     $params[] = $halaqoh;
+    $types .= 's';
+}
+
+if ($statusPeserta !== '' && $statusPeserta !== 'semua') {
+    $where[] = "p.status = ?";
+    $params[] = $statusPeserta;
     $types .= 's';
 }
 
@@ -292,6 +299,15 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
             </label>
 
             <label>
+                <span>Status peserta</span>
+                <select name="status_peserta">
+                    <option value="proses" <?= $statusPeserta === 'proses' ? 'selected' : '' ?>>Proses</option>
+                    <option value="selesai" <?= $statusPeserta === 'selesai' ? 'selected' : '' ?>>Selesai</option>
+                    <option value="semua" <?= $statusPeserta === 'semua' ? 'selected' : '' ?>>Semua status</option>
+                </select>
+            </label>
+
+            <label>
                 <span>Status pembayaran</span>
                 <select name="status_bayar">
                     <option value="belum_lunas" <?= $statusBayar === 'belum_lunas' ? 'selected' : '' ?>>Belum bayar</option>
@@ -325,7 +341,7 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
                     <div class="reminder-empty">
                         <i class="fa-regular fa-face-frown"></i>
                         <strong>Target tidak ditemukan</strong>
-                        <span>Coba ubah filter pembayaran, bulan, halaqoh, atau pencarian.</span>
+                        <span>Coba ubah filter status peserta, pembayaran, bulan, halaqoh, atau pencarian.</span>
                     </div>
                 <?php else: ?>
                     <?php foreach ($participants as $p): ?>
