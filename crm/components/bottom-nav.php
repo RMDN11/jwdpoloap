@@ -11,13 +11,11 @@ $nav = [
 <nav class="bottom-nav" aria-label="Navigasi CRM">
     <?php foreach ($nav as $key => $item): ?>
         <?php $active = $currentPage === $key; ?>
-        <a href="?page=<?= urlencode($key) ?>" class="nav-item <?= $active ? 'active' : '' ?> <?= $key === 'action' ? 'action-item' : '' ?>">
+        <a href="?page=<?= urlencode($key) ?>" class="nav-item <?= $active ? 'active' : '' ?> <?= $key === 'action' ? 'action-item' : '' ?>" aria-label="<?= htmlspecialchars($item['label']) ?>" title="<?= htmlspecialchars($item['label']) ?>">
             <?php if ($key === 'action'): ?>
-                <span class="action-button"><i class="fa-solid fa-plus"></i></span>
-                <span><?= $item['label'] ?></span>
+                <span class="action-button" aria-hidden="true"><i class="fa-solid <?= $item['icon'] ?>"></i></span>
             <?php else: ?>
-                <i class="fa-solid <?= $item['icon'] ?>"></i>
-                <span><?= $item['label'] ?></span>
+                <i class="fa-solid <?= $item['icon'] ?>" aria-hidden="true"></i>
             <?php endif; ?>
         </a>
     <?php endforeach; ?>
