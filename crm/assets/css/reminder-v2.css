@@ -1,0 +1,73 @@
+/* Reminder workspace component styles
+ * Loaded by crm/index.php for reminder and reminder-pembayaran.
+ */
+
+body:has(.reminder-payment-page) .content{max-width:1280px}
+
+.reminder-payment-page{color:#10231b}
+.reminder-stats{display:grid;gap:12px}
+.reminder-stats-compact{grid-template-columns:repeat(2,minmax(0,1fr));margin:0 0 16px}
+.reminder-stat{display:flex;align-items:center;gap:12px;padding:15px;border:1px solid #e4ebe7;background:#fff;border-radius:18px;box-shadow:0 5px 18px rgba(24,55,41,.04)}
+.reminder-stat strong{display:block;font-size:20px;letter-spacing:-.03em;color:#10231b}
+.reminder-stat small{display:block;margin-top:2px;font-size:11px;color:#829089}
+.reminder-stat-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto}
+.reminder-stat-icon.warning{background:#fff5dc;color:#d97706}
+.reminder-stat-icon.green{background:#e8f7ed;color:#16a34a}
+
+.reminder-card{padding:18px;border:1px solid #e4ebe7;background:#fff;border-radius:20px;box-shadow:0 5px 18px rgba(24,55,41,.04)}
+.reminder-target-card{margin-bottom:16px}
+.reminder-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.reminder-card-head.compact{margin-bottom:10px}
+.reminder-kicker{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#168044}
+.reminder-card-head h2{margin:5px 0 0;font-size:21px;letter-spacing:-.04em;color:#10231b}
+.reminder-count{font-size:11px;color:#829089;white-space:nowrap}
+
+.reminder-filter-box{box-shadow:none}
+.reminder-empty{padding:24px 18px;border:1px dashed #cbd8d0;background:#fbfdfc;border-radius:16px;text-align:center;color:#718178;font-size:12px;line-height:1.5}
+.reminder-empty.compact{padding:16px}
+.reminder-selectbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #edf2ef;font-size:11px;color:#65756d}
+.reminder-list{display:grid;gap:2px}
+.reminder-person{display:flex;align-items:center;gap:11px;padding:11px 2px;border-bottom:1px solid #edf2ef}
+.reminder-person:last-child{border-bottom:0}
+.reminder-target{display:flex;align-items:center;gap:10px;min-width:0}
+.reminder-target input{width:16px;height:16px;accent-color:#168044}
+.reminder-avatar{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;background:#edf8f1;color:#168044;font-size:13px;font-weight:800}
+.reminder-person-body{flex:1;min-width:0}
+.reminder-person-body strong{display:block;font-size:12px;color:#18352a}
+.reminder-person-body small{display:block;margin-top:3px;font-size:10px;color:#829089}
+.reminder-history{display:block;margin-top:4px;font-size:10px;color:#829089}
+.reminder-person-status{padding:5px 8px;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}
+.reminder-person-status.paid{background:#e8f7ed;color:#168044}
+.reminder-person-status.unpaid{background:#fff5dc;color:#a16207}
+
+.reminder-side{display:grid;gap:16px}
+.reminder-compose-card{margin-bottom:16px}
+.reminder-wa-icon{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:#edf8f1;color:#168044}
+.reminder-field{display:grid;gap:6px;margin-top:12px}
+.reminder-field label,.reminder-field>span{font-size:11px;font-weight:700;color:#65756d}
+.reminder-field input,.reminder-field select,.reminder-field textarea{width:100%;border:1px solid #dbe5df;border-radius:10px;background:#fff;color:#18352a;padding:10px;font:inherit;font-size:12px;outline:none}
+.reminder-field textarea{min-height:110px;resize:vertical}
+.reminder-field input:focus,.reminder-field select:focus,.reminder-field textarea:focus{border-color:#168044;box-shadow:0 0 0 3px rgba(22,128,68,.08)}
+.reminder-helper{font-size:10px;line-height:1.5;color:#829089}
+.reminder-send-btn{width:100%;height:40px;margin-top:12px;border:0;border-radius:10px;background:#168044;color:#fff;font-size:12px;font-weight:800;cursor:pointer}
+.reminder-send-btn:hover{background:#146c3b}
+.reminder-request-list{display:grid;gap:8px}
+.reminder-request{padding:11px;border:1px solid #edf2ef;border-radius:12px;background:#fbfdfc}
+.reminder-request-status{display:inline-flex;padding:4px 7px;border-radius:999px;font-size:9px;font-weight:800}
+.reminder-request-status.sent{background:#e8f7ed;color:#168044}
+.reminder-request-status.pending{background:#fff5dc;color:#a16207}
+.reminder-secondary-link{display:inline-flex;align-items:center;gap:5px;margin-top:10px;color:#166534;font-size:11px;font-weight:700;text-decoration:none}
+
+@media(max-width:700px){
+  body:has(.reminder-payment-page) .content{max-width:760px}
+  .reminder-stats-compact{grid-template-columns:1fr}
+  .reminder-card{padding:14px}
+  .reminder-card-head h2{font-size:18px}
+  .reminder-stat{padding:12px}
+  .reminder-stat-icon{width:38px;height:38px}
+  .reminder-person{align-items:flex-start}
+  .reminder-person-status{font-size:9px;padding:4px 7px}
+}
+@media(max-width:420px){
+  .reminder-person-status{display:none}
+}
