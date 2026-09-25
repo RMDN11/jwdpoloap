@@ -26,7 +26,7 @@ function rpMessage(string $template, string $name, string $nowa): string {
 
 /* Preserve the legacy daily reset from kelola_reminder.php. */
 $lastResetDate = null;
-$resetStmt = $conn->prepare("SELECT value FROM reminder_configs WHERE \`key\` = 'last_reset_date' LIMIT 1");
+$resetStmt = $conn->prepare("SELECT value FROM reminder_configs WHERE `key` = 'last_reset_date' LIMIT 1");
 if ($resetStmt) {
     $resetStmt->execute();
     $row = $resetStmt->get_result()->fetch_assoc();
@@ -36,9 +36,9 @@ if ($resetStmt) {
 if ($lastResetDate !== date('Y-m-d')) {
     $conn->query("UPDATE reminder_requests SET status = 'menunggu'");
     $updateResetStmt = $conn->prepare("
-        INSERT INTO reminder_configs (\`key\`, \`value\`)
+        INSERT INTO reminder_configs (`key`, `value`)
         VALUES ('last_reset_date', ?)
-        ON DUPLICATE KEY UPDATE \`value\` = VALUES(\`value\`)
+        ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)
     ");
     if ($updateResetStmt) {
         $today = date('Y-m-d');
