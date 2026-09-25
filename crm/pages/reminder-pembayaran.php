@@ -9,6 +9,18 @@ $bulan = trim((string)($_GET['bulan'] ?? ''));
 $statusBayar = (string)($_GET['status_bayar'] ?? 'belum_lunas');
 $statusPeserta = trim((string)($_GET['status_peserta'] ?? 'semua'));
 
+/*
+ * Jangan load daftar peserta saat halaman pertama kali dibuka.
+ * Query peserta + history baru dijalankan setelah user benar-benar
+ * mengirimkan filter. Ini mencegah halaman awal langsung membaca
+ * dataset peserta dan log_wa yang besar.
+ */
+$hasFilter = $search !== ''
+    || $halaqoh !== ''
+    || $bulan !== ''
+    || isset($_GET['status_bayar'])
+    || ($statusPeserta !== '' && $statusPeserta !== 'semua');
+
 $halaqohList = [];
 $r = $conn->query("SELECT DISTINCT halaqoh FROM peserta WHERE halaqoh IS NOT NULL AND halaqoh <> '' ORDER BY halaqoh");
 if ($r) while ($row = $r->fetch_assoc()) $halaqohList[] = (string)$row['halaqoh'];
@@ -114,37 +126,40 @@ if ($stmtUnpaid) {
 
 $totalFiltered = 0;
 $todaySent = 0;
-$stmtCount = $conn->prepare("SELECT
-    COUNT(*) AS total,
-    COALESCE(SUM(CASE WHEN COALESCE(rh.reminded_today, 0) = 1 THEN 1 ELSE 0 END), 0) AS today_sent
-    FROM peserta p {$paymentJoin} {$reminderHistoryJoin}
-    WHERE {$whereSql}");
-if ($stmtCount) {
-    if ($params) {
-        $countParams = $params;
-        $countTypes = $types;
-        $countRefs = [];
-        foreach ($countParams as $key => &$value) $countRefs[$key] = &$value;
-        call_user_func_array([$stmtCount, 'bind_param'], array_merge([$countTypes], $countRefs));
-    }
-    $stmtCount->execute();
-    $countRow = $stmtCount->get_result()->fetch_assoc();
-    $totalFiltered = (int)($countRow['total'] ?? 0);
-    $todaySent = (int)($countRow['today_sent'] ?? 0);
-    $stmtCount->close();
-}
-
 $participants = [];
-$stmt = $conn->prepare($sql);
-if ($stmt) {
-    if ($params) {
-        $refs = [];
-        foreach ($params as $key => &$value) $refs[$key] = &$value;
-        call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
+
+if ($hasFilter) {
+    $stmtCount = $conn->prepare("SELECT
+        COUNT(*) AS total,
+        COALESCE(SUM(CASE WHEN COALESCE(rh.reminded_today, 0) = 1 THEN 1 ELSE 0 END), 0) AS today_sent
+        FROM peserta p {$paymentJoin} {$reminderHistoryJoin}
+        WHERE {$whereSql}");
+    if ($stmtCount) {
+        if ($params) {
+            $countParams = $params;
+            $countTypes = $types;
+            $countRefs = [];
+            foreach ($countParams as $key => &$value) $countRefs[$key] = &$value;
+            call_user_func_array([$stmtCount, 'bind_param'], array_merge([$countTypes], $countRefs));
+        }
+        $stmtCount->execute();
+        $countRow = $stmtCount->get_result()->fetch_assoc();
+        $totalFiltered = (int)($countRow['total'] ?? 0);
+        $todaySent = (int)($countRow['today_sent'] ?? 0);
+        $stmtCount->close();
     }
-    $stmt->execute();
-    $participants = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
+
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        if ($params) {
+            $refs = [];
+            foreach ($params as $key => &$value) $refs[$key] = &$value;
+            call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
+        }
+        $stmt->execute();
+        $participants = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
+    }
 }
 
 ?>
@@ -179,6 +194,7 @@ if ($stmt) {
         </form>
         </div>
 
+        <?php if ($hasFilter): ?>
         <div class="reminder-selectbar">
             <label><input type="checkbox" id="reminderSelectAll"> Pilih semua</label>
             <span><?= $totalFiltered ?> target</span>
@@ -211,6 +227,15 @@ if ($stmt) {
             </label>
         <?php endforeach; endif; ?>
         </div>
+        <?php else: ?>
+        <div class="reminder-list">
+            <div class="reminder-empty reminder-filter-empty">
+                <i class="fa-solid fa-filter"></i>
+                <strong>Gunakan filter untuk menampilkan peserta</strong>
+                <span>Daftar peserta baru dimuat setelah filter dijalankan.</span>
+            </div>
+        </div>
+        <?php endif; ?>
     </section>
 
     <aside class="reminder-payment-side">
