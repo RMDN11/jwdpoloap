@@ -45,10 +45,7 @@ try {
     // Koneksi mysqli
     $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
     $conn->set_charset('utf8mb4');
-    
-    // Koneksi PDO
-    $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
     
 } catch (Exception $e) {
     // Log error tapi jangan tampilkan ke user
