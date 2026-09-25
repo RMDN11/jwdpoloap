@@ -5,7 +5,7 @@ $nav = [
     'chat' => ['label' => 'Follow Up', 'icon' => 'fa-paper-plane'],
     'home' => ['label' => 'Home', 'icon' => 'fa-house'],
     'reminder' => ['label' => 'Reminder', 'icon' => 'fa-bell'],
-    'more' => ['label' => 'More', 'icon' => 'fa-wand-magic-sparkles'],
+    'more' => ['label' => 'More', 'icon' => 'fa-toolbox'],
 ];
 ?>
 <nav class="bottom-nav" aria-label="Navigasi CRM">
