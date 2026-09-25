@@ -2,29 +2,30 @@
 declare(strict_types=1);
 
 $crmTitle = 'Reminder';
-$tab = (string)($_GET['tab'] ?? 'pembayaran');
-$allowedTabs = ['pembayaran', 'pengajar', 'promosi', 'peserta'];
-if (!in_array($tab, $allowedTabs, true)) $tab = 'pembayaran';
 
 $tabs = [
-    'pembayaran' => ['label'=>'Pembayaran','icon'=>'fa-wallet','legacy'=>'?page=reminder-pembayaran'],
-    'pengajar' => ['label'=>'Pengajar','icon'=>'fa-chalkboard-user','legacy'=>'../wa-tut.php'],
-    'promosi' => ['label'=>'Promosi','icon'=>'fa-bullhorn','legacy'=>'../promosi.php'],
-    'peserta' => ['label'=>'Pengingat Peserta','icon'=>'fa-clock','legacy'=>'../kelola_reminder.php'],
+    ['label' => 'Pembayaran', 'icon' => 'fa-wallet', 'href' => '?page=reminder-pembayaran', 'desc' => 'Pengingat pembayaran peserta'],
+    ['label' => 'Pengajar', 'icon' => 'fa-chalkboard-user', 'href' => '../wa-tut.php', 'desc' => 'Kirim pengingat kepada pengajar'],
+    ['label' => 'Promosi', 'icon' => 'fa-bullhorn', 'href' => '../promosi.php', 'desc' => 'Kirim promosi dan broadcast peserta'],
+    ['label' => 'Pengingat Peserta', 'icon' => 'fa-clock', 'href' => '../kelola_reminder.php', 'desc' => 'Kelola reminder dan follow-up peserta'],
 ];
 ?>
 
-<section class="reminder-icon-page" aria-label="Reminder">
-  <div class="reminder-icon-grid">
-  <?php foreach ($tabs as $key=>$item): ?>
-    <a
-      href="?page=reminder&tab=<?= urlencode($key) ?>"
-      class="reminder-icon-box <?= $tab===$key?'active':'' ?>"
-      title="<?= htmlspecialchars($item['label']) ?>"
-      aria-label="<?= htmlspecialchars($item['label']) ?>"
-    >
-      <i class="fa-solid <?= htmlspecialchars($item['icon']) ?>" aria-hidden="true"></i>
-    </a>
-  <?php endforeach; ?>
-  </div>
+<section class="page-head">
+    <span class="eyebrow">Workspace</span>
+    <h1>Reminder</h1>
+    <p>Kelola pengingat pembayaran, pengajar, promosi, dan peserta.</p>
 </section>
+
+<div class="action-list reminder-workspace-list">
+    <?php foreach ($tabs as $item): ?>
+        <a href="<?= htmlspecialchars($item['href']) ?>">
+            <i class="fa-solid <?= htmlspecialchars($item['icon']) ?>" aria-hidden="true"></i>
+            <div>
+                <strong><?= htmlspecialchars($item['label']) ?></strong>
+                <span><?= htmlspecialchars($item['desc']) ?></span>
+            </div>
+            <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+        </a>
+    <?php endforeach; ?>
+</div>
