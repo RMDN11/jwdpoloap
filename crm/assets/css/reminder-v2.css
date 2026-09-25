@@ -71,3 +71,44 @@ body:has(.reminder-payment-page) .content{max-width:1280px}
 @media(max-width:420px){
   .reminder-person-status{display:none}
 }
+
+
+/* Reminder Pengajar workspace */
+body:has(.reminder-pengajar-page) .content{max-width:1280px}
+.reminder-pengajar-page{color:#10231b}
+.reminder-pengajar-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,.85fr);gap:16px;align-items:start}
+.reminder-pengajar-main,.reminder-pengajar-side{min-width:0}
+.reminder-pengajar-filter{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(150px,.65fr) auto;gap:8px;margin-bottom:12px}
+.reminder-pengajar-filter input,.reminder-pengajar-filter select{width:100%;min-height:40px;border:1px solid #dbe5df;border-radius:10px;background:#fff;color:#18352a;padding:9px 11px;font:inherit;font-size:12px;outline:none}
+.reminder-pengajar-filter input:focus,.reminder-pengajar-filter select:focus{border-color:#168044;box-shadow:0 0 0 3px rgba(22,128,68,.08)}
+.reminder-pengajar-filter button{min-height:40px;padding:0 13px;border:0;border-radius:10px;background:#edf8f1;color:#166534;font-size:11px;font-weight:800;cursor:pointer}
+.reminder-pengajar-filter button:hover{background:#e0f3e7}
+.reminder-pengajar-selectbar{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #edf2ef;border-bottom:1px solid #edf2ef;color:#65756d;font-size:11px}
+.reminder-pengajar-selectbar label{display:flex;align-items:center;gap:7px;cursor:pointer;font-weight:700}
+.reminder-pengajar-selectbar input{accent-color:#168044}
+.reminder-pengajar-person{cursor:pointer}
+.reminder-pengajar-person:hover{background:#fbfdfc}
+.reminder-pengajar-side{position:sticky;top:16px}
+.reminder-message-meta{display:flex;justify-content:space-between;gap:10px;color:#829089;font-size:10px;line-height:1.4}
+.reminder-selected-preview{margin-top:10px;padding:10px 11px;border:1px solid #edf2ef;background:#fbfdfc;border-radius:10px;color:#65756d;font-size:10px;line-height:1.45}
+.reminder-selected-preview strong{color:#18352a}
+.reminder-send-btn:disabled{opacity:.45;cursor:not-allowed}
+.reminder-history-card{margin-top:16px}
+.reminder-previous-list{display:grid;gap:8px;max-height:460px;overflow:auto}
+.reminder-previous-item{padding:11px;border:1px solid #edf2ef;border-radius:12px;background:#fbfdfc}
+.reminder-previous-item p{margin:0;color:#35483f;font-size:11px;line-height:1.55;white-space:normal}
+.reminder-previous-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px;color:#829089;font-size:9px}
+.use-previous-message{border:0;background:#edf8f1;color:#166534;border-radius:8px;padding:6px 8px;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap}
+.use-previous-message:hover{background:#dff2e6}
+@media(max-width:900px){
+  .reminder-pengajar-grid{grid-template-columns:1fr}
+  .reminder-pengajar-side{position:static}
+}
+@media(max-width:600px){
+  .reminder-pengajar-filter{grid-template-columns:1fr 1fr}
+  .reminder-pengajar-filter input{grid-column:1/-1}
+  .reminder-pengajar-filter button{grid-column:1/-1}
+}
+@media(max-width:420px){
+  .reminder-pengajar-filter{grid-template-columns:1fr}
+}
