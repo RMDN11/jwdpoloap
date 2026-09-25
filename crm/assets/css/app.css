@@ -559,3 +559,20 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   opacity:0;
 }
 
+
+
+/* Icon-only bottom navigation */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.bottom-nav .nav-item{gap:0;font-size:0}
+.bottom-nav .nav-item>i{font-size:19px}
+.bottom-nav .nav-item .home-button{flex:0 0 auto}
+.bottom-nav .home-item span:last-child{margin:0;color:inherit}
+.bottom-nav .nav-item.active{color:#168044}
+.bottom-nav .nav-item:focus-visible{outline:2px solid #168044;outline-offset:3px;border-radius:12px}
+@media(max-width:768px){
+  .bottom-nav{height:72px;padding:7px 8px calc(7px + env(safe-area-inset-bottom,0px))}
+  .bottom-nav .nav-item{justify-content:center}
+  .bottom-nav .nav-item>i{font-size:20px}
+  .bottom-nav .home-item{margin-top:-22px}
+  .bottom-nav .home-button{width:54px;height:54px;font-size:21px}
+}
