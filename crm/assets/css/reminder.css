@@ -1,3 +1,11 @@
+/* Reminder launcher follows the compact More workspace UI */
+.reminder-action-list{gap:10px}
+.reminder-action-list a{min-height:70px}
+.reminder-action-list a>i:first-child{width:42px;height:42px;border-radius:13px;font-size:16px}
+@media(max-width:650px){
+  .reminder-action-list a{min-height:66px;padding:13px}
+  .reminder-action-list a>i:first-child{width:40px;height:40px}
+}
 /* Reminder launcher + workspaces */
 .reminder-launcher-head{margin-bottom:18px}
 .reminder-launcher{display:flex;gap:10px;align-items:center}
