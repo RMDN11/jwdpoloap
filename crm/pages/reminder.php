@@ -47,17 +47,15 @@ if ($bulan !== '') {
     $where[] = "EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id)";
 }
 
+$paymentStatusSql = $bulan !== '' ? "CASE WHEN bp.peserta_id IS NOT NULL THEN 1 ELSE 0 END" : "CASE WHEN EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id) THEN 1 ELSE 0 END";
 $sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status,
-        CASE WHEN EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id" .
-        ($bulan !== '' ? " AND px.bulan_pembayaran = ?" : "") .
-        ") THEN 1 ELSE 0 END AS is_lunas
+        {$paymentStatusSql} AS is_lunas
         FROM peserta p {$paymentJoin}
         WHERE " . implode(' AND ', $where) . "
         ORDER BY p.halaqoh, p.nama_lengkap LIMIT ?";
 
 $displayParams = $params;
 $displayTypes = $types;
-if ($bulan !== '') { $displayParams[] = $bulan; $displayTypes .= 's'; }
 $displayParams[] = $limit; $displayTypes .= 'i';
 
 $participants = [];
