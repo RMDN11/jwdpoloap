@@ -17,7 +17,7 @@ $nav = [
                 <span><?= $item['label'] ?></span>
             <?php else: ?>
                 <i class="fa-solid <?= $item['icon'] ?>" aria-hidden="true"></i>
-                <?php if ($key !== 'more'): ?><span><?= $item['label'] ?></span><?php endif; ?>
+                <span class="sr-only"><?= $item['label'] ?></span>
                 <?php if ($key === 'chat'): ?><b class="nav-badge" id="crmChatBadge" hidden>0</b><?php endif; ?>
             <?php endif; ?>
         </a>
