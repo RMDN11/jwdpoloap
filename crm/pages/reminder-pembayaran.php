@@ -26,8 +26,7 @@ $r = $conn->query("SELECT id, category, title, content FROM wa_templates ORDER B
 if ($r) $templates = $r->fetch_all(MYSQLI_ASSOC);
 
 $normalizedPhoneSql = "CASE WHEN LEFT(REGEXP_REPLACE(TRIM(p.nowa), '[^0-9]', ''), 1) = '0' THEN CONCAT('62', SUBSTRING(REGEXP_REPLACE(TRIM(p.nowa), '[^0-9]', ''), 2)) ELSE REGEXP_REPLACE(TRIM(p.nowa), '[^0-9]', '') END";
-$normalizedLogPhoneSql = "REGEXP_REPLACE(TRIM(lw.nowa), '[^0-9]', '')";
-
+$normalizedLogPhoneSql = "CASE WHEN LEFT(REGEXP_REPLACE(TRIM(lw.nowa), '[^0-9]', ''), 1) = '0' THEN CONCAT('62', SUBSTRING(REGEXP_REPLACE(TRIM(lw.nowa), '[^0-9]', ''), 2)) ELSE REGEXP_REPLACE(TRIM(lw.nowa), '[^0-9]', '') END";
 
 $where = ["p.nowa IS NOT NULL", "p.nowa <> ''"];
 $params = [];
@@ -47,7 +46,6 @@ if ($statusPeserta !== '' && $statusPeserta !== 'semua') {
     $params[] = $statusPeserta; $types .= 's';
 }
 
-$baseWhereSql = implode(' AND ', $where);
 $paymentJoin = '';
 if ($bulan !== '') {
     $paymentJoin = " LEFT JOIN (SELECT DISTINCT peserta_id FROM pembayaran WHERE bulan_pembayaran = ?) bp ON bp.peserta_id = p.id ";
@@ -65,11 +63,27 @@ $paymentStatusSql = $bulan !== ''
     ? "CASE WHEN bp.peserta_id IS NOT NULL THEN 1 ELSE 0 END"
     : "CASE WHEN EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id) THEN 1 ELSE 0 END";
 
+/*
+ * Build reminder history once and JOIN it.
+ * The previous version executed two correlated scans of log_wa for every
+ * participant row, which becomes very expensive as log_wa grows.
+ */
+$reminderHistoryJoin = " LEFT JOIN (
+    SELECT
+        {$normalizedLogPhoneSql} AS normalized_phone,
+        COUNT(*) AS reminder_count,
+        MAX(lw.created_at) AS reminder_last,
+        MAX(CASE WHEN lw.created_at >= CURDATE() AND lw.created_at < CURDATE() + INTERVAL 1 DAY THEN 1 ELSE 0 END) AS reminded_today
+    FROM log_wa lw
+    WHERE lw.message LIKE '%[REMINDER] [TERKIRIM]%'
+    GROUP BY normalized_phone
+) rh ON rh.normalized_phone = {$normalizedPhoneSql} ";
+
 $sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status,
         {$paymentStatusSql} AS is_lunas,
-        (SELECT COUNT(*) FROM log_wa lw WHERE lw.message LIKE '%[REMINDER] [TERKIRIM]%' AND {$normalizedLogPhoneSql} = {$normalizedPhoneSql}) AS reminder_count,
-        (SELECT MAX(lw.created_at) FROM log_wa lw WHERE lw.message LIKE '%[REMINDER] [TERKIRIM]%' AND {$normalizedLogPhoneSql} = {$normalizedPhoneSql}) AS reminder_last
-        FROM peserta p {$paymentJoin}
+        COALESCE(rh.reminder_count, 0) AS reminder_count,
+        rh.reminder_last
+        FROM peserta p {$paymentJoin} {$reminderHistoryJoin}
         WHERE " . implode(' AND ', $where) . "
         ORDER BY p.halaqoh, p.nama_lengkap LIMIT 100";
 
@@ -99,7 +113,12 @@ if ($stmtUnpaid) {
 }
 
 $totalFiltered = 0;
-$stmtCount = $conn->prepare("SELECT COUNT(*) total FROM peserta p {$paymentJoin} WHERE {$whereSql}");
+$todaySent = 0;
+$stmtCount = $conn->prepare("SELECT
+    COUNT(*) AS total,
+    COALESCE(SUM(CASE WHEN COALESCE(rh.reminded_today, 0) = 1 THEN 1 ELSE 0 END), 0) AS today_sent
+    FROM peserta p {$paymentJoin} {$reminderHistoryJoin}
+    WHERE {$whereSql}");
 if ($stmtCount) {
     if ($params) {
         $countParams = $params;
@@ -111,31 +130,8 @@ if ($stmtCount) {
     $stmtCount->execute();
     $countRow = $stmtCount->get_result()->fetch_assoc();
     $totalFiltered = (int)($countRow['total'] ?? 0);
+    $todaySent = (int)($countRow['today_sent'] ?? 0);
     $stmtCount->close();
-}
-
-$todaySent = 0;
-$stmtToday = $conn->prepare("SELECT COUNT(DISTINCT p.id) total
-    FROM peserta p {$paymentJoin}
-    WHERE {$whereSql}
-      AND EXISTS (
-        SELECT 1 FROM log_wa lw
-        WHERE lw.message LIKE '%[REMINDER] [TERKIRIM]%'
-          AND DATE(lw.created_at) = CURDATE()
-          AND {$normalizedLogPhoneSql} = {$normalizedPhoneSql}
-      )");
-if ($stmtToday) {
-    if ($params) {
-        $todayParams = $params;
-        $todayTypes = $types;
-        $todayRefs = [];
-        foreach ($todayParams as $key => &$value) $todayRefs[$key] = &$value;
-        call_user_func_array([$stmtToday, 'bind_param'], array_merge([$todayTypes], $todayRefs));
-    }
-    $stmtToday->execute();
-    $todayRow = $stmtToday->get_result()->fetch_assoc();
-    $todaySent = (int)($todayRow['total'] ?? 0);
-    $stmtToday->close();
 }
 
 $participants = [];
