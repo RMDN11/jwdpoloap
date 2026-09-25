@@ -4,30 +4,28 @@ declare(strict_types=1);
 $crmTitle = 'Reminder';
 
 $reminderModules = [
-    ['label'=>'Pembayaran','icon'=>'fa-wallet','page'=>'reminder-pembayaran'],
-    ['label'=>'Pengajar','icon'=>'fa-chalkboard-user','page'=>'reminder-pengajar'],
-    ['label'=>'Promosi','icon'=>'fa-bullhorn','page'=>'reminder-promosi'],
-    ['label'=>'Pengingat Peserta','icon'=>'fa-clock','page'=>'reminder-peserta'],
+    ['label'=>'Pembayaran','description'=>'Pengingat tagihan peserta','icon'=>'fa-wallet','page'=>'reminder-pembayaran'],
+    ['label'=>'Pengajar','description'=>'Kirim pesan ke pengajar','icon'=>'fa-chalkboard-user','page'=>'reminder-pengajar'],
+    ['label'=>'Promosi','description'=>'Broadcast dan kampanye','icon'=>'fa-bullhorn','page'=>'reminder-promosi'],
+    ['label'=>'Peserta','description'=>'Kelola pengingat peserta','icon'=>'fa-clock','page'=>'reminder-peserta'],
 ];
 ?>
 
-<section class="page-head reminder-launcher-head">
-    <div>
-        <span class="eyebrow">CRM · Communication</span>
-        <h1>Reminder</h1>
-        <p>Pilih workspace.</p>
-    </div>
+<section class="page-head">
+    <span class="eyebrow">Workspace</span>
+    <h1>Reminder</h1>
+    <p>Kelola berbagai kebutuhan pengingat dari satu tempat.</p>
 </section>
 
-<nav class="reminder-launcher" aria-label="Reminder workspace">
+<div class="action-list reminder-action-list">
 <?php foreach ($reminderModules as $module): ?>
-    <a
-        class="reminder-launcher-btn"
-        href="?page=<?= urlencode($module['page']) ?>"
-        aria-label="<?= htmlspecialchars($module['label']) ?>"
-        title="<?= htmlspecialchars($module['label']) ?>"
-    >
+    <a href="?page=<?= urlencode($module['page']) ?>" aria-label="<?= htmlspecialchars($module['label']) ?>">
         <i class="fa-solid <?= htmlspecialchars($module['icon']) ?>"></i>
+        <div>
+            <strong><?= htmlspecialchars($module['label']) ?></strong>
+            <span><?= htmlspecialchars($module['description']) ?></span>
+        </div>
+        <i class="fa-solid fa-chevron-right"></i>
     </a>
 <?php endforeach; ?>
-</nav>
+</div>
