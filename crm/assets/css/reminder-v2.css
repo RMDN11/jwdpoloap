@@ -112,3 +112,21 @@ body:has(.reminder-pengajar-page) .content{max-width:1280px}
 @media(max-width:420px){
   .reminder-pengajar-filter{grid-template-columns:1fr}
 }
+
+/* Reminder Pengajar refinements */
+.reminder-pengajar-back{display:flex;align-items:center;margin:0 0 14px}
+.reminder-pengajar-back a{width:36px;height:36px;display:grid;place-items:center;border:1px solid #e4ebe7;background:#fff;border-radius:11px;color:#18352a;text-decoration:none;box-shadow:0 4px 14px rgba(24,55,41,.04);transition:.18s ease}
+.reminder-pengajar-back a:hover{background:#f5faf7;border-color:#cbd8d0;transform:translateX(-1px)}
+.reminder-pengajar-list{max-height:520px;overflow-y:auto;overflow-x:hidden;padding-right:4px;scrollbar-width:thin}
+.reminder-pengajar-list::-webkit-scrollbar{width:6px}
+.reminder-pengajar-list::-webkit-scrollbar-track{background:#f5f8f6;border-radius:999px}
+.reminder-pengajar-list::-webkit-scrollbar-thumb{background:#cbd8d0;border-radius:999px}
+.reminder-pengajar-filter{grid-template-columns:minmax(0,1.3fr) minmax(130px,.55fr) minmax(150px,.65fr) auto}
+@media(max-width:600px){
+  .reminder-pengajar-filter{grid-template-columns:1fr 1fr}
+  .reminder-pengajar-filter input{grid-column:1/-1}
+  .reminder-pengajar-filter button{grid-column:1/-1}
+}
+@media(max-width:420px){
+  .reminder-pengajar-filter{grid-template-columns:1fr}
+}

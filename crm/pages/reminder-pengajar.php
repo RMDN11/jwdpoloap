@@ -5,6 +5,7 @@ $crmTitle = 'Reminder Pengajar';
 
 $search = trim((string)($_GET['q'] ?? ''));
 $halaqoh = trim((string)($_GET['halaqoh'] ?? ''));
+$jenis = trim((string)($_GET['jenis'] ?? ''));
 
 $halaqohList = [];
 $result = $conn->query("SELECT DISTINCT halaqoh FROM pengampu WHERE halaqoh IS NOT NULL AND halaqoh <> '' ORDER BY halaqoh");
@@ -32,11 +33,25 @@ if ($halaqoh !== '') {
     $types .= 's';
 }
 
+if ($jenis === 'AK' || $jenis === 'IK') {
+    $where[] = "UPPER(TRIM(p.halaqoh)) LIKE ?";
+    $params[] = $jenis . '%';
+    $types .= 's';
+}
+
 $pengajar = [];
 $sql = "SELECT p.id, p.nama, p.nowa, p.halaqoh
         FROM pengampu p
         WHERE " . implode(' AND ', $where) . "
-        ORDER BY p.halaqoh ASC, p.nama ASC
+        ORDER BY
+            CASE
+                WHEN UPPER(TRIM(p.halaqoh)) LIKE 'AK%' THEN 1
+                WHEN UPPER(TRIM(p.halaqoh)) LIKE 'IK%' THEN 2
+                ELSE 3
+            END ASC,
+            CAST(NULLIF(REGEXP_REPLACE(UPPER(TRIM(p.halaqoh)), '[^0-9]', ''), '') AS UNSIGNED) ASC,
+            p.halaqoh ASC,
+            p.nama ASC
         LIMIT 100";
 
 $stmt = $conn->prepare($sql);
@@ -109,11 +124,11 @@ function reminderPengajarTime(string $datetime): string {
 ?>
 
 <section class="reminder-pengajar-page">
-    <section class="page-head">
-        <span class="eyebrow">Workspace</span>
-        <h1>Reminder Pengajar</h1>
-        <p>Kirim pesan langsung ke pengajar. Tidak ada template tetap, tetapi pesan yang pernah dipakai bisa digunakan kembali.</p>
-    </section>
+    <div class="reminder-pengajar-back">
+        <a href="?page=reminder" aria-label="Kembali ke Reminder">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+    </div>
 
     <div class="reminder-pengajar-grid">
         <div class="reminder-pengajar-main">
@@ -129,6 +144,11 @@ function reminderPengajarTime(string $datetime): string {
                 <form method="GET" action="" class="reminder-pengajar-filter">
                     <input type="hidden" name="page" value="reminder-pengajar">
                     <input type="search" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Cari nama atau nomor WhatsApp...">
+                    <select name="jenis" aria-label="Filter jenis pengajar">
+                        <option value="">Semua Pengajar</option>
+                        <option value="AK" <?= $jenis === 'AK' ? 'selected' : '' ?>>AK</option>
+                        <option value="IK" <?= $jenis === 'IK' ? 'selected' : '' ?>>IK</option>
+                    </select>
                     <select name="halaqoh">
                         <option value="">Semua Halaqoh</option>
                         <?php foreach ($halaqohList as $item): ?>
