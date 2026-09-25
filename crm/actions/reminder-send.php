@@ -6,11 +6,28 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? nu
 
 $mode=(string)($_POST['mode'] ?? 'participants');
 $templateId=(int)($_POST['template_id'] ?? 0);
-if($templateId<=0){$_SESSION['crm_flash']=['type'=>'error','message'=>'Template reminder belum dipilih.'];header('Location: ../index.php?page=reminder');exit;}
+
+$redirectParams = ['page' => 'reminder-pembayaran'];
+foreach (['q', 'bulan', 'halaqoh', 'status_peserta', 'status_bayar'] as $filterKey) {
+    if (isset($_POST[$filterKey]) && trim((string)$_POST[$filterKey]) !== '') {
+        $redirectParams[$filterKey] = trim((string)$_POST[$filterKey]);
+    }
+}
+$redirectUrl = '../index.php?' . http_build_query($redirectParams);
+
+if($templateId<=0){
+    $_SESSION['crm_flash']=['type'=>'error','message'=>'Template reminder belum dipilih.'];
+    header('Location: '.$redirectUrl);
+    exit;
+}
 
 $stmt=$conn->prepare("SELECT title, content FROM wa_templates WHERE id=? LIMIT 1");
 $stmt->bind_param('i',$templateId);$stmt->execute();$template=$stmt->get_result()->fetch_assoc();$stmt->close();
-if(!$template){$_SESSION['crm_flash']=['type'=>'error','message'=>'Template reminder tidak ditemukan.'];header('Location: ../index.php?page=reminder');exit;}
+if(!$template){
+    $_SESSION['crm_flash']=['type'=>'error','message'=>'Template reminder tidak ditemukan.'];
+    header('Location: '.$redirectUrl);
+    exit;
+}
 
 $targets=[];
 if($mode==='request'){
@@ -27,10 +44,14 @@ if($mode==='request'){
         $targets[]=['name'=>trim((string)($item['name']??'Kak'))?:'Kak','nowa'=>$nowa,'request_id'=>null];
     }
 }
-if(!$targets){$_SESSION['crm_flash']=['type'=>'error','message'=>'Tidak ada target reminder yang valid.'];header('Location: ../index.php?page=reminder');exit;}
+if(!$targets){
+    $_SESSION['crm_flash']=['type'=>'error','message'=>'Tidak ada target reminder yang valid.'];
+    header('Location: '.$redirectUrl);
+    exit;
+}
 
 $success=0;$failed=0;$errors=[];
-$logStmt=$conn->prepare("INSERT INTO log_wa (nowa,message) VALUES (?,?)");
+$logStmt=$conn->prepare("INSERT INTO log_wa (nowa,nama,message,created_at) VALUES (?,?,?,NOW())");
 $requestStmt=$conn->prepare("UPDATE reminder_requests SET status='terkirim' WHERE id=?");
 
 foreach($targets as $target){
@@ -43,15 +64,15 @@ foreach($targets as $target){
     $response=curl_exec($ch);$httpCode=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);$curlError=curl_error($ch);curl_close($ch);
     if(!$curlError&&$httpCode>=200&&$httpCode<300){
         $success++;$logged='[REMINDER] [TERKIRIM] '.$message;
-        if($logStmt){$logStmt->bind_param('ss',$number,$logged);$logStmt->execute();}
+        if($logStmt){$logStmt->bind_param('sss',$number,$name,$logged);$logStmt->execute();}
         if($requestStmt&&$target['request_id']){$requestStmt->bind_param('i',$target['request_id']);$requestStmt->execute();}
     }else{
         $failed++;$errors[]=$name;$logged='[REMINDER] [GAGAL] '.$message;
-        if($logStmt){$logStmt->bind_param('ss',$number,$logged);$logStmt->execute();}
+        if($logStmt){$logStmt->bind_param('sss',$number,$name,$logged);$logStmt->execute();}
     }
 }
 if($logStmt)$logStmt->close();if($requestStmt)$requestStmt->close();
 $message=$success.' reminder berhasil dikirim.';
 if($failed)$message.=' '.$failed.' gagal'.($errors?': '.implode(', ',array_slice($errors,0,5)):'').'.';
 $_SESSION['crm_flash']=['type'=>$failed&&!$success?'error':'success','message'=>$message];
-header('Location: ../index.php?page=reminder');exit;
+header('Location: '.$redirectUrl);exit;

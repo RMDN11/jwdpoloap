@@ -377,6 +377,11 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
             <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
             <input type="hidden" name="mode" value="participants">
             <input type="hidden" name="selected" id="reminderSelectedInput" value="[]">
+            <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
+            <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
+            <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
+            <input type="hidden" name="status_peserta" value="<?= htmlspecialchars($statusPeserta, ENT_QUOTES) ?>">
+            <input type="hidden" name="status_bayar" value="<?= htmlspecialchars($statusBayar, ENT_QUOTES) ?>">
 
             <div class="reminder-card-head">
                 <div><span class="reminder-kicker">Pesan</span><h2>Kirim reminder</h2></div>
