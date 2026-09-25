@@ -47,6 +47,7 @@ if ($statusPeserta !== '' && $statusPeserta !== 'semua') {
     $params[] = $statusPeserta; $types .= 's';
 }
 
+$baseWhereSql = implode(' AND ', $where);
 $paymentJoin = '';
 if ($bulan !== '') {
     $paymentJoin = " LEFT JOIN (SELECT DISTINCT peserta_id FROM pembayaran WHERE bulan_pembayaran = ?) bp ON bp.peserta_id = p.id ";
@@ -73,6 +74,30 @@ $sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status,
         ORDER BY p.halaqoh, p.nama_lengkap LIMIT 100";
 
 $whereSql = implode(' AND ', $where);
+$unpaidWhere = $where;
+if ($bulan !== '') {
+    $unpaidWhere[] = "bp.peserta_id IS NULL";
+} else {
+    $unpaidWhere[] = "NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id)";
+}
+$unpaidWhereSql = implode(' AND ', $unpaidWhere);
+
+$belumBayar = 0;
+$stmtUnpaid = $conn->prepare("SELECT COUNT(*) total FROM peserta p {$paymentJoin} WHERE {$unpaidWhereSql}");
+if ($stmtUnpaid) {
+    if ($params) {
+        $unpaidParams = $params;
+        $unpaidTypes = $types;
+        $unpaidRefs = [];
+        foreach ($unpaidParams as $key => &$value) $unpaidRefs[$key] = &$value;
+        call_user_func_array([$stmtUnpaid, 'bind_param'], array_merge([$unpaidTypes], $unpaidRefs));
+    }
+    $stmtUnpaid->execute();
+    $unpaidRow = $stmtUnpaid->get_result()->fetch_assoc();
+    $belumBayar = (int)($unpaidRow['total'] ?? 0);
+    $stmtUnpaid->close();
+}
+
 $totalFiltered = 0;
 $stmtCount = $conn->prepare("SELECT COUNT(*) total FROM peserta p {$paymentJoin} WHERE {$whereSql}");
 if ($stmtCount) {
@@ -126,10 +151,6 @@ if ($stmt) {
     $stmt->close();
 }
 
-$belumBayar = 0;
-foreach ($participants as $p) {
-    if ((int)$p['is_lunas'] === 0) $belumBayar++;
-}
 ?>
 
 <div class="reminder-payment-top">
