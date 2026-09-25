@@ -25,6 +25,10 @@ $templates = [];
 $r = $conn->query("SELECT id, category, title, content FROM wa_templates ORDER BY category, title");
 if ($r) $templates = $r->fetch_all(MYSQLI_ASSOC);
 
+$normalizedPhoneSql = "CASE WHEN LEFT(REGEXP_REPLACE(TRIM(p.nowa), '[^0-9]', ''), 1) = '0' THEN CONCAT('62', SUBSTRING(REGEXP_REPLACE(TRIM(p.nowa), '[^0-9]', ''), 2)) ELSE REGEXP_REPLACE(TRIM(p.nowa), '[^0-9]', '') END";
+$normalizedLogPhoneSql = "REGEXP_REPLACE(TRIM(lw.nowa), '[^0-9]', '')";
+
+
 $where = ["p.nowa IS NOT NULL", "p.nowa <> ''"];
 $params = [];
 $types = '';
@@ -61,10 +65,53 @@ $paymentStatusSql = $bulan !== ''
     : "CASE WHEN EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id) THEN 1 ELSE 0 END";
 
 $sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status,
-        {$paymentStatusSql} AS is_lunas
+        {$paymentStatusSql} AS is_lunas,
+        (SELECT COUNT(*) FROM log_wa lw WHERE lw.message LIKE '%[REMINDER] [TERKIRIM]%' AND {$normalizedLogPhoneSql} = {$normalizedPhoneSql}) AS reminder_count,
+        (SELECT MAX(lw.created_at) FROM log_wa lw WHERE lw.message LIKE '%[REMINDER] [TERKIRIM]%' AND {$normalizedLogPhoneSql} = {$normalizedPhoneSql}) AS reminder_last
         FROM peserta p {$paymentJoin}
         WHERE " . implode(' AND ', $where) . "
         ORDER BY p.halaqoh, p.nama_lengkap LIMIT 100";
+
+$whereSql = implode(' AND ', $where);
+$totalFiltered = 0;
+$stmtCount = $conn->prepare("SELECT COUNT(*) total FROM peserta p {$paymentJoin} WHERE {$whereSql}");
+if ($stmtCount) {
+    if ($params) {
+        $countParams = $params;
+        $countTypes = $types;
+        $countRefs = [];
+        foreach ($countParams as $key => &$value) $countRefs[$key] = &$value;
+        call_user_func_array([$stmtCount, 'bind_param'], array_merge([$countTypes], $countRefs));
+    }
+    $stmtCount->execute();
+    $countRow = $stmtCount->get_result()->fetch_assoc();
+    $totalFiltered = (int)($countRow['total'] ?? 0);
+    $stmtCount->close();
+}
+
+$todaySent = 0;
+$stmtToday = $conn->prepare("SELECT COUNT(DISTINCT p.id) total
+    FROM peserta p {$paymentJoin}
+    WHERE {$whereSql}
+      AND EXISTS (
+        SELECT 1 FROM log_wa lw
+        WHERE lw.message LIKE '%[REMINDER] [TERKIRIM]%'
+          AND DATE(lw.created_at) = CURDATE()
+          AND {$normalizedLogPhoneSql} = {$normalizedPhoneSql}
+      )");
+if ($stmtToday) {
+    if ($params) {
+        $todayParams = $params;
+        $todayTypes = $types;
+        $todayRefs = [];
+        foreach ($todayParams as $key => &$value) $todayRefs[$key] = &$value;
+        call_user_func_array([$stmtToday, 'bind_param'], array_merge([$todayTypes], $todayRefs));
+    }
+    $stmtToday->execute();
+    $todayRow = $stmtToday->get_result()->fetch_assoc();
+    $todaySent = (int)($todayRow['total'] ?? 0);
+    $stmtToday->close();
+}
 
 $participants = [];
 $stmt = $conn->prepare($sql);
@@ -79,25 +126,20 @@ if ($stmt) {
     $stmt->close();
 }
 
-$belumBayar = count(array_filter($participants, static fn(array $p): bool => (int)$p['is_lunas'] === 0));
-$lunas = count($participants) - $belumBayar;
-$todaySent = 0;
-$r = $conn->query("SELECT COUNT(*) total FROM log_wa WHERE DATE(created_at)=CURDATE() AND message LIKE '%[REMINDER]%'");
-if ($r && ($row = $r->fetch_assoc())) $todaySent = (int)$row['total'];
+$belumBayar = 0;
+foreach ($participants as $p) {
+    if ((int)$p['is_lunas'] === 0) $belumBayar++;
+}
 ?>
 
-<section class="page-head reminder-payment-head">
-    <div>
-        <a class="reminder-back" href="?page=reminder"><i class="fa-solid fa-arrow-left"></i> Reminder</a>
-        <span class="eyebrow">Reminder · Pembayaran</span>
-        <h1>Reminder Pembayaran</h1>
-        <p>Pilih target berdasarkan status pembayaran, lalu kirim pesan WhatsApp.</p>
-    </div>
-</section>
+<div class="reminder-payment-top">
+    <a class="reminder-back reminder-back-icon" href="?page=reminder" aria-label="Kembali ke Reminder" title="Kembali">
+        <i class="fa-solid fa-arrow-left"></i>
+    </a>
+</div>
 
 <section class="reminder-stats reminder-payment-stats">
     <div class="reminder-stat"><span class="reminder-stat-icon warning"><i class="fa-solid fa-wallet"></i></span><div><strong><?= $belumBayar ?></strong><small>Belum bayar</small></div></div>
-    <div class="reminder-stat"><span class="reminder-stat-icon green"><i class="fa-solid fa-circle-check"></i></span><div><strong><?= $lunas ?></strong><small>Lunas</small></div></div>
     <div class="reminder-stat"><span class="reminder-stat-icon blue"><i class="fa-solid fa-paper-plane"></i></span><div><strong><?= $todaySent ?></strong><small>Reminder hari ini</small></div></div>
 </section>
 
@@ -108,6 +150,7 @@ if ($r && ($row = $r->fetch_assoc())) $todaySent = (int)$row['total'];
             <span class="reminder-count" id="reminderSelectedCount">0 dipilih</span>
         </div>
 
+        <div class="reminder-filter-box">
         <form class="reminder-filters" method="get">
             <input type="hidden" name="page" value="reminder-pembayaran">
             <label><span>Cari peserta</span><input name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Nama atau nomor WhatsApp"></label>
@@ -117,10 +160,11 @@ if ($r && ($row = $r->fetch_assoc())) $todaySent = (int)$row['total'];
             <label><span>Status pembayaran</span><select name="status_bayar"><option value="belum_lunas" <?= $statusBayar==='belum_lunas'?'selected':'' ?>>Belum bayar</option><option value="lunas" <?= $statusBayar==='lunas'?'selected':'' ?>>Lunas</option><option value="semua" <?= $statusBayar==='semua'?'selected':'' ?>>Semua</option></select></label>
             <button class="reminder-filter-btn" type="submit"><i class="fa-solid fa-filter"></i><span>Filter</span></button>
         </form>
+        </div>
 
         <div class="reminder-selectbar">
             <label><input type="checkbox" id="reminderSelectAll"> Pilih semua</label>
-            <span><?= count($participants) ?> target ditampilkan</span>
+            <span><?= $totalFiltered ?> target</span>
         </div>
 
         <div class="reminder-list">
@@ -130,7 +174,22 @@ if ($r && ($row = $r->fetch_assoc())) $todaySent = (int)$row['total'];
             <label class="reminder-person">
                 <input type="checkbox" class="reminder-target" value="<?= (int)$p['id'] ?>" data-name="<?= htmlspecialchars($p['nama_lengkap'], ENT_QUOTES) ?>">
                 <span class="reminder-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr((string)$p['nama_lengkap'],0,1))) ?></span>
-                <span class="reminder-person-body"><strong><?= htmlspecialchars($p['nama_lengkap']) ?></strong><small><?= htmlspecialchars($p['nowa']) ?> · <?= htmlspecialchars($p['halaqoh'] ?: '-') ?></small></span>
+                <span class="reminder-person-body">
+    <strong><?= htmlspecialchars($p['nama_lengkap']) ?></strong>
+    <small><?= htmlspecialchars($p['nowa']) ?> · <?= htmlspecialchars($p['halaqoh'] ?: '-') ?></small>
+    <span class="reminder-history">
+        <?php if ((int)$p['reminder_count'] > 0): ?>
+            <i class="fa-regular fa-clock"></i>
+            <?= (int)$p['reminder_count'] ?>x ·
+            <?php
+            $lastReminder = strtotime((string)$p['reminder_last']);
+            echo date('Y-m-d', $lastReminder) === date('Y-m-d') ? 'Hari ini ' . date('H:i', $lastReminder) : date('d M, H:i', $lastReminder);
+            ?>
+        <?php else: ?>
+            <i class="fa-regular fa-clock"></i> Belum pernah dihubungi
+        <?php endif; ?>
+    </span>
+</span>
                 <span class="reminder-person-status <?= (int)$p['is_lunas'] ? 'paid' : 'unpaid' ?>"><?= (int)$p['is_lunas'] ? 'Lunas' : 'Belum bayar' ?></span>
             </label>
         <?php endforeach; endif; ?>
@@ -154,19 +213,14 @@ if ($r && ($row = $r->fetch_assoc())) $todaySent = (int)$row['total'];
             <button class="reminder-send-btn" type="submit" <?= !$templates?'disabled':'' ?>><i class="fa-solid fa-paper-plane"></i> Kirim ke <b id="reminderSendCount">0</b> peserta</button>
         </form>
 
-        <div class="reminder-card reminder-quick-card">
-            <div class="reminder-card-head"><div><span class="reminder-kicker">Ringkas</span><h2>Target aktif</h2></div></div>
-            <div class="reminder-quick-row"><span><i class="fa-solid fa-users"></i> Dipilih</span><strong id="reminderQuickCount">0</strong></div>
-            <div class="reminder-quick-row"><span><i class="fa-solid fa-calendar"></i> Bulan</span><strong><?= htmlspecialchars($bulan ?: 'Semua') ?></strong></div>
-        </div>
     </aside>
 </div>
 
 <script>
 (() => {
-const checks=[...document.querySelectorAll('.reminder-target')],all=document.getElementById('reminderSelectAll'),count=document.getElementById('reminderSelectedCount'),quick=document.getElementById('reminderQuickCount'),sendCount=document.getElementById('reminderSendCount'),input=document.getElementById('reminderSelectedInput'),form=document.getElementById('reminderSendForm'),template=document.getElementById('reminderTemplate'),preview=document.getElementById('reminderPreview');
+const checks=[...document.querySelectorAll('.reminder-target')],all=document.getElementById('reminderSelectAll'),count=document.getElementById('reminderSelectedCount'),sendCount=document.getElementById('reminderSendCount'),input=document.getElementById('reminderSelectedInput'),form=document.getElementById('reminderSendForm'),template=document.getElementById('reminderTemplate'),preview=document.getElementById('reminderPreview');
 function selected(){return checks.filter(x=>x.checked).map(x=>Number(x.value)).filter(Boolean);}
-function refresh(){const items=selected();count.textContent=items.length+' dipilih';sendCount.textContent=items.length;quick.textContent=items.length;input.value=JSON.stringify(items);if(all)all.checked=checks.length>0&&items.length===checks.length;}
+function refresh(){const items=selected();count.textContent=items.length+' dipilih';sendCount.textContent=items.length;input.value=JSON.stringify(items);if(all)all.checked=checks.length>0&&items.length===checks.length;}
 checks.forEach(x=>x.addEventListener('change',refresh));
 all?.addEventListener('change',()=>{checks.forEach(x=>x.checked=all.checked);refresh();});
 template?.addEventListener('change',()=>{preview.value=template.options[template.selectedIndex]?.dataset.content||'';});
