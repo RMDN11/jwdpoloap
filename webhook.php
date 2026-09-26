@@ -11,22 +11,30 @@ $debugFile = $baseDir . '/debug.log';
 $timestamp = date('Y-m-d H:i:s');
 
 // 1. Catat semua HTTP Request mentah
-$logEntry = "=== {$timestamp} ===\n";
-$logEntry .= "Method: " . $_SERVER['REQUEST_METHOD'] . "\n";
-$logEntry .= "IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown') . "\n";
-$logEntry .= "Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'none') . "\n";
-$logEntry .= "Raw Input: " . file_get_contents('php://input') . "\n\n";
+$logEntry = "=== {$timestamp} ===
+";
+$logEntry .= "Method: " . $_SERVER['REQUEST_METHOD'] . "
+";
+$logEntry .= "IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown') . "
+";
+$logEntry .= "Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'none') . "
+";
+$logEntry .= "Raw Input: " . file_get_contents('php://input') . "
+
+";
 file_put_contents($allRequestLog, $logEntry, FILE_APPEND);
 
 // 2. Fungsi pembantu untuk log eksekusi internal
 function logx($msg) {
     global $logFile;
-    file_put_contents($logFile, "[" . date('H:i:s') . "] " . $msg . "\n", FILE_APPEND);
+    file_put_contents($logFile, "[" . date('H:i:s') . "] " . $msg . "
+", FILE_APPEND);
 }
 
 // 3. HANYA MEMPROSES METHOD POST (selain POST ditolak)
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    file_put_contents($pingFile, "{$timestamp} HIT (" . $_SERVER['REQUEST_METHOD'] . ") - REJECTED\n", FILE_APPEND);
+    file_put_contents($pingFile, "{$timestamp} HIT (" . $_SERVER['REQUEST_METHOD'] . ") - REJECTED
+", FILE_APPEND);
     http_response_code(405); // Method Not Allowed
     echo json_encode([
         'status'  => 'error',
@@ -47,7 +55,10 @@ if (empty($rawInput)) {
 }
 
 // Simpan Raw Data untuk keperluan Debug
-file_put_contents($debugFile, "[$timestamp]\n{$rawInput}\n\n", FILE_APPEND);
+file_put_contents($debugFile, "[$timestamp]
+{$rawInput}
+
+", FILE_APPEND);
 
 $data = json_decode($rawInput, true);
 if (json_last_error() !== JSON_ERROR_NONE) {
@@ -60,7 +71,8 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 // 5. EKSTRAKSI DATA & DETEKSI NAMA OTOMATIS DARI ISI PESAN
 // =================================================================
 $senderPhone = $data['sender_phone'] ?? $data['phone'] ?? $data['from'] ?? '';
-$messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';\n$externalMessageId = trim((string)($data['message_id'] ?? $data['messageId'] ?? $data['id'] ?? ''));
+$messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';
+$externalMessageId = trim((string)($data['message_id'] ?? $data['messageId'] ?? $data['id'] ?? ''));
 
 $senderPhone = trim($senderPhone);
 $messageText = trim($messageText);
@@ -102,7 +114,8 @@ logx("NAME: {$senderName}");
 logx("MESSAGE: " . substr($messageText, 0, 50) . "...");
 
 // 6. SIMPAN KE DATABASE (Tabel log_wa)
-require_once $baseDir . '/config.php';\nrequire_once $baseDir . '/crm/config/chat.php';
+require_once $baseDir . '/config.php';
+require_once $baseDir . '/crm/config/chat.php';
 
 $dbConnected = isset($conn) && $conn instanceof mysqli && !$conn->connect_error;
 logx("DB CONNECTED: " . ($dbConnected ? 'YES' : 'NO'));
@@ -186,4 +199,5 @@ echo json_encode([
     ]
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
-logx("=== WEBHOOK COMPLETED ===\n");
+logx("=== WEBHOOK COMPLETED ===
+");
