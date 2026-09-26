@@ -5,160 +5,177 @@ $disqualified = crmGetDisqualifiedNumbers($conn);
 $blocked = crmGetBlockedNumbers($conn);
 
 $search = trim((string)($_GET['q'] ?? ''));
-$status = (string)($_GET['status'] ?? 'new');
+$status = (string)($_GET['status'] ?? 'all');
+$range = (string)($_GET['range'] ?? 'today');
 $selected = trim((string)($_GET['contact'] ?? ''));
 $chatPage = max(1, (int)($_GET['p'] ?? 1));
-$perPage = 10;
+$perPage = 20;
+
 $allowedStatus = ['all', 'new', 'followed'];
 if (!in_array($status, $allowedStatus, true)) $status = 'all';
 
-function crmChatHasNewMessage(array $latest): bool {
-    $followupAt = trim((string)($latest['last_followup_at'] ?? ''));
-    $createdAt = trim((string)($latest['created_at'] ?? ''));
-    if ($followupAt === '' || $followupAt === '0000-00-00 00:00:00') return $createdAt !== '';
-    if ($createdAt === '') return false;
+$allowedRanges = ['today', 'week', 'month', 'all'];
+if (!in_array($range, $allowedRanges, true)) $range = 'today';
 
-    $messageTime = strtotime($createdAt);
-    $followupTime = strtotime($followupAt);
-    return $messageTime !== false && $followupTime !== false && $messageTime > $followupTime;
+$rangeSql = [
+    'today' => "last_inbound_at >= CURDATE()",
+    'week'  => "last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
+    'month' => "last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
+    'all'   => '1=1',
+][$range];
+
+$conversationWhere = [$rangeSql];
+$conversationBind = [];
+$conversationTypes = '';
+
+if ($status === 'new') {
+    $conversationWhere[] = 'unread_count > 0';
+} elseif ($status === 'followed') {
+    $conversationWhere[] = 'unread_count = 0';
 }
 
-$where = [
-    "message IS NOT NULL",
-    "message != ''",
-    "message != 'Data CSV/Manual'"
-];
-$bind = [];
-$types = '';
 if ($search !== '') {
-    $where[] = "(nama LIKE ? OR nowa LIKE ? OR message LIKE ?)";
+    $conversationWhere[] = "(
+        nama LIKE ?
+        OR nowa LIKE ?
+        OR EXISTS (
+            SELECT 1
+            FROM crm_messages cm_search
+            WHERE cm_search.conversation_id = crm_conversations.id
+              AND cm_search.message LIKE ?
+        )
+    )";
     $like = '%' . $search . '%';
-    $bind = [$like, $like, $like];
-    $types = 'sss';
+    $conversationBind = [$like, $like, $like];
+    $conversationTypes = 'sss';
 }
 
-/*
- * We intentionally collect a larger recent window and collapse it to one
- * contact per normalized WhatsApp number in PHP. This keeps the UI correct
- * even when one prospect has many log_wa rows and some newer messages are
- * generic inquiries while older messages established prospect eligibility.
- */
-$sql = "SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history
-        FROM log_wa
-        WHERE " . implode(' AND ', $where) . "
-        ORDER BY id DESC
-        LIMIT 5000";
-$stmt = $conn->prepare($sql);
-if ($types) $stmt->bind_param($types, ...$bind);
-$stmt->execute();
-$result = $stmt->get_result();
+$conversationWhereSql = implode(' AND ', $conversationWhere);
 
-$contactBuckets = [];
-while ($row = $result->fetch_assoc()) {
-    $number = crmProspectNormalizeNumber((string)$row['nowa']);
-    if ($number === '') continue;
+$countStmt = $conn->prepare(
+    "SELECT COUNT(*) AS total
+     FROM crm_conversations
+     WHERE {$conversationWhereSql}"
+);
+if ($conversationTypes !== '') $countStmt->bind_param($conversationTypes, ...$conversationBind);
+$countStmt->execute();
+$countRow = $countStmt->get_result()->fetch_assoc();
+$countStmt->close();
 
-    if (!isset($contactBuckets[$number])) {
-        $contactBuckets[$number] = [
-            'latest' => $row,
-            'eligible' => null,
-        ];
-    }
-
-    if ($contactBuckets[$number]['eligible'] === null && crmIsEligibleProspect($row, $disqualified, $blocked, $conn)) {
-        $contactBuckets[$number]['eligible'] = $row;
-    }
-}
-$stmt->close();
-
-$allContacts = [];
-foreach ($contactBuckets as $number => $bucket) {
-    if (!$bucket['eligible']) continue;
-
-    $latest = $bucket['latest'];
-    $latest['clean_wa'] = $number;
-    $latest['eligible_row'] = $bucket['eligible'];
-    $latest['has_new_message'] = crmChatHasNewMessage($latest);
-    $allContacts[] = $latest;
-}
-
-$allContactCount = count($allContacts);
-$newContactCount = count(array_filter($allContacts, static fn(array $row): bool => !empty($row['has_new_message'])));
-$followedContactCount = $allContactCount - $newContactCount;
-
-$contacts = array_values(array_filter($allContacts, static function (array $row) use ($status): bool {
-    if ($status === 'new') return !empty($row['has_new_message']);
-    if ($status === 'followed') return empty($row['has_new_message']);
-    return true;
-}));
-
-usort($contacts, static function (array $a, array $b) use ($status): int {
-    if ($status === 'followed') {
-        $aFollow = strtotime((string)($a['last_followup_at'] ?? '')) ?: 0;
-        $bFollow = strtotime((string)($b['last_followup_at'] ?? '')) ?: 0;
-        if ($aFollow !== $bFollow) return $bFollow <=> $aFollow;
-    }
-
-    $aCreated = strtotime((string)($a['created_at'] ?? '')) ?: 0;
-    $bCreated = strtotime((string)($b['created_at'] ?? '')) ?: 0;
-    if ($aCreated !== $bCreated) return $bCreated <=> $aCreated;
-    return ((int)$b['id']) <=> ((int)$a['id']);
-});
-
-$totalContacts = count($contacts);
+$totalContacts = (int)($countRow['total'] ?? 0);
 $totalPages = max(1, (int)ceil($totalContacts / $perPage));
 $chatPage = min($chatPage, $totalPages);
 $offset = ($chatPage - 1) * $perPage;
-$contacts = array_slice($contacts, $offset, $perPage);
+
+$conversationSql = "SELECT
+        id,
+        nowa,
+        nama,
+        status,
+        last_message_at,
+        last_inbound_at,
+        last_outbound_at,
+        last_read_at,
+        unread_count,
+        followup_count
+    FROM crm_conversations
+    WHERE {$conversationWhereSql}
+    ORDER BY COALESCE(last_message_at, last_inbound_at, last_outbound_at, created_at) DESC, id DESC
+    LIMIT ? OFFSET ?";
+
+$conversationStmt = $conn->prepare($conversationSql);
+if ($conversationTypes !== '') {
+    $conversationTypes .= 'ii';
+    $conversationBind[] = $perPage;
+    $conversationBind[] = $offset;
+    $conversationStmt->bind_param($conversationTypes, ...$conversationBind);
+} else {
+    $conversationStmt->bind_param('ii', $perPage, $offset);
+}
+$conversationStmt->execute();
+$conversationResult = $conversationStmt->get_result();
+
+$contacts = [];
+while ($row = $conversationResult->fetch_assoc()) {
+    $row['clean_wa'] = crmProspectNormalizeNumber((string)$row['nowa']);
+    $row['has_new_message'] = (int)$row['unread_count'] > 0;
+    $contacts[] = $row;
+}
+$conversationStmt->close();
+
+$stats = [];
+foreach (['today', 'week', 'month', 'all'] as $statRange) {
+    $statRangeSql = [
+        'today' => "last_inbound_at >= CURDATE()",
+        'week'  => "last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
+        'month' => "last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
+        'all'   => '1=1',
+    ][$statRange];
+
+    $statStmt = $conn->prepare(
+        "SELECT
+            COUNT(*) AS total,
+            COALESCE(SUM(unread_count > 0), 0) AS unread,
+            COALESCE(SUM(unread_count = 0), 0) AS read_count
+         FROM crm_conversations
+         WHERE {$statRangeSql}"
+    );
+    $statStmt->execute();
+    $stats[$statRange] = $statStmt->get_result()->fetch_assoc() ?: [
+        'total' => 0,
+        'unread' => 0,
+        'read_count' => 0,
+    ];
+    $statStmt->close();
+}
 
 $maxLogId = 0;
-$maxIdResult = $conn->query("SELECT COALESCE(MAX(id), 0) AS max_id FROM log_wa");
-if ($maxIdResult && ($maxIdRow = $maxIdResult->fetch_assoc())) {
-    $maxLogId = (int)$maxIdRow['max_id'];
-}
 
 $selectedContact = null;
 $recentMessages = [];
 $poloapHistory = [];
 
 if ($selected !== '') {
-    $selectedContact = crmFindEligibleProspectByNumber($conn, $selected, $disqualified, $blocked);
+    $selectedNumber = crmProspectNormalizeNumber($selected);
+    $selectedStmt = $conn->prepare(
+        "SELECT id,nowa,nama,status,last_message_at,last_inbound_at,last_outbound_at,last_read_at,unread_count,followup_count
+         FROM crm_conversations
+         WHERE nowa = ? OR nowa = ?
+         LIMIT 1"
+    );
+    $selectedStmt->bind_param('ss', $selected, $selectedNumber);
+    $selectedStmt->execute();
+    $selectedContact = $selectedStmt->get_result()->fetch_assoc() ?: null;
+    $selectedStmt->close();
 
     if ($selectedContact) {
-        $selectedContact['clean_wa'] = crmProspectNormalizeNumber((string)$selectedContact['nowa']);
+        $selectedContact['clean_wa'] = $selectedNumber;
 
-        $historyStmt = $conn->prepare("SELECT id,nama,nowa,message,created_at,is_form_sent,last_template_name
-            FROM log_wa
-            WHERE nowa = ? OR nowa = ?
-            ORDER BY created_at DESC, id DESC
-            LIMIT 20");
-        $historyStmt->bind_param('ss', $selectedContact['nowa'], $selectedContact['clean_wa']);
+        $historyStmt = $conn->prepare(
+            "SELECT id,nama,nowa,message,direction,sender_type,source,template_id,template_name,sent_at
+             FROM crm_messages
+             WHERE conversation_id = ?
+             ORDER BY sent_at DESC, id DESC
+             LIMIT 50"
+        );
+        $historyStmt->bind_param('i', $selectedContact['id']);
         $historyStmt->execute();
         $historyResult = $historyStmt->get_result();
         while ($historyRow = $historyResult->fetch_assoc()) $recentMessages[] = $historyRow;
         $historyStmt->close();
 
-        $outboundStmt = $conn->prepare("SELECT id,template_id,template_name,message,sent_at,status
-            FROM crm_message_history
-            WHERE nowa = ? OR nowa = ?
-            ORDER BY sent_at DESC, id DESC
-            LIMIT 20");
+        $outboundStmt = $conn->prepare(
+            "SELECT id,template_id,template_name,message,sent_at,status
+             FROM crm_message_history
+             WHERE nowa = ? OR nowa = ?
+             ORDER BY sent_at DESC, id DESC
+             LIMIT 20"
+        );
         $outboundStmt->bind_param('ss', $selectedContact['nowa'], $selectedContact['clean_wa']);
         $outboundStmt->execute();
         $outboundResult = $outboundStmt->get_result();
         while ($historyRow = $outboundResult->fetch_assoc()) $poloapHistory[] = $historyRow;
         $outboundStmt->close();
-
-        if (!$poloapHistory && !empty($selectedContact['template_history'])) {
-            foreach (array_reverse(array_filter(explode('|||', $selectedContact['template_history']))) as $legacyHistory) {
-                $poloapHistory[] = [
-                    'sent_at' => null,
-                    'template_name' => $legacyHistory,
-                    'message' => '',
-                    'status' => 'legacy'
-                ];
-            }
-        }
     }
 }
 
