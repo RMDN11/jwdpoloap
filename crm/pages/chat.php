@@ -11,7 +11,7 @@ $selected = trim((string)($_GET['contact'] ?? ''));
 $chatPage = max(1, (int)($_GET['p'] ?? 1));
 $perPage = 20;
 
-$allowedStatus = ['all', 'new', 'followed'];
+$allowedStatus = ['all', 'new', 'read', 'followed'];
 if (!in_array($status, $allowedStatus, true)) $status = 'all';
 
 $allowedRanges = ['today', 'week', 'month', 'all'];
@@ -34,8 +34,10 @@ $conversationTypes = '';
 
 if ($status === 'new') {
     $conversationWhere[] = 'unread_count > 0';
+} elseif ($status === 'read') {
+    $conversationWhere[] = 'unread_count = 0 AND followup_count = 0';
 } elseif ($status === 'followed') {
-    $conversationWhere[] = 'unread_count = 0';
+    $conversationWhere[] = 'followup_count > 0';
 }
 
 if ($search !== '') {
@@ -127,10 +129,10 @@ while ($row = $conversationResult->fetch_assoc()) {
 $conversationStmt->close();
 
 $stats = [
-    'today' => ['total' => 0, 'unread' => 0, 'read_count' => 0],
-    'week'  => ['total' => 0, 'unread' => 0, 'read_count' => 0],
-    'month' => ['total' => 0, 'unread' => 0, 'read_count' => 0],
-    'all'   => ['total' => 0, 'unread' => 0, 'read_count' => 0],
+    'today' => ['total' => 0, 'unread' => 0, 'read_count' => 0, 'followed_count' => 0],
+    'week'  => ['total' => 0, 'unread' => 0, 'read_count' => 0, 'followed_count' => 0],
+    'month' => ['total' => 0, 'unread' => 0, 'read_count' => 0, 'followed_count' => 0],
+    'all'   => ['total' => 0, 'unread' => 0, 'read_count' => 0, 'followed_count' => 0],
 ];
 
 $roomCounts = ['all' => 0, 'customer_baru' => 0, 'sudah_payment' => 0, 'people' => 0, 'other' => 0, 'lainnya' => 0];
@@ -155,15 +157,19 @@ $statsResult = $conn->query(
         SUM({$roomSql}) AS total,
         COALESCE(SUM(({$roomSql}) AND last_inbound_at >= CURDATE()), 0) AS today_total,
         COALESCE(SUM(({$roomSql}) AND last_inbound_at >= CURDATE() AND unread_count > 0), 0) AS today_unread,
-        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= CURDATE() AND unread_count = 0), 0) AS today_read,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= CURDATE() AND unread_count = 0 AND followup_count = 0), 0) AS today_read,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= CURDATE() AND followup_count > 0), 0) AS today_followed,
         COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)), 0) AS week_total,
         COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count > 0), 0) AS week_unread,
-        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count = 0), 0) AS week_read,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count = 0 AND followup_count = 0), 0) AS week_read,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND followup_count > 0), 0) AS week_followed,
         COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_total,
         COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count > 0), 0) AS month_unread,
-        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count = 0), 0) AS month_read,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count = 0 AND followup_count = 0), 0) AS month_read,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND followup_count > 0), 0) AS month_followed,
         COALESCE(SUM(({$roomSql}) AND unread_count > 0), 0) AS all_unread,
-        COALESCE(SUM(({$roomSql}) AND unread_count = 0), 0) AS all_read
+        COALESCE(SUM(({$roomSql}) AND unread_count = 0 AND followup_count = 0), 0) AS all_read,
+        COALESCE(SUM(({$roomSql}) AND followup_count > 0), 0) AS all_followed
      FROM crm_conversations"
 );
 if ($statsResult && ($statsRow = $statsResult->fetch_assoc())) {
@@ -171,22 +177,22 @@ if ($statsResult && ($statsRow = $statsResult->fetch_assoc())) {
         'today' => [
             'total' => (int)$statsRow['today_total'],
             'unread' => (int)$statsRow['today_unread'],
-            'read_count' => (int)$statsRow['today_read'],
+            'read_count' => (int)$statsRow['today_read'], 'followed_count' => (int)$statsRow['today_followed'],
         ],
         'week' => [
             'total' => (int)$statsRow['week_total'],
             'unread' => (int)$statsRow['week_unread'],
-            'read_count' => (int)$statsRow['week_read'],
+            'read_count' => (int)$statsRow['week_read'], 'followed_count' => (int)$statsRow['week_followed'],
         ],
         'month' => [
             'total' => (int)$statsRow['month_total'],
             'unread' => (int)$statsRow['month_unread'],
-            'read_count' => (int)$statsRow['month_read'],
+            'read_count' => (int)$statsRow['month_read'], 'followed_count' => (int)$statsRow['month_followed'],
         ],
         'all' => [
             'total' => (int)$statsRow['total'],
             'unread' => (int)$statsRow['all_unread'],
-            'read_count' => (int)$statsRow['all_read'],
+            'read_count' => (int)$statsRow['all_read'], 'followed_count' => (int)$statsRow['all_followed'],
         ],
     ];
 }
@@ -322,8 +328,9 @@ $followedContactCount = $currentStats['read_count'];
 
 <div class="chat-stats">
     <a data-chat-stat="all" class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all',$range,'',1,$room)) ?>"><strong><?= $allContactCount ?></strong><span>Semua</span></a>
-    <a data-chat-stat="new" class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new',$range,'',1,$room)) ?>"><strong><?= $newContactCount ?></strong><span>Baru</span></a>
-    <a data-chat-stat="followed" class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed',$range,'',1,$room)) ?>"><strong><?= $followedContactCount ?></strong><span>Follow-up</span></a>
+    <a data-chat-stat="new" class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new',$range,'',1,$room)) ?>"><strong><?= $newContactCount ?></strong><span>Perlu Follow-up</span></a>
+    <a data-chat-stat="read" class="<?= $status === 'read' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'read',$range,'',1,$room)) ?>"><strong><?= $currentStats['read_count'] ?></strong><span>Sudah Dibaca</span></a>
+    <a data-chat-stat="followed" class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed',$range,'',1,$room)) ?>"><strong><?= $currentStats['followed_count'] ?? 0 ?></strong><span>Sudah Follow-up</span></a>
 </div>
 
 <form class="search-box" method="get">
@@ -561,7 +568,8 @@ $followedContactCount = $currentStats['read_count'];
         const values = {
             all: stats.total,
             new: stats.unread,
-            followed: stats.read_count
+            read: stats.read_count,
+            followed: stats.followed
         };
         Object.entries(values).forEach(([key, value]) => {
             const node = document.querySelector('[data-chat-stat="' + key + '"] strong');
