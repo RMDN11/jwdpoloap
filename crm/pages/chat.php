@@ -19,6 +19,7 @@ if (!in_array($range, $allowedRanges, true)) $range = 'today';
 $allowedRooms = ['all', 'customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'];
 if (!in_array($room, $allowedRooms, true)) $room = 'all';
 $roomSql = crmChatRoutingRoomSql($room);
+$internalSql = crmChatRoutingInternalSql();
 
 $rangeSql = [
     'today' => "last_inbound_at >= CURDATE()",
@@ -27,7 +28,7 @@ $rangeSql = [
     'all'   => '1=1',
 ][$range];
 
-$conversationWhere = [$rangeSql, $roomSql];
+$conversationWhere = [$rangeSql, $roomSql, $internalSql];
 $knownSql = crmChatKnownContactSql($conn);
 $conversationBind = [];
 $conversationTypes = '';
@@ -139,7 +140,7 @@ $roomCounts = ['all' => 0, 'customer_baru' => 0, 'sudah_payment' => 0, 'peserta_
 $roomCountResult = $conn->query(
     "SELECT room, COUNT(*) AS total
      FROM crm_conversations
-     WHERE {$rangeSql}
+     WHERE {$rangeSql} AND {$internalSql}
      GROUP BY room"
 );
 if ($roomCountResult) {
@@ -150,7 +151,7 @@ if ($roomCountResult) {
     }
 }
 // Legacy/unknown rows remain visible under Lainnya until their routing is evaluated.
-$roomCounts['lainnya'] += (int)$conn->query("SELECT COUNT(*) AS total FROM crm_conversations WHERE {$rangeSql} AND (room IS NULL OR room = '')")->fetch_assoc()['total'];
+$roomCounts['lainnya'] += (int)$conn->query("SELECT COUNT(*) AS total FROM crm_conversations WHERE {$rangeSql} AND {$internalSql} AND (room IS NULL OR room = '')")->fetch_assoc()['total'];
 
 $statsResult = $conn->query(
     "SELECT
@@ -170,7 +171,8 @@ $statsResult = $conn->query(
         COALESCE(SUM(({$roomSql}) AND unread_count > 0), 0) AS all_unread,
         COALESCE(SUM(({$roomSql}) AND unread_count = 0 AND followup_count = 0), 0) AS all_read,
         COALESCE(SUM(({$roomSql}) AND followup_count > 0), 0) AS all_followed
-     FROM crm_conversations"
+     FROM crm_conversations
+     WHERE {$internalSql}"
 );
 if ($statsResult && ($statsRow = $statsResult->fetch_assoc())) {
     $stats = [
@@ -208,7 +210,8 @@ if ($selected !== '') {
     $selectedStmt = $conn->prepare(
         "SELECT id,nowa,nama,status,last_message_at,last_inbound_at,last_outbound_at,last_read_at,unread_count,followup_count,room,room_source,intent_category,payment_detected_at
          FROM crm_conversations
-         WHERE nowa = ? OR nowa = ?
+         WHERE (nowa = ? OR nowa = ?)
+           AND {$internalSql}
          LIMIT 1"
     );
     $selectedStmt->bind_param('ss', $selected, $selectedNumber);
@@ -242,6 +245,7 @@ if ($selected !== '') {
         ];
         if (str_starts_with($selectedNumber, '62')) {
             $legacyNumbers[] = '0' . substr($selectedNumber, 2);
+            $legacyNumbers[] = '+' . $selectedNumber;
         }
         $legacyNumbers = array_values(array_unique(array_filter($legacyNumbers)));
 
