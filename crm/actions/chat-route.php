@@ -23,7 +23,7 @@ if ($contactId === '') {
 
 $normalized = crmProspectNormalizeNumber($contactId);
 $stmt = $conn->prepare(
-    "SELECT id, nowa, room, room_source
+    "SELECT id, nowa, room, room_source, intent_category, payment_detected_at
      FROM crm_conversations
      WHERE nowa = ? OR nowa = ?
      LIMIT 1"
@@ -45,12 +45,24 @@ if (!$conversation) {
 }
 
 if ($clearManual) {
-    $routing = crmChatRoutingEvaluateConversation($conn, (int)$conversation['id']);
-    if (!$routing) {
-        $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Auto routing gagal dievaluasi.'];
-    } else {
-        $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Routing dikembalikan ke Auto Routing.'];
+    $resetStmt = $conn->prepare(
+        "UPDATE crm_conversations SET room_source = 'auto' WHERE id = ?"
+    );
+    $resetOk = false;
+    if ($resetStmt) {
+        $resetStmt->bind_param('i', $conversation['id']);
+        $resetOk = $resetStmt->execute();
+        $resetStmt->close();
     }
+
+    $routing = $resetOk
+        ? crmChatRoutingEvaluateConversation($conn, (int)$conversation['id'])
+        : null;
+
+    $_SESSION['crm_flash'] = $routing
+        ? ['type' => 'success', 'message' => 'Routing dikembalikan ke Auto Routing.']
+        : ['type' => 'error', 'message' => 'Auto routing gagal dievaluasi.'];
+
     header('Location: ../index.php?page=chat&contact=' . urlencode($conversation['nowa']));
     exit;
 }
