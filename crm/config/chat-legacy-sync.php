@@ -2,21 +2,15 @@
 declare(strict_types=1);
 
 /**
- * Promote legacy inbound prospects from log_wa into the Phase 3 CRM.
+ * Backfill legacy Customer Baru conversations from the real legacy flow.
  *
- * Source of truth for this backfill:
- *   1. log_wa contains the actual legacy conversation rows;
- *   2. auto_reply_rules contains the real trigger keywords used by the
- *      existing auto-reply flow;
- *   3. auto_reply_logs is only used as inbound evidence so an outbound
- *      log_wa row is not accidentally treated as a customer message.
+ * Flow:
+ *   log_wa -> active auto_reply_rules trigger -> filter contact -> CRM.
  *
- * A contact becomes Customer Baru when:
- *   - a recent log_wa message matches an active auto-reply trigger;
- *   - that same message has inbound evidence in auto_reply_logs;
- *   - the number is not internal, blocked, or already a participant/pengampu.
- *
- * The legacy tables are read-only here. The CRM layer is the only write target.
+ * log_wa is intentionally the source of candidates because that is where the
+ * existing legacy WhatsApp flow records the conversation. We do not require
+ * auto_reply_logs here: it is an implementation log of the auto-reply engine,
+ * not the source of the legacy conversation.
  */
 function crmChatLegacySync(mysqli $conn): int {
     require_once __DIR__ . '/chat.php';
@@ -26,15 +20,9 @@ function crmChatLegacySync(mysqli $conn): int {
 
     if (!crmChatTablesReady($conn)) return 0;
 
-    $tableCheck = $conn->query("SHOW TABLES LIKE 'auto_reply_logs'");
-    if (!$tableCheck || $tableCheck->num_rows === 0) return 0;
-
-    /*
-     * The existing auto-reply engine uses auto_reply_rules as its real trigger
-     * source. Do not introduce a second trigger universe for legacy sync.
-     */
+    // Read the exact triggers used by manage_auto_reply.php / AutoReplyEngine.
     $triggerResult = $conn->query(
-        "SELECT id, keyword
+        "SELECT keyword
          FROM auto_reply_rules
          WHERE is_active = 1
          ORDER BY priority DESC, id DESC"
@@ -53,49 +41,13 @@ function crmChatLegacySync(mysqli $conn): int {
 
     if (!$triggerKeywords) return 0;
 
-    /*
-     * Build inbound evidence from the existing auto-reply log. This is not
-     * the source for the customer list. It only prevents outbound log_wa
-     * messages from becoming fake inbound CRM conversations.
-     */
-    $incomingEvidence = [];
-    $evidenceResult = $conn->query(
-        "SELECT contact_id, incoming_message, created_at
-         FROM auto_reply_logs
-         WHERE created_at >= DATE_SUB(NOW(), INTERVAL 15 DAY)
-           AND contact_id IS NOT NULL
-           AND contact_id <> ''
-         ORDER BY id DESC
-         LIMIT 5000"
-    );
-
-    if ($evidenceResult) {
-        while ($row = $evidenceResult->fetch_assoc()) {
-            $number = crmChatNormalizeNumber((string)($row['contact_id'] ?? ''));
-            $message = crmChatLegacySyncNormalizeText((string)($row['incoming_message'] ?? ''));
-            $createdAt = (string)($row['created_at'] ?? '');
-
-            if ($number === '' || $message === '' || $createdAt === '') continue;
-
-            $incomingEvidence[$number][] = [
-                'message' => $message,
-                'created_at' => $createdAt,
-            ];
-        }
-    }
-
-    /*
-     * Read legacy log_wa directly. This is the important correction from PR
-     * #85: the legacy customer flow is represented in log_wa, not only in
-     * auto_reply_logs.
-     */
+    // Legacy WhatsApp source. Keep this bounded and read-only.
     $legacyResult = $conn->query(
         "SELECT id, nowa, nama, message, created_at
          FROM log_wa
          WHERE created_at >= DATE_SUB(NOW(), INTERVAL 15 DAY)
            AND nowa IS NOT NULL
            AND nowa <> ''
-           AND nowa <> '6288223053149'
          ORDER BY id DESC
          LIMIT 5000"
     );
@@ -113,12 +65,13 @@ function crmChatLegacySync(mysqli $conn): int {
             $number === '' ||
             $message === '' ||
             $createdAt === '' ||
-            str_contains($rawNumber, '@g')
+            str_contains($rawNumber, '@g') ||
+            str_contains($rawNumber, '-')
         ) {
             continue;
         }
 
-        // Only this number is internal for this legacy backfill.
+        // The only internal number excluded by this legacy backfill.
         if ($number === '6288223053149') continue;
 
         $normalizedMessage = crmChatLegacySyncNormalizeText($message);
@@ -133,39 +86,23 @@ function crmChatLegacySync(mysqli $conn): int {
 
         if (!$matchedTrigger) continue;
 
-        /*
-         * Confirm that this log_wa row corresponds to an incoming WhatsApp
-         * event. The timestamps normally come from the same webhook request,
-         * so a small tolerance handles minor DB/request timing differences.
-         */
-        if (!crmChatLegacySyncHasInboundEvidence(
-            $incomingEvidence[$number] ?? [],
-            $normalizedMessage,
-            $createdAt
-        )) {
-            continue;
-        }
-
-        // Keep only the newest qualifying legacy message per contact.
+        // Newest matching trigger message wins for each contact.
         if (!isset($candidates[$number])) {
-            $row['number'] = $number;
-            $row['message'] = $message;
-            $row['normalized_message'] = $normalizedMessage;
-            $candidates[$number] = $row;
+            $candidates[$number] = [
+                'id' => (int)$row['id'],
+                'number' => $number,
+                'name' => trim((string)($row['nama'] ?? '')),
+                'message' => $message,
+                'created_at' => $createdAt,
+            ];
         }
     }
 
     if (!$candidates) return 0;
 
-    /*
-     * Exclude actual known operational contacts. Do not use
-     * crmGetDisqualifiedNumbers() here because that legacy helper also treats
-     * "already sent registration form" as disqualified. A lead who has
-     * received a form is still a customer/prospect until they become a real
-     * participant.
-     */
     $blocked = crmGetBlockedNumbers($conn);
 
+    // Existing CRM conversations, normalized once for idempotency.
     $existing = [];
     $existingResult = $conn->query(
         "SELECT id, nowa, room, room_source
@@ -184,10 +121,6 @@ function crmChatLegacySync(mysqli $conn): int {
         }
     }
 
-    /*
-     * Prepare writes once. Existing conversations are re-routed when they are
-     * still automatic/lainnya. Manual routing and payment state are preserved.
-     */
     $insertConversation = $conn->prepare(
         "INSERT INTO crm_conversations
             (nowa, nama, last_message_at, last_inbound_at, unread_count, room, room_source, intent_category)
@@ -235,7 +168,7 @@ function crmChatLegacySync(mysqli $conn): int {
         return 0;
     }
 
-    $updateConversationActivity = $conn->prepare(
+    $updateActivity = $conn->prepare(
         "UPDATE crm_conversations
          SET last_message_at = GREATEST(COALESCE(last_message_at, '1000-01-01 00:00:00'), ?),
              last_inbound_at = GREATEST(COALESCE(last_inbound_at, '1000-01-01 00:00:00'), ?)
@@ -244,39 +177,34 @@ function crmChatLegacySync(mysqli $conn): int {
 
     $updated = 0;
 
-    foreach ($candidates as $number => $row) {
+    foreach ($candidates as $number => $candidate) {
         if (isset($blocked[$number])) continue;
 
-        /*
-         * peserta/pengampu/pengajar are checked independently from the
-         * disqualified prospect list. This keeps "customer baru" available
-         * for leads that have already received a registration form.
-         */
-        if (crmChatRoutingIsKnownContact($conn, $number)) continue;
+        // Explicitly exclude real participants / teachers / pengampu.
+        if (crmChatLegacySyncIsKnownContact($conn, $number)) continue;
 
-        $message = (string)$row['message'];
-        $createdAt = (string)$row['created_at'];
-        $name = trim((string)($row['nama'] ?? ''));
+        $message = $candidate['message'];
+        $createdAt = $candidate['created_at'];
+        $name = $candidate['name'];
 
         $intent = crmProspectClassifyMessage($message, $conn);
         if ($intent === 'Data CSV/Manual' || $intent === 'Lainnya') {
             $intent = null;
         }
 
-        $conversationId = 0;
-
         if (isset($existing[$number])) {
             $existingRow = $existing[$number];
-            $conversationId = (int)$existingRow['id'];
 
+            // Never overwrite manual/payment/participant routing.
             if (
-                strtolower(trim((string)$existingRow['room_source'])) === 'manual' ||
+                strtolower(trim($existingRow['room_source'])) === 'manual' ||
                 $existingRow['room'] === 'sudah_payment' ||
                 $existingRow['room'] === 'peserta_pengajar'
             ) {
                 continue;
             }
 
+            $conversationId = (int)$existingRow['id'];
             $routeExisting->bind_param('si', $intent, $conversationId);
             $routeExisting->execute();
         } else {
@@ -303,13 +231,13 @@ function crmChatLegacySync(mysqli $conn): int {
             ];
         }
 
-        $externalId = 'legacy-log-wa:' . (int)$row['id'];
+        $externalId = 'legacy-log-wa:' . (int)$candidate['id'];
 
         $messageExists->bind_param('s', $externalId);
         $messageExists->execute();
-        $alreadyStored = $messageExists->get_result()->num_rows > 0;
+        $messageExists->store_result();
 
-        if (!$alreadyStored) {
+        if ($messageExists->num_rows === 0) {
             $insertMessage->bind_param(
                 'issss',
                 $conversationId,
@@ -319,21 +247,21 @@ function crmChatLegacySync(mysqli $conn): int {
                 $createdAt
             );
 
-            if ($insertMessage->execute() && $updateConversationActivity) {
-                $updateConversationActivity->bind_param(
+            if ($insertMessage->execute() && $updateActivity) {
+                $updateActivity->bind_param(
                     'ssi',
                     $createdAt,
                     $createdAt,
                     $conversationId
                 );
-                $updateConversationActivity->execute();
+                $updateActivity->execute();
             }
         }
 
         $updated++;
     }
 
-    if ($updateConversationActivity) $updateConversationActivity->close();
+    if ($updateActivity) $updateActivity->close();
     $insertMessage->close();
     $messageExists->close();
     $routeExisting->close();
@@ -342,38 +270,37 @@ function crmChatLegacySync(mysqli $conn): int {
     return $updated;
 }
 
-/**
- * Normalize a message for trigger comparison without changing the original
- * message stored in CRM.
- */
 function crmChatLegacySyncNormalizeText(string $message): string {
     $message = strtolower(trim($message));
     $message = preg_replace('/\s+/u', ' ', $message) ?? '';
     return trim($message);
 }
 
-/**
- * Check whether a log_wa row has matching inbound evidence from the webhook
- * auto-reply logger. Five minutes is intentionally generous for DB timing but
- * still narrow enough to avoid unrelated historical messages.
- */
-function crmChatLegacySyncHasInboundEvidence(
-    array $evidenceRows,
-    string $normalizedMessage,
-    string $createdAt
-): bool {
-    $legacyTime = strtotime($createdAt);
-    if ($legacyTime === false) return false;
+function crmChatLegacySyncIsKnownContact(mysqli $conn, string $number): bool {
+    $number = crmChatNormalizeNumber($number);
+    if ($number === '') return false;
 
-    foreach ($evidenceRows as $evidence) {
-        if (($evidence['message'] ?? '') !== $normalizedMessage) continue;
+    foreach (crmChatDirectoryTables($conn) as $table) {
+        $stmt = $conn->prepare(
+            "SELECT 1
+             FROM {$table}
+             WHERE nowa = ?
+                OR nowa = ?
+                OR nowa = ?
+                OR nowa = ?
+             LIMIT 1"
+        );
+        if (!$stmt) continue;
 
-        $evidenceTime = strtotime((string)($evidence['created_at'] ?? ''));
-        if ($evidenceTime === false) continue;
+        $local = '0' . substr($number, 2);
+        $plus = '+' . $number;
+        $stmt->bind_param('ssss', $number, $local, $plus, $number);
+        $stmt->execute();
+        $stmt->store_result();
+        $found = $stmt->num_rows > 0;
+        $stmt->close();
 
-        if (abs($legacyTime - $evidenceTime) <= 300) {
-            return true;
-        }
+        if ($found) return true;
     }
 
     return false;
