@@ -252,3 +252,11 @@ function crmChatRoutingRecordPaymentIfMatched(mysqli $conn, int $conversationId,
     $stmt->close();
     return $ok;
 }
+
+
+function crmChatRoutingRoomSql(string $room, string $alias = 'crm_conversations'): string {
+    $allowed = crmChatRoutingRooms();
+    if (!in_array($room, $allowed, true) || $room === 'all') return '1=1';
+    $escaped = addslashes($room);
+    return "{$alias}.room = '{$escaped}'";
+}

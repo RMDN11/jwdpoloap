@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../config/chat.php';
 require_once __DIR__ . '/../config/chat-directory.php';
+require_once __DIR__ . '/../config/chat-routing.php';
 
 if (!isset($conn) || !($conn instanceof mysqli)) {
     http_response_code(500);
@@ -44,10 +45,10 @@ $range = trim((string)($_GET['range'] ?? 'today'));
 $room = trim((string)($_GET['room'] ?? 'all'));
 $contact = trim((string)($_GET['contact'] ?? ''));
 
-if (!in_array($status, ['all', 'new', 'followed'], true)) $status = 'all';
+if (!in_array($status, ['all', 'new', 'read', 'followed'], true)) $status = 'all';
 if (!in_array($range, ['today', 'week', 'month', 'all'], true)) $range = 'today';
-if (!in_array($room, ['all', 'people', 'other'], true)) $room = 'all';
-$roomSql = crmChatRoomSql($conn, $room);
+if (!in_array($room, ['all', 'customer_baru', 'sudah_payment', 'people', 'other', 'lainnya'], true)) $room = 'all';
+$roomSql = in_array($room, ['people', 'other'], true) ? crmChatRoomSql($conn, $room) : crmChatRoutingRoomSql($room);
 $knownSql = crmChatKnownContactSql($conn);
 
 $rangeSql = match ($range) {
@@ -59,7 +60,8 @@ $rangeSql = match ($range) {
 
 $statusSql = match ($status) {
     'new' => "unread_count > 0",
-    'followed' => "unread_count = 0",
+    'read' => "unread_count = 0 AND followup_count = 0",
+    'followed' => "followup_count > 0",
     default => "1=1",
 };
 
@@ -88,6 +90,10 @@ $stmt = $conn->prepare(
         last_outbound_at,
         unread_count,
         followup_count,
+        room,
+        room_source,
+        intent_category,
+        payment_detected_at,
         CASE WHEN $knownSql THEN 'people' ELSE 'other' END AS contact_room,
         (
             SELECT cm.message
@@ -192,24 +198,32 @@ $statsStmt = $conn->query(
     "SELECT
         SUM(($roomSql)) AS total,
         COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count > 0), 0) AS unread,
-        COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count = 0), 0) AS read_count,
+        COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count = 0 AND followup_count = 0), 0) AS read_count,
+        COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND followup_count > 0), 0) AS followed_count,
         COALESCE(SUM($statsRangeSql), 0) AS room_all_count,
-        COALESCE(SUM(($statsRangeSql) AND ($knownSql)), 0) AS room_people_count,
-        COALESCE(SUM(($statsRangeSql) AND NOT ($knownSql)), 0) AS room_other_count
+        COALESCE(SUM(($statsRangeSql) AND room = 'customer_baru'), 0) AS room_customer_baru_count,
+        COALESCE(SUM(($statsRangeSql) AND room = 'sudah_payment'), 0) AS room_sudah_payment_count,
+        COALESCE(SUM(($statsRangeSql) AND room = 'people'), 0) AS room_people_count,
+        COALESCE(SUM(($statsRangeSql) AND room = 'lainnya'), 0) AS room_lainnya_count,
+        COALESCE(SUM(($statsRangeSql) AND room = 'other'), 0) AS room_other_count
      FROM crm_conversations"
 );
-$stats = ['total' => 0, 'unread' => 0, 'read_count' => 0];
-$roomCounts = ['all' => 0, 'people' => 0, 'other' => 0];
+$stats = ['total' => 0, 'unread' => 0, 'read_count' => 0, 'followed' => 0];
+$roomCounts = ['all' => 0, 'customer_baru' => 0, 'sudah_payment' => 0, 'people' => 0, 'lainnya' => 0, 'other' => 0];
 if ($statsStmt) {
     $statsRow = $statsStmt->fetch_assoc();
     $stats = [
         'total' => (int)($statsRow['total'] ?? 0),
         'unread' => (int)($statsRow['unread'] ?? 0),
         'read_count' => (int)($statsRow['read_count'] ?? 0),
+        'followed' => (int)($statsRow['followed_count'] ?? 0),
     ];
     $roomCounts = [
         'all' => (int)($statsRow['room_all_count'] ?? 0),
+        'customer_baru' => (int)($statsRow['room_customer_baru_count'] ?? 0),
+        'sudah_payment' => (int)($statsRow['room_sudah_payment_count'] ?? 0),
         'people' => (int)($statsRow['room_people_count'] ?? 0),
+        'lainnya' => (int)($statsRow['room_lainnya_count'] ?? 0),
         'other' => (int)($statsRow['room_other_count'] ?? 0),
     ];
 }
