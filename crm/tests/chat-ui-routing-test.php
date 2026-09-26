@@ -15,6 +15,7 @@ assertSameValue("crm_conversations.room = 'customer_baru'", crmChatRoutingRoomSq
 assertSameValue("crm_conversations.room = 'sudah_payment'", crmChatRoutingRoomSql('sudah_payment'), 'payment room');
 assertSameValue("crm_conversations.room = 'peserta_pengajar'", crmChatRoutingRoomSql('peserta_pengajar'), 'peserta pengajar room');
 assertSameValue('1=1', crmChatRoutingRoomSql('people'), 'legacy people room rejected');
+assertSameValue('1=1', crmChatRoutingRoomSql('unknown'), 'unknown room rejected');
 assertSameValue("crm_conversations.room = 'lainnya'", crmChatRoutingRoomSql('lainnya'), 'lainnya room');
 assertSameValue('1=1', crmChatRoutingRoomSql('invalid'), 'invalid room fallback');
 
