@@ -1,9 +1,6 @@
 <?php
 $crmTitle = 'Follow Up';
 require_once __DIR__ . '/../config/prospect.php';
-$disqualified = crmGetDisqualifiedNumbers($conn);
-$blocked = crmGetBlockedNumbers($conn);
-
 $search = trim((string)($_GET['q'] ?? ''));
 $status = (string)($_GET['status'] ?? 'all');
 $range = (string)($_GET['range'] ?? 'today');
@@ -276,6 +273,14 @@ $followedContactCount = $currentStats['read_count'];
             <div class="crm-modal-foot"><button type="button" class="crm-modal-secondary" id="crmAddTriggerCancel">Batal</button><button type="submit" class="chat-add-trigger"><i class="fa-solid fa-plus"></i> Simpan Trigger</button></div>
         </form>
     </div>
+</div>
+
+<div class="chat-range-tabs" aria-label="Rentang waktu percakapan">
+    <?php foreach (['today' => 'Hari Ini', 'week' => 'Minggu Ini', 'month' => 'Bulan Ini', 'all' => 'Semua Waktu'] as $rangeKey => $rangeLabel): ?>
+        <a class="<?= $range === $rangeKey ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search, $status, $rangeKey)) ?>">
+            <?= htmlspecialchars($rangeLabel) ?>
+        </a>
+    <?php endforeach; ?>
 </div>
 
 <div class="chat-stats">
