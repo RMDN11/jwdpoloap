@@ -42,6 +42,7 @@ $search = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? 'all'));
 $range = trim((string)($_GET['range'] ?? 'today'));
 $room = trim((string)($_GET['room'] ?? 'all'));
+$contact = trim((string)($_GET['contact'] ?? ''));
 
 if (!in_array($status, ['all', 'new', 'followed'], true)) $status = 'all';
 if (!in_array($range, ['today', 'week', 'month', 'all'], true)) $range = 'today';
@@ -152,6 +153,34 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
+$selectedHistory = [];
+if ($contact !== '' && $conversations) {
+    $selectedNumber = crmChatNormalizeNumber($contact);
+    foreach ($conversations as $changedConversation) {
+        $changedNumber = crmChatNormalizeNumber((string)($changedConversation['nowa'] ?? ''));
+        if ($changedNumber !== '' && $changedNumber === $selectedNumber) {
+            $historyStmt = $conn->prepare(
+                "SELECT id,nowa,message,direction,sender_type,source,template_id,template_name,sent_at
+                 FROM crm_messages
+                 WHERE conversation_id = ?
+                 ORDER BY sent_at DESC, id DESC
+                 LIMIT 50"
+            );
+            if ($historyStmt) {
+                $historyStmt->bind_param('i', $changedConversation['id']);
+                if ($historyStmt->execute()) {
+                    $historyResult = $historyStmt->get_result();
+                    while ($historyRow = $historyResult->fetch_assoc()) {
+                        $selectedHistory[] = $historyRow;
+                    }
+                }
+                $historyStmt->close();
+            }
+            break;
+        }
+    }
+}
+
 $statsRangeSql = match ($range) {
     'week' => "last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
     'month' => "last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
@@ -207,4 +236,5 @@ echo json_encode([
     'stats' => $stats,
     'room_counts' => $roomCounts,
     'conversations' => $conversations,
+    'selected_history' => $selectedHistory,
 ], JSON_UNESCAPED_UNICODE);
