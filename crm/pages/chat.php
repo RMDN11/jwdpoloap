@@ -74,7 +74,21 @@ $conversationSql = "SELECT
         last_outbound_at,
         last_read_at,
         unread_count,
-        followup_count
+        followup_count,
+        (
+            SELECT cm.message
+            FROM crm_messages cm
+            WHERE cm.conversation_id = crm_conversations.id
+            ORDER BY cm.sent_at DESC, cm.id DESC
+            LIMIT 1
+        ) AS last_message,
+        (
+            SELECT cm.direction
+            FROM crm_messages cm
+            WHERE cm.conversation_id = crm_conversations.id
+            ORDER BY cm.sent_at DESC, cm.id DESC
+            LIMIT 1
+        ) AS last_direction
     FROM crm_conversations
     WHERE {$conversationWhereSql}
     ORDER BY COALESCE(last_message_at, last_inbound_at, last_outbound_at, created_at) DESC, id DESC
@@ -304,23 +318,25 @@ $followedContactCount = $currentStats['read_count'];
             <div class="empty-state"><i class="fa-regular fa-comments"></i><strong>Tidak ada percakapan</strong><p>Belum ada data yang cocok dengan filter ini.</p></div>
         <?php else: foreach ($contacts as $row): ?>
             <?php
-                $displayRow = !empty($row['eligible_row']) ? $row['eligible_row'] : $row;
-                $name = crmChatName($displayRow);
-                $classification = crmProspectClassifyMessage((string)$displayRow['message'], $conn);
+                $name = trim((string)($row['nama'] ?? '')) ?: 'Hamba Allah';
+                $lastMessage = trim((string)($row['last_message'] ?? ''));
+                $lastDirection = (string)($row['last_direction'] ?? '');
+                $activityLabel = $lastDirection === 'in' ? 'Pesan masuk' : 'Dikirim';
                 $isSelected = $selected !== '' && crmProspectNormalizeNumber($selected) === $row['clean_wa'];
+                $lastActivityAt = $row['last_message_at'] ?: ($row['last_inbound_at'] ?: $row['last_outbound_at']);
             ?>
             <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,$row['nowa'],$chatPage)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?>">
                 <span class="activity-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($name,0,1))) ?></span>
                 <span class="chat-body">
                     <strong><?= htmlspecialchars($name) ?></strong>
-                    <small><?= htmlspecialchars($classification) ?> · <?= htmlspecialchars(crmPreview((string)$row['message'])) ?></small>
+                    <small><?= htmlspecialchars($activityLabel) ?> · <?= htmlspecialchars(crmPreview($lastMessage)) ?></small>
                 </span>
                 <span class="chat-meta">
-                    <time><?= htmlspecialchars(date('H:i',strtotime($row['created_at']))) ?></time>
+                    <time><?= htmlspecialchars($lastActivityAt ? date('H:i', strtotime($lastActivityAt)) : '') ?></time>
                     <?php if (!empty($row['has_new_message'])): ?>
                         <b class="chat-new-badge">BARU</b>
-                    <?php else: ?>
-                        <i class="fa-solid fa-check-double"></i>
+                    <?php elseif ((int)$row['followup_count'] > 0): ?>
+                        <i class="fa-solid fa-check-double" title="<?= (int)$row['followup_count'] ?> follow-up"></i>
                     <?php endif; ?>
                 </span>
             </a>
@@ -340,10 +356,10 @@ $followedContactCount = $currentStats['read_count'];
                 <div class="section-title-row"><span class="message-label">Percakapan terbaru</span><small><?= count($recentMessages) ?> log terakhir</small></div>
                 <div class="chat-history-scroll">
                     <?php foreach (array_reverse($recentMessages) as $historyRow): ?>
-                        <div class="chat-log-item">
+                        <div class="chat-log-item <?= ($historyRow['direction'] ?? '') === 'in' ? 'chat-log-in' : 'chat-log-out' ?>">
                             <div class="chat-log-meta">
-                                <time><?= htmlspecialchars(crmChatDate($historyRow['created_at'])) ?></time>
-                                <?php if (!empty($historyRow['is_form_sent'])): ?><span class="chat-log-badge">Form</span><?php endif; ?>
+                                <time><?= htmlspecialchars(crmChatDate($historyRow['sent_at'] ?? null)) ?></time>
+                                <span class="chat-log-badge"><?= ($historyRow['direction'] ?? '') === 'in' ? 'Masuk' : 'Admin' ?></span>
                             </div>
                             <p><?= nl2br(htmlspecialchars((string)$historyRow['message'])) ?></p>
                         </div>
