@@ -67,7 +67,7 @@ if ($clearManual) {
     exit;
 }
 
-if (!in_array($requestedRoom, ['customer_baru', 'sudah_payment', 'people', 'lainnya'], true)) {
+if (!in_array($requestedRoom, ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'], true)) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Room routing tidak valid.'];
     header('Location: ../index.php?page=chat&contact=' . urlencode($conversation['nowa']));
     exit;
