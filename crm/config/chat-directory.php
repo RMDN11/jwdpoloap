@@ -4,7 +4,21 @@ declare(strict_types=1);
 function crmChatDirectoryTables(mysqli $conn): array {
     static $tables = null;
     if (is_array($tables)) return $tables;
-    $tables = ['peserta', 'pengampu', 'pengajar'];
+    $result = $conn->query(
+        "SELECT table_name
+         FROM information_schema.tables
+         WHERE table_schema = DATABASE()
+           AND table_name IN ('peserta', 'pengampu', 'pengajar')"
+    );
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $table = (string)($row['table_name'] ?? '');
+            if (in_array($table, ['peserta', 'pengampu', 'pengajar'], true)) {
+                $tables[] = $table;
+            }
+        }
+    }
+    sort($tables);
     return $tables;
 }
 
