@@ -60,10 +60,13 @@ $countStmt = $conn->prepare(
      FROM crm_conversations
      WHERE {$conversationWhereSql}"
 );
-if ($conversationTypes !== '') $countStmt->bind_param($conversationTypes, ...$conversationBind);
-$countStmt->execute();
-$countRow = $countStmt->get_result()->fetch_assoc();
-$countStmt->close();
+$countRow = [];
+if ($countStmt) {
+    if ($conversationTypes !== '') $countStmt->bind_param($conversationTypes, ...$conversationBind);
+    $countStmt->execute();
+    $countRow = $countStmt->get_result()->fetch_assoc() ?: [];
+    $countStmt->close();
+}
 
 $totalContacts = (int)($countRow['total'] ?? 0);
 $totalPages = max(1, (int)ceil($totalContacts / $perPage));
@@ -102,24 +105,26 @@ $conversationSql = "SELECT
     LIMIT ? OFFSET ?";
 
 $conversationStmt = $conn->prepare($conversationSql);
-if ($conversationTypes !== '') {
-    $conversationTypes .= 'ii';
-    $conversationBind[] = $perPage;
-    $conversationBind[] = $offset;
-    $conversationStmt->bind_param($conversationTypes, ...$conversationBind);
-} else {
-    $conversationStmt->bind_param('ii', $perPage, $offset);
-}
-$conversationStmt->execute();
-$conversationResult = $conversationStmt->get_result();
-
 $contacts = [];
-while ($row = $conversationResult->fetch_assoc()) {
-    $row['clean_wa'] = crmProspectNormalizeNumber((string)$row['nowa']);
-    $row['has_new_message'] = (int)$row['unread_count'] > 0;
-    $contacts[] = $row;
+if ($conversationStmt) {
+    if ($conversationTypes !== '') {
+        $conversationTypes .= 'ii';
+        $conversationBind[] = $perPage;
+        $conversationBind[] = $offset;
+        $conversationStmt->bind_param($conversationTypes, ...$conversationBind);
+    } else {
+        $conversationStmt->bind_param('ii', $perPage, $offset);
+    }
+    $conversationStmt->execute();
+    $conversationResult = $conversationStmt->get_result();
+
+    while ($row = $conversationResult->fetch_assoc()) {
+        $row['clean_wa'] = crmProspectNormalizeNumber((string)$row['nowa']);
+        $row['has_new_message'] = (int)$row['unread_count'] > 0;
+        $contacts[] = $row;
+    }
+    $conversationStmt->close();
 }
-$conversationStmt->close();
 
 $stats = [
     'today' => ['total' => 0, 'unread' => 0, 'read_count' => 0],
