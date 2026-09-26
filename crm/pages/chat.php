@@ -279,16 +279,16 @@ $followedContactCount = $currentStats['read_count'];
 </div>
 
 <div class="chat-stats">
-    <a class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all')) ?>"><strong><?= $allContactCount ?></strong><span>Semua</span></a>
-    <a class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new')) ?>"><strong><?= $newContactCount ?></strong><span>Baru</span></a>
-    <a class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed')) ?>"><strong><?= $followedContactCount ?></strong><span>Follow-up</span></a>
+    <a class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all',$range)) ?>"><strong><?= $allContactCount ?></strong><span>Semua</span></a>
+    <a class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new',$range)) ?>"><strong><?= $newContactCount ?></strong><span>Baru</span></a>
+    <a class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed',$range)) ?>"><strong><?= $followedContactCount ?></strong><span>Follow-up</span></a>
 </div>
 
 <form class="search-box" method="get">
     <input type="hidden" name="page" value="chat"><input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
     <i class="fa-solid fa-magnifying-glass"></i>
     <input name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Cari nama, nomor, atau isi pesan...">
-    <?php if ($search): ?><a href="<?= htmlspecialchars(crmChatUrl('', $status)) ?>"><i class="fa-solid fa-xmark"></i></a><?php endif; ?>
+    <?php if ($search): ?><a href="<?= htmlspecialchars(crmChatUrl('', $status, $range)) ?>"><i class="fa-solid fa-xmark"></i></a><?php endif; ?>
 </form>
 
 <div class="chat-sheet-backdrop" id="crmChatSheetBackdrop" aria-hidden="true"></div>
@@ -304,7 +304,7 @@ $followedContactCount = $currentStats['read_count'];
                 $classification = crmProspectClassifyMessage((string)$displayRow['message'], $conn);
                 $isSelected = $selected !== '' && crmProspectNormalizeNumber($selected) === $row['clean_wa'];
             ?>
-            <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$row['nowa'],$chatPage)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?>">
+            <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,$row['nowa'],$chatPage)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?>">
                 <span class="activity-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($name,0,1))) ?></span>
                 <span class="chat-body">
                     <strong><?= htmlspecialchars($name) ?></strong>
@@ -329,7 +329,7 @@ $followedContactCount = $currentStats['read_count'];
             <div class="chat-panel-head">
                 <div class="contact-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($selectedName,0,1))) ?></div>
                 <div class="chat-panel-contact"><strong><?= htmlspecialchars($selectedName) ?></strong><small><?= htmlspecialchars($selectedContact['nowa']) ?></small></div>
-                <a class="chat-panel-close" href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$chatPage)) ?>" aria-label="Tutup percakapan"><i class="fa-solid fa-xmark"></i></a>
+                <a class="chat-panel-close" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage)) ?>" aria-label="Tutup percakapan"><i class="fa-solid fa-xmark"></i></a>
             </div>
             <div class="chat-history-section">
                 <div class="section-title-row"><span class="message-label">Percakapan terbaru</span><small><?= count($recentMessages) ?> log terakhir</small></div>
@@ -373,13 +373,13 @@ $followedContactCount = $currentStats['read_count'];
 <?php if ($totalPages > 1): ?>
 <nav class="chat-pagination" aria-label="Pagination Chat">
     <?php if ($chatPage > 1): ?>
-        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$chatPage - 1)) ?>"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</a>
+        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage - 1)) ?>"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</a>
     <?php else: ?>
         <span class="disabled"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</span>
     <?php endif; ?>
     <strong>Halaman <?= $chatPage ?> / <?= $totalPages ?></strong>
     <?php if ($chatPage < $totalPages): ?>
-        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$chatPage + 1)) ?>">Berikutnya <i class="fa-solid fa-chevron-right"></i></a>
+        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage + 1)) ?>">Berikutnya <i class="fa-solid fa-chevron-right"></i></a>
     <?php else: ?>
         <span class="disabled">Berikutnya <i class="fa-solid fa-chevron-right"></i></span>
     <?php endif; ?>
