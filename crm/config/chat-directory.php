@@ -33,9 +33,9 @@ function crmChatKnownContactSql(mysqli $conn, string $alias = 'crm_conversations
             WHERE directory.nowa IS NOT NULL
               AND directory.nowa != ''
               AND (
-                  directory.nowa = {$alias}.nowa
-                  OR directory.nowa = CONCAT('0', SUBSTRING({$alias}.nowa, 3))
-                  OR directory.nowa = CONCAT('+', {$alias}.nowa)
+                  BINARY directory.nowa = BINARY {$alias}.nowa
+                  OR BINARY directory.nowa = BINARY CONCAT('0', SUBSTRING({$alias}.nowa, 3))
+                  OR BINARY directory.nowa = BINARY CONCAT('+', {$alias}.nowa)
               )
         )";
     }
