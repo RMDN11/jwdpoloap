@@ -70,7 +70,7 @@ $senderPhone = trim($senderPhone);
 $messageText = trim($messageText);
 $senderName  = $data['from_name'] ?? $data['pushName'] ?? $data['name'] ?? '';
 
-if (preg_match('/(?:nama saya|nama sy|perkenalkan nama saya)s+([A-Za-z0-9]+)/i', $messageText, $matches)) {
+if (preg_match('/(?:nama saya|nama sy|perkenalkan nama saya)\s+([A-Za-z0-9]+)/i', $messageText, $matches)) {
     $extractedName = trim($matches[1]);
     if (!empty($extractedName)) {
         $senderName = ucfirst(strtolower($extractedName));
@@ -88,7 +88,7 @@ if ($senderPhone === '' || $messageText === '') {
     exit;
 }
 
-$senderPhone = preg_replace('/D/', '', $senderPhone);
+$senderPhone = preg_replace('/\D/', '', $senderPhone);
 
 logx("PHONE: {$senderPhone}");
 logx("NAME: {$senderName}");
