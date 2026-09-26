@@ -95,7 +95,11 @@ class AutoReplyEngine
             if ($sent) {
                 try {
                     require_once __DIR__ . '/crm/config/chat.php';
-                    crmChatStoreMessage(
+                    require_once __DIR__ . '/crm/config/chat-directory.php';
+                    require_once __DIR__ . '/crm/config/prospect.php';
+                    require_once __DIR__ . '/crm/config/chat-routing.php';
+
+                    $chatMessageId = crmChatStoreMessage(
                         $this->conn,
                         $phone,
                         $userName,
@@ -105,6 +109,29 @@ class AutoReplyEngine
                         'auto_reply',
                         date('Y-m-d H:i:s')
                     );
+
+                    if ($chatMessageId !== null && $chatMessageId > 0) {
+                        $conversationStmt = $this->conn->prepare(
+                            "SELECT id FROM crm_conversations WHERE nowa = ? LIMIT 1"
+                        );
+                        if ($conversationStmt) {
+                            $conversationStmt->bind_param('s', $phone);
+                            $conversationStmt->execute();
+                            $conversation = $conversationStmt->get_result()->fetch_assoc();
+                            $conversationStmt->close();
+
+                            if ($conversation) {
+                                // Auto-replies are outbound customer-touch events.
+                                // They may trigger payment-state detection, but manual routing always wins.
+                                crmChatRoutingRecordPaymentIfMatched(
+                                    $this->conn,
+                                    (int)$conversation['id'],
+                                    $replyText,
+                                    date('Y-m-d H:i:s')
+                                );
+                            }
+                        }
+                    }
                 } catch (Throwable $e) {
                     $this->logToFile("CHAT HISTORY ERROR: " . $e->getMessage());
                 }
