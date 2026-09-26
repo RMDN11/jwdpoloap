@@ -977,3 +977,25 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
     min-height:34px;
   }
 }
+
+
+/* Chat Phase 3.4: desktop workspace sizing */
+@media(min-width:851px){
+  .chat-list,
+  .chat-panel{
+    height:min(620px,calc(100dvh - 280px));
+    max-height:min(620px,calc(100dvh - 280px));
+  }
+  .chat-panel{
+    overflow-y:auto;
+    overflow-x:hidden;
+  }
+  .chat-history-section{
+    flex:0 0 auto;
+    min-height:0;
+  }
+  .chat-history-scroll{max-height:170px;min-height:70px}
+  .legacy-history-list{max-height:105px}
+  .poloap-history-list{max-height:90px}
+  .send-box textarea{min-height:70px}
+}
