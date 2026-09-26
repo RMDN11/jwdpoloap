@@ -60,7 +60,8 @@ $rangeSql = match ($range) {
 
 $statusSql = match ($status) {
     'new' => "unread_count > 0",
-    'followed' => "unread_count = 0",
+    'read' => "unread_count = 0 AND followup_count = 0",
+    'followed' => "followup_count > 0",
     default => "1=1",
 };
 
@@ -197,23 +198,25 @@ $statsStmt = $conn->query(
     "SELECT
         SUM(($roomSql)) AS total,
         COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count > 0), 0) AS unread,
-        COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count = 0), 0) AS read_count,
+        COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count = 0 AND followup_count = 0), 0) AS read_count,
+        COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND followup_count > 0), 0) AS followed_count,
         COALESCE(SUM($statsRangeSql), 0) AS room_all_count,
         COALESCE(SUM(($statsRangeSql) AND room = 'customer_baru'), 0) AS room_customer_baru_count,
         COALESCE(SUM(($statsRangeSql) AND room = 'sudah_payment'), 0) AS room_sudah_payment_count,
         COALESCE(SUM(($statsRangeSql) AND room = 'people'), 0) AS room_people_count,
         COALESCE(SUM(($statsRangeSql) AND room = 'lainnya'), 0) AS room_lainnya_count,
-        COALESCE(SUM(($statsRangeSql) AND NOT ($knownSql)), 0) AS room_other_count
+        COALESCE(SUM(($statsRangeSql) AND room = 'other'), 0) AS room_other_count
      FROM crm_conversations"
 );
-$stats = ['total' => 0, 'unread' => 0, 'read_count' => 0];
-$roomCounts = ['all' => 0, 'people' => 0, 'other' => 0];
+$stats = ['total' => 0, 'unread' => 0, 'read_count' => 0, 'followed' => 0];
+$roomCounts = ['all' => 0, 'customer_baru' => 0, 'sudah_payment' => 0, 'people' => 0, 'lainnya' => 0, 'other' => 0];
 if ($statsStmt) {
     $statsRow = $statsStmt->fetch_assoc();
     $stats = [
         'total' => (int)($statsRow['total'] ?? 0),
         'unread' => (int)($statsRow['unread'] ?? 0),
         'read_count' => (int)($statsRow['read_count'] ?? 0),
+        'followed' => (int)($statsRow['followed_count'] ?? 0),
     ];
     $roomCounts = [
         'all' => (int)($statsRow['room_all_count'] ?? 0),
