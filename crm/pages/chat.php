@@ -411,6 +411,31 @@ $followedContactCount = $currentStats['read_count'];
 (() => {
     document.body.classList.toggle('crm-chat-sheet-open', <?= $selectedContact ? 'true' : 'false' ?>);
 
+    const selectedNumber = <?= $selectedContact ? json_encode($selectedContact['nowa']) : 'null' ?>;
+    const csrfToken = <?= json_encode(crmCsrfToken()) ?>;
+
+    if (selectedNumber) {
+        const form = new URLSearchParams();
+        form.set('nowa', selectedNumber);
+        form.set('csrf', csrfToken);
+
+        fetch('actions/chat-mark-read.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+            body: form.toString(),
+            credentials: 'same-origin',
+            keepalive: true
+        }).then(response => {
+            if (!response.ok) return;
+            document.querySelectorAll('.chat-item.is-new').forEach(item => {
+                if (item.getAttribute('href')?.includes(encodeURIComponent(selectedNumber))) {
+                    item.classList.remove('is-new');
+                    item.querySelector('.chat-new-badge')?.remove();
+                }
+            });
+        }).catch(() => {});
+    }
+
     const sheetBackdrop = document.getElementById('crmChatSheetBackdrop');
     const sheetClose = document.querySelector('.chat-panel-close');
     if (sheetBackdrop) sheetBackdrop.addEventListener('click', () => sheetClose?.click());
