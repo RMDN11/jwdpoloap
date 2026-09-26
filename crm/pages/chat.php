@@ -325,7 +325,7 @@ $followedContactCount = $currentStats['read_count'];
                 $isSelected = $selected !== '' && crmProspectNormalizeNumber($selected) === $row['clean_wa'];
                 $lastActivityAt = $row['last_message_at'] ?: ($row['last_inbound_at'] ?: $row['last_outbound_at']);
             ?>
-            <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,$row['nowa'],$chatPage)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?>">
+            <a data-chat-nowa="<?= htmlspecialchars($row['nowa']) ?>" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,$row['nowa'],$chatPage)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?>">
                 <span class="activity-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($name,0,1))) ?></span>
                 <span class="chat-body">
                     <strong><?= htmlspecialchars($name) ?></strong>
@@ -464,6 +464,69 @@ $followedContactCount = $currentStats['read_count'];
     if (cancelBtn) cancelBtn.onclick = closeModal;
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
-    // Live polling will be reintroduced after persistent read/unread is wired.
+    const chatPollUrl = <?= json_encode('actions/chat-poll.php') ?>;
+    let chatPollCursor = <?= json_encode(date('Y-m-d H:i:s')) ?>;
+    let chatPollBusy = false;
+
+    const escapeHtml = (value) => {
+        const div = document.createElement('div');
+        div.textContent = value ?? '';
+        return div.innerHTML;
+    };
+
+    const updateChatItem = (row) => {
+        const item = document.querySelector('.chat-item[data-chat-nowa="' + CSS.escape(row.nowa) + '"]');
+        if (!item) return;
+
+        const body = item.querySelector('.chat-body');
+        const meta = item.querySelector('.chat-meta');
+        const lastDirection = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
+        const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim();
+        const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
+
+        if (body) {
+            const name = body.querySelector('strong');
+            const detail = body.querySelector('small');
+            if (name && row.nama) name.textContent = row.nama;
+            if (detail) detail.textContent = lastDirection + ' · ' + preview.slice(0, 68);
+        }
+
+        if (meta) {
+            const timeNode = meta.querySelector('time');
+            if (timeNode) timeNode.textContent = time;
+            if (row.unread_count > 0) {
+                item.classList.add('is-new');
+                if (!meta.querySelector('.chat-new-badge')) {
+                    const badge = document.createElement('b');
+                    badge.className = 'chat-new-badge';
+                    badge.textContent = 'BARU';
+                    meta.appendChild(badge);
+                }
+            }
+        }
+    };
+
+    const pollChat = async () => {
+        if (chatPollBusy || document.hidden) return;
+        chatPollBusy = true;
+        try {
+            const response = await fetch(chatPollUrl + '?since=' + encodeURIComponent(chatPollCursor), {
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!data?.ok) return;
+
+            chatPollCursor = data.server_time || chatPollCursor;
+            for (const row of (data.conversations || [])) updateChatItem(row);
+        } catch (_) {
+            // Polling is non-critical. The next interval retries without disrupting Chat.
+        } finally {
+            chatPollBusy = false;
+        }
+    };
+
+    window.setInterval(pollChat, 10000);
 })();
 </script>
