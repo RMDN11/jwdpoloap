@@ -423,6 +423,6 @@ $followedContactCount = $currentStats['read_count'];
     if (cancelBtn) cancelBtn.onclick = closeModal;
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
-    setInterval(poll,10000);
+    // Live polling will be reintroduced after persistent read/unread is wired.
 })();
 </script>
