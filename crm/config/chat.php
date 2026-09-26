@@ -143,7 +143,7 @@ function crmChatStoreMessage(
     } else {
         $update = $conn->prepare(
             "UPDATE crm_conversations
-             SET last_message_at = ?, last_outbound_at = ?, followup_count = followup_count + 1
+             SET last_message_at = ?, last_outbound_at = ?
              WHERE id = ?"
         );
     }
@@ -155,6 +155,63 @@ function crmChatStoreMessage(
     }
 
     return $messageId;
+}
+
+function crmChatRecordFollowup(
+    mysqli $conn,
+    int $conversationId,
+    ?int $messageId = null,
+    ?int $templateId = null,
+    ?string $templateName = null,
+    ?string $sentAt = null,
+    string $status = 'sent'
+): ?int {
+    if (!crmChatTablesReady($conn)) return null;
+    if ($conversationId <= 0) return null;
+
+    $sentAt = $sentAt ?: date('Y-m-d H:i:s');
+    $templateIdValue = $templateId ?? 0;
+    $templateName = trim((string)$templateName);
+    $status = trim($status) !== '' ? trim($status) : 'sent';
+
+    $stmt = $conn->prepare(
+        "INSERT INTO crm_followups
+            (conversation_id, message_id, template_id, template_name, sent_at, status)
+         VALUES (?, NULLIF(?, 0), NULLIF(?, 0), ?, ?, ?)"
+    );
+    if (!$stmt) return null;
+
+    $messageIdValue = $messageId ?? 0;
+    $stmt->bind_param(
+        'iiisss',
+        $conversationId,
+        $messageIdValue,
+        $templateIdValue,
+        $templateName,
+        $sentAt,
+        $status
+    );
+
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return null;
+    }
+
+    $followupId = (int)$stmt->insert_id;
+    $stmt->close();
+
+    $countStmt = $conn->prepare(
+        "UPDATE crm_conversations
+         SET followup_count = followup_count + 1
+         WHERE id = ?"
+    );
+    if ($countStmt) {
+        $countStmt->bind_param('i', $conversationId);
+        $countStmt->execute();
+        $countStmt->close();
+    }
+
+    return $followupId;
 }
 
 function crmChatMarkRead(mysqli $conn, string $nowa): bool {
