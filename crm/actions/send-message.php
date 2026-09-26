@@ -2,7 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
-require_once __DIR__ . '/../config/prospect.php';\nrequire_once __DIR__ . '/../config/chat.php';
+require_once __DIR__ . '/../config/prospect.php';
+require_once __DIR__ . '/../config/chat.php';
 $disqualified = crmGetDisqualifiedNumbers($conn);
 $blocked = crmGetBlockedNumbers($conn);
 
@@ -57,9 +58,11 @@ if ($messageTemplate === '') {
 $name = trim((string)($contact['nama'] ?? 'Kak'));
 $incomingMessage = (string)($contact['message'] ?? '');
 
-if (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?\s*\(/i', $incomingMessage, $m)) {
+if (preg_match('/nama saya\s+\*?([^\*\(
+]+)\*?\s*\(/i', $incomingMessage, $m)) {
     $name = trim($m[1]);
-} elseif (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?/i', $incomingMessage, $m)) {
+} elseif (preg_match('/nama saya\s+\*?([^\*\(
+]+)\*?/i', $incomingMessage, $m)) {
     $name = trim($m[1]);
 }
 if ($name === '' || strtolower($name) === 'kak') $name = 'Kak';
