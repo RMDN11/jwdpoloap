@@ -45,7 +45,7 @@ $range = trim((string)($_GET['range'] ?? 'today'));
 $room = trim((string)($_GET['room'] ?? 'all'));
 $contact = trim((string)($_GET['contact'] ?? ''));
 
-if (!in_array($status, ['all', 'new', 'followed'], true)) $status = 'all';
+if (!in_array($status, ['all', 'new', 'read', 'followed'], true)) $status = 'all';
 if (!in_array($range, ['today', 'week', 'month', 'all'], true)) $range = 'today';
 if (!in_array($room, ['all', 'customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'], true)) $room = 'all';
 $roomSql = $room === 'all' ? '1=1' : "room = '" . $conn->real_escape_string($room) . "'";
@@ -60,7 +60,8 @@ $rangeSql = match ($range) {
 
 $statusSql = match ($status) {
     'new' => "unread_count > 0",
-    'followed' => "unread_count = 0",
+    'read' => "unread_count = 0",
+    'followed' => "followup_count > 0",
     default => "1=1",
 };
 
