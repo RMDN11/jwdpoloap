@@ -4,7 +4,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/prospect.php';
 require_once __DIR__ . '/../config/chat.php';
-$disqualified = crmGetDisqualifiedNumbers($conn);
 $blocked = crmGetBlockedNumbers($conn);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? null)) {
@@ -23,10 +22,29 @@ if ($contactId === '') {
 }
 
 $normalizedContact = crmProspectNormalizeNumber($contactId);
-$contact = crmFindEligibleProspectByNumber($conn, $contactId, $disqualified, $blocked);
+
+if (in_array($normalizedContact, array_map('crmProspectNormalizeNumber', $blocked), true)) {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini diblokir sehingga pesan tidak dikirim.'];
+    header('Location: ../index.php?page=chat&contact=' . urlencode($contactId));
+    exit;
+}
+
+$contact = null;
+$conversationStmt = $conn->prepare(
+    "SELECT nowa, nama
+     FROM crm_conversations
+     WHERE nowa = ? OR nowa = ?
+     LIMIT 1"
+);
+if ($conversationStmt) {
+    $conversationStmt->bind_param('ss', $normalizedContact, $contactId);
+    $conversationStmt->execute();
+    $contact = $conversationStmt->get_result()->fetch_assoc() ?: null;
+    $conversationStmt->close();
+}
 
 if (!$contact) {
-    $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak tidak ditemukan atau sudah tidak eligible untuk follow-up.'];
+    $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Conversation tidak ditemukan.'];
     header('Location: ../index.php?page=chat');
     exit;
 }

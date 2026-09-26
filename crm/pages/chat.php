@@ -1,164 +1,222 @@
 <?php
 $crmTitle = 'Follow Up';
 require_once __DIR__ . '/../config/prospect.php';
-$disqualified = crmGetDisqualifiedNumbers($conn);
-$blocked = crmGetBlockedNumbers($conn);
-
 $search = trim((string)($_GET['q'] ?? ''));
-$status = (string)($_GET['status'] ?? 'new');
+$status = (string)($_GET['status'] ?? 'all');
+$range = (string)($_GET['range'] ?? 'today');
 $selected = trim((string)($_GET['contact'] ?? ''));
 $chatPage = max(1, (int)($_GET['p'] ?? 1));
-$perPage = 10;
+$perPage = 20;
+
 $allowedStatus = ['all', 'new', 'followed'];
 if (!in_array($status, $allowedStatus, true)) $status = 'all';
 
-function crmChatHasNewMessage(array $latest): bool {
-    $followupAt = trim((string)($latest['last_followup_at'] ?? ''));
-    $createdAt = trim((string)($latest['created_at'] ?? ''));
-    if ($followupAt === '' || $followupAt === '0000-00-00 00:00:00') return $createdAt !== '';
-    if ($createdAt === '') return false;
+$allowedRanges = ['today', 'week', 'month', 'all'];
+if (!in_array($range, $allowedRanges, true)) $range = 'today';
 
-    $messageTime = strtotime($createdAt);
-    $followupTime = strtotime($followupAt);
-    return $messageTime !== false && $followupTime !== false && $messageTime > $followupTime;
+$rangeSql = [
+    'today' => "last_inbound_at >= CURDATE()",
+    'week'  => "last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
+    'month' => "last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
+    'all'   => '1=1',
+][$range];
+
+$conversationWhere = [$rangeSql];
+$conversationBind = [];
+$conversationTypes = '';
+
+if ($status === 'new') {
+    $conversationWhere[] = 'unread_count > 0';
+} elseif ($status === 'followed') {
+    $conversationWhere[] = 'unread_count = 0';
 }
 
-$where = [
-    "message IS NOT NULL",
-    "message != ''",
-    "message != 'Data CSV/Manual'"
-];
-$bind = [];
-$types = '';
 if ($search !== '') {
-    $where[] = "(nama LIKE ? OR nowa LIKE ? OR message LIKE ?)";
+    $conversationWhere[] = "(
+        nama LIKE ?
+        OR nowa LIKE ?
+        OR EXISTS (
+            SELECT 1
+            FROM crm_messages cm_search
+            WHERE cm_search.conversation_id = crm_conversations.id
+              AND cm_search.message LIKE ?
+        )
+    )";
     $like = '%' . $search . '%';
-    $bind = [$like, $like, $like];
-    $types = 'sss';
+    $conversationBind = [$like, $like, $like];
+    $conversationTypes = 'sss';
 }
 
-/*
- * We intentionally collect a larger recent window and collapse it to one
- * contact per normalized WhatsApp number in PHP. This keeps the UI correct
- * even when one prospect has many log_wa rows and some newer messages are
- * generic inquiries while older messages established prospect eligibility.
- */
-$sql = "SELECT id,nama,nowa,message,created_at,last_followup_at,last_template_name,template_history
-        FROM log_wa
-        WHERE " . implode(' AND ', $where) . "
-        ORDER BY id DESC
-        LIMIT 5000";
-$stmt = $conn->prepare($sql);
-if ($types) $stmt->bind_param($types, ...$bind);
-$stmt->execute();
-$result = $stmt->get_result();
+$conversationWhereSql = implode(' AND ', $conversationWhere);
 
-$contactBuckets = [];
-while ($row = $result->fetch_assoc()) {
-    $number = crmProspectNormalizeNumber((string)$row['nowa']);
-    if ($number === '') continue;
+$countStmt = $conn->prepare(
+    "SELECT COUNT(*) AS total
+     FROM crm_conversations
+     WHERE {$conversationWhereSql}"
+);
+if ($conversationTypes !== '') $countStmt->bind_param($conversationTypes, ...$conversationBind);
+$countStmt->execute();
+$countRow = $countStmt->get_result()->fetch_assoc();
+$countStmt->close();
 
-    if (!isset($contactBuckets[$number])) {
-        $contactBuckets[$number] = [
-            'latest' => $row,
-            'eligible' => null,
-        ];
-    }
-
-    if ($contactBuckets[$number]['eligible'] === null && crmIsEligibleProspect($row, $disqualified, $blocked, $conn)) {
-        $contactBuckets[$number]['eligible'] = $row;
-    }
-}
-$stmt->close();
-
-$allContacts = [];
-foreach ($contactBuckets as $number => $bucket) {
-    if (!$bucket['eligible']) continue;
-
-    $latest = $bucket['latest'];
-    $latest['clean_wa'] = $number;
-    $latest['eligible_row'] = $bucket['eligible'];
-    $latest['has_new_message'] = crmChatHasNewMessage($latest);
-    $allContacts[] = $latest;
-}
-
-$allContactCount = count($allContacts);
-$newContactCount = count(array_filter($allContacts, static fn(array $row): bool => !empty($row['has_new_message'])));
-$followedContactCount = $allContactCount - $newContactCount;
-
-$contacts = array_values(array_filter($allContacts, static function (array $row) use ($status): bool {
-    if ($status === 'new') return !empty($row['has_new_message']);
-    if ($status === 'followed') return empty($row['has_new_message']);
-    return true;
-}));
-
-usort($contacts, static function (array $a, array $b) use ($status): int {
-    if ($status === 'followed') {
-        $aFollow = strtotime((string)($a['last_followup_at'] ?? '')) ?: 0;
-        $bFollow = strtotime((string)($b['last_followup_at'] ?? '')) ?: 0;
-        if ($aFollow !== $bFollow) return $bFollow <=> $aFollow;
-    }
-
-    $aCreated = strtotime((string)($a['created_at'] ?? '')) ?: 0;
-    $bCreated = strtotime((string)($b['created_at'] ?? '')) ?: 0;
-    if ($aCreated !== $bCreated) return $bCreated <=> $aCreated;
-    return ((int)$b['id']) <=> ((int)$a['id']);
-});
-
-$totalContacts = count($contacts);
+$totalContacts = (int)($countRow['total'] ?? 0);
 $totalPages = max(1, (int)ceil($totalContacts / $perPage));
 $chatPage = min($chatPage, $totalPages);
 $offset = ($chatPage - 1) * $perPage;
-$contacts = array_slice($contacts, $offset, $perPage);
+
+$conversationSql = "SELECT
+        id,
+        nowa,
+        nama,
+        status,
+        last_message_at,
+        last_inbound_at,
+        last_outbound_at,
+        last_read_at,
+        unread_count,
+        followup_count,
+        (
+            SELECT cm.message
+            FROM crm_messages cm
+            WHERE cm.conversation_id = crm_conversations.id
+            ORDER BY cm.sent_at DESC, cm.id DESC
+            LIMIT 1
+        ) AS last_message,
+        (
+            SELECT cm.direction
+            FROM crm_messages cm
+            WHERE cm.conversation_id = crm_conversations.id
+            ORDER BY cm.sent_at DESC, cm.id DESC
+            LIMIT 1
+        ) AS last_direction
+    FROM crm_conversations
+    WHERE {$conversationWhereSql}
+    ORDER BY COALESCE(last_message_at, last_inbound_at, last_outbound_at, created_at) DESC, id DESC
+    LIMIT ? OFFSET ?";
+
+$conversationStmt = $conn->prepare($conversationSql);
+if ($conversationTypes !== '') {
+    $conversationTypes .= 'ii';
+    $conversationBind[] = $perPage;
+    $conversationBind[] = $offset;
+    $conversationStmt->bind_param($conversationTypes, ...$conversationBind);
+} else {
+    $conversationStmt->bind_param('ii', $perPage, $offset);
+}
+$conversationStmt->execute();
+$conversationResult = $conversationStmt->get_result();
+
+$contacts = [];
+while ($row = $conversationResult->fetch_assoc()) {
+    $row['clean_wa'] = crmProspectNormalizeNumber((string)$row['nowa']);
+    $row['has_new_message'] = (int)$row['unread_count'] > 0;
+    $contacts[] = $row;
+}
+$conversationStmt->close();
+
+$stats = [
+    'today' => ['total' => 0, 'unread' => 0, 'read_count' => 0],
+    'week'  => ['total' => 0, 'unread' => 0, 'read_count' => 0],
+    'month' => ['total' => 0, 'unread' => 0, 'read_count' => 0],
+    'all'   => ['total' => 0, 'unread' => 0, 'read_count' => 0],
+];
+
+$statsResult = $conn->query(
+    "SELECT
+        COUNT(*) AS total,
+        COALESCE(SUM(last_inbound_at >= CURDATE()), 0) AS today_total,
+        COALESCE(SUM(last_inbound_at >= CURDATE() AND unread_count > 0), 0) AS today_unread,
+        COALESCE(SUM(last_inbound_at >= CURDATE() AND unread_count = 0), 0) AS today_read,
+        COALESCE(SUM(last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)), 0) AS week_total,
+        COALESCE(SUM(last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count > 0), 0) AS week_unread,
+        COALESCE(SUM(last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count = 0), 0) AS week_read,
+        COALESCE(SUM(last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_total,
+        COALESCE(SUM(last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count > 0), 0) AS month_unread,
+        COALESCE(SUM(last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count = 0), 0) AS month_read,
+        COALESCE(SUM(unread_count > 0), 0) AS all_unread,
+        COALESCE(SUM(unread_count = 0), 0) AS all_read
+     FROM crm_conversations"
+);
+if ($statsResult && ($statsRow = $statsResult->fetch_assoc())) {
+    $stats = [
+        'today' => [
+            'total' => (int)$statsRow['today_total'],
+            'unread' => (int)$statsRow['today_unread'],
+            'read_count' => (int)$statsRow['today_read'],
+        ],
+        'week' => [
+            'total' => (int)$statsRow['week_total'],
+            'unread' => (int)$statsRow['week_unread'],
+            'read_count' => (int)$statsRow['week_read'],
+        ],
+        'month' => [
+            'total' => (int)$statsRow['month_total'],
+            'unread' => (int)$statsRow['month_unread'],
+            'read_count' => (int)$statsRow['month_read'],
+        ],
+        'all' => [
+            'total' => (int)$statsRow['total'],
+            'unread' => (int)$statsRow['all_unread'],
+            'read_count' => (int)$statsRow['all_read'],
+        ],
+    ];
+}
 
 $maxLogId = 0;
-$maxIdResult = $conn->query("SELECT COALESCE(MAX(id), 0) AS max_id FROM log_wa");
-if ($maxIdResult && ($maxIdRow = $maxIdResult->fetch_assoc())) {
-    $maxLogId = (int)$maxIdRow['max_id'];
-}
 
 $selectedContact = null;
 $recentMessages = [];
 $poloapHistory = [];
 
 if ($selected !== '') {
-    $selectedContact = crmFindEligibleProspectByNumber($conn, $selected, $disqualified, $blocked);
+    $selectedNumber = crmProspectNormalizeNumber($selected);
+    $selectedStmt = $conn->prepare(
+        "SELECT id,nowa,nama,status,last_message_at,last_inbound_at,last_outbound_at,last_read_at,unread_count,followup_count
+         FROM crm_conversations
+         WHERE nowa = ? OR nowa = ?
+         LIMIT 1"
+    );
+    $selectedStmt->bind_param('ss', $selected, $selectedNumber);
+    $selectedStmt->execute();
+    $selectedContact = $selectedStmt->get_result()->fetch_assoc() ?: null;
+    $selectedStmt->close();
 
     if ($selectedContact) {
-        $selectedContact['clean_wa'] = crmProspectNormalizeNumber((string)$selectedContact['nowa']);
+        $selectedContact['clean_wa'] = $selectedNumber;
 
-        $historyStmt = $conn->prepare("SELECT id,nama,nowa,message,created_at,is_form_sent,last_template_name
-            FROM log_wa
-            WHERE nowa = ? OR nowa = ?
-            ORDER BY created_at DESC, id DESC
-            LIMIT 20");
-        $historyStmt->bind_param('ss', $selectedContact['nowa'], $selectedContact['clean_wa']);
+        $historyStmt = $conn->prepare(
+            "SELECT id,nowa,message,direction,sender_type,source,template_id,template_name,sent_at
+             FROM crm_messages
+             WHERE conversation_id = ?
+             ORDER BY sent_at DESC, id DESC
+             LIMIT 50"
+        );
+        $historyStmt->bind_param('i', $selectedContact['id']);
         $historyStmt->execute();
         $historyResult = $historyStmt->get_result();
         while ($historyRow = $historyResult->fetch_assoc()) $recentMessages[] = $historyRow;
         $historyStmt->close();
 
-        $outboundStmt = $conn->prepare("SELECT id,template_id,template_name,message,sent_at,status
-            FROM crm_message_history
-            WHERE nowa = ? OR nowa = ?
-            ORDER BY sent_at DESC, id DESC
-            LIMIT 20");
+        $outboundStmt = $conn->prepare(
+            "SELECT h.id,h.template_id,h.template_name,h.message,h.sent_at,h.status
+             FROM crm_message_history h
+             WHERE (h.nowa = ? OR h.nowa = ?)
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM crm_messages cm
+                   WHERE cm.nowa = h.nowa
+                     AND cm.direction = 'out'
+                     AND cm.message = h.message
+                     AND ABS(TIMESTAMPDIFF(SECOND, cm.sent_at, h.sent_at)) <= 120
+               )
+             ORDER BY h.sent_at DESC, h.id DESC
+             LIMIT 20"
+        );
         $outboundStmt->bind_param('ss', $selectedContact['nowa'], $selectedContact['clean_wa']);
         $outboundStmt->execute();
         $outboundResult = $outboundStmt->get_result();
         while ($historyRow = $outboundResult->fetch_assoc()) $poloapHistory[] = $historyRow;
         $outboundStmt->close();
-
-        if (!$poloapHistory && !empty($selectedContact['template_history'])) {
-            foreach (array_reverse(array_filter(explode('|||', $selectedContact['template_history']))) as $legacyHistory) {
-                $poloapHistory[] = [
-                    'sent_at' => null,
-                    'template_name' => $legacyHistory,
-                    'message' => '',
-                    'status' => 'legacy'
-                ];
-            }
-        }
     }
 }
 
@@ -183,13 +241,18 @@ function crmChatDate(?string $date): string {
     $timestamp = strtotime($date);
     return $timestamp ? date('d M Y, H:i', $timestamp) : '';
 }
-function crmChatUrl(string $search, string $status, string $contact = '', int $chatPage = 1): string {
-    $params = ['page'=>'chat','status'=>$status];
+function crmChatUrl(string $search, string $status, string $range = 'today', string $contact = '', int $chatPage = 1): string {
+    $params = ['page'=>'chat','status'=>$status,'range'=>$range];
     if ($search !== '') $params['q'] = $search;
     if ($contact !== '') $params['contact'] = $contact;
     if ($chatPage > 1) $params['p'] = $chatPage;
     return '?' . http_build_query($params);
 }
+$currentStats = $stats[$range];
+$allContactCount = $currentStats['total'];
+$newContactCount = $currentStats['unread'];
+$followedContactCount = $currentStats['read_count'];
+
 ?>
 
 <section class="page-head chat-page-head">
@@ -234,17 +297,25 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $c
     </div>
 </div>
 
+<div class="chat-range-tabs" aria-label="Rentang waktu percakapan">
+    <?php foreach (['today' => 'Hari Ini', 'week' => 'Minggu Ini', 'month' => 'Bulan Ini', 'all' => 'Semua Waktu'] as $rangeKey => $rangeLabel): ?>
+        <a class="<?= $range === $rangeKey ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search, $status, $rangeKey)) ?>">
+            <?= htmlspecialchars($rangeLabel) ?>
+        </a>
+    <?php endforeach; ?>
+</div>
+
 <div class="chat-stats">
-    <a class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all')) ?>"><strong><?= $allContactCount ?></strong><span>Semua</span></a>
-    <a class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new')) ?>"><strong><?= $newContactCount ?></strong><span>Baru</span></a>
-    <a class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed')) ?>"><strong><?= $followedContactCount ?></strong><span>Follow-up</span></a>
+    <a data-chat-stat="all" class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all',$range)) ?>"><strong><?= $allContactCount ?></strong><span>Semua</span></a>
+    <a data-chat-stat="new" class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new',$range)) ?>"><strong><?= $newContactCount ?></strong><span>Baru</span></a>
+    <a data-chat-stat="followed" class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed',$range)) ?>"><strong><?= $followedContactCount ?></strong><span>Follow-up</span></a>
 </div>
 
 <form class="search-box" method="get">
     <input type="hidden" name="page" value="chat"><input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
     <i class="fa-solid fa-magnifying-glass"></i>
     <input name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Cari nama, nomor, atau isi pesan...">
-    <?php if ($search): ?><a href="<?= htmlspecialchars(crmChatUrl('', $status)) ?>"><i class="fa-solid fa-xmark"></i></a><?php endif; ?>
+    <?php if ($search): ?><a href="<?= htmlspecialchars(crmChatUrl('', $status, $range)) ?>"><i class="fa-solid fa-xmark"></i></a><?php endif; ?>
 </form>
 
 <div class="chat-sheet-backdrop" id="crmChatSheetBackdrop" aria-hidden="true"></div>
@@ -255,23 +326,25 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $c
             <div class="empty-state"><i class="fa-regular fa-comments"></i><strong>Tidak ada percakapan</strong><p>Belum ada data yang cocok dengan filter ini.</p></div>
         <?php else: foreach ($contacts as $row): ?>
             <?php
-                $displayRow = !empty($row['eligible_row']) ? $row['eligible_row'] : $row;
-                $name = crmChatName($displayRow);
-                $classification = crmProspectClassifyMessage((string)$displayRow['message'], $conn);
+                $name = trim((string)($row['nama'] ?? '')) ?: 'Hamba Allah';
+                $lastMessage = trim((string)($row['last_message'] ?? ''));
+                $lastDirection = (string)($row['last_direction'] ?? '');
+                $activityLabel = $lastDirection === 'in' ? 'Pesan masuk' : 'Dikirim';
                 $isSelected = $selected !== '' && crmProspectNormalizeNumber($selected) === $row['clean_wa'];
+                $lastActivityAt = $row['last_message_at'] ?: ($row['last_inbound_at'] ?: $row['last_outbound_at']);
             ?>
-            <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$row['nowa'],$chatPage)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?>">
+            <a data-chat-nowa="<?= htmlspecialchars($row['nowa']) ?>" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,$row['nowa'],$chatPage)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?>">
                 <span class="activity-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($name,0,1))) ?></span>
                 <span class="chat-body">
                     <strong><?= htmlspecialchars($name) ?></strong>
-                    <small><?= htmlspecialchars($classification) ?> · <?= htmlspecialchars(crmPreview((string)$row['message'])) ?></small>
+                    <small><?= htmlspecialchars($activityLabel) ?> · <?= htmlspecialchars(crmPreview($lastMessage)) ?></small>
                 </span>
                 <span class="chat-meta">
-                    <time><?= htmlspecialchars(date('H:i',strtotime($row['created_at']))) ?></time>
+                    <time><?= htmlspecialchars($lastActivityAt ? date('H:i', strtotime($lastActivityAt)) : '') ?></time>
                     <?php if (!empty($row['has_new_message'])): ?>
                         <b class="chat-new-badge">BARU</b>
-                    <?php else: ?>
-                        <i class="fa-solid fa-check-double"></i>
+                    <?php elseif ((int)$row['followup_count'] > 0): ?>
+                        <i class="fa-solid fa-check-double" title="<?= (int)$row['followup_count'] ?> follow-up"></i>
                     <?php endif; ?>
                 </span>
             </a>
@@ -285,16 +358,16 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $c
             <div class="chat-panel-head">
                 <div class="contact-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($selectedName,0,1))) ?></div>
                 <div class="chat-panel-contact"><strong><?= htmlspecialchars($selectedName) ?></strong><small><?= htmlspecialchars($selectedContact['nowa']) ?></small></div>
-                <a class="chat-panel-close" href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$chatPage)) ?>" aria-label="Tutup percakapan"><i class="fa-solid fa-xmark"></i></a>
+                <a class="chat-panel-close" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage)) ?>" aria-label="Tutup percakapan"><i class="fa-solid fa-xmark"></i></a>
             </div>
             <div class="chat-history-section">
                 <div class="section-title-row"><span class="message-label">Percakapan terbaru</span><small><?= count($recentMessages) ?> log terakhir</small></div>
                 <div class="chat-history-scroll">
                     <?php foreach (array_reverse($recentMessages) as $historyRow): ?>
-                        <div class="chat-log-item">
+                        <div class="chat-log-item <?= ($historyRow['direction'] ?? '') === 'in' ? 'chat-log-in' : 'chat-log-out' ?>">
                             <div class="chat-log-meta">
-                                <time><?= htmlspecialchars(crmChatDate($historyRow['created_at'])) ?></time>
-                                <?php if (!empty($historyRow['is_form_sent'])): ?><span class="chat-log-badge">Form</span><?php endif; ?>
+                                <time><?= htmlspecialchars(crmChatDate($historyRow['sent_at'] ?? null)) ?></time>
+                                <span class="chat-log-badge"><?= ($historyRow['direction'] ?? '') === 'in' ? 'Masuk' : 'Admin' ?></span>
                             </div>
                             <p><?= nl2br(htmlspecialchars((string)$historyRow['message'])) ?></p>
                         </div>
@@ -302,7 +375,7 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $c
                 </div>
             </div>
             <div class="poloap-history-section">
-                <div class="section-title-row"><span class="message-label">Riwayat Poloap</span><small><?= count($poloapHistory) ?> follow-up</small></div>
+                <div class="section-title-row"><span class="message-label">Riwayat Follow-up Lama</span><small><?= count($poloapHistory) ?> log lama</small></div>
                 <div class="poloap-history-list">
                     <?php if (!$poloapHistory): ?>
                         <div class="history-empty">Belum ada riwayat Poloap untuk kontak ini.</div>
@@ -329,13 +402,13 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $c
 <?php if ($totalPages > 1): ?>
 <nav class="chat-pagination" aria-label="Pagination Chat">
     <?php if ($chatPage > 1): ?>
-        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$chatPage - 1)) ?>"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</a>
+        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage - 1)) ?>"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</a>
     <?php else: ?>
         <span class="disabled"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</span>
     <?php endif; ?>
     <strong>Halaman <?= $chatPage ?> / <?= $totalPages ?></strong>
     <?php if ($chatPage < $totalPages): ?>
-        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,'',$chatPage + 1)) ?>">Berikutnya <i class="fa-solid fa-chevron-right"></i></a>
+        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage + 1)) ?>">Berikutnya <i class="fa-solid fa-chevron-right"></i></a>
     <?php else: ?>
         <span class="disabled">Berikutnya <i class="fa-solid fa-chevron-right"></i></span>
     <?php endif; ?>
@@ -345,6 +418,31 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $c
 <script>
 (() => {
     document.body.classList.toggle('crm-chat-sheet-open', <?= $selectedContact ? 'true' : 'false' ?>);
+
+    const selectedNumber = <?= $selectedContact ? json_encode($selectedContact['nowa']) : 'null' ?>;
+    const csrfToken = <?= json_encode(crmCsrfToken()) ?>;
+
+    if (selectedNumber) {
+        const form = new URLSearchParams();
+        form.set('nowa', selectedNumber);
+        form.set('csrf', csrfToken);
+
+        fetch('actions/chat-mark-read.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+            body: form.toString(),
+            credentials: 'same-origin',
+            keepalive: true
+        }).then(response => {
+            if (!response.ok) return;
+            document.querySelectorAll('.chat-item.is-new').forEach(item => {
+                if (item.getAttribute('href')?.includes(encodeURIComponent(selectedNumber))) {
+                    item.classList.remove('is-new');
+                    item.querySelector('.chat-new-badge')?.remove();
+                }
+            });
+        }).catch(() => {});
+    }
 
     const sheetBackdrop = document.getElementById('crmChatSheetBackdrop');
     const sheetClose = document.querySelector('.chat-panel-close');
@@ -374,6 +472,145 @@ function crmChatUrl(string $search, string $status, string $contact = '', int $c
     if (cancelBtn) cancelBtn.onclick = closeModal;
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
-    setInterval(poll,10000);
+    const chatPollUrl = <?= json_encode('actions/chat-poll.php') ?>;
+    const chatCurrentSearch = <?= json_encode($search) ?>;
+    const chatCurrentStatus = <?= json_encode($status) ?>;
+    const chatCurrentRange = <?= json_encode($range) ?>;
+    const chatCurrentPage = <?= (int)$chatPage ?>;
+    let chatPollCursor = <?= json_encode(date('Y-m-d H:i:s')) ?>;
+    let chatPollBusy = false;
+
+    const escapeHtml = (value) => {
+        const div = document.createElement('div');
+        div.textContent = value ?? '';
+        return div.innerHTML;
+    };
+
+    const updateChatStats = (stats) => {
+        if (!stats) return;
+        const values = {
+            all: stats.total,
+            new: stats.unread,
+            followed: stats.read_count
+        };
+        Object.entries(values).forEach(([key, value]) => {
+            const node = document.querySelector('[data-chat-stat="' + key + '"] strong');
+            if (node && Number.isFinite(Number(value))) node.textContent = String(value);
+        });
+    };
+
+    const chatItemUrl = (nowa) => {
+        const params = new URLSearchParams(window.location.search);
+        params.set('page', 'chat');
+        params.set('status', chatCurrentStatus);
+        params.set('range', chatCurrentRange);
+        params.set('q', chatCurrentSearch);
+        params.set('contact', nowa);
+        params.set('p', String(chatCurrentPage));
+        return '?' + params.toString();
+    };
+
+    const buildChatItem = (row) => {
+        const name = String(row.nama || 'Hamba Allah').trim() || 'Hamba Allah';
+        const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim().slice(0, 68);
+        const direction = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
+        const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
+        const item = document.createElement('a');
+        item.className = 'chat-item' + (row.unread_count > 0 ? ' is-new' : '');
+        item.dataset.chatNowa = row.nowa;
+        item.href = chatItemUrl(row.nowa);
+        item.innerHTML =
+            '<span class="activity-avatar">' + escapeHtml(name.slice(0, 1).toUpperCase()) + '</span>' +
+            '<span class="chat-body"><strong>' + escapeHtml(name) + '</strong>' +
+            '<small>' + escapeHtml(direction + ' · ' + preview) + '</small></span>' +
+            '<span class="chat-meta"><time>' + escapeHtml(time) + '</time>' +
+            (row.unread_count > 0
+                ? '<b class="chat-new-badge">BARU</b>'
+                : (row.followup_count > 0 ? '<i class="fa-solid fa-check-double" title="' + escapeHtml(String(row.followup_count) + ' follow-up') + '"></i>' : '')) +
+            '</span>';
+        return item;
+    };
+
+    const updateChatItem = (row) => {
+        const item = document.querySelector('.chat-item[data-chat-nowa="' + CSS.escape(row.nowa) + '"]');
+        if (!item) return;
+
+        const body = item.querySelector('.chat-body');
+        const meta = item.querySelector('.chat-meta');
+        const lastDirection = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
+        const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim();
+        const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
+
+        if (body) {
+            const name = body.querySelector('strong');
+            const detail = body.querySelector('small');
+            if (name && row.nama) name.textContent = row.nama;
+            if (detail) detail.textContent = lastDirection + ' · ' + preview.slice(0, 68);
+        }
+
+        if (meta) {
+            const timeNode = meta.querySelector('time');
+            if (timeNode) timeNode.textContent = time;
+            if (row.unread_count > 0) {
+                item.classList.add('is-new');
+                if (!meta.querySelector('.chat-new-badge')) {
+                    const badge = document.createElement('b');
+                    badge.className = 'chat-new-badge';
+                    badge.textContent = 'BARU';
+                    meta.appendChild(badge);
+                }
+            }
+        }
+    };
+
+    const syncChatList = (row) => {
+        const list = document.querySelector('.chat-list');
+        if (!list) return;
+
+        const item = document.querySelector('.chat-item[data-chat-nowa="' + CSS.escape(row.nowa) + '"]');
+        if (!row.matches_filter) {
+            if (item && !item.classList.contains('selected')) item.remove();
+            return;
+        }
+
+        if (item) {
+            updateChatItem(row);
+            return;
+        }
+
+        if (chatCurrentPage !== 1) return;
+
+        const newItem = buildChatItem(row);
+        list.prepend(newItem);
+
+        const items = list.querySelectorAll('.chat-item');
+        if (items.length > 20) items[items.length - 1].remove();
+
+        list.querySelector('.empty-state')?.remove();
+    };
+
+    const pollChat = async () => {
+        if (chatPollBusy || document.hidden) return;
+        chatPollBusy = true;
+        try {
+            const response = await fetch(chatPollUrl + '?since=' + encodeURIComponent(chatPollCursor), {
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!data?.ok) return;
+
+            chatPollCursor = data.server_time || chatPollCursor;
+            updateChatStats(data.stats);
+            for (const row of (data.conversations || [])) syncChatList(row);
+        } catch (_) {
+            // Polling is non-critical. The next interval retries without disrupting Chat.
+        } finally {
+            chatPollBusy = false;
+        }
+    };
+
+    window.setInterval(pollChat, 10000);
 })();
 </script>
