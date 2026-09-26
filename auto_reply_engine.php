@@ -92,6 +92,24 @@ class AutoReplyEngine
             $sent = $this->sendViaOneSender($phone, $replyText);
             $status = $sent ? 'sent' : 'failed';
 
+            if ($sent) {
+                try {
+                    require_once __DIR__ . '/crm/config/chat.php';
+                    crmChatStoreMessage(
+                        $this->conn,
+                        $phone,
+                        $userName,
+                        $replyText,
+                        'out',
+                        'admin',
+                        'auto_reply',
+                        date('Y-m-d H:i:s')
+                    );
+                } catch (Throwable $e) {
+                    $this->logToFile("CHAT HISTORY ERROR: " . $e->getMessage());
+                }
+            }
+
             $this->logAutoReply($phone, $message, $replyText, $status, (int)($rule['id'] ?? 0));
             $this->logToFile("Auto-reply {$status} (rule ID {$rule['id']})");
 
