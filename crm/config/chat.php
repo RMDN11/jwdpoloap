@@ -214,6 +214,25 @@ function crmChatRecordFollowup(
     return $followupId;
 }
 
+function crmChatRefreshFollowupCount(mysqli $conn, int $conversationId): bool {
+    if (!crmChatTablesReady($conn) || $conversationId <= 0) return false;
+
+    $stmt = $conn->prepare(
+        "UPDATE crm_conversations c
+         SET followup_count = (
+             SELECT COUNT(*)
+             FROM crm_followups f
+             WHERE f.conversation_id = c.id
+         )
+         WHERE c.id = ?"
+    );
+    if (!$stmt) return false;
+    $stmt->bind_param('i', $conversationId);
+    $ok = $stmt->execute();
+    $stmt->close();
+    return $ok;
+}
+
 function crmChatMarkRead(mysqli $conn, string $nowa): bool {
     if (!crmChatTablesReady($conn)) return false;
 
