@@ -475,6 +475,7 @@ $followedContactCount = $currentStats['read_count'];
     const chatCurrentRange = <?= json_encode($range) ?>;
     const chatCurrentRoom = <?= json_encode($room) ?>;
     const chatCurrentPage = <?= (int)$chatPage ?>;
+    const chatSelectedNumber = selectedNumber;
     let chatPollCursor = <?= json_encode(date('Y-m-d H:i:s')) ?>;
     let chatPollBusy = false;
 
@@ -482,6 +483,33 @@ $followedContactCount = $currentStats['read_count'];
         const div = document.createElement('div');
         div.textContent = value ?? '';
         return div.innerHTML;
+    };
+
+    const renderSelectedHistory = (messages) => {
+        const scroll = document.querySelector('.chat-history-scroll');
+        const countNode = document.querySelector('.chat-history-section .section-title-row small');
+        if (!scroll || !Array.isArray(messages)) return;
+
+        const ordered = [...messages].reverse();
+        scroll.innerHTML = ordered.length
+            ? ordered.map((message) => {
+                const inbound = String(message.direction || '') === 'in';
+                const dateText = message.sent_at ? new Date(String(message.sent_at).replace(' ', 'T')).toLocaleString('id-ID', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : '';
+                return '<div class="chat-log-item ' + (inbound ? 'chat-log-in' : 'chat-log-out') + '">' +
+                    '<div class="chat-log-meta"><time>' + escapeHtml(dateText) + '</time><span class="chat-log-badge">' + (inbound ? 'Masuk' : 'Admin') + '</span></div>' +
+                    '<p>' + escapeHtml(String(message.message || '')).replace(/\n/g, '<br>') + '</p>' +
+                '</div>';
+            }).join('')
+            : '<div class="history-empty">Belum ada pesan dalam percakapan ini.</div>';
+
+        if (countNode) countNode.textContent = ordered.length + ' log terakhir';
+        scroll.scrollTop = scroll.scrollHeight;
     };
 
     const updateChatRoomCounts = (counts) => {
@@ -602,7 +630,7 @@ $followedContactCount = $currentStats['read_count'];
         if (chatPollBusy || document.hidden) return;
         chatPollBusy = true;
         try {
-            const response = await fetch(chatPollUrl + '?since=' + encodeURIComponent(chatPollCursor) + '&room=' + encodeURIComponent(chatCurrentRoom) + '&status=' + encodeURIComponent(chatCurrentStatus) + '&range=' + encodeURIComponent(chatCurrentRange) + '&q=' + encodeURIComponent(chatCurrentSearch), {
+            const response = await fetch(chatPollUrl + '?since=' + encodeURIComponent(chatPollCursor) + '&room=' + encodeURIComponent(chatCurrentRoom) + '&status=' + encodeURIComponent(chatCurrentStatus) + '&range=' + encodeURIComponent(chatCurrentRange) + '&q=' + encodeURIComponent(chatCurrentSearch) + (chatSelectedNumber ? '&contact=' + encodeURIComponent(chatSelectedNumber) : ''), {
                 credentials: 'same-origin',
                 cache: 'no-store'
             });
@@ -613,7 +641,22 @@ $followedContactCount = $currentStats['read_count'];
             chatPollCursor = data.server_time || chatPollCursor;
             updateChatStats(data.stats);
             updateChatRoomCounts(data.room_counts);
-            for (const row of (data.conversations || [])) syncChatList(row);
+            for (const row of (data.conversations || [])) {
+                syncChatList(row);
+                if (chatSelectedNumber && crmProspectNormalizeNumber(row.nowa || '') === crmProspectNormalizeNumber(chatSelectedNumber)) {
+                    renderSelectedHistory(data.selected_history || []);
+                    const form = new URLSearchParams();
+                    form.set('nowa', chatSelectedNumber);
+                    form.set('csrf', csrfToken);
+                    fetch('actions/chat-mark-read.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+                        body: form.toString(),
+                        credentials: 'same-origin',
+                        keepalive: true
+                    }).catch(() => {});
+                }
+            }
         } catch (_) {
             // Polling is non-critical. The next interval retries without disrupting Chat.
         } finally {
