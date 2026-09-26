@@ -465,6 +465,10 @@ $followedContactCount = $currentStats['read_count'];
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
     const chatPollUrl = <?= json_encode('actions/chat-poll.php') ?>;
+    const chatCurrentSearch = <?= json_encode($search) ?>;
+    const chatCurrentStatus = <?= json_encode($status) ?>;
+    const chatCurrentRange = <?= json_encode($range) ?>;
+    const chatCurrentPage = <?= (int)$chatPage ?>;
     let chatPollCursor = <?= json_encode(date('Y-m-d H:i:s')) ?>;
     let chatPollBusy = false;
 
@@ -474,9 +478,49 @@ $followedContactCount = $currentStats['read_count'];
         return div.innerHTML;
     };
 
-    const updateChatStats = (unreadToday) => {
-        const newStat = document.querySelector('[data-chat-stat="new"] strong');
-        if (newStat && Number.isFinite(Number(unreadToday))) newStat.textContent = String(unreadToday);
+    const updateChatStats = (stats) => {
+        if (!stats) return;
+        const values = {
+            all: stats.total,
+            new: stats.unread,
+            followed: stats.read_count
+        };
+        Object.entries(values).forEach(([key, value]) => {
+            const node = document.querySelector('[data-chat-stat="' + key + '"] strong');
+            if (node && Number.isFinite(Number(value))) node.textContent = String(value);
+        });
+    };
+
+    const chatItemUrl = (nowa) => {
+        const params = new URLSearchParams(window.location.search);
+        params.set('page', 'chat');
+        params.set('status', chatCurrentStatus);
+        params.set('range', chatCurrentRange);
+        params.set('q', chatCurrentSearch);
+        params.set('contact', nowa);
+        params.set('chat_page', String(chatCurrentPage));
+        return '?' + params.toString();
+    };
+
+    const buildChatItem = (row) => {
+        const name = String(row.nama || 'Hamba Allah').trim() || 'Hamba Allah';
+        const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim().slice(0, 68);
+        const direction = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
+        const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
+        const item = document.createElement('a');
+        item.className = 'chat-item' + (row.unread_count > 0 ? ' is-new' : '');
+        item.dataset.chatNowa = row.nowa;
+        item.href = chatItemUrl(row.nowa);
+        item.innerHTML =
+            '<span class="activity-avatar">' + escapeHtml(name.slice(0, 1).toUpperCase()) + '</span>' +
+            '<span class="chat-body"><strong>' + escapeHtml(name) + '</strong>' +
+            '<small>' + escapeHtml(direction + ' · ' + preview) + '</small></span>' +
+            '<span class="chat-meta"><time>' + escapeHtml(time) + '</time>' +
+            (row.unread_count > 0
+                ? '<b class="chat-new-badge">BARU</b>'
+                : (row.followup_count > 0 ? '<i class="fa-solid fa-check-double" title="' + escapeHtml(String(row.followup_count) + ' follow-up') + '"></i>' : '')) +
+            '</span>';
+        return item;
     };
 
     const updateChatItem = (row) => {
@@ -511,6 +555,32 @@ $followedContactCount = $currentStats['read_count'];
         }
     };
 
+    const syncChatList = (row) => {
+        const list = document.querySelector('.chat-list');
+        if (!list) return;
+
+        const item = document.querySelector('.chat-item[data-chat-nowa="' + CSS.escape(row.nowa) + '"]');
+        if (!row.matches_filter) {
+            if (item && !item.classList.contains('selected')) item.remove();
+            return;
+        }
+
+        if (item) {
+            updateChatItem(row);
+            return;
+        }
+
+        if (chatCurrentPage !== 1) return;
+
+        const newItem = buildChatItem(row);
+        list.prepend(newItem);
+
+        const items = list.querySelectorAll('.chat-item');
+        if (items.length > 20) items[items.length - 1].remove();
+
+        list.querySelector('.empty-state')?.remove();
+    };
+
     const pollChat = async () => {
         if (chatPollBusy || document.hidden) return;
         chatPollBusy = true;
@@ -524,8 +594,8 @@ $followedContactCount = $currentStats['read_count'];
             if (!data?.ok) return;
 
             chatPollCursor = data.server_time || chatPollCursor;
-            updateChatStats(data.unread_today);
-            for (const row of (data.conversations || [])) updateChatItem(row);
+            updateChatStats(data.stats);
+            for (const row of (data.conversations || [])) syncChatList(row);
         } catch (_) {
             // Polling is non-critical. The next interval retries without disrupting Chat.
         } finally {
