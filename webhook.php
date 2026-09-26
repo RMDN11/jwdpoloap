@@ -60,7 +60,7 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 // 5. EKSTRAKSI DATA & DETEKSI NAMA OTOMATIS DARI ISI PESAN
 // =================================================================
 $senderPhone = $data['sender_phone'] ?? $data['phone'] ?? $data['from'] ?? '';
-$messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';
+$messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';\n$externalMessageId = trim((string)($data['message_id'] ?? $data['messageId'] ?? $data['id'] ?? ''));
 
 $senderPhone = trim($senderPhone);
 $messageText = trim($messageText);
@@ -102,7 +102,7 @@ logx("NAME: {$senderName}");
 logx("MESSAGE: " . substr($messageText, 0, 50) . "...");
 
 // 6. SIMPAN KE DATABASE (Tabel log_wa)
-require_once $baseDir . '/config.php';
+require_once $baseDir . '/config.php';\nrequire_once $baseDir . '/crm/config/chat.php';
 
 $dbConnected = isset($conn) && $conn instanceof mysqli && !$conn->connect_error;
 logx("DB CONNECTED: " . ($dbConnected ? 'YES' : 'NO'));
@@ -123,6 +123,25 @@ if ($dbConnected) {
         $stmt->close();
     } catch (Throwable $e) {
         logx("❌ GAGAL SIMPAN DB (Exception): " . $e->getMessage());
+    }
+}
+
+// 6b. SIMPAN KE LAYER CONVERSATION BARU (dual-write, non-blocking)
+if ($dbConnected) {
+    try {
+        crmChatStoreMessage(
+            $conn,
+            $senderPhone,
+            $senderName,
+            $messageText,
+            'in',
+            'recipient',
+            'webhook',
+            $timestamp,
+            $externalMessageId !== '' ? $externalMessageId : null
+        );
+    } catch (Throwable $e) {
+        logx("CHAT LAYER ERROR: " . $e->getMessage());
     }
 }
 
