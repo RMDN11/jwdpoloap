@@ -200,7 +200,7 @@ function crmChatLegacySync(mysqli $conn): int {
         "UPDATE crm_conversations
          SET room = 'customer_baru',
              room_source = 'auto',
-             intent_category = ?
+             intent_category = COALESCE(?, intent_category)
          WHERE id = ?
            AND room_source <> 'manual'
            AND room <> 'sudah_payment'
