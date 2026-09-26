@@ -304,7 +304,7 @@ $followedContactCount = $currentStats['read_count'];
         'people' => ['label' => 'Peserta & Pengajar', 'icon' => 'fa-users'],
         'other' => ['label' => 'Chat Masuk Lainnya', 'icon' => 'fa-inbox'],
     ] as $roomKey => $roomItem): ?>
-        <a class="<?= $room === $roomKey ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search, $status, $range, '', 1, $roomKey)) ?>">
+        <a data-chat-room="<?= htmlspecialchars($roomKey) ?>" class="<?= $room === $roomKey ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search, $status, $range, '', 1, $roomKey)) ?>">
             <i class="fa-solid <?= htmlspecialchars($roomItem['icon']) ?>"></i>
             <span><?= htmlspecialchars($roomItem['label']) ?></span>
             <b><?= (int)($roomCounts[$roomKey] ?? 0) ?></b>
@@ -484,6 +484,14 @@ $followedContactCount = $currentStats['read_count'];
         return div.innerHTML;
     };
 
+    const updateChatRoomCounts = (counts) => {
+        if (!counts) return;
+        Object.entries(counts).forEach(([key, value]) => {
+            const node = document.querySelector('[data-chat-room="' + key + '"] b');
+            if (node && Number.isFinite(Number(value))) node.textContent = String(value);
+        });
+    };
+
     const updateChatStats = (stats) => {
         if (!stats) return;
         const values = {
@@ -604,6 +612,7 @@ $followedContactCount = $currentStats['read_count'];
 
             chatPollCursor = data.server_time || chatPollCursor;
             updateChatStats(data.stats);
+            updateChatRoomCounts(data.room_counts);
             for (const row of (data.conversations || [])) syncChatList(row);
         } catch (_) {
             // Polling is non-critical. The next interval retries without disrupting Chat.
