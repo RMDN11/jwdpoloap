@@ -5,10 +5,17 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+header('Content-Type: application/json; charset=utf-8');
+
 if (empty($_SESSION['logged_in'])) {
     http_response_code(401);
-    header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok' => false, 'message' => 'Unauthorized']);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['ok' => false, 'message' => 'Method not allowed']);
     exit;
 }
 
@@ -17,34 +24,53 @@ require_once __DIR__ . '/../config/chat.php';
 
 if (!isset($conn) || !($conn instanceof mysqli)) {
     http_response_code(500);
-    header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok' => false, 'message' => 'Database connection unavailable']);
     exit;
 }
 
 $conn->set_charset('utf8mb4');
 
-header('Content-Type: application/json; charset=utf-8');
-
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    http_response_code(405);
-    echo json_encode(['ok' => false, 'message' => 'Method not allowed']);
-    exit;
-}
-
 $since = trim((string)($_GET['since'] ?? ''));
-if ($since === '') {
-    $since = date('Y-m-d H:i:s', time() - 15);
-}
-
-$sinceDate = DateTime::createFromFormat('Y-m-d H:i:s', $since);
+$sinceDate = $since !== '' ? DateTime::createFromFormat('Y-m-d H:i:s', $since) : false;
 if (!$sinceDate) {
-    http_response_code(422);
-    echo json_encode(['ok' => false, 'message' => 'Cursor waktu tidak valid']);
-    exit;
+    $sinceDate = new DateTime('-15 seconds');
 }
 
 $sinceSql = $sinceDate->format('Y-m-d H:i:s');
+$search = trim((string)($_GET['q'] ?? ''));
+$status = trim((string)($_GET['status'] ?? 'all'));
+$range = trim((string)($_GET['range'] ?? 'today'));
+
+if (!in_array($status, ['all', 'new', 'followed'], true)) $status = 'all';
+if (!in_array($range, ['today', 'week', 'month', 'all'], true)) $range = 'today';
+
+$rangeSql = match ($range) {
+    'week' => "last_message_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
+    'month' => "last_message_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
+    'all' => "1=1",
+    default => "last_message_at >= CURDATE()",
+};
+
+$statusSql = match ($status) {
+    'new' => "unread_count > 0",
+    'followed' => "unread_count = 0",
+    default => "1=1",
+};
+
+$searchSql = $search !== ''
+    ? "(
+        nama LIKE ?
+        OR nowa LIKE ?
+        OR EXISTS (
+            SELECT 1
+            FROM crm_messages cms
+            WHERE cms.conversation_id = crm_conversations.id
+              AND cms.message LIKE ?
+        )
+    )"
+    : "1=1";
+
+$matchSql = "($rangeSql) AND ($statusSql) AND ($searchSql)";
 
 $stmt = $conn->prepare(
     "SELECT
@@ -69,7 +95,8 @@ $stmt = $conn->prepare(
             WHERE cm.conversation_id = crm_conversations.id
             ORDER BY cm.sent_at DESC, cm.id DESC
             LIMIT 1
-        ) AS last_direction
+        ) AS last_direction,
+        CASE WHEN $matchSql THEN 1 ELSE 0 END AS matches_filter
      FROM crm_conversations
      WHERE last_message_at >= ?
      ORDER BY last_message_at DESC, id DESC
@@ -82,21 +109,40 @@ if (!$stmt) {
     exit;
 }
 
-$stmt->bind_param('s', $sinceSql);
-$stmt->execute();
+$params = [];
+$types = '';
+
+if ($search !== '') {
+    $searchLike = '%' . $search . '%';
+    $params[] = $searchLike;
+    $params[] = $searchLike;
+    $params[] = $searchLike;
+    $types .= 'sss';
+}
+$params[] = $sinceSql;
+$types .= 's';
+
+$bind = [$types];
+foreach ($params as $key => $value) {
+    $bind[] = &$params[$key];
+}
+call_user_func_array([$stmt, 'bind_param'], $bind);
+
+if (!$stmt->execute()) {
+    $stmt->close();
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'message' => 'Polling Chat gagal dijalankan']);
+    exit;
+}
+
 $result = $stmt->get_result();
-
-$updatedAt = $sinceSql;
 $conversations = [];
-
 while ($row = $result->fetch_assoc()) {
     $row['id'] = (int)$row['id'];
     $row['unread_count'] = (int)$row['unread_count'];
     $row['followup_count'] = (int)$row['followup_count'];
+    $row['matches_filter'] = (bool)$row['matches_filter'];
     $conversations[] = $row;
-
-    $rowTime = (string)($row['last_message_at'] ?? '');
-    if ($rowTime > $updatedAt) $updatedAt = $rowTime;
 }
 $stmt->close();
 
@@ -114,7 +160,6 @@ if ($unreadStmt) {
 echo json_encode([
     'ok' => true,
     'server_time' => date('Y-m-d H:i:s'),
-    'cursor' => $updatedAt,
     'unread_today' => $unreadToday,
     'conversations' => $conversations,
 ], JSON_UNESCAPED_UNICODE);
