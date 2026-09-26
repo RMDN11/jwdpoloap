@@ -4,11 +4,13 @@ declare(strict_types=1);
 function crmChatDirectoryTables(mysqli $conn): array {
     static $tables = null;
     if (is_array($tables)) return $tables;
+    $tables = [];
     $result = $conn->query(
-        "SELECT table_name
-         FROM information_schema.tables
-         WHERE table_schema = DATABASE()
-           AND table_name IN ('peserta', 'pengampu', 'pengajar')"
+        "SELECT c.table_name
+         FROM information_schema.columns c
+         WHERE c.table_schema = DATABASE()
+           AND c.table_name IN ('peserta', 'pengampu', 'pengajar')
+           AND c.column_name = 'nowa'"
     );
     if ($result) {
         while ($row = $result->fetch_assoc()) {
@@ -18,6 +20,7 @@ function crmChatDirectoryTables(mysqli $conn): array {
             }
         }
     }
+    $tables = array_values(array_unique($tables));
     sort($tables);
     return $tables;
 }
