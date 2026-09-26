@@ -298,9 +298,9 @@ $followedContactCount = $currentStats['read_count'];
 </div>
 
 <div class="chat-stats">
-    <a class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all',$range)) ?>"><strong><?= $allContactCount ?></strong><span>Semua</span></a>
-    <a class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new',$range)) ?>"><strong><?= $newContactCount ?></strong><span>Baru</span></a>
-    <a class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed',$range)) ?>"><strong><?= $followedContactCount ?></strong><span>Follow-up</span></a>
+    <a data-chat-stat="all" class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all',$range)) ?>"><strong><?= $allContactCount ?></strong><span>Semua</span></a>
+    <a data-chat-stat="new" class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new',$range)) ?>"><strong><?= $newContactCount ?></strong><span>Baru</span></a>
+    <a data-chat-stat="followed" class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed',$range)) ?>"><strong><?= $followedContactCount ?></strong><span>Follow-up</span></a>
 </div>
 
 <form class="search-box" method="get">
@@ -474,6 +474,11 @@ $followedContactCount = $currentStats['read_count'];
         return div.innerHTML;
     };
 
+    const updateChatStats = (unreadToday) => {
+        const newStat = document.querySelector('[data-chat-stat="new"] strong');
+        if (newStat && Number.isFinite(Number(unreadToday))) newStat.textContent = String(unreadToday);
+    };
+
     const updateChatItem = (row) => {
         const item = document.querySelector('.chat-item[data-chat-nowa="' + CSS.escape(row.nowa) + '"]');
         if (!item) return;
@@ -519,6 +524,7 @@ $followedContactCount = $currentStats['read_count'];
             if (!data?.ok) return;
 
             chatPollCursor = data.server_time || chatPollCursor;
+            updateChatStats(data.unread_today);
             for (const row of (data.conversations || [])) updateChatItem(row);
         } catch (_) {
             // Polling is non-critical. The next interval retries without disrupting Chat.
