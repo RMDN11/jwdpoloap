@@ -4,12 +4,7 @@ declare(strict_types=1);
 function crmChatDirectoryTables(mysqli $conn): array {
     static $tables = null;
     if (is_array($tables)) return $tables;
-    $tables = [];
-    foreach (['peserta', 'pengampu', 'pengajar'] as $table) {
-        $safe = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-        $result = $conn->query("SHOW TABLES LIKE '{$safe}'");
-        if ($result && $result->num_rows > 0) $tables[] = $safe;
-    }
+    $tables = ['peserta', 'pengampu', 'pengajar'];
     return $tables;
 }
 
