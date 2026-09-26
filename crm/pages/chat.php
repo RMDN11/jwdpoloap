@@ -498,7 +498,7 @@ $followedContactCount = $currentStats['read_count'];
         params.set('range', chatCurrentRange);
         params.set('q', chatCurrentSearch);
         params.set('contact', nowa);
-        params.set('chat_page', String(chatCurrentPage));
+        params.set('p', String(chatCurrentPage));
         return '?' + params.toString();
     };
 
