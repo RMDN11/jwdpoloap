@@ -1,9 +1,11 @@
 <?php
-$crmTitle = 'Follow Up';
+$crmTitle = 'Chat';
 require_once __DIR__ . '/../config/prospect.php';
+require_once __DIR__ . '/../config/chat-directory.php';
 $search = trim((string)($_GET['q'] ?? ''));
 $status = (string)($_GET['status'] ?? 'all');
 $range = (string)($_GET['range'] ?? 'today');
+$room = (string)($_GET['room'] ?? 'all');
 $selected = trim((string)($_GET['contact'] ?? ''));
 $chatPage = max(1, (int)($_GET['p'] ?? 1));
 $perPage = 20;
@@ -13,6 +15,9 @@ if (!in_array($status, $allowedStatus, true)) $status = 'all';
 
 $allowedRanges = ['today', 'week', 'month', 'all'];
 if (!in_array($range, $allowedRanges, true)) $range = 'today';
+$allowedRooms = ['all', 'people', 'other'];
+if (!in_array($room, $allowedRooms, true)) $room = 'all';
+$roomSql = crmChatRoomSql($conn, $room);
 
 $rangeSql = [
     'today' => "last_inbound_at >= CURDATE()",
@@ -21,7 +26,8 @@ $rangeSql = [
     'all'   => '1=1',
 ][$range];
 
-$conversationWhere = [$rangeSql];
+$conversationWhere = [$rangeSql, $roomSql];
+$knownSql = crmChatKnownContactSql($conn);
 $conversationBind = [];
 $conversationTypes = '';
 
@@ -75,6 +81,7 @@ $conversationSql = "SELECT
         last_read_at,
         unread_count,
         followup_count,
+        CASE WHEN {$knownSql} THEN 'people' ELSE 'other' END AS contact_room,
         (
             SELECT cm.message
             FROM crm_messages cm
@@ -121,20 +128,36 @@ $stats = [
     'all'   => ['total' => 0, 'unread' => 0, 'read_count' => 0],
 ];
 
+$roomCounts = ['all' => 0, 'people' => 0, 'other' => 0];
+$roomCountResult = $conn->query(
+    "SELECT COUNT(*) AS all_count,
+            COALESCE(SUM({$knownSql}), 0) AS people_count,
+            COALESCE(SUM(NOT {$knownSql}), 0) AS other_count
+     FROM crm_conversations
+     WHERE {$rangeSql}"
+);
+if ($roomCountResult && ($roomCountRow = $roomCountResult->fetch_assoc())) {
+    $roomCounts = [
+        'all' => (int)($roomCountRow['all_count'] ?? 0),
+        'people' => (int)($roomCountRow['people_count'] ?? 0),
+        'other' => (int)($roomCountRow['other_count'] ?? 0),
+    ];
+}
+
 $statsResult = $conn->query(
     "SELECT
-        COUNT(*) AS total,
-        COALESCE(SUM(last_inbound_at >= CURDATE()), 0) AS today_total,
-        COALESCE(SUM(last_inbound_at >= CURDATE() AND unread_count > 0), 0) AS today_unread,
-        COALESCE(SUM(last_inbound_at >= CURDATE() AND unread_count = 0), 0) AS today_read,
-        COALESCE(SUM(last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)), 0) AS week_total,
-        COALESCE(SUM(last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count > 0), 0) AS week_unread,
-        COALESCE(SUM(last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count = 0), 0) AS week_read,
-        COALESCE(SUM(last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_total,
-        COALESCE(SUM(last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count > 0), 0) AS month_unread,
-        COALESCE(SUM(last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count = 0), 0) AS month_read,
-        COALESCE(SUM(unread_count > 0), 0) AS all_unread,
-        COALESCE(SUM(unread_count = 0), 0) AS all_read
+        SUM({$roomSql}) AS total,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= CURDATE()), 0) AS today_total,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= CURDATE() AND unread_count > 0), 0) AS today_unread,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= CURDATE() AND unread_count = 0), 0) AS today_read,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)), 0) AS week_total,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count > 0), 0) AS week_unread,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count = 0), 0) AS week_read,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_total,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count > 0), 0) AS month_unread,
+        COALESCE(SUM(({$roomSql}) AND last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count = 0), 0) AS month_read,
+        COALESCE(SUM(({$roomSql}) AND unread_count > 0), 0) AS all_unread,
+        COALESCE(SUM(({$roomSql}) AND unread_count = 0), 0) AS all_read
      FROM crm_conversations"
 );
 if ($statsResult && ($statsRow = $statsResult->fetch_assoc())) {
@@ -224,7 +247,6 @@ $templates = [];
 $templateResult = $conn->query("SELECT id,name,content FROM poloap_templates ORDER BY name ASC");
 if ($templateResult) while ($template = $templateResult->fetch_assoc()) $templates[] = $template;
 
-$triggers = crmGetProspectTriggers($conn);
 
 function crmChatName(array $row): string {
     $raw = (string)($row['message'] ?? '');
@@ -241,8 +263,8 @@ function crmChatDate(?string $date): string {
     $timestamp = strtotime($date);
     return $timestamp ? date('d M Y, H:i', $timestamp) : '';
 }
-function crmChatUrl(string $search, string $status, string $range = 'today', string $contact = '', int $chatPage = 1): string {
-    $params = ['page'=>'chat','status'=>$status,'range'=>$range];
+function crmChatUrl(string $search, string $status, string $range = 'today', string $contact = '', int $chatPage = 1, string $room = 'all'): string {
+    $params = ['page'=>'chat','status'=>$status,'range'=>$range,'room'=>$room];
     if ($search !== '') $params['q'] = $search;
     if ($contact !== '') $params['contact'] = $contact;
     if ($chatPage > 1) $params['p'] = $chatPage;
@@ -257,65 +279,50 @@ $followedContactCount = $currentStats['read_count'];
 
 <section class="page-head chat-page-head">
     <div>
-        <span class="eyebrow">CRM Follow Up</span>
-        <h1>Follow Up</h1>
-        <p>Kelola prospek dan tindak lanjuti percakapan tanpa keluar dari workspace CRM.</p>
+        <span class="eyebrow">CRM Chat</span>
+        <h1>Percakapan</h1>
+        <p>Kelola pesan masuk, riwayat, dan balasan dalam satu workspace.</p>
     </div>
     <div class="chat-page-actions">
-        <button type="button" class="chat-add-trigger" id="crmAddTriggerBtn"><i class="fa-solid fa-bolt"></i> Tambah Trigger</button>
         <?php if ($selectedContact): ?>
         <a class="chat-wa-link" href="https://wa.me/<?= htmlspecialchars($selectedContact['clean_wa']) ?>" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
         <?php endif; ?>
     </div>
 </section>
 
-<div class="crm-modal" id="crmAddTriggerModal" hidden>
-    <div class="crm-modal-card crm-trigger-modal-card">
-        <div class="crm-modal-head">
-            <div>
-                <span class="eyebrow">Follow Up CRM</span>
-                <h2>Tambah Trigger</h2>
-                <p class="crm-modal-subtitle">Tambahkan frasa chat yang otomatis dianggap sebagai prospek baru.</p>
-            </div>
-            <button type="button" id="crmAddTriggerClose" aria-label="Tutup"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <form method="post" action="actions/add-trigger.php">
-            <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
-            <label><span>Trigger chat</span><input type="text" name="keyword" required maxlength="120" placeholder="Contoh: paket weekend"></label>
-            <label><span>Kategori</span><input type="text" name="category" required maxlength="100" placeholder="Contoh: Paket Weekend"></label>
-            <div class="trigger-helper"><i class="fa-solid fa-circle-info"></i><span>Trigger dicocokkan dari isi chat. Pertanyaan umum seperti “mau tanya...” tetap tidak dianggap prospek kecuali ada intent ikut/daftar.</span></div>
-            <div class="trigger-current">
-                <div class="section-title-row"><span class="message-label">Trigger aktif</span><small><?= count($triggers) ?> trigger</small></div>
-                <div class="trigger-chip-list">
-                    <?php foreach ($triggers as $trigger): ?>
-                        <span class="trigger-chip"><strong><?= htmlspecialchars($trigger['keyword']) ?></strong><small><?= htmlspecialchars($trigger['category']) ?></small></span>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            <div class="crm-modal-foot"><button type="button" class="crm-modal-secondary" id="crmAddTriggerCancel">Batal</button><button type="submit" class="chat-add-trigger"><i class="fa-solid fa-plus"></i> Simpan Trigger</button></div>
-        </form>
-    </div>
-</div>
-
 <div class="chat-range-tabs" aria-label="Rentang waktu percakapan">
     <?php foreach (['today' => 'Hari Ini', 'week' => 'Minggu Ini', 'month' => 'Bulan Ini', 'all' => 'Semua Waktu'] as $rangeKey => $rangeLabel): ?>
-        <a class="<?= $range === $rangeKey ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search, $status, $rangeKey)) ?>">
+        <a class="<?= $range === $rangeKey ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search, $status, $rangeKey, '', 1, $room)) ?>">
             <?= htmlspecialchars($rangeLabel) ?>
         </a>
     <?php endforeach; ?>
 </div>
 
+<div class="chat-room-tabs" aria-label="Ruang chat">
+    <?php foreach ([
+        'all' => ['label' => 'Semua Chat', 'icon' => 'fa-comments'],
+        'people' => ['label' => 'Peserta & Pengajar', 'icon' => 'fa-users'],
+        'other' => ['label' => 'Chat Masuk Lainnya', 'icon' => 'fa-inbox'],
+    ] as $roomKey => $roomItem): ?>
+        <a data-chat-room="<?= htmlspecialchars($roomKey) ?>" class="<?= $room === $roomKey ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search, $status, $range, '', 1, $roomKey)) ?>">
+            <i class="fa-solid <?= htmlspecialchars($roomItem['icon']) ?>"></i>
+            <span><?= htmlspecialchars($roomItem['label']) ?></span>
+            <b><?= (int)($roomCounts[$roomKey] ?? 0) ?></b>
+        </a>
+    <?php endforeach; ?>
+</div>
+
 <div class="chat-stats">
-    <a data-chat-stat="all" class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all',$range)) ?>"><strong><?= $allContactCount ?></strong><span>Semua</span></a>
-    <a data-chat-stat="new" class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new',$range)) ?>"><strong><?= $newContactCount ?></strong><span>Baru</span></a>
-    <a data-chat-stat="followed" class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed',$range)) ?>"><strong><?= $followedContactCount ?></strong><span>Follow-up</span></a>
+    <a data-chat-stat="all" class="<?= $status === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'all',$range,'',1,$room)) ?>"><strong><?= $allContactCount ?></strong><span>Semua</span></a>
+    <a data-chat-stat="new" class="<?= $status === 'new' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'new',$range,'',1,$room)) ?>"><strong><?= $newContactCount ?></strong><span>Baru</span></a>
+    <a data-chat-stat="followed" class="<?= $status === 'followed' ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search,'followed',$range,'',1,$room)) ?>"><strong><?= $followedContactCount ?></strong><span>Follow-up</span></a>
 </div>
 
 <form class="search-box" method="get">
-    <input type="hidden" name="page" value="chat"><input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>">
+    <input type="hidden" name="page" value="chat"><input type="hidden" name="status" value="<?= htmlspecialchars($status) ?>"><input type="hidden" name="range" value="<?= htmlspecialchars($range) ?>"><input type="hidden" name="room" value="<?= htmlspecialchars($room) ?>">
     <i class="fa-solid fa-magnifying-glass"></i>
     <input name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Cari nama, nomor, atau isi pesan...">
-    <?php if ($search): ?><a href="<?= htmlspecialchars(crmChatUrl('', $status, $range)) ?>"><i class="fa-solid fa-xmark"></i></a><?php endif; ?>
+    <?php if ($search): ?><a href="<?= htmlspecialchars(crmChatUrl('', $status, $range, '', 1, $room)) ?>"><i class="fa-solid fa-xmark"></i></a><?php endif; ?>
 </form>
 
 <div class="chat-sheet-backdrop" id="crmChatSheetBackdrop" aria-hidden="true"></div>
@@ -333,11 +340,11 @@ $followedContactCount = $currentStats['read_count'];
                 $isSelected = $selected !== '' && crmProspectNormalizeNumber($selected) === $row['clean_wa'];
                 $lastActivityAt = $row['last_message_at'] ?: ($row['last_inbound_at'] ?: $row['last_outbound_at']);
             ?>
-            <a data-chat-nowa="<?= htmlspecialchars($row['nowa']) ?>" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,$row['nowa'],$chatPage)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?>">
+            <a data-chat-nowa="<?= htmlspecialchars($row['nowa']) ?>" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,$row['nowa'],$chatPage,$room)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?> <?= $row['contact_room'] === 'other' ? 'is-other' : '' ?>">
                 <span class="activity-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($name,0,1))) ?></span>
                 <span class="chat-body">
                     <strong><?= htmlspecialchars($name) ?></strong>
-                    <small><?= htmlspecialchars($activityLabel) ?> · <?= htmlspecialchars(crmPreview($lastMessage)) ?></small>
+                    <small><span class="chat-item-label"><?= $row['contact_room'] === 'other' ? 'Chat Masuk' : htmlspecialchars($activityLabel) ?></span> · <?= htmlspecialchars(crmPreview($lastMessage)) ?></small>
                 </span>
                 <span class="chat-meta">
                     <time><?= htmlspecialchars($lastActivityAt ? date('H:i', strtotime($lastActivityAt)) : '') ?></time>
@@ -353,12 +360,12 @@ $followedContactCount = $currentStats['read_count'];
 
     <aside class="chat-panel <?= $selectedContact ? 'has-contact' : '' ?>">
         <?php if (!$selectedContact): ?>
-            <div class="chat-panel-empty"><i class="fa-regular fa-message"></i><strong>Pilih percakapan</strong><span>Pilih prospek untuk melihat pesan dan melakukan follow-up.</span></div>
+            <div class="chat-panel-empty"><i class="fa-regular fa-message"></i><strong>Pilih percakapan</strong><span>Pilih percakapan untuk melihat riwayat dan membalas pesan.</span></div>
         <?php else: $selectedName = crmChatName($selectedContact); ?>
             <div class="chat-panel-head">
                 <div class="contact-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($selectedName,0,1))) ?></div>
                 <div class="chat-panel-contact"><strong><?= htmlspecialchars($selectedName) ?></strong><small><?= htmlspecialchars($selectedContact['nowa']) ?></small></div>
-                <a class="chat-panel-close" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage)) ?>" aria-label="Tutup percakapan"><i class="fa-solid fa-xmark"></i></a>
+                <a class="chat-panel-close" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage,$room)) ?>" aria-label="Tutup percakapan"><i class="fa-solid fa-xmark"></i></a>
             </div>
             <div class="chat-history-section">
                 <div class="section-title-row"><span class="message-label">Percakapan terbaru</span><small><?= count($recentMessages) ?> log terakhir</small></div>
@@ -402,13 +409,13 @@ $followedContactCount = $currentStats['read_count'];
 <?php if ($totalPages > 1): ?>
 <nav class="chat-pagination" aria-label="Pagination Chat">
     <?php if ($chatPage > 1): ?>
-        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage - 1)) ?>"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</a>
+        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage - 1,$room)) ?>"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</a>
     <?php else: ?>
         <span class="disabled"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</span>
     <?php endif; ?>
     <strong>Halaman <?= $chatPage ?> / <?= $totalPages ?></strong>
     <?php if ($chatPage < $totalPages): ?>
-        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage + 1)) ?>">Berikutnya <i class="fa-solid fa-chevron-right"></i></a>
+        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage + 1,$room)) ?>">Berikutnya <i class="fa-solid fa-chevron-right"></i></a>
     <?php else: ?>
         <span class="disabled">Berikutnya <i class="fa-solid fa-chevron-right"></i></span>
     <?php endif; ?>
@@ -462,20 +469,11 @@ $followedContactCount = $currentStats['read_count'];
         });
     }
 
-    const modal = document.getElementById('crmAddTriggerModal');
-    const openBtn = document.getElementById('crmAddTriggerBtn');
-    const closeBtn = document.getElementById('crmAddTriggerClose');
-    const cancelBtn = document.getElementById('crmAddTriggerCancel');
-    const closeModal = () => { if (modal) modal.hidden = true; };
-    if (openBtn && modal) openBtn.onclick = () => { modal.hidden = false; modal.querySelector('input[name="keyword"]')?.focus(); };
-    if (closeBtn) closeBtn.onclick = closeModal;
-    if (cancelBtn) cancelBtn.onclick = closeModal;
-    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-
     const chatPollUrl = <?= json_encode('actions/chat-poll.php') ?>;
     const chatCurrentSearch = <?= json_encode($search) ?>;
     const chatCurrentStatus = <?= json_encode($status) ?>;
     const chatCurrentRange = <?= json_encode($range) ?>;
+    const chatCurrentRoom = <?= json_encode($room) ?>;
     const chatCurrentPage = <?= (int)$chatPage ?>;
     let chatPollCursor = <?= json_encode(date('Y-m-d H:i:s')) ?>;
     let chatPollBusy = false;
@@ -484,6 +482,14 @@ $followedContactCount = $currentStats['read_count'];
         const div = document.createElement('div');
         div.textContent = value ?? '';
         return div.innerHTML;
+    };
+
+    const updateChatRoomCounts = (counts) => {
+        if (!counts) return;
+        Object.entries(counts).forEach(([key, value]) => {
+            const node = document.querySelector('[data-chat-room="' + key + '"] b');
+            if (node && Number.isFinite(Number(value))) node.textContent = String(value);
+        });
     };
 
     const updateChatStats = (stats) => {
@@ -504,6 +510,7 @@ $followedContactCount = $currentStats['read_count'];
         params.set('page', 'chat');
         params.set('status', chatCurrentStatus);
         params.set('range', chatCurrentRange);
+        params.set('room', chatCurrentRoom);
         params.set('q', chatCurrentSearch);
         params.set('contact', nowa);
         params.set('p', String(chatCurrentPage));
@@ -514,15 +521,16 @@ $followedContactCount = $currentStats['read_count'];
         const name = String(row.nama || 'Hamba Allah').trim() || 'Hamba Allah';
         const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim().slice(0, 68);
         const direction = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
+        const roomLabel = row.contact_room === 'other' ? 'Chat Masuk' : direction;
         const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
         const item = document.createElement('a');
-        item.className = 'chat-item' + (row.unread_count > 0 ? ' is-new' : '');
+        item.className = 'chat-item' + (row.unread_count > 0 ? ' is-new' : '') + (row.contact_room === 'other' ? ' is-other' : '');
         item.dataset.chatNowa = row.nowa;
         item.href = chatItemUrl(row.nowa);
         item.innerHTML =
             '<span class="activity-avatar">' + escapeHtml(name.slice(0, 1).toUpperCase()) + '</span>' +
             '<span class="chat-body"><strong>' + escapeHtml(name) + '</strong>' +
-            '<small>' + escapeHtml(direction + ' · ' + preview) + '</small></span>' +
+            '<small><span class="chat-item-label">' + escapeHtml(roomLabel) + '</span> · ' + escapeHtml(preview) + '</small></span>' +
             '<span class="chat-meta"><time>' + escapeHtml(time) + '</time>' +
             (row.unread_count > 0
                 ? '<b class="chat-new-badge">BARU</b>'
@@ -538,6 +546,7 @@ $followedContactCount = $currentStats['read_count'];
         const body = item.querySelector('.chat-body');
         const meta = item.querySelector('.chat-meta');
         const lastDirection = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
+        const roomLabel = row.contact_room === 'other' ? 'Chat Masuk' : lastDirection;
         const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim();
         const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
 
@@ -545,7 +554,7 @@ $followedContactCount = $currentStats['read_count'];
             const name = body.querySelector('strong');
             const detail = body.querySelector('small');
             if (name && row.nama) name.textContent = row.nama;
-            if (detail) detail.textContent = lastDirection + ' · ' + preview.slice(0, 68);
+            if (detail) detail.innerHTML = '<span class="chat-item-label">' + escapeHtml(roomLabel) + '</span> · ' + escapeHtml(preview.slice(0, 68));
         }
 
         if (meta) {
@@ -593,7 +602,7 @@ $followedContactCount = $currentStats['read_count'];
         if (chatPollBusy || document.hidden) return;
         chatPollBusy = true;
         try {
-            const response = await fetch(chatPollUrl + '?since=' + encodeURIComponent(chatPollCursor), {
+            const response = await fetch(chatPollUrl + '?since=' + encodeURIComponent(chatPollCursor) + '&room=' + encodeURIComponent(chatCurrentRoom) + '&status=' + encodeURIComponent(chatCurrentStatus) + '&range=' + encodeURIComponent(chatCurrentRange) + '&q=' + encodeURIComponent(chatCurrentSearch), {
                 credentials: 'same-origin',
                 cache: 'no-store'
             });
@@ -603,6 +612,7 @@ $followedContactCount = $currentStats['read_count'];
 
             chatPollCursor = data.server_time || chatPollCursor;
             updateChatStats(data.stats);
+            updateChatRoomCounts(data.room_counts);
             for (const row of (data.conversations || [])) syncChatList(row);
         } catch (_) {
             // Polling is non-critical. The next interval retries without disrupting Chat.

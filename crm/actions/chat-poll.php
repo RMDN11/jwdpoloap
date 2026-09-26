@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../config/chat.php';
+require_once __DIR__ . '/../config/chat-directory.php';
 
 if (!isset($conn) || !($conn instanceof mysqli)) {
     http_response_code(500);
@@ -40,9 +41,13 @@ $sinceSql = $sinceDate->format('Y-m-d H:i:s');
 $search = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? 'all'));
 $range = trim((string)($_GET['range'] ?? 'today'));
+$room = trim((string)($_GET['room'] ?? 'all'));
 
 if (!in_array($status, ['all', 'new', 'followed'], true)) $status = 'all';
 if (!in_array($range, ['today', 'week', 'month', 'all'], true)) $range = 'today';
+if (!in_array($room, ['all', 'people', 'other'], true)) $room = 'all';
+$roomSql = crmChatRoomSql($conn, $room);
+$knownSql = crmChatKnownContactSql($conn);
 
 $rangeSql = match ($range) {
     'week' => "last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
@@ -70,7 +75,7 @@ $searchSql = $search !== ''
     )"
     : "1=1";
 
-$matchSql = "($rangeSql) AND ($statusSql) AND ($searchSql)";
+$matchSql = "($rangeSql) AND ($statusSql) AND ($roomSql) AND ($searchSql)";
 
 $stmt = $conn->prepare(
     "SELECT
@@ -82,6 +87,7 @@ $stmt = $conn->prepare(
         last_outbound_at,
         unread_count,
         followup_count,
+        CASE WHEN $knownSql THEN 'people' ELSE 'other' END AS contact_room,
         (
             SELECT cm.message
             FROM crm_messages cm
@@ -155,12 +161,16 @@ $statsRangeSql = match ($range) {
 
 $statsStmt = $conn->query(
     "SELECT
-        COUNT(*) AS total,
-        COALESCE(SUM(($statsRangeSql) AND unread_count > 0), 0) AS unread,
-        COALESCE(SUM(($statsRangeSql) AND unread_count = 0), 0) AS read_count
+        SUM(($roomSql)) AS total,
+        COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count > 0), 0) AS unread,
+        COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count = 0), 0) AS read_count,
+        COALESCE(SUM($statsRangeSql), 0) AS room_all_count,
+        COALESCE(SUM(($statsRangeSql) AND ($knownSql)), 0) AS room_people_count,
+        COALESCE(SUM(($statsRangeSql) AND NOT ($knownSql)), 0) AS room_other_count
      FROM crm_conversations"
 );
 $stats = ['total' => 0, 'unread' => 0, 'read_count' => 0];
+$roomCounts = ['all' => 0, 'people' => 0, 'other' => 0];
 if ($statsStmt) {
     $statsRow = $statsStmt->fetch_assoc();
     $stats = [
@@ -168,12 +178,17 @@ if ($statsStmt) {
         'unread' => (int)($statsRow['unread'] ?? 0),
         'read_count' => (int)($statsRow['read_count'] ?? 0),
     ];
+    $roomCounts = [
+        'all' => (int)($statsRow['room_all_count'] ?? 0),
+        'people' => (int)($statsRow['room_people_count'] ?? 0),
+        'other' => (int)($statsRow['room_other_count'] ?? 0),
+    ];
 }
 
 $unreadStmt = $conn->query(
     "SELECT COALESCE(SUM(unread_count > 0), 0) AS total
      FROM crm_conversations
-     WHERE last_inbound_at >= CURDATE()"
+     WHERE ($roomSql) AND last_inbound_at >= CURDATE()"
 );
 $unreadToday = 0;
 if ($unreadStmt) {
@@ -190,5 +205,6 @@ echo json_encode([
     'server_time' => $serverTime,
     'unread_today' => $unreadToday,
     'stats' => $stats,
+    'room_counts' => $roomCounts,
     'conversations' => $conversations,
 ], JSON_UNESCAPED_UNICODE);
