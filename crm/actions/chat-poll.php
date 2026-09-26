@@ -1,8 +1,28 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../config/bootstrap.php';
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (empty($_SESSION['logged_in'])) {
+    http_response_code(401);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'message' => 'Unauthorized']);
+    exit;
+}
+
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../config/chat.php';
+
+if (!isset($conn) || !($conn instanceof mysqli)) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'message' => 'Database connection unavailable']);
+    exit;
+}
+
+$conn->set_charset('utf8mb4');
 
 header('Content-Type: application/json; charset=utf-8');
 
