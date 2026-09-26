@@ -14,10 +14,6 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     $crmMaxLogId = (int)$crmMaxLogRow['max_id'];
 }
 
-if ($page === 'chat') {
-    require_once __DIR__ . '/config/chat-legacy-sync.php';
-    crmChatLegacySync($conn);
-}
 ?>
 <!DOCTYPE html>
 <html lang="id">
