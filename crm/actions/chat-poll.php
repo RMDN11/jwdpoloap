@@ -146,6 +146,30 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
+$statsRangeSql = match ($range) {
+    'week' => "last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
+    'month' => "last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
+    'all' => "1=1",
+    default => "last_inbound_at >= CURDATE()",
+};
+
+$statsStmt = $conn->query(
+    "SELECT
+        COUNT(*) AS total,
+        COALESCE(SUM(($statsRangeSql) AND unread_count > 0), 0) AS unread,
+        COALESCE(SUM(($statsRangeSql) AND unread_count = 0), 0) AS read_count
+     FROM crm_conversations"
+);
+$stats = ['total' => 0, 'unread' => 0, 'read_count' => 0];
+if ($statsStmt) {
+    $statsRow = $statsStmt->fetch_assoc();
+    $stats = [
+        'total' => (int)($statsRow['total'] ?? 0),
+        'unread' => (int)($statsRow['unread'] ?? 0),
+        'read_count' => (int)($statsRow['read_count'] ?? 0),
+    ];
+}
+
 $unreadStmt = $conn->query(
     "SELECT COALESCE(SUM(unread_count > 0), 0) AS total
      FROM crm_conversations
@@ -161,5 +185,6 @@ echo json_encode([
     'ok' => true,
     'server_time' => date('Y-m-d H:i:s'),
     'unread_today' => $unreadToday,
+    'stats' => $stats,
     'conversations' => $conversations,
 ], JSON_UNESCAPED_UNICODE);
