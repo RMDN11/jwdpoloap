@@ -181,9 +181,13 @@ if ($unreadStmt) {
     $unreadToday = (int)($unreadRow['total'] ?? 0);
 }
 
+$dbNowResult = $conn->query("SELECT NOW() AS server_time");
+$dbNowRow = $dbNowResult ? $dbNowResult->fetch_assoc() : null;
+$serverTime = (string)($dbNowRow['server_time'] ?? date('Y-m-d H:i:s'));
+
 echo json_encode([
     'ok' => true,
-    'server_time' => date('Y-m-d H:i:s'),
+    'server_time' => $serverTime,
     'unread_today' => $unreadToday,
     'stats' => $stats,
     'conversations' => $conversations,
