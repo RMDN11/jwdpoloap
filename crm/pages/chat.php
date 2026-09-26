@@ -27,6 +27,7 @@ $rangeSql = [
 ][$range];
 
 $conversationWhere = [$rangeSql, $roomSql];
+$knownSql = crmChatKnownContactSql($conn);
 $conversationBind = [];
 $conversationTypes = '';
 
@@ -127,7 +128,6 @@ $stats = [
     'all'   => ['total' => 0, 'unread' => 0, 'read_count' => 0],
 ];
 
-$knownSql = crmChatKnownContactSql($conn);
 $roomCounts = ['all' => 0, 'people' => 0, 'other' => 0];
 $roomCountResult = $conn->query(
     "SELECT COUNT(*) AS all_count,
@@ -263,8 +263,8 @@ function crmChatDate(?string $date): string {
     $timestamp = strtotime($date);
     return $timestamp ? date('d M Y, H:i', $timestamp) : '';
 }
-function crmChatUrl(string $search, string $status, string $range = 'today', string $contact = '', int $chatPage = 1): string {
-    $params = ['page'=>'chat','status'=>$status,'range'=>$range];
+function crmChatUrl(string $search, string $status, string $range = 'today', string $contact = '', int $chatPage = 1, string $room = 'all'): string {
+    $params = ['page'=>'chat','status'=>$status,'range'=>$range,'room'=>$room];
     if ($search !== '') $params['q'] = $search;
     if ($contact !== '') $params['contact'] = $contact;
     if ($chatPage > 1) $params['p'] = $chatPage;
