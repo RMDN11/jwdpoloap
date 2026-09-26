@@ -2,6 +2,7 @@
 $crmTitle = 'Chat';
 require_once __DIR__ . '/../config/prospect.php';
 require_once __DIR__ . '/../config/chat-directory.php';
+require_once __DIR__ . '/../config/chat-routing.php';
 $search = trim((string)($_GET['q'] ?? ''));
 $status = (string)($_GET['status'] ?? 'all');
 $range = (string)($_GET['range'] ?? 'today');
@@ -15,9 +16,9 @@ if (!in_array($status, $allowedStatus, true)) $status = 'all';
 
 $allowedRanges = ['today', 'week', 'month', 'all'];
 if (!in_array($range, $allowedRanges, true)) $range = 'today';
-$allowedRooms = ['all', 'people', 'other'];
+$allowedRooms = ['all', 'customer_baru', 'sudah_payment', 'people', 'other', 'lainnya'];
 if (!in_array($room, $allowedRooms, true)) $room = 'all';
-$roomSql = crmChatRoomSql($conn, $room);
+$roomSql = crmChatRoutingRoomSql($room);
 
 $rangeSql = [
     'today' => "last_inbound_at >= CURDATE()",
@@ -128,21 +129,22 @@ $stats = [
     'all'   => ['total' => 0, 'unread' => 0, 'read_count' => 0],
 ];
 
-$roomCounts = ['all' => 0, 'people' => 0, 'other' => 0];
+$roomCounts = ['all' => 0, 'customer_baru' => 0, 'sudah_payment' => 0, 'people' => 0, 'other' => 0, 'lainnya' => 0];
 $roomCountResult = $conn->query(
-    "SELECT COUNT(*) AS all_count,
-            COALESCE(SUM({$knownSql}), 0) AS people_count,
-            COALESCE(SUM(NOT {$knownSql}), 0) AS other_count
+    "SELECT room, COUNT(*) AS total
      FROM crm_conversations
-     WHERE {$rangeSql}"
+     WHERE {$rangeSql}
+     GROUP BY room"
 );
-if ($roomCountResult && ($roomCountRow = $roomCountResult->fetch_assoc())) {
-    $roomCounts = [
-        'all' => (int)($roomCountRow['all_count'] ?? 0),
-        'people' => (int)($roomCountRow['people_count'] ?? 0),
-        'other' => (int)($roomCountRow['other_count'] ?? 0),
-    ];
+if ($roomCountResult) {
+    while ($roomCountRow = $roomCountResult->fetch_assoc()) {
+        $key = (string)($roomCountRow['room'] ?? 'lainnya');
+        if (array_key_exists($key, $roomCounts)) $roomCounts[$key] = (int)$roomCountRow['total'];
+        $roomCounts['all'] += (int)($roomCountRow['total'] ?? 0);
+    }
 }
+// Legacy/unknown rows remain visible under Lainnya until their routing is evaluated.
+$roomCounts['lainnya'] += (int)$conn->query("SELECT COUNT(*) AS total FROM crm_conversations WHERE {$rangeSql} AND (room IS NULL OR room = '')")->fetch_assoc()['total'];
 
 $statsResult = $conn->query(
     "SELECT
@@ -194,7 +196,7 @@ $poloapHistory = [];
 if ($selected !== '') {
     $selectedNumber = crmProspectNormalizeNumber($selected);
     $selectedStmt = $conn->prepare(
-        "SELECT id,nowa,nama,status,last_message_at,last_inbound_at,last_outbound_at,last_read_at,unread_count,followup_count
+        "SELECT id,nowa,nama,status,last_message_at,last_inbound_at,last_outbound_at,last_read_at,unread_count,followup_count,room,room_source,intent_category,payment_detected_at
          FROM crm_conversations
          WHERE nowa = ? OR nowa = ?
          LIMIT 1"
@@ -301,8 +303,10 @@ $followedContactCount = $currentStats['read_count'];
 <div class="chat-room-tabs" aria-label="Ruang chat">
     <?php foreach ([
         'all' => ['label' => 'Semua Chat', 'icon' => 'fa-comments'],
+        'customer_baru' => ['label' => 'Customer Baru', 'icon' => 'fa-user-plus'],
+        'sudah_payment' => ['label' => 'Sudah Payment', 'icon' => 'fa-wallet'],
         'people' => ['label' => 'Peserta & Pengajar', 'icon' => 'fa-users'],
-        'other' => ['label' => 'Chat Masuk Lainnya', 'icon' => 'fa-inbox'],
+        'lainnya' => ['label' => 'Lainnya', 'icon' => 'fa-inbox'],
     ] as $roomKey => $roomItem): ?>
         <a data-chat-room="<?= htmlspecialchars($roomKey) ?>" class="<?= $room === $roomKey ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search, $status, $range, '', 1, $roomKey)) ?>">
             <i class="fa-solid <?= htmlspecialchars($roomItem['icon']) ?>"></i>
@@ -344,7 +348,7 @@ $followedContactCount = $currentStats['read_count'];
                 <span class="activity-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($name,0,1))) ?></span>
                 <span class="chat-body">
                     <strong><?= htmlspecialchars($name) ?></strong>
-                    <small><span class="chat-item-label"><?= $row['contact_room'] === 'other' ? 'Chat Masuk' : htmlspecialchars($activityLabel) ?></span> · <?= htmlspecialchars(crmPreview($lastMessage)) ?></small>
+                    <small><span class="chat-item-label"><?= $row['room'] === 'customer_baru' ? 'Customer Baru' : ($row['room'] === 'sudah_payment' ? 'Sudah Payment' : ($row['room'] === 'lainnya' ? 'Lainnya' : htmlspecialchars($activityLabel))) ?></span> · <?= htmlspecialchars(crmPreview($lastMessage)) ?></small>
                 </span>
                 <span class="chat-meta">
                     <time><?= htmlspecialchars($lastActivityAt ? date('H:i', strtotime($lastActivityAt)) : '') ?></time>
@@ -367,7 +371,29 @@ $followedContactCount = $currentStats['read_count'];
                 <div class="chat-panel-contact"><strong><?= htmlspecialchars($selectedName) ?></strong><small><?= htmlspecialchars($selectedContact['nowa']) ?></small></div>
                 <a class="chat-panel-close" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage,$room)) ?>" aria-label="Tutup percakapan"><i class="fa-solid fa-xmark"></i></a>
             </div>
-            <div class="chat-history-section">
+            <div class="chat-routing-box">
+    <div class="chat-routing-title"><span><i class="fa-solid fa-route"></i> Routing</span><?php if (($selectedContact['room_source'] ?? 'auto') === 'manual'): ?><small>Manual</small><?php else: ?><small>Auto</small><?php endif; ?></div>
+    <form method="post" action="actions/chat-route.php" class="chat-routing-form">
+        <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+        <input type="hidden" name="contact_id" value="<?= htmlspecialchars($selectedContact['nowa']) ?>">
+        <select name="room" aria-label="Pilih room routing">
+            <?php foreach ([
+                'customer_baru' => 'Customer Baru',
+                'sudah_payment' => 'Sudah Payment',
+                'people' => 'Peserta & Pengajar',
+                'lainnya' => 'Lainnya',
+            ] as $routingKey => $routingLabel): ?>
+                <option value="<?= htmlspecialchars($routingKey) ?>" <?= (($selectedContact['room'] ?? 'lainnya') === $routingKey) ? 'selected' : '' ?>><?= htmlspecialchars($routingLabel) ?></option>
+            <?php endforeach; ?>
+        </select>
+        <label><input type="checkbox" name="manual" value="1" <?= (($selectedContact['room_source'] ?? 'auto') === 'manual') ? 'checked' : '' ?>> Jadikan manual</label>
+        <button type="submit"><i class="fa-solid fa-check"></i> Simpan</button>
+        <?php if (($selectedContact['room_source'] ?? 'auto') === 'manual'): ?>
+            <button type="submit" name="clear_manual" value="1" class="chat-routing-clear">↩ Auto</button>
+        <?php endif; ?>
+    </form>
+</div>
+<div class="chat-history-section">
                 <div class="section-title-row"><span class="message-label">Percakapan terbaru</span><small><?= count($recentMessages) ?> log terakhir</small></div>
                 <div class="chat-history-scroll">
                     <?php foreach (array_reverse($recentMessages) as $historyRow): ?>
