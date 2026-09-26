@@ -166,6 +166,7 @@ try {
                     );
                     $followupStmt->execute();
                     $followupStmt->close();
+                    crmChatRefreshFollowupCount($conn, (int)$conversation['id']);
                 }
             }
         }
