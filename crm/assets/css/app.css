@@ -809,6 +809,64 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 }
 
 
+/* Chat Phase 3.3: legacy history + conversation workspace balance */
+.chat-panel{
+  height:min(720px,calc(100dvh - 170px));
+  max-height:min(720px,calc(100dvh - 170px));
+}
+.chat-history-section{
+  flex:0 0 auto;
+  min-height:150px;
+}
+.chat-history-scroll{
+  min-height:90px;
+  max-height:185px;
+}
+.legacy-history-section{
+  flex:0 0 auto;
+  margin-top:8px;
+  padding:9px 0 0;
+  border-top:1px solid #edf1ee;
+}
+.legacy-history-list{
+  max-height:125px;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  padding-right:2px;
+}
+.legacy-history-item{
+  margin:6px 0;
+  padding:8px 10px;
+  border:1px solid #e8eee9;
+  border-radius:11px;
+  background:#fafcfb;
+}
+.legacy-history-item p{
+  margin:5px 0 0;
+  color:#526259;
+  font-size:10px;
+  line-height:1.5;
+  word-break:break-word;
+}
+.legacy-history-item .chat-log-badge{
+  padding:2px 6px;
+  border-radius:999px;
+  background:#f1f5f2;
+  color:#7a8981;
+}
+@media(max-width:850px){
+  .chat-panel{
+    height:auto;
+    max-height:none;
+  }
+  .chat-history-section{
+    min-height:0;
+  }
+  .legacy-history-list{
+    max-height:150px;
+  }
+}
+
 /* Chat Phase 3 routing controls */
 .chat-routing{
   display:flex;
