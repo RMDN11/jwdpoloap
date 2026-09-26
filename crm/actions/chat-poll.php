@@ -201,7 +201,7 @@ $statsStmt = $conn->query(
         COALESCE(SUM($statsRangeSql), 0) AS room_all_count,
         COALESCE(SUM(($statsRangeSql) AND room = 'customer_baru'), 0) AS room_customer_baru_count,
         COALESCE(SUM(($statsRangeSql) AND room = 'sudah_payment'), 0) AS room_sudah_payment_count,
-        COALESCE(SUM(($statsRangeSql) AND ($knownSql)), 0) AS room_people_count,
+        COALESCE(SUM(($statsRangeSql) AND room = 'people'), 0) AS room_people_count,
         COALESCE(SUM(($statsRangeSql) AND room = 'lainnya'), 0) AS room_lainnya_count,
         COALESCE(SUM(($statsRangeSql) AND NOT ($knownSql)), 0) AS room_other_count
      FROM crm_conversations"
