@@ -1,5 +1,5 @@
 <?php
-$crmTitle = 'Follow Up';
+$crmTitle = 'Chat';
 require_once __DIR__ . '/../config/prospect.php';
 require_once __DIR__ . '/../config/chat-directory.php';
 $search = trim((string)($_GET['q'] ?? ''));
@@ -409,13 +409,13 @@ $followedContactCount = $currentStats['read_count'];
 <?php if ($totalPages > 1): ?>
 <nav class="chat-pagination" aria-label="Pagination Chat">
     <?php if ($chatPage > 1): ?>
-        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage - 1)) ?>"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</a>
+        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage - 1,$room)) ?>"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</a>
     <?php else: ?>
         <span class="disabled"><i class="fa-solid fa-chevron-left"></i> Sebelumnya</span>
     <?php endif; ?>
     <strong>Halaman <?= $chatPage ?> / <?= $totalPages ?></strong>
     <?php if ($chatPage < $totalPages): ?>
-        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage + 1)) ?>">Berikutnya <i class="fa-solid fa-chevron-right"></i></a>
+        <a href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,'',$chatPage + 1,$room)) ?>">Berikutnya <i class="fa-solid fa-chevron-right"></i></a>
     <?php else: ?>
         <span class="disabled">Berikutnya <i class="fa-solid fa-chevron-right"></i></span>
     <?php endif; ?>
@@ -468,16 +468,6 @@ $followedContactCount = $currentStats['read_count'];
                 : '<span>Pilih template untuk melihat isi pesan.</span>';
         });
     }
-
-    const modal = document.getElementById('crmAddTriggerModal');
-    const openBtn = document.getElementById('crmAddTriggerBtn');
-    const closeBtn = document.getElementById('crmAddTriggerClose');
-    const cancelBtn = document.getElementById('crmAddTriggerCancel');
-    const closeModal = () => { if (modal) modal.hidden = true; };
-    if (openBtn && modal) openBtn.onclick = () => { modal.hidden = false; modal.querySelector('input[name="keyword"]')?.focus(); };
-    if (closeBtn) closeBtn.onclick = closeModal;
-    if (cancelBtn) cancelBtn.onclick = closeModal;
-    if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
     const chatPollUrl = <?= json_encode('actions/chat-poll.php') ?>;
     const chatCurrentSearch = <?= json_encode($search) ?>;
