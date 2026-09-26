@@ -45,7 +45,7 @@ $range = trim((string)($_GET['range'] ?? 'today'));
 $room = trim((string)($_GET['room'] ?? 'all'));
 $contact = trim((string)($_GET['contact'] ?? ''));
 
-if (!in_array($status, ['all', 'new', 'followed'], true)) $status = 'all';
+if (!in_array($status, ['all', 'new', 'read', 'followed'], true)) $status = 'all';
 if (!in_array($range, ['today', 'week', 'month', 'all'], true)) $range = 'today';
 if (!in_array($room, ['all', 'customer_baru', 'sudah_payment', 'people', 'other', 'lainnya'], true)) $room = 'all';
 $roomSql = in_array($room, ['people', 'other'], true) ? crmChatRoomSql($conn, $room) : crmChatRoutingRoomSql($room);
