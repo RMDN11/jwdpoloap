@@ -11,30 +11,22 @@ $debugFile = $baseDir . '/debug.log';
 $timestamp = date('Y-m-d H:i:s');
 
 // 1. Catat semua HTTP Request mentah
-$logEntry = "=== {$timestamp} ===
-";
-$logEntry .= "Method: " . $_SERVER['REQUEST_METHOD'] . "
-";
-$logEntry .= "IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown') . "
-";
-$logEntry .= "Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'none') . "
-";
-$logEntry .= "Raw Input: " . file_get_contents('php://input') . "
-
-";
+$logEntry = "=== {$timestamp} ===\n";
+$logEntry .= "Method: " . $_SERVER['REQUEST_METHOD'] . "\n";
+$logEntry .= "IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown') . "\n";
+$logEntry .= "Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'none') . "\n";
+$logEntry .= "Raw Input: " . file_get_contents('php://input') . "\n\n";
 file_put_contents($allRequestLog, $logEntry, FILE_APPEND);
 
 // 2. Fungsi pembantu untuk log eksekusi internal
 function logx($msg) {
     global $logFile;
-    file_put_contents($logFile, "[" . date('H:i:s') . "] " . $msg . "
-", FILE_APPEND);
+    file_put_contents($logFile, "[" . date('H:i:s') . "] " . $msg . "\n", FILE_APPEND);
 }
 
 // 3. HANYA MEMPROSES METHOD POST (selain POST ditolak)
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    file_put_contents($pingFile, "{$timestamp} HIT (" . $_SERVER['REQUEST_METHOD'] . ") - REJECTED
-", FILE_APPEND);
+    file_put_contents($pingFile, "{$timestamp} HIT (" . $_SERVER['REQUEST_METHOD'] . ") - REJECTED\n", FILE_APPEND);
     http_response_code(405); // Method Not Allowed
     echo json_encode([
         'status'  => 'error',
@@ -55,10 +47,7 @@ if (empty($rawInput)) {
 }
 
 // Simpan Raw Data untuk keperluan Debug
-file_put_contents($debugFile, "[$timestamp]
-{$rawInput}
-
-", FILE_APPEND);
+file_put_contents($debugFile, "[$timestamp]\n{$rawInput}\n\n", FILE_APPEND);
 
 $data = json_decode($rawInput, true);
 if (json_last_error() !== JSON_ERROR_NONE) {
@@ -199,5 +188,4 @@ echo json_encode([
     ]
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
-logx("=== WEBHOOK COMPLETED ===
-");
+logx("=== WEBHOOK COMPLETED ===\n");
