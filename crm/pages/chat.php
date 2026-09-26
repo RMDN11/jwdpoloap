@@ -103,30 +103,52 @@ while ($row = $conversationResult->fetch_assoc()) {
 }
 $conversationStmt->close();
 
-$stats = [];
-foreach (['today', 'week', 'month', 'all'] as $statRange) {
-    $statRangeSql = [
-        'today' => "last_inbound_at >= CURDATE()",
-        'week'  => "last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
-        'month' => "last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
-        'all'   => '1=1',
-    ][$statRange];
+$stats = [
+    'today' => ['total' => 0, 'unread' => 0, 'read_count' => 0],
+    'week'  => ['total' => 0, 'unread' => 0, 'read_count' => 0],
+    'month' => ['total' => 0, 'unread' => 0, 'read_count' => 0],
+    'all'   => ['total' => 0, 'unread' => 0, 'read_count' => 0],
+];
 
-    $statStmt = $conn->prepare(
-        "SELECT
-            COUNT(*) AS total,
-            COALESCE(SUM(unread_count > 0), 0) AS unread,
-            COALESCE(SUM(unread_count = 0), 0) AS read_count
-         FROM crm_conversations
-         WHERE {$statRangeSql}"
-    );
-    $statStmt->execute();
-    $stats[$statRange] = $statStmt->get_result()->fetch_assoc() ?: [
-        'total' => 0,
-        'unread' => 0,
-        'read_count' => 0,
+$statsResult = $conn->query(
+    "SELECT
+        COUNT(*) AS total,
+        COALESCE(SUM(last_inbound_at >= CURDATE()), 0) AS today_total,
+        COALESCE(SUM(last_inbound_at >= CURDATE() AND unread_count > 0), 0) AS today_unread,
+        COALESCE(SUM(last_inbound_at >= CURDATE() AND unread_count = 0), 0) AS today_read,
+        COALESCE(SUM(last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)), 0) AS week_total,
+        COALESCE(SUM(last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count > 0), 0) AS week_unread,
+        COALESCE(SUM(last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) AND unread_count = 0), 0) AS week_read,
+        COALESCE(SUM(last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')), 0) AS month_total,
+        COALESCE(SUM(last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count > 0), 0) AS month_unread,
+        COALESCE(SUM(last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND unread_count = 0), 0) AS month_read,
+        COALESCE(SUM(unread_count > 0), 0) AS all_unread,
+        COALESCE(SUM(unread_count = 0), 0) AS all_read
+     FROM crm_conversations"
+);
+if ($statsResult && ($statsRow = $statsResult->fetch_assoc())) {
+    $stats = [
+        'today' => [
+            'total' => (int)$statsRow['today_total'],
+            'unread' => (int)$statsRow['today_unread'],
+            'read_count' => (int)$statsRow['today_read'],
+        ],
+        'week' => [
+            'total' => (int)$statsRow['week_total'],
+            'unread' => (int)$statsRow['week_unread'],
+            'read_count' => (int)$statsRow['week_read'],
+        ],
+        'month' => [
+            'total' => (int)$statsRow['month_total'],
+            'unread' => (int)$statsRow['month_unread'],
+            'read_count' => (int)$statsRow['month_read'],
+        ],
+        'all' => [
+            'total' => (int)$statsRow['total'],
+            'unread' => (int)$statsRow['all_unread'],
+            'read_count' => (int)$statsRow['all_read'],
+        ],
     ];
-    $statStmt->close();
 }
 
 $maxLogId = 0;
@@ -152,7 +174,7 @@ if ($selected !== '') {
         $selectedContact['clean_wa'] = $selectedNumber;
 
         $historyStmt = $conn->prepare(
-            "SELECT id,nama,nowa,message,direction,sender_type,source,template_id,template_name,sent_at
+            "SELECT id,nowa,message,direction,sender_type,source,template_id,template_name,sent_at
              FROM crm_messages
              WHERE conversation_id = ?
              ORDER BY sent_at DESC, id DESC
@@ -200,13 +222,18 @@ function crmChatDate(?string $date): string {
     $timestamp = strtotime($date);
     return $timestamp ? date('d M Y, H:i', $timestamp) : '';
 }
-function crmChatUrl(string $search, string $status, string $contact = '', int $chatPage = 1): string {
-    $params = ['page'=>'chat','status'=>$status];
+function crmChatUrl(string $search, string $status, string $range = 'today', string $contact = '', int $chatPage = 1): string {
+    $params = ['page'=>'chat','status'=>$status,'range'=>$range];
     if ($search !== '') $params['q'] = $search;
     if ($contact !== '') $params['contact'] = $contact;
     if ($chatPage > 1) $params['p'] = $chatPage;
     return '?' . http_build_query($params);
 }
+$currentStats = $stats[$range];
+$allContactCount = $currentStats['total'];
+$newContactCount = $currentStats['unread'];
+$followedContactCount = $currentStats['read_count'];
+
 ?>
 
 <section class="page-head chat-page-head">
