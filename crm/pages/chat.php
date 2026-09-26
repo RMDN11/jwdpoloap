@@ -16,7 +16,7 @@ if (!in_array($status, $allowedStatus, true)) $status = 'all';
 
 $allowedRanges = ['today', 'week', 'month', 'all'];
 if (!in_array($range, $allowedRanges, true)) $range = 'today';
-$allowedRooms = ['all', 'customer_baru', 'sudah_payment', 'people', 'other', 'lainnya'];
+$allowedRooms = ['all', 'customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'];
 if (!in_array($room, $allowedRooms, true)) $room = 'all';
 $roomSql = crmChatRoutingRoomSql($room);
 
@@ -135,7 +135,7 @@ $stats = [
     'all'   => ['total' => 0, 'unread' => 0, 'read_count' => 0, 'followed_count' => 0],
 ];
 
-$roomCounts = ['all' => 0, 'customer_baru' => 0, 'sudah_payment' => 0, 'people' => 0, 'other' => 0, 'lainnya' => 0];
+$roomCounts = ['all' => 0, 'customer_baru' => 0, 'sudah_payment' => 0, 'peserta_pengajar' => 0, 'lainnya' => 0];
 $roomCountResult = $conn->query(
     "SELECT room, COUNT(*) AS total
      FROM crm_conversations
@@ -315,7 +315,7 @@ $followedContactCount = $currentStats['read_count'];
         'all' => ['label' => 'Semua Chat', 'icon' => 'fa-comments'],
         'customer_baru' => ['label' => 'Customer Baru', 'icon' => 'fa-user-plus'],
         'sudah_payment' => ['label' => 'Sudah Payment', 'icon' => 'fa-wallet'],
-        'people' => ['label' => 'Peserta & Pengajar', 'icon' => 'fa-users'],
+        'peserta_pengajar' => ['label' => 'Peserta & Pengajar', 'icon' => 'fa-users'],
         'lainnya' => ['label' => 'Lainnya', 'icon' => 'fa-inbox'],
     ] as $roomKey => $roomItem): ?>
         <a data-chat-room="<?= htmlspecialchars($roomKey) ?>" class="<?= $room === $roomKey ? 'active' : '' ?>" href="<?= htmlspecialchars(crmChatUrl($search, $status, $range, '', 1, $roomKey)) ?>">
@@ -391,7 +391,7 @@ $followedContactCount = $currentStats['read_count'];
             <?php foreach ([
                 'customer_baru' => 'Customer Baru',
                 'sudah_payment' => 'Sudah Payment',
-                'people' => 'Peserta & Pengajar',
+                'peserta_pengajar' => 'Peserta & Pengajar',
                 'lainnya' => 'Lainnya',
             ] as $routingKey => $routingLabel): ?>
                 <option value="<?= htmlspecialchars($routingKey) ?>" <?= (($selectedContact['room'] ?? 'lainnya') === $routingKey) ? 'selected' : '' ?>><?= htmlspecialchars($routingLabel) ?></option>
