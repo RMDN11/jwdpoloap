@@ -640,6 +640,9 @@ $followedContactCount = $currentStats['read_count'];
                     badge.textContent = 'BARU';
                     meta.appendChild(badge);
                 }
+            } else {
+                item.classList.remove('is-new');
+                meta.querySelector('.chat-new-badge')?.remove();
             }
         }
     };
