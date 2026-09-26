@@ -37,6 +37,24 @@ function crmChatRoutingNormalizedInternalNumbers(): array {
     return array_keys($numbers);
 }
 
+function crmChatRoutingInternalSql(string $alias = 'crm_conversations'): string {
+    $checks = [];
+    foreach (crmChatRoutingNormalizedInternalNumbers() as $number) {
+        $local = '0' . substr($number, 2);
+        $plus = '+' . $number;
+        $checks[] = sprintf(
+            "BINARY %s.nowa = BINARY '%s' OR BINARY %s.nowa = BINARY '%s' OR BINARY %s.nowa = BINARY '%s'",
+            $alias,
+            addslashes($number),
+            $alias,
+            addslashes($local),
+            $alias,
+            addslashes($plus)
+        );
+    }
+    return $checks ? 'NOT (' . implode(' OR ', $checks) . ')' : '1=1';
+}
+
 function crmChatRoutingIsInternalNumber(string $nowa): bool {
     $normalized = function_exists('crmProspectNormalizeNumber')
         ? crmProspectNormalizeNumber($nowa)
