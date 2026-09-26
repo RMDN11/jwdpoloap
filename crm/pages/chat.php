@@ -198,10 +198,18 @@ if ($selected !== '') {
         $historyStmt->close();
 
         $outboundStmt = $conn->prepare(
-            "SELECT id,template_id,template_name,message,sent_at,status
-             FROM crm_message_history
-             WHERE nowa = ? OR nowa = ?
-             ORDER BY sent_at DESC, id DESC
+            "SELECT h.id,h.template_id,h.template_name,h.message,h.sent_at,h.status
+             FROM crm_message_history h
+             WHERE (h.nowa = ? OR h.nowa = ?)
+               AND NOT EXISTS (
+                   SELECT 1
+                   FROM crm_messages cm
+                   WHERE cm.nowa = h.nowa
+                     AND cm.direction = 'out'
+                     AND cm.message = h.message
+                     AND ABS(TIMESTAMPDIFF(SECOND, cm.sent_at, h.sent_at)) <= 120
+               )
+             ORDER BY h.sent_at DESC, h.id DESC
              LIMIT 20"
         );
         $outboundStmt->bind_param('ss', $selectedContact['nowa'], $selectedContact['clean_wa']);
@@ -367,7 +375,7 @@ $followedContactCount = $currentStats['read_count'];
                 </div>
             </div>
             <div class="poloap-history-section">
-                <div class="section-title-row"><span class="message-label">Riwayat Poloap</span><small><?= count($poloapHistory) ?> follow-up</small></div>
+                <div class="section-title-row"><span class="message-label">Riwayat Follow-up Lama</span><small><?= count($poloapHistory) ?> log lama</small></div>
                 <div class="poloap-history-list">
                     <?php if (!$poloapHistory): ?>
                         <div class="history-empty">Belum ada riwayat Poloap untuk kontak ini.</div>
