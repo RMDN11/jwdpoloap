@@ -476,6 +476,12 @@ $followedContactCount = $currentStats['read_count'];
     const chatCurrentRoom = <?= json_encode($room) ?>;
     const chatCurrentPage = <?= (int)$chatPage ?>;
     const chatSelectedNumber = selectedNumber;
+    const normalizeChatNumber = (value) => {
+        let number = String(value || '').replace(/\D+/g, '');
+        if (number.startsWith('0')) number = '62' + number.slice(1);
+        if (number.startsWith('8')) number = '62' + number;
+        return number;
+    };
     let chatPollCursor = <?= json_encode(date('Y-m-d H:i:s')) ?>;
     let chatPollBusy = false;
 
@@ -643,7 +649,7 @@ $followedContactCount = $currentStats['read_count'];
             updateChatRoomCounts(data.room_counts);
             for (const row of (data.conversations || [])) {
                 syncChatList(row);
-                if (chatSelectedNumber && crmProspectNormalizeNumber(row.nowa || '') === crmProspectNormalizeNumber(chatSelectedNumber)) {
+                if (chatSelectedNumber && normalizeChatNumber(row.nowa || '') === normalizeChatNumber(chatSelectedNumber)) {
                     renderSelectedHistory(data.selected_history || []);
                     const form = new URLSearchParams();
                     form.set('nowa', chatSelectedNumber);
