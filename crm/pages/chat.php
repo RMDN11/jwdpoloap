@@ -82,6 +82,10 @@ $conversationSql = "SELECT
         last_read_at,
         unread_count,
         followup_count,
+        room,
+        room_source,
+        intent_category,
+        payment_detected_at,
         CASE WHEN {$knownSql} THEN 'people' ELSE 'other' END AS contact_room,
         (
             SELECT cm.message
