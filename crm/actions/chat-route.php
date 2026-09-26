@@ -62,31 +62,28 @@ if (!in_array($requestedRoom, ['customer_baru', 'sudah_payment', 'people', 'lain
 }
 
 $manual = (string)($_POST['manual'] ?? '') === '1';
-$source = $manual ? 'manual' : 'auto';
 
-if (!$manual && $requestedRoom === 'customer_baru') {
-    $latest = crmChatRoutingLatestInbound($conn, (int)$conversation['id']);
-    $category = $latest ? crmChatRoutingClassifyInbound($conn, (int)$conversation['id'], (string)$latest['message']) : null;
-    if (!crmChatRoutingIsQualifyingIntent($category)) {
-        $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Customer Baru membutuhkan intent yang memenuhi trigger. Gunakan routing manual jika memang perlu.'];
-        header('Location: ../index.php?page=chat&contact=' . urlencode($conversation['nowa']));
-        exit;
-    }
+if (!$manual) {
+    $routing = crmChatRoutingEvaluateConversation($conn, (int)$conversation['id']);
+    $_SESSION['crm_flash'] = $routing
+        ? ['type' => 'success', 'message' => 'Routing dikembalikan ke Auto Routing.']
+        : ['type' => 'error', 'message' => 'Auto routing gagal dievaluasi.'];
+    header('Location: ../index.php?page=chat&contact=' . urlencode($conversation['nowa']));
+    exit;
 }
 
-$paymentAt = null;
-if ($requestedRoom === 'sudah_payment') {
-    $paymentAt = $conversation['room'] === 'sudah_payment' && !empty($conversation['payment_detected_at'])
+$paymentAt = $requestedRoom === 'sudah_payment'
+    ? ($conversation['room'] === 'sudah_payment' && !empty($conversation['payment_detected_at'])
         ? $conversation['payment_detected_at']
-        : date('Y-m-d H:i:s');
-}
+        : date('Y-m-d H:i:s'))
+    : ($conversation['payment_detected_at'] ?? null);
 
 $ok = crmChatRoutingPersist(
     $conn,
     (int)$conversation['id'],
     $requestedRoom,
-    $source,
-    $conversation['room'] === 'customer_baru' ? null : null,
+    'manual',
+    $conversation['intent_category'] ?? null,
     $paymentAt
 );
 
