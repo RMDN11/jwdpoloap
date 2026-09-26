@@ -45,10 +45,10 @@ if (!in_array($status, ['all', 'new', 'followed'], true)) $status = 'all';
 if (!in_array($range, ['today', 'week', 'month', 'all'], true)) $range = 'today';
 
 $rangeSql = match ($range) {
-    'week' => "last_message_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
-    'month' => "last_message_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
+    'week' => "last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
+    'month' => "last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
     'all' => "1=1",
-    default => "last_message_at >= CURDATE()",
+    default => "last_inbound_at >= CURDATE()",
 };
 
 $statusSql = match ($status) {
