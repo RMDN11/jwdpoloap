@@ -187,6 +187,15 @@ try {
                     $followupStmt->close();
                     crmChatRefreshFollowupCount($conn, (int)$conversation['id']);
                 }
+
+                require_once __DIR__ . '/../config/chat-directory.php';
+                require_once __DIR__ . '/../config/chat-routing.php';
+                crmChatRoutingRecordPaymentIfMatched(
+                    $conn,
+                    (int)$conversation['id'],
+                    $message,
+                    date('Y-m-d H:i:s')
+                );
             }
         }
     }
