@@ -22,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../config/chat.php';
 require_once __DIR__ . '/../config/chat-directory.php';
+require_once __DIR__ . '/../config/chat-routing.php';
 
 if (!isset($conn) || !($conn instanceof mysqli)) {
     http_response_code(500);
@@ -46,8 +47,8 @@ $contact = trim((string)($_GET['contact'] ?? ''));
 
 if (!in_array($status, ['all', 'new', 'followed'], true)) $status = 'all';
 if (!in_array($range, ['today', 'week', 'month', 'all'], true)) $range = 'today';
-if (!in_array($room, ['all', 'people', 'other'], true)) $room = 'all';
-$roomSql = crmChatRoomSql($conn, $room);
+if (!in_array($room, ['all', 'customer_baru', 'sudah_payment', 'people', 'other', 'lainnya'], true)) $room = 'all';
+$roomSql = in_array($room, ['people', 'other'], true) ? crmChatRoomSql($conn, $room) : crmChatRoutingRoomSql($room);
 $knownSql = crmChatKnownContactSql($conn);
 
 $rangeSql = match ($range) {
@@ -88,6 +89,10 @@ $stmt = $conn->prepare(
         last_outbound_at,
         unread_count,
         followup_count,
+        room,
+        room_source,
+        intent_category,
+        payment_detected_at,
         CASE WHEN $knownSql THEN 'people' ELSE 'other' END AS contact_room,
         (
             SELECT cm.message
@@ -194,7 +199,10 @@ $statsStmt = $conn->query(
         COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count > 0), 0) AS unread,
         COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count = 0), 0) AS read_count,
         COALESCE(SUM($statsRangeSql), 0) AS room_all_count,
+        COALESCE(SUM(($statsRangeSql) AND room = 'customer_baru'), 0) AS room_customer_baru_count,
+        COALESCE(SUM(($statsRangeSql) AND room = 'sudah_payment'), 0) AS room_sudah_payment_count,
         COALESCE(SUM(($statsRangeSql) AND ($knownSql)), 0) AS room_people_count,
+        COALESCE(SUM(($statsRangeSql) AND room = 'lainnya'), 0) AS room_lainnya_count,
         COALESCE(SUM(($statsRangeSql) AND NOT ($knownSql)), 0) AS room_other_count
      FROM crm_conversations"
 );
@@ -209,7 +217,10 @@ if ($statsStmt) {
     ];
     $roomCounts = [
         'all' => (int)($statsRow['room_all_count'] ?? 0),
+        'customer_baru' => (int)($statsRow['room_customer_baru_count'] ?? 0),
+        'sudah_payment' => (int)($statsRow['room_sudah_payment_count'] ?? 0),
         'people' => (int)($statsRow['room_people_count'] ?? 0),
+        'lainnya' => (int)($statsRow['room_lainnya_count'] ?? 0),
         'other' => (int)($statsRow['room_other_count'] ?? 0),
     ];
 }
