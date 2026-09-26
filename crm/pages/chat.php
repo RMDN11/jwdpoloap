@@ -588,10 +588,10 @@ $followedContactCount = $currentStats['read_count'];
         const name = String(row.nama || 'Hamba Allah').trim() || 'Hamba Allah';
         const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim().slice(0, 68);
         const direction = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
-        const roomLabel = row.contact_room === 'other' ? 'Chat Masuk' : direction;
+        const roomLabel = String(row.room || 'lainnya').replace(/_/g, ' ');
         const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
         const item = document.createElement('a');
-        item.className = 'chat-item' + (row.unread_count > 0 ? ' is-new' : '') + (row.contact_room === 'other' ? ' is-other' : '');
+        item.className = 'chat-item' + (row.unread_count > 0 ? ' is-new' : '') + (row.room === 'lainnya' ? ' is-other' : '');
         item.dataset.chatNowa = row.nowa;
         item.href = chatItemUrl(row.nowa);
         item.innerHTML =
@@ -613,7 +613,7 @@ $followedContactCount = $currentStats['read_count'];
         const body = item.querySelector('.chat-body');
         const meta = item.querySelector('.chat-meta');
         const lastDirection = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
-        const roomLabel = row.contact_room === 'other' ? 'Chat Masuk' : lastDirection;
+        const roomLabel = String(row.room || 'lainnya').replace(/_/g, ' ');
         const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim();
         const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
 
