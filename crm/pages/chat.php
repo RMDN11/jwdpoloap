@@ -232,6 +232,55 @@ if ($selected !== '') {
         while ($historyRow = $historyResult->fetch_assoc()) $recentMessages[] = $historyRow;
         $historyStmt->close();
 
+        // Legacy WhatsApp history is read-only context from log_wa.
+        // log_wa has no direction field, so these messages are intentionally
+        // labeled "Legacy" instead of guessing whether they were inbound/outbound.
+        $legacyHistory = [];
+        $legacyNumbers = [
+            (string)$selectedContact['nowa'],
+            (string)$selectedContact['clean_wa'],
+        ];
+        if (str_starts_with($selectedNumber, '62')) {
+            $legacyNumbers[] = '0' . substr($selectedNumber, 2);
+        }
+        $legacyNumbers = array_values(array_unique(array_filter($legacyNumbers)));
+
+        $legacyPlaceholders = implode(',', array_fill(0, count($legacyNumbers), '?'));
+        $legacyTypes = str_repeat('s', count($legacyNumbers));
+        $legacyStmt = $conn->prepare(
+            "SELECT id,nowa,nama,message,created_at,last_template_name
+             FROM log_wa
+             WHERE nowa IN ({$legacyPlaceholders})
+               AND nowa <> '6288223053149'
+               AND created_at >= DATE_SUB(NOW(), INTERVAL 15 DAY)
+             ORDER BY created_at DESC, id DESC
+             LIMIT 100"
+        );
+        if ($legacyStmt) {
+            $legacyParams = [$legacyTypes];
+            foreach ($legacyNumbers as $key => $value) {
+                $legacyParams[] = &$legacyNumbers[$key];
+            }
+            call_user_func_array([$legacyStmt, 'bind_param'], $legacyParams);
+            if ($legacyStmt->execute()) {
+                $legacyResult = $legacyStmt->get_result();
+                while ($legacyRow = $legacyResult->fetch_assoc()) {
+                    $duplicate = false;
+                    foreach ($recentMessages as $recentRow) {
+                        if ((string)($recentRow['message'] ?? '') !== (string)($legacyRow['message'] ?? '')) continue;
+                        $recentTime = strtotime((string)($recentRow['sent_at'] ?? ''));
+                        $legacyTime = strtotime((string)($legacyRow['created_at'] ?? ''));
+                        if ($recentTime && $legacyTime && abs($recentTime - $legacyTime) <= 120) {
+                            $duplicate = true;
+                            break;
+                        }
+                    }
+                    if (!$duplicate) $legacyHistory[] = $legacyRow;
+                }
+            }
+            $legacyStmt->close();
+        }
+
         $outboundStmt = $conn->prepare(
             "SELECT h.id,h.template_id,h.template_name,h.message,h.sent_at,h.status
              FROM crm_message_history h
@@ -416,6 +465,25 @@ $followedContactCount = $currentStats['read_count'];
                             <p><?= nl2br(htmlspecialchars((string)$historyRow['message'])) ?></p>
                         </div>
                     <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="legacy-history-section">
+                <div class="section-title-row">
+                    <span class="message-label">Riwayat WhatsApp Lama</span>
+                    <small><?= count($legacyHistory) ?> log lama</small>
+                </div>
+                <div class="legacy-history-list">
+                    <?php if (!$legacyHistory): ?>
+                        <div class="history-empty">Belum ada riwayat WhatsApp lama untuk kontak ini.</div>
+                    <?php else: foreach (array_reverse($legacyHistory) as $legacyRow): ?>
+                        <div class="legacy-history-item">
+                            <div class="chat-log-meta">
+                                <time><?= htmlspecialchars(crmChatDate($legacyRow['created_at'] ?? null)) ?></time>
+                                <span class="chat-log-badge">Legacy</span>
+                            </div>
+                            <p><?= nl2br(htmlspecialchars((string)$legacyRow['message'])) ?></p>
+                        </div>
+                    <?php endforeach; endif; ?>
                 </div>
             </div>
             <div class="poloap-history-section">
