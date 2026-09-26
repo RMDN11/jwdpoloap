@@ -344,7 +344,7 @@ $followedContactCount = $currentStats['read_count'];
                 $isSelected = $selected !== '' && crmProspectNormalizeNumber($selected) === $row['clean_wa'];
                 $lastActivityAt = $row['last_message_at'] ?: ($row['last_inbound_at'] ?: $row['last_outbound_at']);
             ?>
-            <a data-chat-nowa="<?= htmlspecialchars($row['nowa']) ?>" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,$row['nowa'],$chatPage,$room)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?> <?= $row['contact_room'] === 'other' ? 'is-other' : '' ?>">
+            <a data-chat-nowa="<?= htmlspecialchars($row['nowa']) ?>" href="<?= htmlspecialchars(crmChatUrl($search,$status,$range,$row['nowa'],$chatPage,$room)) ?>" class="chat-item <?= $isSelected ? 'selected' : '' ?> <?= !empty($row['has_new_message']) ? 'is-new' : '' ?> <?= $row['room'] === 'lainnya' ? 'is-other' : '' ?>">
                 <span class="activity-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr($name,0,1))) ?></span>
                 <span class="chat-body">
                     <strong><?= htmlspecialchars($name) ?></strong>
@@ -581,10 +581,10 @@ $followedContactCount = $currentStats['read_count'];
         const name = String(row.nama || 'Hamba Allah').trim() || 'Hamba Allah';
         const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim().slice(0, 68);
         const direction = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
-        const roomLabel = row.contact_room === 'other' ? 'Chat Masuk' : direction;
+        const roomLabel = row.room === 'customer_baru' ? 'Customer Baru' : (row.room === 'sudah_payment' ? 'Sudah Payment' : (row.room === 'lainnya' ? 'Lainnya' : direction));
         const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
         const item = document.createElement('a');
-        item.className = 'chat-item' + (row.unread_count > 0 ? ' is-new' : '') + (row.contact_room === 'other' ? ' is-other' : '');
+        item.className = 'chat-item' + (row.unread_count > 0 ? ' is-new' : '') + (row.room === 'lainnya' ? ' is-other' : '');
         item.dataset.chatNowa = row.nowa;
         item.href = chatItemUrl(row.nowa);
         item.innerHTML =
@@ -606,7 +606,7 @@ $followedContactCount = $currentStats['read_count'];
         const body = item.querySelector('.chat-body');
         const meta = item.querySelector('.chat-meta');
         const lastDirection = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
-        const roomLabel = row.contact_room === 'other' ? 'Chat Masuk' : lastDirection;
+        const roomLabel = row.room === 'customer_baru' ? 'Customer Baru' : (row.room === 'sudah_payment' ? 'Sudah Payment' : (row.room === 'lainnya' ? 'Lainnya' : lastDirection));
         const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim();
         const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
 
