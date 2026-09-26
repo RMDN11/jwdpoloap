@@ -10,26 +10,31 @@ $pingFile  = $baseDir . '/ping.log';
 $debugFile = $baseDir . '/debug.log';
 $timestamp = date('Y-m-d H:i:s');
 
-// 1. Catat semua HTTP Request mentah
-$logEntry = "=== {$timestamp} ===\n";
-$logEntry .= "Method: " . $_SERVER['REQUEST_METHOD'] . "\n";
-$logEntry .= "IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown') . "\n";
-$logEntry .= "Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'none') . "\n";
-$logEntry .= "Raw Input: " . file_get_contents('php://input') . "\n\n";
+$logEntry = "=== {$timestamp} ===
+";
+$logEntry .= "Method: " . $_SERVER['REQUEST_METHOD'] . "
+";
+$logEntry .= "IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown') . "
+";
+$logEntry .= "Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'none') . "
+";
+$logEntry .= "Raw Input: " . file_get_contents('php://input') . "
+
+";
 file_put_contents($allRequestLog, $logEntry, FILE_APPEND);
 
-// 2. Fungsi pembantu untuk log eksekusi internal
 function logx($msg) {
     global $logFile;
-    file_put_contents($logFile, "[" . date('H:i:s') . "] " . $msg . "\n", FILE_APPEND);
+    file_put_contents($logFile, "[" . date('H:i:s') . "] " . $msg . "
+", FILE_APPEND);
 }
 
-// 3. HANYA MEMPROSES METHOD POST (selain POST ditolak)
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    file_put_contents($pingFile, "{$timestamp} HIT (" . $_SERVER['REQUEST_METHOD'] . ") - REJECTED\n", FILE_APPEND);
-    http_response_code(405); // Method Not Allowed
+    file_put_contents($pingFile, "{$timestamp} HIT (" . $_SERVER['REQUEST_METHOD'] . ") - REJECTED
+", FILE_APPEND);
+    http_response_code(405);
     echo json_encode([
-        'status'  => 'error',
+        'status' => 'error',
         'message' => 'Method not allowed. Only POST is accepted.',
         'allowed_method' => 'POST'
     ]);
@@ -38,7 +43,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 logx("=== WEBHOOK CALLED (POST) ===");
 
-// 4. Baca Raw Input JSON
 $rawInput = file_get_contents('php://input');
 if (empty($rawInput)) {
     logx("EMPTY BODY - Dibatalkan");
@@ -46,8 +50,10 @@ if (empty($rawInput)) {
     exit;
 }
 
-// Simpan Raw Data untuk keperluan Debug
-file_put_contents($debugFile, "[$timestamp]\n{$rawInput}\n\n", FILE_APPEND);
+file_put_contents($debugFile, "[$timestamp]
+{$rawInput}
+
+", FILE_APPEND);
 
 $data = json_decode($rawInput, true);
 if (json_last_error() !== JSON_ERROR_NONE) {
@@ -56,38 +62,25 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     exit;
 }
 
-// =================================================================
-// 5. EKSTRAKSI DATA & DETEKSI NAMA OTOMATIS DARI ISI PESAN
-// =================================================================
 $senderPhone = $data['sender_phone'] ?? $data['phone'] ?? $data['from'] ?? '';
 $messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';
 $externalMessageId = trim((string)($data['message_id'] ?? $data['messageId'] ?? $data['id'] ?? ''));
 
 $senderPhone = trim($senderPhone);
 $messageText = trim($messageText);
-
-// Ambil nama dari profile WhatsApp sebagai cadangan awal
 $senderName  = $data['from_name'] ?? $data['pushName'] ?? $data['name'] ?? '';
 
-// --- ENGINE DETEKSI NAMA DARI ISI TEKS ---
-// Pola: mencari kata setelah "nama saya" atau "nama sy" atau "perkenalkan nama saya"
-if (preg_match('/(?:nama saya|nama sy|perkenalkan nama saya)\s+([A-Za-z0-9]+)/i', $messageText, $matches)) {
-    // $matches[1] akan mengambil 1 kata tepat setelah kalimat di atas (Yaitu: "Eny")
+if (preg_match('/(?:nama saya|nama sy|perkenalkan nama saya)s+([A-Za-z0-9]+)/i', $messageText, $matches)) {
     $extractedName = trim($matches[1]);
-    
-    // Jika nama hasil ekstraksi tidak kosong, gunakan nama ini!
     if (!empty($extractedName)) {
-        $senderName = ucfirst(strtolower($extractedName)); // Merapikan huruf kapital menjadi "Eny"
+        $senderName = ucfirst(strtolower($extractedName));
     }
 }
 
-// Jika setelah dicari di teks & profile tetap kosong, berikan sebutan default
 if (empty($senderName) || htmlspecialchars($senderName) === 'Unknown') {
     $senderName = 'Kak';
 }
-// =================================================================
 
-// Validasi jika Nomor WA atau Pesan ternyata kosong
 if ($senderPhone === '' || $messageText === '') {
     logx("INVALID PAYLOAD — Nomor atau pesan tidak ditemukan dari Webhook.");
     logx("-> Terdeteksi: Phone='$senderPhone', Msg='$messageText'");
@@ -95,43 +88,47 @@ if ($senderPhone === '' || $messageText === '') {
     exit;
 }
 
-// Normalisasi nomor HP (Hanya menyisakan angka)
-$senderPhone = preg_replace('/\D/', '', $senderPhone);
+$senderPhone = preg_replace('/D/', '', $senderPhone);
 
 logx("PHONE: {$senderPhone}");
 logx("NAME: {$senderName}");
 logx("MESSAGE: " . substr($messageText, 0, 50) . "...");
 
-// 6. SIMPAN KE DATABASE (Tabel log_wa)
 require_once $baseDir . '/config.php';
 require_once $baseDir . '/crm/config/chat.php';
+require_once $baseDir . '/crm/config/chat-directory.php';
+require_once $baseDir . '/crm/config/prospect.php';
+require_once $baseDir . '/crm/config/chat-routing.php';
 
 $dbConnected = isset($conn) && $conn instanceof mysqli && !$conn->connect_error;
 logx("DB CONNECTED: " . ($dbConnected ? 'YES' : 'NO'));
 
 $savedToDB = false;
+$chatConversationId = null;
+$chatMessageId = null;
+$routingRoom = null;
+
 if ($dbConnected) {
     try {
         $stmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, ?)");
-        $stmt->bind_param('ssss', $senderPhone, $senderName, $messageText, $timestamp);
-        
-        if ($stmt->execute()) {
-            $savedToDB = true;
-            logx("✅ BERHASIL SIMPAN KE TABEL log_wa");
-        } else {
-            // Jika gagal insert, catat pesan error aslinya dari MySQL
-            logx("❌ GAGAL SIMPAN DB (SQL Error): " . $stmt->error);
+        if ($stmt) {
+            $stmt->bind_param('ssss', $senderPhone, $senderName, $messageText, $timestamp);
+            if ($stmt->execute()) {
+                $savedToDB = true;
+                logx("✅ BERHASIL SIMPAN KE TABEL log_wa");
+            } else {
+                logx("❌ GAGAL SIMPAN DB (SQL Error): " . $stmt->error);
+            }
+            $stmt->close();
         }
-        $stmt->close();
     } catch (Throwable $e) {
         logx("❌ GAGAL SIMPAN DB (Exception): " . $e->getMessage());
     }
 }
 
-// 6b. SIMPAN KE LAYER CONVERSATION BARU (dual-write, non-blocking)
 if ($dbConnected) {
     try {
-        crmChatStoreMessage(
+        $chatMessageId = crmChatStoreMessage(
             $conn,
             $senderPhone,
             $senderName,
@@ -142,19 +139,36 @@ if ($dbConnected) {
             $timestamp,
             $externalMessageId !== '' ? $externalMessageId : null
         );
+
+        if ($chatMessageId !== null && $chatMessageId > 0) {
+            $idStmt = $conn->prepare("SELECT id FROM crm_conversations WHERE nowa = ? LIMIT 1");
+            if ($idStmt) {
+                $idStmt->bind_param('s', $senderPhone);
+                $idStmt->execute();
+                $idRow = $idStmt->get_result()->fetch_assoc();
+                $idStmt->close();
+                $chatConversationId = $idRow ? (int)$idRow['id'] : null;
+            }
+
+            if ($chatConversationId) {
+                $routing = crmChatRoutingEvaluateConversation($conn, $chatConversationId, $messageText);
+                if ($routing) {
+                    $routingRoom = (string)($routing['room'] ?? 'lainnya');
+                    logx("CHAT ROUTING: {$routingRoom}");
+                }
+            }
+        }
     } catch (Throwable $e) {
         logx("CHAT LAYER ERROR: " . $e->getMessage());
     }
 }
 
-// 7. AUTO-REPLY ENGINE
 $autoReplyStatus = 'skipped';
 $engineFile = $baseDir . '/auto_reply_engine.php';
 
 if (!file_exists($engineFile)) {
     logx("AUTO REPLY ENGINE FILE NOT FOUND");
 } else {
-    // Membaca token dari config.php (Otomatis mendeteksi bentuk Define atau Variabel)
     $apiUrl   = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : ($ONESENDER_API_URL ?? null);
     $apiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : ($ONESENDER_API_TOKEN ?? null);
 
@@ -165,7 +179,6 @@ if (!file_exists($engineFile)) {
         try {
             require_once $engineFile;
             $autoReply = new AutoReplyEngine($conn, $apiUrl, $apiToken, $baseDir . '/auto_reply_log.txt');
-            // PERBAIKAN: Sisipkan variabel $senderName agar Engine bisa menyapa nama user
             $sent = $autoReply->processIncomingMessage($senderPhone, $messageText, $senderName);
             $autoReplyStatus = $sent ? 'sent' : 'failed';
             logx("AUTO REPLY STATUS: {$autoReplyStatus}");
@@ -176,16 +189,18 @@ if (!file_exists($engineFile)) {
     }
 }
 
-// 8. RESPONSE AKHIR KE ONESENDER
 echo json_encode([
-    'status' => 'success',
-    'time'   => $timestamp,
-    'data'   => [
+    'status'  => 'success',
+    'time'    => $timestamp,
+    'data'    => [
         'phone'      => substr($senderPhone, 0, 4) . '***',
         'msg_length' => strlen($messageText),
         'saved_db'   => $savedToDB,
+        'chat_saved' => $chatMessageId !== null && $chatMessageId !== 0,
+        'room'       => $routingRoom,
         'auto_reply' => $autoReplyStatus
     ]
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 
-logx("=== WEBHOOK COMPLETED ===\n");
+logx("=== WEBHOOK COMPLETED ===
+");
