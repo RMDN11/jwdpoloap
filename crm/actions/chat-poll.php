@@ -163,16 +163,25 @@ $statsStmt = $conn->query(
     "SELECT
         SUM(($roomSql)) AS total,
         COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count > 0), 0) AS unread,
-        COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count = 0), 0) AS read_count
+        COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count = 0), 0) AS read_count,
+        COALESCE(SUM($statsRangeSql), 0) AS room_all_count,
+        COALESCE(SUM(($statsRangeSql) AND ($knownSql)), 0) AS room_people_count,
+        COALESCE(SUM(($statsRangeSql) AND NOT ($knownSql)), 0) AS room_other_count
      FROM crm_conversations"
 );
 $stats = ['total' => 0, 'unread' => 0, 'read_count' => 0];
+$roomCounts = ['all' => 0, 'people' => 0, 'other' => 0];
 if ($statsStmt) {
     $statsRow = $statsStmt->fetch_assoc();
     $stats = [
         'total' => (int)($statsRow['total'] ?? 0),
         'unread' => (int)($statsRow['unread'] ?? 0),
         'read_count' => (int)($statsRow['read_count'] ?? 0),
+    ];
+    $roomCounts = [
+        'all' => (int)($statsRow['room_all_count'] ?? 0),
+        'people' => (int)($statsRow['room_people_count'] ?? 0),
+        'other' => (int)($statsRow['room_other_count'] ?? 0),
     ];
 }
 
@@ -196,5 +205,6 @@ echo json_encode([
     'server_time' => $serverTime,
     'unread_today' => $unreadToday,
     'stats' => $stats,
+    'room_counts' => $roomCounts,
     'conversations' => $conversations,
 ], JSON_UNESCAPED_UNICODE);
