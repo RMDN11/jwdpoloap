@@ -58,11 +58,9 @@ if ($messageTemplate === '') {
 $name = trim((string)($contact['nama'] ?? 'Kak'));
 $incomingMessage = (string)($contact['message'] ?? '');
 
-if (preg_match('/nama saya\s+\*?([^\*\(
-]+)\*?\s*\(/i', $incomingMessage, $m)) {
+if (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?\s*\(/i', $incomingMessage, $m)) {
     $name = trim($m[1]);
-} elseif (preg_match('/nama saya\s+\*?([^\*\(
-]+)\*?/i', $incomingMessage, $m)) {
+} elseif (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?/i', $incomingMessage, $m)) {
     $name = trim($m[1]);
 }
 if ($name === '' || strtolower($name) === 'kak') $name = 'Kak';
