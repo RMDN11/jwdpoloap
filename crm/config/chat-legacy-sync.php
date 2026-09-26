@@ -348,7 +348,7 @@ function crmChatLegacySync(mysqli $conn): int {
  */
 function crmChatLegacySyncNormalizeText(string $message): string {
     $message = strtolower(trim($message));
-    $message = preg_replace('/\\s+/u', ' ', $message) ?? '';
+    $message = preg_replace('/\s+/u', ' ', $message) ?? '';
     return trim($message);
 }
 
