@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/prospect.php';
+require_once __DIR__ . '/../config/chat.php';
 $disqualified = crmGetDisqualifiedNumbers($conn);
 $blocked = crmGetBlockedNumbers($conn);
 
@@ -123,6 +124,56 @@ if ($historyStmt) {
     $historyStmt->bind_param('ssiss', $contact['nowa'], $name, $templateId, $templateName, $message);
     $historyOk = $historyStmt->execute();
     $historyStmt->close();
+}
+
+// Phase 2: simpan pesan outbound ke conversation layer tanpa memutus flow legacy.
+$chatMessageId = null;
+try {
+    $chatMessageId = crmChatStoreMessage(
+        $conn,
+        $contact['nowa'],
+        $name,
+        $message,
+        'out',
+        'admin',
+        'crm',
+        date('Y-m-d H:i:s'),
+        null,
+        $templateId > 0 ? $templateId : null,
+        $templateName
+    );
+
+    if ($chatMessageId !== null && $chatMessageId !== 0 && crmChatTablesReady($conn)) {
+        $conversationIdStmt = $conn->prepare("SELECT id FROM crm_conversations WHERE nowa = ? LIMIT 1");
+        if ($conversationIdStmt) {
+            $conversationIdStmt->bind_param('s', $normalizedContact);
+            $conversationIdStmt->execute();
+            $conversation = $conversationIdStmt->get_result()->fetch_assoc();
+            $conversationIdStmt->close();
+
+            if ($conversation) {
+                $followupStmt = $conn->prepare(
+                    "INSERT INTO crm_followups (conversation_id, message_id, template_id, template_name, sent_at, status)
+                     VALUES (?, ?, NULLIF(?, 0), ?, NOW(), 'sent')"
+                );
+                if ($followupStmt) {
+                    $followupTemplateId = $templateId > 0 ? $templateId : 0;
+                    $followupStmt->bind_param(
+                        'iiis',
+                        $conversation['id'],
+                        $chatMessageId,
+                        $followupTemplateId,
+                        $templateName
+                    );
+                    $followupStmt->execute();
+                    $followupStmt->close();
+                    crmChatRefreshFollowupCount($conn, (int)$conversation['id']);
+                }
+            }
+        }
+    }
+} catch (Throwable $e) {
+    // Conversation layer is additive during migration. Legacy send/history remain authoritative.
 }
 
 if (!$historyOk) {
