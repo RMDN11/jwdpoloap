@@ -160,7 +160,8 @@ function crmChatRoutingPaymentDetectedSql(string $alias = 'crm_conversations'): 
     return "EXISTS (
         SELECT 1
         FROM log_wa payment_log
-        WHERE (
+        WHERE LOWER(TRIM(COALESCE({$alias}.room_source, 'auto'))) <> 'manual'
+          AND (
             BINARY payment_log.nowa = BINARY {$alias}.nowa
             OR BINARY payment_log.nowa = BINARY CONCAT('0', SUBSTRING({$alias}.nowa, 3))
             OR BINARY payment_log.nowa = BINARY CONCAT('+', {$alias}.nowa)
