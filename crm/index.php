@@ -28,6 +28,12 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     <?php if ($page === 'auto-reply'): ?>
         <link rel="stylesheet" href="assets/css/auto-reply.css?v=<?= filemtime(__DIR__ . '/assets/css/auto-reply.css') ?>">
     <?php endif; ?>
+    <?php if ($page === 'templates'): ?>
+        <link rel="stylesheet" href="assets/css/templates.css?v=<?= filemtime(__DIR__ . '/assets/css/templates.css') ?>">
+    <?php endif; ?>
+    <?php if ($page === 'manage-groups'): ?>
+        <link rel="stylesheet" href="assets/css/manage-groups.css?v=<?= filemtime(__DIR__ . '/assets/css/manage-groups.css') ?>">
+    <?php endif; ?>
     <?php if ($page === 'group'): ?>
         <link rel="stylesheet" href="assets/css/group-mobile.css?v=<?= filemtime(__DIR__ . '/assets/css/group-mobile.css') ?>">
     <?php endif; ?>
