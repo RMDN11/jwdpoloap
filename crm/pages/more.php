@@ -6,7 +6,7 @@ $crmTitle = 'More';
 $items = [
     ['title' => 'Template Pesan', 'description' => 'Kelola template pesan', 'icon' => 'fa-regular fa-file-lines', 'href' => 'index.php?page=templates'],
     ['title' => 'Auto Reply', 'description' => 'Atur balasan otomatis', 'icon' => 'fa-solid fa-robot', 'href' => 'index.php?page=auto-reply'],
-    ['title' => 'Kelola Grup', 'description' => 'Daftar dan pengelolaan grup', 'icon' => 'fa-solid fa-users', 'href' => '../kelola_grup.php'],
+    ['title' => 'Kelola Grup', 'description' => 'Daftar dan pengelolaan grup', 'icon' => 'fa-solid fa-users', 'href' => 'index.php?page=manage-groups'],
     ['title' => 'Analytics', 'description' => 'Lihat analitik CRM', 'icon' => 'fa-solid fa-chart-line', 'href' => '../grafik.php'],
 ];
 ?>
