@@ -1,9 +1,39 @@
-<?php $crmTitle = 'More'; ?>
-<section class="page-head"><span class="eyebrow">Workspace</span><h1>More</h1><p>Fitur pendukung CRM dikumpulkan di satu tempat.</p></section>
+<?php
+declare(strict_types=1);
+
+$crmTitle = 'More';
+
+$items = [
+    ['title' => 'Template Pesan', 'description' => 'Kelola template pesan', 'icon' => 'fa-regular fa-file-lines', 'href' => '../manage_templates.php'],
+    ['title' => 'Auto Reply', 'description' => 'Atur balasan otomatis', 'icon' => 'fa-solid fa-robot', 'href' => '../manage_auto_reply.php'],
+    ['title' => 'Kelola Grup', 'description' => 'Daftar dan pengelolaan grup', 'icon' => 'fa-solid fa-users', 'href' => '../kelola_grup.php'],
+    ['title' => 'Analytics', 'description' => 'Lihat analitik CRM', 'icon' => 'fa-solid fa-chart-line', 'href' => '../grafik.php'],
+];
+?>
+<section class="page-head">
+    <span class="eyebrow">Workspace</span>
+    <h1>More</h1>
+    <p>Fitur pendukung CRM dikumpulkan di satu tempat.</p>
+</section>
+
 <div class="action-list">
-    <a href="../manage_templates.php"><i class="fa-regular fa-file-lines"></i><div><strong>Template Pesan</strong><span>Kelola template pesan</span></div><i class="fa-solid fa-chevron-right"></i></a>
-    <a href="../manage_auto_reply.php"><i class="fa-solid fa-robot"></i><div><strong>Auto Reply</strong><span>Atur balasan otomatis</span></div><i class="fa-solid fa-chevron-right"></i></a>
-    <a href="?page=group"><i class="fa-solid fa-bullhorn"></i><div><strong>Kirim ke Grup</strong><span>Broadcast dan jadwal grup</span></div><i class="fa-solid fa-chevron-right"></i></a><a href="../kelola_grup.php"><i class="fa-solid fa-users"></i><div><strong>Kelola Grup</strong><span>Daftar dan pengelolaan grup</span></div><i class="fa-solid fa-chevron-right"></i></a>
-    <a href="../grafik.php"><i class="fa-solid fa-chart-line"></i><div><strong>Analytics</strong><span>Lihat analitik CRM</span></div><i class="fa-solid fa-chevron-right"></i></a>
-    <a href="logout.php"><i class="fa-solid fa-right-from-bracket danger"></i><div><strong>Keluar</strong><span>Logout akun</span></div><i class="fa-solid fa-chevron-right"></i></a>
+    <?php foreach ($items as $item): ?>
+        <a href="<?= htmlspecialchars($item['href']) ?>">
+            <i class="<?= htmlspecialchars($item['icon']) ?>"></i>
+            <div>
+                <strong><?= htmlspecialchars($item['title']) ?></strong>
+                <span><?= htmlspecialchars($item['description']) ?></span>
+            </div>
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+    <?php endforeach; ?>
+
+    <a href="../logoutwa.php">
+        <i class="fa-solid fa-right-from-bracket danger"></i>
+        <div>
+            <strong>Keluar</strong>
+            <span>Logout akun</span>
+        </div>
+        <i class="fa-solid fa-chevron-right"></i>
+    </a>
 </div>
