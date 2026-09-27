@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/bootstrap.php';
 
 $page = $_GET['page'] ?? 'home';
-$allowedPages = ['home', 'chat', 'templates', 'auto-reply', 'manage-groups', 'reminder', 'reminder-pembayaran', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'more', 'activity', 'group'];
+$allowedPages = ['home', 'chat', 'templates', 'auto-reply', 'manage-groups', 'analytics', 'reminder', 'reminder-pembayaran', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'more', 'activity', 'group'];
 if (!in_array($page, $allowedPages, true)) $page = 'home';
 
 $pageFile = __DIR__ . '/pages/' . $page . '.php';
@@ -33,6 +33,9 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     <?php endif; ?>
     <?php if ($page === 'manage-groups'): ?>
         <link rel="stylesheet" href="assets/css/manage-groups.css?v=<?= filemtime(__DIR__ . '/assets/css/manage-groups.css') ?>">
+    <?php endif; ?>
+    <?php if ($page === 'analytics'): ?>
+        <link rel="stylesheet" href="assets/css/analytics.css?v=<?= filemtime(__DIR__ . '/assets/css/analytics.css') ?>">
     <?php endif; ?>
     <?php if ($page === 'group'): ?>
         <link rel="stylesheet" href="assets/css/group-mobile.css?v=<?= filemtime(__DIR__ . '/assets/css/group-mobile.css') ?>">
