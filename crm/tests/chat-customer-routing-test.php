@@ -25,8 +25,23 @@ if (strpos($chatPage, "'all' => ['label' => 'Semua Chat'") !== false) {
 }
 
 $chatPoll = file_get_contents(__DIR__ . '/../pages/chat-poll.php');
-if ($chatPoll === false || strpos($chatPoll, 'crmChatRoutingIsInternalNumber') === false) {
-    throw new RuntimeException('chat-poll.php must exclude internal numbers');
+if ($chatPoll === false) {
+    throw new RuntimeException('Unable to read chat-poll.php');
+}
+foreach ([
+    "$allowedRooms = ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya']",
+    '$paymentDetectedSql = crmChatRoutingPaymentDetectedSql();',
+    '$internalSql = crmChatRoutingInternalSql();',
+    'AND ($internalSql)',
+    'NOT ({$paymentDetectedSql})',
+    "crm_conversations.room = 'sudah_payment' OR {$paymentDetectedSql}",
+] as $needle) {
+    if (strpos($chatPoll, $needle) === false) {
+        throw new RuntimeException('chat-poll.php missing expected routing marker: ' . $needle);
+    }
+}
+if (strpos($chatPoll, "['all', 'customer_baru'") !== false || strpos($chatPoll, "'people', 'other'") !== false) {
+    throw new RuntimeException('chat-poll.php must not use legacy room buckets');
 }
 
 echo "CRM Chat customer/payment routing test passed.\n";
