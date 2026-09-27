@@ -14,6 +14,10 @@ foreach ([
     'Quality Check',
     'Interest Mix',
     'Trend',
+    '$homeAnalytics',
+    '$homeCategoryTotals',
+    'crmIsEligibleProspect',
+    '30 Hari Terakhir',
     '?page=analytics',
 ] as $needle) {
     if (!str_contains($home, $needle)) {
