@@ -59,7 +59,7 @@ if ($conversationStmt) {
 
 if (!$contact) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Conversation tidak ditemukan.'];
-    header('Location: ../index.php?page=chat');
+    header('Location: ' . $returnUrl());
     exit;
 }
 
@@ -83,7 +83,7 @@ if ($customMessage !== '') {
 
 if ($messageTemplate === '') {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pilih template atau isi pesan custom.'];
-    header('Location: ../index.php?page=chat&contact=' . urlencode($contactId));
+    header('Location: ' . $returnUrl($contactId));
     exit;
 }
 
@@ -127,7 +127,7 @@ curl_close($ch);
 
 if ($curlError || $httpCode < 200 || $httpCode >= 300) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => $curlError ?: 'Pesan gagal dikirim. API mengembalikan kode ' . $httpCode . '.'];
-    header('Location: ../index.php?page=chat&contact=' . urlencode($contactId));
+    header('Location: ' . $returnUrl($contactId));
     exit;
 }
 
@@ -224,5 +224,5 @@ if (!$historyOk) {
 } else {
     $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pesan berhasil dikirim ke ' . $name . '.'];
 }
-header('Location: ../index.php?page=chat&contact=' . urlencode($contactId));
+header('Location: ' . $returnUrl($contactId));
 exit;
