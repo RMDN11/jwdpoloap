@@ -45,20 +45,34 @@ if ($result) {
     </div>
 </section>
 
-<section class="section home-tools-section">
-    <div class="section-heading">
-        <h2>Tools</h2>
-        <a href="?page=more">Semua <i class="fa-solid fa-arrow-right"></i></a>
+<section class="section home-analytics-section">
+    <div class="section-heading home-analytics-heading">
+        <div>
+            <span class="home-analytics-kicker"><i class="fa-solid fa-sparkles"></i> Data Intelligence</span>
+            <h2>Analytics</h2>
+        </div>
+        <a href="?page=analytics">Buka Analytics <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
     </div>
-    <div class="home-tools-grid">
-        <a href="?page=chat"><span class="home-tool-icon green"><i class="fa-solid fa-paper-plane"></i></span><strong>Follow Up</strong></a>
-        <a href="?page=group"><span class="home-tool-icon blue"><i class="fa-solid fa-users"></i></span><strong>Grup</strong></a>
-        <a href="?page=chat"><span class="home-tool-icon amber"><i class="fa-solid fa-user-plus"></i></span><strong>Prospek</strong></a>
-        <a href="?page=reminder"><span class="home-tool-icon red"><i class="fa-regular fa-bell"></i></span><strong>Reminder</strong></a>
-        <a href="?page=group"><span class="home-tool-icon purple"><i class="fa-solid fa-users"></i></span><strong>Grup</strong></a>
-        <a href="../promosi.php"><span class="home-tool-icon teal"><i class="fa-solid fa-bullhorn"></i></span><strong>Promosi</strong></a>
-        <a href="../manage_templates.php"><span class="home-tool-icon slate"><i class="fa-regular fa-file-lines"></i></span><strong>Template</strong></a>
-        <a href="../grafik.php"><span class="home-tool-icon indigo"><i class="fa-solid fa-chart-simple"></i></span><strong>Data</strong></a>
+    <div class="home-analytics-bento">
+        <a href="?page=analytics" class="home-analytics-feature">
+            <div class="home-analytics-feature-top">
+                <span class="home-analytics-icon"><i class="fa-solid fa-chart-line"></i></span>
+                <span class="home-analytics-live"><span></span> CRM Insight</span>
+            </div>
+            <div class="home-analytics-feature-copy">
+                <strong>Data jadi lebih mudah dibaca.</strong>
+                <p>Pantau pola prospek, kualitas data, dan minat program dari satu ruang analitik.</p>
+            </div>
+            <div class="home-analytics-chart" aria-hidden="true">
+                <span class="bar bar-1"></span><span class="bar bar-2"></span><span class="bar bar-3"></span>
+                <span class="bar bar-4"></span><span class="bar bar-5"></span><span class="bar bar-6"></span><span class="chart-line"></span>
+            </div>
+            <div class="home-analytics-feature-foot"><span>Eksplorasi data</span><i class="fa-solid fa-arrow-right"></i></div>
+        </a>
+        <a href="?page=analytics" class="home-analytics-tile tile-lead"><span class="home-analytics-tile-icon"><i class="fa-solid fa-user-check"></i></span><div><strong>Lead Valid</strong><small>Prospek yang lolos kriteria</small></div><i class="fa-solid fa-arrow-up-right"></i></a>
+        <a href="?page=analytics" class="home-analytics-tile tile-quality"><span class="home-analytics-tile-icon"><i class="fa-solid fa-shield-halved"></i></span><div><strong>Quality Check</strong><small>Validasi dan eksklusi data</small></div><i class="fa-solid fa-arrow-up-right"></i></a>
+        <a href="?page=analytics" class="home-analytics-tile tile-interest"><span class="home-analytics-tile-icon"><i class="fa-solid fa-layer-group"></i></span><div><strong>Interest Mix</strong><small>Komposisi minat program</small></div><i class="fa-solid fa-arrow-up-right"></i></a>
+        <a href="?page=analytics" class="home-analytics-tile tile-trend"><span class="home-analytics-tile-icon"><i class="fa-solid fa-arrow-trend-up"></i></span><div><strong>Trend</strong><small>Pergerakan lead per periode</small></div><i class="fa-solid fa-arrow-up-right"></i></a>
     </div>
 </section>
 
