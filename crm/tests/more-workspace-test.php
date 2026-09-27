@@ -7,15 +7,27 @@ if ($more === false) throw new RuntimeException('Cannot read more.php');
 $required = [
     'Template Pesan',
     'Auto Reply',
-    'Kirim ke Grup',
     'Kelola Grup',
     'Analytics',
+    'Keluar',
     'More',
 ];
 
 foreach ($required as $label) {
     if (!str_contains($more, $label)) {
         throw new RuntimeException("Missing More workspace item: {$label}");
+    }
+}
+
+$removed = [
+    'Follow Up',
+    'Reminder',
+    'Kirim ke Grup',
+];
+
+foreach ($removed as $label) {
+    if (str_contains($more, $label)) {
+        throw new RuntimeException("Unexpected More workspace item: {$label}");
     }
 }
 
