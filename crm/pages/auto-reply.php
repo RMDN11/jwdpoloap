@@ -209,29 +209,28 @@ foreach ($rules as $rule) {
 }
 ?>
 
-<div class="auto-reply-back">
-    <a href="index.php?page=more" title="Kembali ke More" aria-label="Kembali ke More">
-        <i class="fa-solid fa-arrow-left"></i>
-    </a>
+<div class="crm-workspace-page">
+<div class="crm-workspace-back">
+    <a href="index.php?page=more" title="Kembali ke More" aria-label="Kembali ke More"><i class="fa-solid fa-arrow-left"></i></a>
 </div>
 
-<section class="reminder-peserta-head auto-reply-peserta-head">
-    <div>
-        <span class="reminder-kicker">Automation</span>
+<section class="crm-workspace-header auto-reply-peserta-head">
+    <div class="crm-workspace-header-main">
+        <span class="crm-workspace-kicker">Automation</span>
         <h1>Auto Reply</h1>
         <p>Atur keyword dan balasan otomatis untuk percakapan WhatsApp.</p>
     </div>
-    <div class="auto-reply-head-stats">
-        <span><strong><?= $activeRules ?></strong> aktif</span>
-        <span><strong><?= $totalRules ?></strong> total rule</span>
+    <div class="crm-workspace-stats auto-reply-head-stats">
+        <span class="crm-workspace-stat"><strong><?= $activeRules ?></strong> aktif</span>
+        <span class="crm-workspace-stat"><strong><?= $totalRules ?></strong> total rule</span>
     </div>
 </section>
 
-<section class="auto-reply-workspace">
-    <div class="group-card auto-reply-editor" id="autoReplyEditor">
-        <div class="group-card-head">
+<section class="crm-workspace-grid is-editor-left auto-reply-workspace">
+    <div class="crm-workspace-card group-card auto-reply-editor is-sticky" id="autoReplyEditor">
+        <div class="crm-workspace-card-head group-card-head">
             <div>
-                <span class="group-kicker">Rule</span>
+                <span class="crm-workspace-card-kicker group-kicker">Rule</span>
                 <h2 id="autoReplyFormTitle">Tambah Rule</h2>
             </div>
             <button type="button" class="crm-icon-btn" id="autoReplyReset" title="Reset form" aria-label="Reset form">
@@ -239,7 +238,7 @@ foreach ($rules as $rule) {
             </button>
         </div>
 
-        <div class="auto-reply-note">
+        <div class="crm-workspace-note auto-reply-note">
             <i class="fa-solid fa-robot"></i>
             <div>
                 <strong>Keyword → Balasan</strong>
@@ -277,10 +276,10 @@ foreach ($rules as $rule) {
         </form>
     </div>
 
-    <div class="group-card auto-reply-list-card">
+    <div class="crm-workspace-card group-card auto-reply-list-card">
         <div class="group-card-head">
             <div>
-                <span class="group-kicker">Library</span>
+                <span class="crm-workspace-card-kicker group-kicker">Library</span>
                 <h2>Rule Tersimpan <small><?= $totalRules ?></small></h2>
             </div>
             <button type="button" class="crm-btn crm-btn-primary auto-reply-new" id="autoReplyNew">
@@ -296,7 +295,7 @@ foreach ($rules as $rule) {
                 <span>Buat rule pertama untuk merespons keyword secara otomatis.</span>
             </div>
         <?php else: ?>
-            <div class="auto-reply-list">
+            <div class="crm-workspace-list auto-reply-list">
                 <?php foreach ($rules as $rule): ?>
                     <?php $active = (int)$rule['is_active'] === 1; ?>
                     <article class="auto-reply-item <?= $active ? 'is-active' : 'is-inactive' ?>">
@@ -362,6 +361,7 @@ foreach ($rules as $rule) {
         <?php endif; ?>
     </div>
 </section>
+</div>
 
 <div class="auto-reply-modal" id="autoReplyTestModal" aria-hidden="true">
     <div class="auto-reply-modal-card" role="dialog" aria-modal="true" aria-labelledby="autoReplyTestTitle">

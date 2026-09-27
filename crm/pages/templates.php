@@ -115,13 +115,17 @@ if ($stmt) {
 }
 ?>
 
-<section class="crm-page-head">
-    <div>
-        <span class="crm-eyebrow">Workspace</span>
+<div class="crm-workspace-page">
+<div class="crm-workspace-back">
+    <a href="index.php?page=more" title="Kembali ke More" aria-label="Kembali ke More"><i class="fa-solid fa-arrow-left"></i></a>
+</div>
+<section class="crm-workspace-header">
+    <div class="crm-workspace-header-main">
+        <span class="crm-workspace-kicker">Workspace</span>
         <h1>Template Pesan</h1>
         <p>Kelola pesan siap pakai untuk komunikasi WhatsApp.</p>
     </div>
-    <div class="crm-page-head-actions">
+    <div class="crm-workspace-stats">
         <button type="button" class="crm-btn crm-btn-primary" id="newTemplateButton">
             <i class="fa-solid fa-plus"></i>
             Template Baru
@@ -129,11 +133,11 @@ if ($stmt) {
     </div>
 </section>
 
-<section class="template-workspace">
-    <div class="template-form-card" id="templateFormCard">
-        <div class="template-card-head">
+<section class="crm-workspace-grid is-editor-left template-workspace">
+    <div class="crm-workspace-card crm-workspace-card-body is-sticky template-form-card" id="templateFormCard">
+        <div class="crm-workspace-card-head template-card-head">
             <div>
-                <span class="template-card-kicker">Editor</span>
+                <span class="crm-workspace-card-kicker template-card-kicker">Editor</span>
                 <h2 id="templateFormTitle">Tambah Template</h2>
             </div>
             <button type="button" class="crm-icon-btn" id="resetTemplateButton" aria-label="Reset form" title="Reset">
@@ -141,7 +145,7 @@ if ($stmt) {
             </button>
         </div>
 
-        <div class="template-placeholder-note">
+        <div class="crm-workspace-note template-placeholder-note">
             <i class="fa-solid fa-circle-info"></i>
             <div>
                 <strong>Gunakan placeholder</strong>
@@ -173,23 +177,23 @@ if ($stmt) {
         </form>
     </div>
 
-    <div class="template-list-card">
-        <div class="template-list-head">
+    <div class="crm-workspace-card template-list-card">
+        <div class="crm-workspace-card-head template-list-head">
             <div>
-                <span class="template-card-kicker">Library</span>
+                <span class="crm-workspace-card-kicker template-card-kicker">Library</span>
                 <h2>Template Tersimpan <small><?= count($templates) ?></small></h2>
             </div>
             <div class="template-list-hint">Klik salin untuk menggunakan isi pesan.</div>
         </div>
 
         <?php if (!$templates): ?>
-            <div class="template-empty">
-                <div class="template-empty-icon"><i class="fa-regular fa-file-lines"></i></div>
+            <div class="crm-workspace-empty template-empty">
+                <div class="crm-workspace-empty-icon template-empty-icon"><i class="fa-regular fa-file-lines"></i></div>
                 <strong>Belum ada template</strong>
                 <span>Buat template pertama untuk mempercepat komunikasi WhatsApp.</span>
             </div>
         <?php else: ?>
-            <div class="template-list">
+            <div class="crm-workspace-list template-list">
                 <?php foreach ($templates as $template): ?>
                     <article class="template-item">
                         <div class="template-item-main">
@@ -237,323 +241,7 @@ if ($stmt) {
     </div>
 </section>
 
-<style>
-.template-workspace {
-    display: grid;
-    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-    gap: 18px;
-    align-items: start;
-}
-.template-form-card,
-.template-list-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, .05);
-}
-.template-form-card {
-    padding: 18px;
-    position: sticky;
-    top: 18px;
-}
-.template-card-head,
-.template-list-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-}
-.template-card-head {
-    padding-bottom: 14px;
-    border-bottom: 1px solid #f1f5f9;
-    margin-bottom: 14px;
-}
-.template-card-kicker {
-    display: block;
-    color: #64748b;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    margin-bottom: 3px;
-}
-.template-card-head h2,
-.template-list-head h2 {
-    margin: 0;
-    color: #0f172a;
-    font-size: 15px;
-    font-weight: 800;
-}
-.template-list-head h2 small {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 24px;
-    height: 22px;
-    padding: 0 7px;
-    margin-left: 5px;
-    border-radius: 999px;
-    background: #eff6ff;
-    color: #2563eb;
-    font-size: 10px;
-}
-.template-placeholder-note {
-    display: flex;
-    gap: 10px;
-    padding: 11px 12px;
-    margin-bottom: 16px;
-    border: 1px solid #dbeafe;
-    border-radius: 10px;
-    background: #eff6ff;
-    color: #475569;
-    font-size: 11px;
-    line-height: 1.5;
-}
-.template-placeholder-note > i {
-    color: #2563eb;
-    margin-top: 2px;
-}
-.template-placeholder-note strong,
-.template-placeholder-note span {
-    display: block;
-}
-.template-placeholder-note strong {
-    color: #1e3a8a;
-    margin-bottom: 2px;
-}
-.template-placeholder-note code {
-    padding: 1px 5px;
-    border-radius: 5px;
-    background: #dbeafe;
-    color: #1d4ed8;
-    font-weight: 800;
-}
-.crm-field {
-    display: block;
-    margin-bottom: 14px;
-}
-.crm-field > span {
-    display: block;
-    margin-bottom: 6px;
-    color: #475569;
-    font-size: 11px;
-    font-weight: 800;
-}
-.crm-field input,
-.crm-field textarea {
-    width: 100%;
-    border: 1px solid #e2e8f0;
-    border-radius: 9px;
-    background: #f8fafc;
-    color: #334155;
-    padding: 10px 11px;
-    font: inherit;
-    font-size: 12px;
-    outline: none;
-    transition: .2s;
-    box-sizing: border-box;
-}
-.crm-field textarea {
-    min-height: 150px;
-    resize: vertical;
-    line-height: 1.55;
-}
-.crm-field input:focus,
-.crm-field textarea:focus {
-    border-color: #3b82f6;
-    background: #fff;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, .1);
-}
-.crm-btn {
-    border: 0;
-    border-radius: 9px;
-    min-height: 38px;
-    padding: 0 13px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    font-size: 11px;
-    font-weight: 800;
-    cursor: pointer;
-    transition: .2s;
-}
-.crm-btn-primary {
-    background: #2563eb;
-    color: #fff;
-}
-.crm-btn-primary:hover {
-    background: #1d4ed8;
-}
-.crm-btn-secondary {
-    background: #f1f5f9;
-    color: #475569;
-}
-.crm-btn-secondary:hover {
-    background: #e2e8f0;
-}
-.template-form-actions {
-    display: flex;
-    gap: 8px;
-}
-.template-form-actions .crm-btn-primary {
-    flex: 1;
-}
-.crm-icon-btn {
-    width: 34px;
-    height: 34px;
-    flex: 0 0 34px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: #fff;
-    color: #64748b;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: .2s;
-}
-.crm-icon-btn:hover {
-    border-color: #bfdbfe;
-    background: #eff6ff;
-    color: #2563eb;
-}
-.crm-icon-btn-danger:hover {
-    border-color: #fecdd3;
-    background: #fff1f2;
-    color: #e11d48;
-}
-.template-list-head {
-    padding: 16px 18px;
-    border-bottom: 1px solid #e2e8f0;
-}
-.template-list-hint {
-    color: #94a3b8;
-    font-size: 10px;
-}
-.template-list {
-    padding: 4px 18px 8px;
-}
-.template-item {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding: 16px 0;
-    border-bottom: 1px solid #f1f5f9;
-}
-.template-item:last-child {
-    border-bottom: 0;
-}
-.template-item-main {
-    min-width: 0;
-    flex: 1;
-}
-.template-item-title {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-.template-item-icon {
-    width: 34px;
-    height: 34px;
-    flex: 0 0 34px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9px;
-    background: #eff6ff;
-    color: #3b82f6;
-}
-.template-item-title h3 {
-    margin: 0 0 2px;
-    color: #0f172a;
-    font-size: 12px;
-    font-weight: 800;
-}
-.template-item-title span:not(.template-item-icon) {
-    color: #94a3b8;
-    font-size: 9px;
-}
-.template-content {
-    margin: 10px 0 0 44px;
-    padding: 10px 11px;
-    max-height: 120px;
-    overflow: auto;
-    border: 1px solid #f1f5f9;
-    border-radius: 8px;
-    background: #f8fafc;
-    color: #64748b;
-    font-size: 11px;
-    line-height: 1.55;
-    white-space: normal;
-}
-.template-item-actions {
-    display: flex;
-    gap: 5px;
-    flex-shrink: 0;
-}
-.template-delete-form {
-    margin: 0;
-}
-.template-empty {
-    min-height: 260px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 28px;
-    text-align: center;
-    color: #94a3b8;
-}
-.template-empty-icon {
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 12px;
-    border-radius: 14px;
-    background: #f8fafc;
-    color: #94a3b8;
-    font-size: 19px;
-}
-.template-empty strong {
-    color: #475569;
-    font-size: 12px;
-    margin-bottom: 4px;
-}
-.template-empty span {
-    max-width: 300px;
-    font-size: 10px;
-    line-height: 1.5;
-}
-@media (max-width: 820px) {
-    .template-workspace {
-        grid-template-columns: 1fr;
-    }
-    .template-form-card {
-        position: static;
-    }
-    .template-list-hint {
-        display: none;
-    }
-}
-@media (max-width: 560px) {
-    .template-item {
-        display: block;
-    }
-    .template-item-actions {
-        margin: 10px 0 0 44px;
-    }
-    .template-content {
-        margin-left: 0;
-    }
-    .template-item-title {
-        align-items: flex-start;
-    }
-}
-</style>
+
 
 <script>
 (() => {

@@ -28,6 +28,12 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     <?php if ($page === 'auto-reply'): ?>
         <link rel="stylesheet" href="assets/css/auto-reply.css?v=<?= filemtime(__DIR__ . '/assets/css/auto-reply.css') ?>">
     <?php endif; ?>
+    <?php if ($page === 'templates'): ?>
+        <link rel="stylesheet" href="assets/css/templates.css?v=<?= filemtime(__DIR__ . '/assets/css/templates.css') ?>">
+    <?php endif; ?>
+    <?php if ($page === 'manage-groups'): ?>
+        <link rel="stylesheet" href="assets/css/manage-groups.css?v=<?= filemtime(__DIR__ . '/assets/css/manage-groups.css') ?>">
+    <?php endif; ?>
     <?php if ($page === 'group'): ?>
         <link rel="stylesheet" href="assets/css/group-mobile.css?v=<?= filemtime(__DIR__ . '/assets/css/group-mobile.css') ?>">
     <?php endif; ?>
@@ -35,6 +41,7 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
         <link rel="stylesheet" href="assets/css/reminder.css?v=<?= filemtime(__DIR__ . '/assets/css/reminder.css') ?>">
         <link rel="stylesheet" href="assets/css/reminder-v2.css?v=<?= filemtime(__DIR__ . '/assets/css/reminder-v2.css') ?>">
     <?php endif; ?>
+    <link rel="stylesheet" href="assets/css/workspace-core.css?v=<?= filemtime(__DIR__ . '/assets/css/workspace-core.css') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 </head>
 <body>
