@@ -54,7 +54,7 @@ $stmt->close();
 
 if (!$conversation) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Conversation tidak ditemukan.'];
-    header('Location: ../index.php?page=chat');
+    header('Location: ' . $returnUrl());
     exit;
 }
 
@@ -83,7 +83,7 @@ if ($clearManual) {
 
 if (!in_array($requestedRoom, ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'], true)) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Room routing tidak valid.'];
-    header('Location: ../index.php?page=chat&contact=' . urlencode($conversation['nowa']));
+    header('Location: ' . $returnUrl($conversation['nowa']));
     exit;
 }
 
@@ -94,7 +94,7 @@ if (!$manual) {
     $_SESSION['crm_flash'] = $routing
         ? ['type' => 'success', 'message' => 'Routing dikembalikan ke Auto Routing.']
         : ['type' => 'error', 'message' => 'Auto routing gagal dievaluasi.'];
-    header('Location: ../index.php?page=chat&contact=' . urlencode($conversation['nowa']));
+    header('Location: ' . $returnUrl($conversation['nowa']));
     exit;
 }
 
@@ -122,5 +122,5 @@ if (!$ok) {
     ];
 }
 
-header('Location: ../index.php?page=chat&contact=' . urlencode($conversation['nowa']));
+header('Location: ' . $returnUrl($conversation['nowa']));
 exit;
