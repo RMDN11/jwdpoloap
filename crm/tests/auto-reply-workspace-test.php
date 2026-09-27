@@ -5,8 +5,9 @@ $index = file_get_contents(__DIR__ . '/../index.php');
 $page = file_get_contents(__DIR__ . '/../pages/auto-reply.php');
 $more = file_get_contents(__DIR__ . '/../pages/more.php');
 $css = file_get_contents(__DIR__ . '/../assets/css/auto-reply.css');
+$core = file_get_contents(__DIR__ . '/../assets/css/workspace-core.css');
 
-if ($index === false || $page === false || $more === false || $css === false) {
+if ($index === false || $page === false || $more === false || $css === false || $core === false) {
     throw new RuntimeException('Cannot read CRM auto reply workspace files.');
 }
 
@@ -18,9 +19,10 @@ foreach (["'auto-reply'", "'templates'"] as $required) {
 
 foreach ([
     'Auto Reply',
-    'page-head',
-    'group-card',
-    'group-kicker',
+    'crm-workspace-page',
+    'crm-workspace-grid',
+    'crm-workspace-card',
+    'crm-workspace-kicker',
     'Tambah Rule',
     'autoReplyForm',
     'auto-reply-test',
@@ -47,37 +49,22 @@ foreach ([
 
 foreach ([
     'assets/css/auto-reply.css',
-    'auto-reply-back',
+    'assets/css/workspace-core.css',
     'index.php?page=more',
 ] as $required) {
     if (!str_contains($index . $page, $required)) {
-        throw new RuntimeException("Missing Auto Reply polish element: {$required}");
+        throw new RuntimeException("Missing Auto Reply shared workspace integration: {$required}");
+    }
+}
+
+foreach (['max-width:1280px', '--crm-green:#168044', 'padding-bottom:104px', 'grid-template-columns:minmax(280px,.85fr) minmax(360px,1.15fr)'] as $required) {
+    if (!str_contains($core, $required)) {
+        throw new RuntimeException("Missing shared workspace core rule: {$required}");
     }
 }
 
 if (str_contains($page, '<style>')) {
     throw new RuntimeException('Auto Reply still contains inline style blocks.');
-}
-
-if (!str_contains($css, 'padding-bottom:104px')) {
-    throw new RuntimeException('Desktop scroll clearance is missing.');
-}
-
-
-$autoCss = file_get_contents(__DIR__ . '/../assets/css/auto-reply.css');
-if ($autoCss === false) {
-    throw new RuntimeException('Cannot read Auto Reply stylesheet.');
-}
-
-foreach ([
-    'auto-reply-peserta-head',
-    'body:has(.auto-reply-peserta-head) .content',
-    '.auto-reply-list{',
-    'max-height:620px',
-] as $required) {
-    if (!str_contains($autoCss, $required)) {
-        throw new RuntimeException("Missing Auto Reply Reminder-style element: {$required}");
-    }
 }
 
 echo "CRM Auto Reply workspace test passed.\n";
