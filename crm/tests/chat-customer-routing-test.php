@@ -7,8 +7,8 @@ if ($chatPage === false) {
 }
 
 $required = [
-    "$_GET['room'] ?? 'customer_baru'",
-    "$allowedRooms = ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya']",
+    '$_GET[\'room\'] ?? \'customer_baru\'',
+    '$allowedRooms = [\'customer_baru\', \'sudah_payment\', \'peserta_pengajar\', \'lainnya\']',
     'crmChatRoutingPaymentDetectedSql()',
     'NOT ({$paymentDetectedSql})',
     "crm_conversations.room = 'sudah_payment' OR {$paymentDetectedSql}",
