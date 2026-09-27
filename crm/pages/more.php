@@ -4,8 +4,8 @@ declare(strict_types=1);
 $crmTitle = 'More';
 
 $items = [
-    ['title' => 'Template Pesan', 'description' => 'Kelola template pesan', 'icon' => 'fa-regular fa-file-lines', 'href' => '../manage_templates.php'],
-    ['title' => 'Auto Reply', 'description' => 'Atur balasan otomatis', 'icon' => 'fa-solid fa-robot', 'href' => '../manage_auto_reply.php'],
+    ['title' => 'Template Pesan', 'description' => 'Kelola template pesan', 'icon' => 'fa-regular fa-file-lines', 'href' => 'index.php?page=templates'],
+    ['title' => 'Auto Reply', 'description' => 'Atur balasan otomatis', 'icon' => 'fa-solid fa-robot', 'href' => 'index.php?page=auto-reply'],
     ['title' => 'Kelola Grup', 'description' => 'Daftar dan pengelolaan grup', 'icon' => 'fa-solid fa-users', 'href' => '../kelola_grup.php'],
     ['title' => 'Analytics', 'description' => 'Lihat analitik CRM', 'icon' => 'fa-solid fa-chart-line', 'href' => '../grafik.php'],
 ];
