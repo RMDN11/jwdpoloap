@@ -174,3 +174,140 @@
     .auto-reply-page-head .auto-reply-head-stats{grid-column:1 / -1}
     .auto-reply-workspace{padding-bottom:88px}
 }
+
+/* Final Reminder-style header alignment */
+/* Reuse the same outer width, back-button placement, title rhythm, and stat treatment
+   used by the Reminder workspaces. */
+body:has(.auto-reply-peserta-head) .content{max-width:1280px}
+.auto-reply-back{margin:0 0 14px}
+.auto-reply-back a{
+    width:36px;
+    height:36px;
+    display:grid;
+    place-items:center;
+    border:1px solid #e4ebe7;
+    background:#fff;
+    border-radius:11px;
+    color:#18352a;
+    text-decoration:none;
+    box-shadow:0 4px 14px rgba(24,55,41,.04);
+    transition:.18s ease;
+}
+.auto-reply-back a:hover{
+    background:#f5faf7;
+    border-color:#cbd8d0;
+    transform:translateX(-1px);
+}
+.auto-reply-peserta-head{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:18px;
+}
+.auto-reply-peserta-head h1{
+    margin:5px 0 0;
+    font-size:28px;
+    letter-spacing:-.05em;
+}
+.auto-reply-peserta-head p{
+    margin:5px 0 0;
+    font-size:12px;
+    line-height:1.55;
+    color:#829089;
+    max-width:760px;
+}
+.auto-reply-peserta-head .auto-reply-head-stats{
+    display:flex;
+    gap:7px;
+    flex-wrap:wrap;
+    align-self:flex-end;
+}
+.auto-reply-peserta-head .auto-reply-head-stats span{
+    padding:7px 10px;
+    border:1px solid #e4ebe7;
+    border-radius:999px;
+    background:#fff;
+    color:#829089;
+}
+.auto-reply-workspace{
+    grid-template-columns:minmax(0,1.45fr) minmax(340px,.8fr);
+    gap:16px;
+    align-items:start;
+    padding-bottom:104px;
+}
+.auto-reply-editor,
+.auto-reply-list-card{
+    border-radius:20px;
+    box-shadow:0 5px 18px rgba(24,55,41,.04);
+}
+.auto-reply-editor{
+    padding:18px;
+    position:sticky;
+    top:16px;
+}
+.auto-reply-list-card{overflow:hidden}
+.auto-reply-card-head{
+    padding-bottom:14px;
+    margin-bottom:14px;
+    border-bottom:1px solid #edf2ef;
+}
+.auto-reply-card-head h2,
+.auto-reply-list-head h2,
+.auto-reply-modal-head h2{
+    font-size:21px;
+    color:#10231b;
+    letter-spacing:-.04em;
+}
+.auto-reply-list-head{
+    padding:15px 16px;
+    border-bottom:1px solid #edf2ef;
+}
+.auto-reply-list{
+    max-height:620px;
+    overflow:auto;
+    padding:2px 16px 8px;
+}
+.auto-reply-list::-webkit-scrollbar{width:6px}
+.auto-reply-list::-webkit-scrollbar-track{background:#f5f8f6;border-radius:999px}
+.auto-reply-list::-webkit-scrollbar-thumb{background:#cbd8d0;border-radius:999px}
+.auto-reply-item{
+    gap:14px;
+    padding:13px 0;
+}
+.auto-reply-item-title h3{font-size:12px;color:#18352a}
+.auto-reply-item-title div>span{font-size:9px;color:#829089}
+.auto-reply-message{
+    margin:9px 0 0 48px;
+    padding:10px 11px;
+    border:1px solid #edf2ef;
+    border-radius:10px;
+    background:#fbfdfc;
+    color:#526259;
+    font-size:10px;
+    line-height:1.55;
+}
+.auto-reply-item-actions .crm-icon-btn{
+    width:32px;
+    height:32px;
+    border-radius:10px;
+}
+@media(max-width:900px){
+    body:has(.auto-reply-peserta-head) .content{max-width:760px}
+    .auto-reply-peserta-head{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+    .auto-reply-peserta-head .auto-reply-head-stats{
+        align-self:flex-start;
+    }
+    .auto-reply-workspace{grid-template-columns:1fr}
+    .auto-reply-editor{position:static}
+}
+@media(max-width:560px){
+    .auto-reply-peserta-head h1{font-size:25px}
+    .auto-reply-peserta-head{margin-bottom:14px}
+    .auto-reply-back{margin-bottom:10px}
+    .auto-reply-list{max-height:none}
+    .auto-reply-workspace{padding-bottom:88px}
+}
