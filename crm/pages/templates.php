@@ -125,7 +125,7 @@ if ($stmt) {
         <h1>Template Pesan</h1>
         <p>Kelola pesan siap pakai untuk komunikasi WhatsApp.</p>
     </div>
-    <div class="crm-workspace-stats">
+    <div class="crm-workspace-header-actions">
         <button type="button" class="crm-btn crm-btn-primary" id="newTemplateButton">
             <i class="fa-solid fa-plus"></i>
             Template Baru
@@ -157,17 +157,17 @@ if ($stmt) {
             <input type="hidden" name="manage_templates_action" id="templateAction" value="add">
             <input type="hidden" name="template_id" id="templateId" value="">
 
-            <label class="crm-field">
+            <label class="crm-workspace-field">
                 <span>Nama Template</span>
                 <input type="text" name="new_template_name" id="templateName" required maxlength="150" placeholder="Contoh: Follow Up Prospek">
             </label>
 
-            <label class="crm-field">
+            <label class="crm-workspace-field">
                 <span>Isi Pesan</span>
                 <textarea name="new_template_content" id="templateContent" required placeholder="Assalamu'alaikum {nama}, ..."></textarea>
             </label>
 
-            <div class="template-form-actions">
+            <div class="crm-workspace-actions template-form-actions">
                 <button type="submit" class="crm-btn crm-btn-primary" id="templateSubmit">
                     <i class="fa-solid fa-floppy-disk"></i>
                     <span>Simpan Template</span>
