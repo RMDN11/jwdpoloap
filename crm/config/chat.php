@@ -264,3 +264,32 @@ function crmChatGetUnreadCount(mysqli $conn): int {
     $row = $result->fetch_assoc();
     return (int)($row['total'] ?? 0);
 }
+
+function crmChatBuildReturnUrl(
+    string $contactId = '',
+    string $status = 'all',
+    string $range = 'today',
+    string $room = 'all',
+    string $search = '',
+    int $chatPage = 1
+): string {
+    $allowedStatus = ['all', 'new', 'read', 'followed'];
+    $allowedRanges = ['today', 'week', 'month', 'all'];
+    $allowedRooms = ['all', 'customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'];
+
+    if (!in_array($status, $allowedStatus, true)) $status = 'all';
+    if (!in_array($range, $allowedRanges, true)) $range = 'today';
+    if (!in_array($room, $allowedRooms, true)) $room = 'all';
+
+    $params = [
+        'page' => 'chat',
+        'status' => $status,
+        'range' => $range,
+        'room' => $room,
+    ];
+    if ($search !== '') $params['q'] = $search;
+    if ($contactId !== '') $params['contact'] = $contactId;
+    if ($chatPage > 1) $params['p'] = $chatPage;
+
+    return '../index.php?' . http_build_query($params);
+}

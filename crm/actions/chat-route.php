@@ -11,13 +11,27 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? nu
     exit('Permintaan tidak valid.');
 }
 
+$returnStatus = (string)($_POST['return_status'] ?? 'all');
+$returnRange = (string)($_POST['return_range'] ?? 'today');
+$returnRoom = (string)($_POST['return_room'] ?? 'all');
+$returnSearch = trim((string)($_POST['return_q'] ?? ''));
+$returnPage = max(1, (int)($_POST['return_p'] ?? 1));
+$returnUrl = static fn(string $contact = ''): string => crmChatBuildReturnUrl(
+    $contact,
+    $returnStatus,
+    $returnRange,
+    $returnRoom,
+    $returnSearch,
+    $returnPage
+);
+
 $contactId = trim((string)($_POST['contact_id'] ?? ''));
 $requestedRoom = trim((string)($_POST['room'] ?? 'lainnya'));
 $clearManual = (string)($_POST['clear_manual'] ?? '') === '1';
 
 if ($contactId === '') {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Percakapan tidak ditemukan.'];
-    header('Location: ../index.php?page=chat');
+    header('Location: ' . $returnUrl());
     exit;
 }
 
@@ -30,7 +44,7 @@ $stmt = $conn->prepare(
 );
 if (!$stmt) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Routing gagal disiapkan.'];
-    header('Location: ../index.php?page=chat&contact=' . urlencode($contactId));
+    header('Location: ' . $returnUrl($contactId));
     exit;
 }
 $stmt->bind_param('ss', $normalized, $contactId);
@@ -63,7 +77,7 @@ if ($clearManual) {
         ? ['type' => 'success', 'message' => 'Routing dikembalikan ke Auto Routing.']
         : ['type' => 'error', 'message' => 'Auto routing gagal dievaluasi.'];
 
-    header('Location: ../index.php?page=chat&contact=' . urlencode($conversation['nowa']));
+    header('Location: ' . $returnUrl($conversation['nowa']));
     exit;
 }
 

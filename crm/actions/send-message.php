@@ -11,13 +11,27 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? nu
     exit('Permintaan tidak valid.');
 }
 
+$returnStatus = (string)($_POST['return_status'] ?? 'all');
+$returnRange = (string)($_POST['return_range'] ?? 'today');
+$returnRoom = (string)($_POST['return_room'] ?? 'all');
+$returnSearch = trim((string)($_POST['return_q'] ?? ''));
+$returnPage = max(1, (int)($_POST['return_p'] ?? 1));
+$returnUrl = static fn(string $contact = ''): string => crmChatBuildReturnUrl(
+    $contact,
+    $returnStatus,
+    $returnRange,
+    $returnRoom,
+    $returnSearch,
+    $returnPage
+);
+
 $contactId = trim((string)($_POST['contact_id'] ?? ''));
 $templateId = (int)($_POST['template_id'] ?? 0);
 $customMessage = trim((string)($_POST['custom_message'] ?? ''));
 
 if ($contactId === '') {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak tidak ditemukan.'];
-    header('Location: ../index.php?page=chat');
+    header('Location: ' . $returnUrl());
     exit;
 }
 
@@ -25,7 +39,7 @@ $normalizedContact = crmProspectNormalizeNumber($contactId);
 
 if (in_array($normalizedContact, array_map('crmProspectNormalizeNumber', $blocked), true)) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini diblokir sehingga pesan tidak dikirim.'];
-    header('Location: ../index.php?page=chat&contact=' . urlencode($contactId));
+    header('Location: ' . $returnUrl($contactId));
     exit;
 }
 
