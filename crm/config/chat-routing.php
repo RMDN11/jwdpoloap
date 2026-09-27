@@ -40,6 +40,7 @@ function crmChatRoutingNormalizedInternalNumbers(): array {
 function crmChatRoutingInternalSql(string $alias = 'crm_conversations'): string {
     $checks = [];
     foreach (crmChatRoutingNormalizedInternalNumbers() as $number) {
+        $number = (string)$number;
         $local = '0' . substr($number, 2);
         $plus = '+' . $number;
         $checks[] = sprintf(
@@ -81,6 +82,7 @@ function crmChatRoutingIsKnownContact(mysqli $conn, string $nowa): bool {
         );
         if (!$stmt) continue;
 
+        $number = (string)$number;
         $local = '0' . substr($number, 2);
         $plus = '+' . $number;
         $stmt->bind_param('ssss', $number, $local, $plus, $nowa);
