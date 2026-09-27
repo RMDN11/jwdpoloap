@@ -209,9 +209,9 @@ foreach ($rules as $rule) {
 }
 ?>
 
-<section class="crm-page-head auto-reply-page-head">
+<section class="page-head auto-reply-page-head">
     <div>
-        <span class="crm-eyebrow">Workspace</span>
+        <span class="eyebrow">Automation</span>
         <h1>Auto Reply</h1>
         <p>Atur keyword dan balasan otomatis untuk percakapan WhatsApp.</p>
     </div>
@@ -222,10 +222,10 @@ foreach ($rules as $rule) {
 </section>
 
 <section class="auto-reply-workspace">
-    <div class="auto-reply-editor" id="autoReplyEditor">
-        <div class="auto-reply-card-head">
+    <div class="group-card auto-reply-editor" id="autoReplyEditor">
+        <div class="group-card-head">
             <div>
-                <span class="auto-reply-kicker">Editor</span>
+                <span class="group-kicker">Rule</span>
                 <h2 id="autoReplyFormTitle">Tambah Rule</h2>
             </div>
             <button type="button" class="crm-icon-btn" id="autoReplyReset" title="Reset form" aria-label="Reset form">
@@ -246,7 +246,7 @@ foreach ($rules as $rule) {
             <input type="hidden" name="auto_reply_action" id="autoReplyAction" value="add">
             <input type="hidden" name="rule_id" id="autoReplyRuleId" value="">
 
-            <label class="crm-field">
+            <label class="group-field">
                 <span>Keyword</span>
                 <input type="text" name="keyword" id="autoReplyKeyword" maxlength="120" required placeholder="Contoh: harga">
             </label>
@@ -271,10 +271,10 @@ foreach ($rules as $rule) {
         </form>
     </div>
 
-    <div class="auto-reply-list-card">
-        <div class="auto-reply-list-head">
+    <div class="group-card auto-reply-list-card">
+        <div class="group-card-head">
             <div>
-                <span class="auto-reply-kicker">Rules</span>
+                <span class="group-kicker">Library</span>
                 <h2>Rule Tersimpan <small><?= $totalRules ?></small></h2>
             </div>
             <button type="button" class="crm-btn crm-btn-primary auto-reply-new" id="autoReplyNew">
@@ -361,7 +361,7 @@ foreach ($rules as $rule) {
     <div class="auto-reply-modal-card" role="dialog" aria-modal="true" aria-labelledby="autoReplyTestTitle">
         <div class="auto-reply-modal-head">
             <div>
-                <span class="auto-reply-kicker">Test Rule</span>
+                <span class="group-kicker">Test Rule</span>
                 <h2 id="autoReplyTestTitle">Kirim test message</h2>
                 <p id="autoReplyTestKeyword"></p>
             </div>
@@ -505,3 +505,90 @@ foreach ($rules as $rule) {
     });
 })();
 </script>
+
+
+<style>
+/* Auto Reply follows the shared CRM visual language used by More, Chat and Group. */
+.auto-reply-page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.auto-reply-page-head h1{font-size:28px;letter-spacing:-.045em}
+.auto-reply-page-head p{margin:7px 0 0;color:#7a8982;font-size:12px;line-height:1.5}
+.auto-reply-head-stats{display:flex;gap:7px;flex-wrap:wrap}
+.auto-reply-head-stats span{display:inline-flex;align-items:center;gap:4px;padding:7px 10px;border:1px solid #e3ebe6;border-radius:999px;background:#f8faf9;color:#7a8982;font-size:9px;font-weight:750}
+.auto-reply-head-stats strong{color:#168044;font-size:11px}
+
+.auto-reply-workspace{display:grid;grid-template-columns:minmax(280px,.85fr) minmax(360px,1.15fr);gap:12px;align-items:start}
+.auto-reply-editor,.auto-reply-list-card{background:#fff;border:1px solid #e4ebe6;border-radius:20px;box-shadow:0 8px 30px rgba(22,101,52,.05)}
+.auto-reply-editor{padding:16px;position:sticky;top:84px}
+.auto-reply-list-card{overflow:hidden}
+.auto-reply-card-head{padding-bottom:14px;border-bottom:1px solid #edf1ee;margin-bottom:13px}
+.auto-reply-card-head h2,.auto-reply-list-head h2,.auto-reply-modal-head h2{margin:0;color:#183d29;font-size:15px;letter-spacing:-.03em}
+.auto-reply-list-head{padding:15px 16px;border-bottom:1px solid #edf1ee}
+.auto-reply-list-head h2 small{display:inline-grid;place-items:center;min-width:22px;height:20px;padding:0 6px;margin-left:4px;border-radius:999px;background:#e8f7ed;color:#168044;font-size:9px}
+.auto-reply-note{display:flex;gap:9px;padding:10px 11px;margin-bottom:14px;border:1px solid #dce9e1;border-radius:13px;background:#f3faf5;color:#708078;font-size:10px;line-height:1.5}
+.auto-reply-note>i{color:#168044;margin-top:2px}
+.auto-reply-note strong{display:block;color:#315044;margin-bottom:2px}
+.auto-reply-note span{display:block}
+
+.auto-reply-editor .group-field{display:block;margin-bottom:12px}
+.auto-reply-editor .group-field>span{display:block;margin-bottom:5px;color:#596960;font-size:10px;font-weight:800}
+.auto-reply-editor .group-field input,
+.auto-reply-editor .group-field textarea{width:100%;box-sizing:border-box;border:1px solid #dfe8e2;border-radius:12px;background:#fbfdfc;padding:10px 11px;font:inherit;font-size:11px;color:#30473a;outline:none}
+.auto-reply-editor .group-field textarea{min-height:135px;resize:vertical;line-height:1.55}
+.auto-reply-editor .group-field input:focus,
+.auto-reply-editor .group-field textarea:focus{border-color:#70bd8e;box-shadow:0 0 0 3px rgba(36,153,86,.08);background:#fff}
+
+.auto-reply-form-actions{display:flex;gap:8px}
+.auto-reply-form-actions .crm-btn-primary{flex:1}
+.auto-reply-editor .crm-btn,
+.auto-reply-list-card .crm-btn{border:0;border-radius:12px;min-height:38px;padding:0 13px;font:inherit;font-size:10px;font-weight:800;cursor:pointer}
+.auto-reply-editor .crm-btn-primary,
+.auto-reply-list-card .crm-btn-primary{background:#168044;color:#fff}
+.auto-reply-editor .crm-btn-primary:hover,
+.auto-reply-list-card .crm-btn-primary:hover{background:#126b39}
+.auto-reply-editor .crm-btn-secondary{background:#edf2ee;color:#53645b}
+
+.auto-reply-list{padding:2px 16px 8px}
+.auto-reply-item{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;padding:14px 0;border-bottom:1px solid #edf1ee}
+.auto-reply-item:last-child{border-bottom:0}
+.auto-reply-item-main{min-width:0;flex:1}
+.auto-reply-item-title{display:flex;gap:10px;align-items:center}
+.auto-reply-icon{width:38px;height:38px;flex:0 0 38px;border-radius:12px;display:grid;place-items:center;background:#e8f7ed;color:#168044}
+.auto-reply-item.is-inactive .auto-reply-icon{background:#f1f3f2;color:#8d9a93}
+.auto-reply-item-title h3{margin:0 0 3px;color:#18352a;font-size:12px;font-weight:800}
+.auto-reply-item-title div>span{color:#87958e;font-size:9px}
+.auto-reply-message{margin:9px 0 0 48px;padding:11px 12px;max-height:120px;overflow:auto;border:1px solid #e7eee9;border-radius:13px;background:#f7faf8;color:#526259;font-size:11px;line-height:1.55}
+.auto-reply-item-actions{display:flex;gap:5px;flex-shrink:0}
+.auto-reply-inline-form{margin:0}
+.auto-reply-item-actions .crm-icon-btn{width:34px;height:34px;border:1px solid #e0e9e3;border-radius:11px;background:#fff;color:#718078}
+.auto-reply-item-actions .crm-icon-btn:hover{border-color:#b7d8c2;background:#f2faf5;color:#168044}
+.auto-reply-item-actions .crm-icon-btn-danger:hover{border-color:#f2c8c8;background:#fff3f3;color:#c65d5d}
+
+.auto-reply-empty{min-height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;color:#8a9891}
+.auto-reply-empty-icon{width:48px;height:48px;display:grid;place-items:center;margin-bottom:12px;border-radius:14px;background:#edf8f1;color:#80a08d;font-size:19px}
+.auto-reply-empty strong{color:#365046;font-size:13px;margin-bottom:5px}
+.auto-reply-empty span{max-width:320px;font-size:11px;line-height:1.6}
+
+.auto-reply-modal{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,35,25,.38);backdrop-filter:blur(5px);opacity:0;visibility:hidden;pointer-events:none;transition:.18s}
+.auto-reply-modal.is-open{opacity:1;visibility:visible;pointer-events:auto}
+.auto-reply-modal-card{width:min(430px,100%);padding:20px;background:#fff;border:1px solid #dfe9e3;border-radius:20px;box-shadow:0 24px 70px rgba(15,35,25,.2)}
+.auto-reply-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px}
+.auto-reply-modal-head p{margin:4px 0 0;color:#849189;font-size:10px}
+.auto-reply-test-hint{margin:-4px 0 12px;color:#8a9790;font-size:9px;line-height:1.5}
+
+@media(max-width:850px){
+  .auto-reply-page-head{display:block}
+  .auto-reply-head-stats{margin-top:10px}
+  .auto-reply-workspace{grid-template-columns:1fr}
+  .auto-reply-editor{position:static}
+}
+@media(max-width:560px){
+  .auto-reply-page-head h1{font-size:25px}
+  .auto-reply-page-head{padding:10px 4px 14px}
+  .auto-reply-item{display:block}
+  .auto-reply-item-actions{margin:10px 0 0 48px}
+  .auto-reply-message{margin-left:0}
+  .auto-reply-list{padding-inline:12px}
+  .auto-reply-list-head{padding-inline:12px}
+  .auto-reply-editor{padding:14px}
+}
+</style>
