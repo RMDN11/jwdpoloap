@@ -227,10 +227,10 @@ foreach ($rules as $rule) {
 </section>
 
 <section class="crm-workspace-grid is-editor-left auto-reply-workspace">
-    <div class="crm-workspace-card group-card auto-reply-editor is-sticky" id="autoReplyEditor">
-        <div class="crm-workspace-card-head group-card-head">
+    <div class="crm-workspace-card auto-reply-editor is-sticky" id="autoReplyEditor">
+        <div class="crm-workspace-card-head">
             <div>
-                <span class="crm-workspace-card-kicker group-kicker">Rule</span>
+                <span class="crm-workspace-card-kicker">Rule</span>
                 <h2 id="autoReplyFormTitle">Tambah Rule</h2>
             </div>
             <button type="button" class="crm-icon-btn" id="autoReplyReset" title="Reset form" aria-label="Reset form">
@@ -251,22 +251,22 @@ foreach ($rules as $rule) {
             <input type="hidden" name="auto_reply_action" id="autoReplyAction" value="add">
             <input type="hidden" name="rule_id" id="autoReplyRuleId" value="">
 
-            <label class="group-field">
+            <label class="crm-workspace-field">
                 <span>Keyword</span>
                 <input type="text" name="keyword" id="autoReplyKeyword" maxlength="120" required placeholder="Contoh: harga">
             </label>
 
-            <label class="crm-field">
+            <label class="crm-workspace-field">
                 <span>Balasan Otomatis</span>
                 <textarea name="reply" id="autoReplyReply" required placeholder="Assalamu'alaikum, kak. Untuk informasi harga program..."></textarea>
             </label>
 
-            <label class="crm-field">
+            <label class="crm-workspace-field">
                 <span>Prioritas</span>
                 <input type="number" name="priority" id="autoReplyPriority" min="1" max="999" value="1" required>
             </label>
 
-            <div class="auto-reply-form-actions">
+            <div class="crm-workspace-actions auto-reply-form-actions">
                 <button type="submit" class="crm-btn crm-btn-primary" id="autoReplySubmit">
                     <i class="fa-solid fa-floppy-disk"></i>
                     <span>Simpan Rule</span>
@@ -276,10 +276,10 @@ foreach ($rules as $rule) {
         </form>
     </div>
 
-    <div class="crm-workspace-card group-card auto-reply-list-card">
-        <div class="group-card-head">
+    <div class="crm-workspace-card auto-reply-list-card">
+        <div class="crm-workspace-card-head">
             <div>
-                <span class="crm-workspace-card-kicker group-kicker">Library</span>
+                <span class="crm-workspace-card-kicker">Library</span>
                 <h2>Rule Tersimpan <small><?= $totalRules ?></small></h2>
             </div>
             <button type="button" class="crm-btn crm-btn-primary auto-reply-new" id="autoReplyNew">
@@ -289,8 +289,8 @@ foreach ($rules as $rule) {
         </div>
 
         <?php if (!$rules): ?>
-            <div class="auto-reply-empty">
-                <div class="auto-reply-empty-icon"><i class="fa-solid fa-robot"></i></div>
+            <div class="crm-workspace-empty auto-reply-empty">
+                <div class="crm-workspace-empty-icon auto-reply-empty-icon"><i class="fa-solid fa-robot"></i></div>
                 <strong>Belum ada rule auto reply</strong>
                 <span>Buat rule pertama untuk merespons keyword secara otomatis.</span>
             </div>
@@ -367,7 +367,7 @@ foreach ($rules as $rule) {
     <div class="auto-reply-modal-card" role="dialog" aria-modal="true" aria-labelledby="autoReplyTestTitle">
         <div class="auto-reply-modal-head">
             <div>
-                <span class="group-kicker">Test Rule</span>
+                <span class="crm-workspace-card-kicker">Test Rule</span>
                 <h2 id="autoReplyTestTitle">Kirim test message</h2>
                 <p id="autoReplyTestKeyword"></p>
             </div>
@@ -380,7 +380,7 @@ foreach ($rules as $rule) {
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(crmCsrfToken(), ENT_QUOTES) ?>">
             <input type="hidden" name="auto_reply_action" value="test">
             <input type="hidden" name="rule_id" id="autoReplyTestRuleId" value="">
-            <label class="crm-field">
+            <label class="crm-workspace-field">
                 <span>Nomor WhatsApp</span>
                 <input type="tel" name="test_phone" id="autoReplyTestPhone" inputmode="numeric" required placeholder="08xxxxxxxxxx">
             </label>

@@ -22,6 +22,10 @@ foreach ([
     'crm-workspace-page',
     'crm-workspace-grid',
     'crm-workspace-card',
+    'crm-workspace-header-main',
+    'crm-workspace-stat',
+    'crm-workspace-field',
+    'crm-workspace-actions',
     'crm-workspace-kicker',
     'Tambah Rule',
     'autoReplyForm',
@@ -57,7 +61,7 @@ foreach ([
     }
 }
 
-foreach (['max-width:1280px', '--crm-green:#168044', 'padding-bottom:104px', 'grid-template-columns:minmax(280px,.85fr) minmax(360px,1.15fr)'] as $required) {
+foreach (['max-width:1280px', '--crm-green:#168044', 'padding-bottom:104px', 'grid-template-columns:minmax(280px,.85fr) minmax(360px,1.15fr)', 'crm-workspace-field input', 'auto-reply-modal-card'] as $required) {
     if (!str_contains($core, $required)) {
         throw new RuntimeException("Missing shared workspace core rule: {$required}");
     }
