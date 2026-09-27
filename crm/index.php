@@ -25,6 +25,9 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     <title>ReqraWA CRM</title>
     <link rel="icon" type="image/png" href="assets/logowa.png">
     <link rel="stylesheet" href="assets/css/app.css?v=<?= filemtime(__DIR__ . '/assets/css/app.css') ?>">
+    <?php if ($page === 'auto-reply'): ?>
+        <link rel="stylesheet" href="assets/css/auto-reply.css?v=<?= filemtime(__DIR__ . '/assets/css/auto-reply.css') ?>">
+    <?php endif; ?>
     <?php if ($page === 'group'): ?>
         <link rel="stylesheet" href="assets/css/group-mobile.css?v=<?= filemtime(__DIR__ . '/assets/css/group-mobile.css') ?>">
     <?php endif; ?>
