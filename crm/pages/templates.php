@@ -135,9 +135,9 @@ if ($stmt) {
 
 <section class="crm-workspace-grid is-editor-left template-workspace">
     <div class="crm-workspace-card crm-workspace-card-body is-sticky template-form-card" id="templateFormCard">
-        <div class="template-card-head">
+        <div class="crm-workspace-card-head template-card-head">
             <div>
-                <span class="template-card-kicker">Editor</span>
+                <span class="crm-workspace-card-kicker template-card-kicker">Editor</span>
                 <h2 id="templateFormTitle">Tambah Template</h2>
             </div>
             <button type="button" class="crm-icon-btn" id="resetTemplateButton" aria-label="Reset form" title="Reset">
@@ -145,7 +145,7 @@ if ($stmt) {
             </button>
         </div>
 
-        <div class="template-placeholder-note">
+        <div class="crm-workspace-note template-placeholder-note">
             <i class="fa-solid fa-circle-info"></i>
             <div>
                 <strong>Gunakan placeholder</strong>
@@ -178,22 +178,22 @@ if ($stmt) {
     </div>
 
     <div class="crm-workspace-card template-list-card">
-        <div class="template-list-head">
+        <div class="crm-workspace-card-head template-list-head">
             <div>
-                <span class="template-card-kicker">Library</span>
+                <span class="crm-workspace-card-kicker template-card-kicker">Library</span>
                 <h2>Template Tersimpan <small><?= count($templates) ?></small></h2>
             </div>
             <div class="template-list-hint">Klik salin untuk menggunakan isi pesan.</div>
         </div>
 
         <?php if (!$templates): ?>
-            <div class="template-empty">
-                <div class="template-empty-icon"><i class="fa-regular fa-file-lines"></i></div>
+            <div class="crm-workspace-empty template-empty">
+                <div class="crm-workspace-empty-icon template-empty-icon"><i class="fa-regular fa-file-lines"></i></div>
                 <strong>Belum ada template</strong>
                 <span>Buat template pertama untuk mempercepat komunikasi WhatsApp.</span>
             </div>
         <?php else: ?>
-            <div class="template-list">
+            <div class="crm-workspace-list template-list">
                 <?php foreach ($templates as $template): ?>
                     <article class="template-item">
                         <div class="template-item-main">
