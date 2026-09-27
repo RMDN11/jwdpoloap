@@ -10,6 +10,7 @@ $required = [
     '$_GET[\'room\'] ?? \'customer_baru\'',
     '$allowedRooms = [\'customer_baru\', \'sudah_payment\', \'peserta_pengajar\', \'lainnya\']',
     'crmChatRoutingPaymentDetectedSql()',
+    'payment_detected_at IS NOT NULL',
     'NOT ({$paymentDetectedSql})',
     "crm_conversations.room = 'sudah_payment' OR {$paymentDetectedSql}",
 ];
