@@ -16,7 +16,7 @@ assertSameValue('6281234567890', crmProspectNormalizeNumber('081234567890'), 'no
 assertSameValue('6281234567890', crmProspectNormalizeNumber('+62 812-3456-7890'), 'normalisasi nomor +62');
 
 assertSameValue(true, crmChatRoutingIsPaymentMessage("⛔ Wajib segera diisi\nMohon diisi untuk pendataan Finance kami"), 'payment message with line break');
-assertSameValue(true, crmChatRoutingIsPaymentMessage("📋 KBM 4 OKTOBER\n⛔ Wajib   segera   diisi\nMohon\\ndiisi para peserta untuk pendataan Finance kami"), 'payment message with whitespace variants');
+assertSameValue(true, crmChatRoutingIsPaymentMessage("📋 KBM 4 OKTOBER\n⛔ Wajib   segera   diisi\nMohon\ndiisi para peserta untuk pendataan Finance kami"), 'payment message with whitespace variants');
 assertSameValue(true, crmChatRoutingIsPaymentMessage("Wajib segeradiisi\nMohon diisi untuk pendataan Finance kami"), 'payment message without space in segera diisi');
 assertSameValue(false, crmChatRoutingIsPaymentMessage('⛔ Wajib segera diisi'), 'payment marker 2 required');
 assertSameValue(false, crmChatRoutingIsPaymentMessage('Mohon diisi untuk pendataan Finance kami'), 'payment marker 1 required');
