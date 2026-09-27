@@ -47,10 +47,8 @@ if($stmt){$stmt->bind_param('ss',$from,$to);$stmt->execute();$result=$stmt->get_
   $periods[$key]['categories'][$classification]++;$periods[$key]['total']++;
  }$stmt->close();
 }
-$registered=[];$rr=$conn->query("SELECT DISTINCT nowa FROM calon_peserta WHERE nowa IS NOT NULL AND nowa!=''");
-if($rr){while($row=$rr->fetch_assoc()){$n=crmProspectNormalizeNumber((string)$row['nowa']);if($n!=='')$registered[$n]=true;}$rr->free();}
-$newUnregistered=0;foreach(array_keys($valid) as $n)if(!isset($registered[$n]))$newUnregistered++;
 $validTotal=count($valid);$observedTotal=count($observed);$excludedTotal=max(0,$observedTotal-$validTotal);
+$validRate=$observedTotal>0?($validTotal/$observedTotal)*100:0;
 $categoryTotals=array_fill_keys($categories,0);foreach($periods as $p)foreach($categories as $c)$categoryTotals[$c]=(int)($categoryTotals[$c]??0)+(int)($p['categories'][$c]??0);
 arsort($categoryTotals);$topCategory='-';$topCategoryCount=0;foreach($categoryTotals as $c=>$n)if($n>0){$topCategory=$c;$topCategoryCount=$n;break;}
 $peakPeriod='-';$peakCount=0;foreach($periods as $p)if($p['total']>$peakCount){$peakCount=$p['total'];$peakPeriod=$p['label'];}
@@ -77,7 +75,7 @@ $datasets[]=['label'=>'Total Lead','data'=>$totals,'type'=>'line','borderColor'=
  </section>
  <section class="crm-analytics-kpis">
   <article class="crm-analytics-kpi is-primary"><span>Lead Valid</span><strong><?=number_format($validTotal)?></strong><small>Kontak unik yang lolos kriteria prospek</small></article>
-  <article class="crm-analytics-kpi"><span>Lead Baru</span><strong><?=number_format($newUnregistered)?></strong><small>Belum ditemukan di calon_peserta</small></article>
+  <article class="crm-analytics-kpi"><span>Rasio Valid</span><strong><?=number_format($validRate,1)?>%</strong><small>Dari kontak unik yang terobservasi</small></article>
   <article class="crm-analytics-kpi"><span>Minat Teratas</span><strong><?=htmlspecialchars($topCategory)?></strong><small><?=number_format($topCategoryCount)?> lead terklasifikasi</small></article>
   <article class="crm-analytics-kpi"><span>Puncak Periode</span><strong><?=number_format($peakCount)?></strong><small><?=htmlspecialchars($peakPeriod)?></small></article>
  </section>
