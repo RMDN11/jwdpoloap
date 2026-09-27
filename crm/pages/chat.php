@@ -25,21 +25,21 @@ if (!in_array($room, ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lai
     $room = 'customer_baru';
 }
 
-$paymentDetectedSql = crmChatRoutingPaymentDetectedSql();
-$internalSql = crmChatRoutingInternalSql();
+$paymentDetectedSql = crmChatRoutingPaymentDetectedSql('c');
+$internalSql = crmChatRoutingInternalSql('c');
 
 $rangeSql = match ($range) {
-    'week' => "last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
-    'month' => "last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
+    'week' => "c.last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
+    'month' => "c.last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",
     'all' => '1=1',
-    default => 'last_inbound_at >= CURDATE()',
+    default => 'c.last_inbound_at >= CURDATE()',
 };
 
 $roomSql = match ($room) {
-    'customer_baru' => "(crm_conversations.room = 'customer_baru' AND NOT ({$paymentDetectedSql}))",
-    'sudah_payment' => "(crm_conversations.room = 'sudah_payment' OR {$paymentDetectedSql})",
-    'peserta_pengajar' => "crm_conversations.room = 'peserta_pengajar'",
-    default => "crm_conversations.room = 'lainnya'",
+    'customer_baru' => "(c.room = 'customer_baru' AND NOT ({$paymentDetectedSql}))",
+    'sudah_payment' => "(c.room = 'sudah_payment' OR {$paymentDetectedSql})",
+    'peserta_pengajar' => "c.room = 'peserta_pengajar'",
+    default => "c.room = 'lainnya'",
 };
 
 $where = [$rangeSql, $roomSql, $internalSql];
@@ -56,12 +56,12 @@ if ($status === 'new') {
 
 if ($search !== '') {
     $where[] = "(
-        nama LIKE ?
-        OR nowa LIKE ?
+        c.nama LIKE ?
+        OR c.nowa LIKE ?
         OR EXISTS (
             SELECT 1
             FROM crm_messages search_message
-            WHERE search_message.conversation_id = crm_conversations.id
+            WHERE search_message.conversation_id = c.id
               AND search_message.message LIKE ?
         )
     )";
@@ -74,7 +74,7 @@ $whereSql = implode(' AND ', $where);
 
 $countStmt = $conn->prepare(
     "SELECT COUNT(*) AS total
-     FROM crm_conversations
+     FROM crm_conversations c
      WHERE {$whereSql}"
 );
 if ($types !== '') {
@@ -181,7 +181,7 @@ $statsSql = "
         COALESCE(SUM(unread_count > 0), 0) AS unread,
         COALESCE(SUM(unread_count = 0 AND followup_count = 0), 0) AS read_count,
         COALESCE(SUM(followup_count > 0), 0) AS followed_count
-    FROM crm_conversations
+    FROM crm_conversations c
     WHERE {$rangeSql} AND ({$roomSql}) AND {$internalSql}
 ";
 
@@ -208,7 +208,7 @@ if ($selected !== '') {
             id, nowa, nama, status, last_message_at, last_inbound_at,
             last_outbound_at, last_read_at, unread_count, followup_count,
             room, room_source, intent_category, payment_detected_at
-         FROM crm_conversations
+         FROM crm_conversations c
          WHERE (nowa = ? OR nowa = ?)
            AND {$internalSql}
          LIMIT 1"
