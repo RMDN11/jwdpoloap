@@ -164,22 +164,22 @@ $categoryCount = count($categories);
     <a href="index.php?page=more" title="Kembali ke More" aria-label="Kembali ke More"><i class="fa-solid fa-arrow-left"></i></a>
 </div>
 <section class="crm-workspace-header group-manage-page-head">
-    <div>
+    <div class="crm-workspace-header-main">
         <span class="crm-workspace-kicker">Management</span>
         <h1>Kelola Grup</h1>
         <p>Tambah, ubah, dan rapikan daftar grup WhatsApp dari satu workspace.</p>
     </div>
     <div class="crm-workspace-stats group-manage-stats">
-        <span><strong><?= count($groups) ?></strong> grup</span>
-        <span><strong><?= $categoryCount ?></strong> kategori</span>
+        <span class="crm-workspace-stat"><strong><?= count($groups) ?></strong> grup</span>
+        <span class="crm-workspace-stat"><strong><?= $categoryCount ?></strong> kategori</span>
     </div>
 </section>
 
 <section class="crm-workspace-grid is-editor-left group-manage-workspace">
-    <div class="crm-workspace-card group-card group-manage-import">
-        <div class="crm-workspace-card-head group-card-head">
+    <div class="crm-workspace-card group-manage-import">
+        <div class="crm-workspace-card-head">
             <div>
-                <span class="crm-workspace-card-kicker group-kicker">Tambah</span>
+                <span class="crm-workspace-card-kicker">Tambah</span>
                 <h2>Import Grup</h2>
             </div>
             <span class="group-manage-icon"><i class="fa-solid fa-cloud-arrow-up"></i></span>
@@ -197,12 +197,12 @@ $categoryCount = count($categories);
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(crmCsrfToken(), ENT_QUOTES) ?>">
             <input type="hidden" name="manage_group_action" value="mass_add">
 
-            <label class="group-field">
+            <label class="crm-workspace-field">
                 <span>Daftar Grup</span>
                 <textarea name="data_grup" rows="7" required placeholder="Grup Alumni JWD : 1203630...@g.us&#10;Grup Promosi : 1203630...@g.us"></textarea>
             </label>
 
-            <label class="group-field">
+            <label class="crm-workspace-field">
                 <span>Kategori</span>
                 <input type="text" name="kategori_massal" maxlength="100" placeholder="Contoh: Promosi, Internal, Alumni">
             </label>
@@ -214,10 +214,10 @@ $categoryCount = count($categories);
         </form>
     </div>
 
-    <div class="crm-workspace-card group-card group-manage-list">
-        <div class="crm-workspace-card-head group-card-head group-manage-list-head">
+    <div class="crm-workspace-card group-manage-list">
+        <div class="crm-workspace-card-head group-manage-list-head">
             <div>
-                <span class="crm-workspace-card-kicker group-kicker">Library</span>
+                <span class="crm-workspace-card-kicker">Library</span>
                 <h2>Grup Tersimpan <small><?= count($groups) ?></small></h2>
             </div>
             <label class="group-manage-search">
@@ -292,10 +292,10 @@ $categoryCount = count($categories);
 </div>
 
 <div class="group-manage-modal" id="groupManageModal" aria-hidden="true">
-    <div class="group-manage-modal-card" role="dialog" aria-modal="true" aria-labelledby="groupManageModalTitle">
-        <div class="group-card-head">
+    <div class="group-manage-modal-card crm-workspace-card" role="dialog" aria-modal="true" aria-labelledby="groupManageModalTitle">
+        <div class="crm-workspace-card-head">
             <div>
-                <span class="group-kicker">Edit</span>
+                <span class="crm-workspace-card-kicker">Edit</span>
                 <h2 id="groupManageModalTitle">Perbarui Grup</h2>
             </div>
             <button type="button" class="crm-icon-btn" id="groupManageClose" aria-label="Tutup">
@@ -308,15 +308,15 @@ $categoryCount = count($categories);
             <input type="hidden" name="manage_group_action" value="edit">
             <input type="hidden" name="group_id" id="groupManageId">
 
-            <label class="group-field">
+            <label class="crm-workspace-field">
                 <span>Nama Grup</span>
                 <input type="text" name="nama_grup" id="groupManageName" required maxlength="150">
             </label>
-            <label class="group-field">
+            <label class="crm-workspace-field">
                 <span>ID Grup</span>
                 <input type="text" name="id_grup" id="groupManageGroupId" required maxlength="150">
             </label>
-            <label class="group-field">
+            <label class="crm-workspace-field">
                 <span>Kategori</span>
                 <input type="text" name="kategori" id="groupManageCategory" maxlength="100">
             </label>
