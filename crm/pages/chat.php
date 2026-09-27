@@ -6,7 +6,7 @@ require_once __DIR__ . '/../config/chat-routing.php';
 $search = trim((string)($_GET['q'] ?? ''));
 $status = (string)($_GET['status'] ?? 'all');
 $range = (string)($_GET['range'] ?? 'today');
-$room = (string)($_GET['room'] ?? 'all');
+$room = (string)($_GET['room'] ?? 'customer_baru');
 $selected = trim((string)($_GET['contact'] ?? ''));
 $chatPage = max(1, (int)($_GET['p'] ?? 1));
 $perPage = 20;
@@ -16,10 +16,18 @@ if (!in_array($status, $allowedStatus, true)) $status = 'all';
 
 $allowedRanges = ['today', 'week', 'month', 'all'];
 if (!in_array($range, $allowedRanges, true)) $range = 'today';
-$allowedRooms = ['all', 'customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'];
-if (!in_array($room, $allowedRooms, true)) $room = 'all';
-$roomSql = crmChatRoutingRoomSql($room);
+$allowedRooms = ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'];
+if (!in_array($room, $allowedRooms, true)) $room = 'customer_baru';
+
+$paymentDetectedSql = crmChatRoutingPaymentDetectedSql();
 $internalSql = crmChatRoutingInternalSql();
+
+$roomSql = crmChatRoutingRoomSql($room);
+if ($room === 'customer_baru') {
+    $roomSql = "({$roomSql}) AND NOT ({$paymentDetectedSql})";
+} elseif ($room === 'sudah_payment') {
+    $roomSql = "(crm_conversations.room = 'sudah_payment' OR {$paymentDetectedSql})";
+}
 
 $rangeSql = [
     'today' => "last_inbound_at >= CURDATE()",
@@ -136,22 +144,30 @@ $stats = [
     'all'   => ['total' => 0, 'unread' => 0, 'read_count' => 0, 'followed_count' => 0],
 ];
 
-$roomCounts = ['all' => 0, 'customer_baru' => 0, 'sudah_payment' => 0, 'peserta_pengajar' => 0, 'lainnya' => 0];
+$roomCounts = ['customer_baru' => 0, 'sudah_payment' => 0, 'peserta_pengajar' => 0, 'lainnya' => 0];
 $roomCountResult = $conn->query(
-    "SELECT room, COUNT(*) AS total
+    "SELECT
+        CASE
+            WHEN crm_conversations.room = 'sudah_payment' OR {$paymentDetectedSql} THEN 'sudah_payment'
+            WHEN crm_conversations.room = 'customer_baru' AND NOT ({$paymentDetectedSql}) THEN 'customer_baru'
+            WHEN crm_conversations.room = 'peserta_pengajar' THEN 'peserta_pengajar'
+            ELSE 'lainnya'
+        END AS room_bucket,
+        COUNT(*) AS total
      FROM crm_conversations
      WHERE {$rangeSql} AND {$internalSql}
-     GROUP BY room"
+     GROUP BY room_bucket"
 );
 if ($roomCountResult) {
     while ($roomCountRow = $roomCountResult->fetch_assoc()) {
-        $key = (string)($roomCountRow['room'] ?? 'lainnya');
-        if (array_key_exists($key, $roomCounts)) $roomCounts[$key] = (int)$roomCountRow['total'];
-        $roomCounts['all'] += (int)($roomCountRow['total'] ?? 0);
+        $key = (string)($roomCountRow['room_bucket'] ?? 'lainnya');
+        if (array_key_exists($key, $roomCounts)) {
+            $roomCounts[$key] = (int)$roomCountRow['total'];
+        }
     }
 }
 // Legacy/unknown rows remain visible under Lainnya until their routing is evaluated.
-$roomCounts['lainnya'] += (int)$conn->query("SELECT COUNT(*) AS total FROM crm_conversations WHERE {$rangeSql} AND {$internalSql} AND (room IS NULL OR room = '')")->fetch_assoc()['total'];
+$roomCounts['lainnya'] += (int)$conn->query("SELECT COUNT(*) AS total FROM crm_conversations WHERE {$rangeSql} AND {$internalSql} AND (room IS NULL OR room = '') AND NOT ({$paymentDetectedSql})")->fetch_assoc()['total'];
 
 $statsResult = $conn->query(
     "SELECT
@@ -365,7 +381,6 @@ $followedContactCount = $currentStats['read_count'];
 
 <div class="chat-room-tabs" aria-label="Ruang chat">
     <?php foreach ([
-        'all' => ['label' => 'Semua Chat', 'icon' => 'fa-comments'],
         'customer_baru' => ['label' => 'Customer Baru', 'icon' => 'fa-user-plus'],
         'sudah_payment' => ['label' => 'Sudah Payment', 'icon' => 'fa-wallet'],
         'peserta_pengajar' => ['label' => 'Peserta & Pengajar', 'icon' => 'fa-users'],
