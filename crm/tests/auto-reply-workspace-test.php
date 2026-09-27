@@ -17,6 +17,9 @@ foreach (["'auto-reply'", "'templates'"] as $required) {
 
 foreach ([
     'Auto Reply',
+    'page-head',
+    'group-card',
+    'group-kicker',
     'Tambah Rule',
     'autoReplyForm',
     'auto-reply-test',
