@@ -6,4 +6,4 @@
 -- Run once after deploying this PR.
 
 ALTER TABLE log_wa
-    ADD INDEX idx_log_wa_nowa (nowa);
+    ADD INDEX IF NOT EXISTS idx_log_wa_nowa (nowa);
