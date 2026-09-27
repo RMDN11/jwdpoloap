@@ -440,6 +440,11 @@ $followedContactCount = $currentStats['read_count'];
     <form method="post" action="actions/chat-route.php" class="chat-routing-form">
         <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
         <input type="hidden" name="contact_id" value="<?= htmlspecialchars($selectedContact['nowa']) ?>">
+                    <input type="hidden" name="return_status" value="<?= htmlspecialchars($status) ?>">
+                    <input type="hidden" name="return_range" value="<?= htmlspecialchars($range) ?>">
+                    <input type="hidden" name="return_room" value="<?= htmlspecialchars($room) ?>">
+                    <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
+                    <input type="hidden" name="return_p" value="<?= (int)$chatPage ?>">
         <select name="room" aria-label="Pilih room routing">
             <?php foreach ([
                 'customer_baru' => 'Customer Baru',
@@ -506,6 +511,11 @@ $followedContactCount = $currentStats['read_count'];
             <form class="send-box" method="post" action="actions/send-message.php">
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
                 <input type="hidden" name="contact_id" value="<?= htmlspecialchars($selectedContact['nowa']) ?>">
+                    <input type="hidden" name="return_status" value="<?= htmlspecialchars($status) ?>">
+                    <input type="hidden" name="return_range" value="<?= htmlspecialchars($range) ?>">
+                    <input type="hidden" name="return_room" value="<?= htmlspecialchars($room) ?>">
+                    <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
+                    <input type="hidden" name="return_p" value="<?= (int)$chatPage ?>">
                 <label><span>Template</span><select name="template_id" id="crmTemplateSelect"><option value="">Pilih template...</option><?php foreach ($templates as $template): ?><option value="<?= (int)$template['id'] ?>" data-content="<?= htmlspecialchars($template['content'], ENT_QUOTES) ?>"><?= htmlspecialchars($template['name']) ?></option><?php endforeach; ?></select></label>
                 <div class="template-preview" id="crmTemplatePreview"><span>Pilih template untuk melihat isi pesan.</span></div>
                 <label><span>Pesan custom <small>(opsional, menggantikan template)</small></span><textarea name="custom_message" rows="4" placeholder="Tulis pesan untuk <?= htmlspecialchars($selectedName) ?>..."></textarea></label>
