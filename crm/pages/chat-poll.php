@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/prospect.php';
+require_once __DIR__ . '/../config/chat-routing.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
@@ -32,7 +33,7 @@ $result = $stmt->get_result();
 $newContacts = [];
 while ($row = $result->fetch_assoc()) {
     $number = crmProspectNormalizeNumber((string)$row['nowa']);
-    if ($number === '') continue;
+    if ($number === '' || crmChatRoutingIsInternalNumber((string)$row['nowa'])) continue;
     $newContacts[$number][] = $row;
 }
 
