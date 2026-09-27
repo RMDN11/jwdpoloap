@@ -63,4 +63,21 @@ if (!str_contains($css, 'padding-bottom:104px')) {
     throw new RuntimeException('Desktop scroll clearance is missing.');
 }
 
+
+$autoCss = file_get_contents(__DIR__ . '/../assets/css/auto-reply.css');
+if ($autoCss === false) {
+    throw new RuntimeException('Cannot read Auto Reply stylesheet.');
+}
+
+foreach ([
+    'auto-reply-peserta-head',
+    'body:has(.auto-reply-peserta-head) .content',
+    '.auto-reply-list{',
+    'max-height:620px',
+] as $required) {
+    if (!str_contains($autoCss, $required)) {
+        throw new RuntimeException("Missing Auto Reply Reminder-style element: {$required}");
+    }
+}
+
 echo "CRM Auto Reply workspace test passed.\n";
