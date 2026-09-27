@@ -22,6 +22,7 @@ function crmChatRoutingInternalNumbers(): array {
     // Add future Jawwada operational numbers in this single directory.
     return [
         '6288223053149',
+        '248232064090227',
         '62248232064090227',
     ];
 }
@@ -153,6 +154,24 @@ function crmChatRoutingIsPaymentMessage(string $message): bool {
     }
 
     return false;
+}
+
+function crmChatRoutingPaymentDetectedSql(string $alias = 'crm_conversations'): string {
+    return "EXISTS (
+        SELECT 1
+        FROM log_wa payment_log
+        WHERE LOWER(TRIM(COALESCE({$alias}.room_source, 'auto'))) <> 'manual'
+          AND (
+            BINARY payment_log.nowa = BINARY {$alias}.nowa
+            OR BINARY payment_log.nowa = BINARY CONCAT('0', SUBSTRING({$alias}.nowa, 3))
+            OR BINARY payment_log.nowa = BINARY CONCAT('+', {$alias}.nowa)
+            OR BINARY CONCAT('62', payment_log.nowa) = BINARY {$alias}.nowa
+        )
+        AND LOWER(REPLACE(REPLACE(COALESCE(payment_log.message, ''), CHAR(13), ' '), CHAR(10), ' '))
+            LIKE '%wajib segera diisi%'
+        AND LOWER(REPLACE(REPLACE(COALESCE(payment_log.message, ''), CHAR(13), ' '), CHAR(10), ' '))
+            LIKE '%mohon diisi untuk pendataan finance kami%'
+    )";
 }
 
 function crmChatRoutingHasManualOverride(array $conversation): bool {
