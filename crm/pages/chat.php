@@ -166,8 +166,7 @@ if ($roomCountResult) {
         }
     }
 }
-// Legacy/unknown rows remain visible under Lainnya until their routing is evaluated.
-$roomCounts['lainnya'] += (int)$conn->query("SELECT COUNT(*) AS total FROM crm_conversations WHERE {$rangeSql} AND {$internalSql} AND (room IS NULL OR room = '') AND NOT ({$paymentDetectedSql})")->fetch_assoc()['total'];
+// Legacy/unknown rows are already bucketed into Lainnya by the CASE expression above.
 
 $statsResult = $conn->query(
     "SELECT
