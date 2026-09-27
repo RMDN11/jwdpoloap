@@ -209,13 +209,15 @@ foreach ($rules as $rule) {
 }
 ?>
 
-<section class="page-head auto-reply-page-head">
-    <a class="auto-reply-back" href="index.php?page=more">
+<div class="auto-reply-back">
+    <a href="index.php?page=more" title="Kembali ke More" aria-label="Kembali ke More">
         <i class="fa-solid fa-arrow-left"></i>
-        Kembali
     </a>
-    <div class="auto-reply-page-head-main">
-        <span class="eyebrow">Automation</span>
+</div>
+
+<section class="reminder-peserta-head auto-reply-peserta-head">
+    <div>
+        <span class="reminder-kicker">Automation</span>
         <h1>Auto Reply</h1>
         <p>Atur keyword dan balasan otomatis untuk percakapan WhatsApp.</p>
     </div>
