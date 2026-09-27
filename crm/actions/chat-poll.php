@@ -42,13 +42,20 @@ $sinceSql = $sinceDate->format('Y-m-d H:i:s');
 $search = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? 'all'));
 $range = trim((string)($_GET['range'] ?? 'today'));
-$room = trim((string)($_GET['room'] ?? 'all'));
+$room = trim((string)($_GET['room'] ?? 'customer_baru'));
 $contact = trim((string)($_GET['contact'] ?? ''));
 
 if (!in_array($status, ['all', 'new', 'read', 'followed'], true)) $status = 'all';
 if (!in_array($range, ['today', 'week', 'month', 'all'], true)) $range = 'today';
-if (!in_array($room, ['all', 'customer_baru', 'sudah_payment', 'people', 'other', 'lainnya'], true)) $room = 'all';
-$roomSql = in_array($room, ['people', 'other'], true) ? crmChatRoomSql($conn, $room) : crmChatRoutingRoomSql($room);
+if (!in_array($room, ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'], true)) $room = 'customer_baru';
+$paymentDetectedSql = crmChatRoutingPaymentDetectedSql();
+$internalSql = crmChatRoutingInternalSql();
+$roomSql = crmChatRoutingRoomSql($room);
+if ($room === 'customer_baru') {
+    $roomSql = "({$roomSql}) AND NOT ({$paymentDetectedSql})";
+} elseif ($room === 'sudah_payment') {
+    $roomSql = "(crm_conversations.room = 'sudah_payment' OR {$paymentDetectedSql})";
+}
 $knownSql = crmChatKnownContactSql($conn);
 
 $rangeSql = match ($range) {
@@ -78,7 +85,7 @@ $searchSql = $search !== ''
     )"
     : "1=1";
 
-$matchSql = "($rangeSql) AND ($statusSql) AND ($roomSql) AND ($searchSql)";
+$matchSql = "($rangeSql) AND ($statusSql) AND ($roomSql) AND ($internalSql) AND ($searchSql)";
 
 $stmt = $conn->prepare(
     "SELECT
@@ -112,6 +119,7 @@ $stmt = $conn->prepare(
         CASE WHEN $matchSql THEN 1 ELSE 0 END AS matches_filter
      FROM crm_conversations
      WHERE last_message_at >= ?
+       AND ($internalSql)
      ORDER BY last_message_at DESC, id DESC
      LIMIT 50"
 );
@@ -200,16 +208,15 @@ $statsStmt = $conn->query(
         COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count > 0), 0) AS unread,
         COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND unread_count = 0 AND followup_count = 0), 0) AS read_count,
         COALESCE(SUM(($roomSql) AND ($statsRangeSql) AND followup_count > 0), 0) AS followed_count,
-        COALESCE(SUM($statsRangeSql), 0) AS room_all_count,
-        COALESCE(SUM(($statsRangeSql) AND room = 'customer_baru'), 0) AS room_customer_baru_count,
-        COALESCE(SUM(($statsRangeSql) AND room = 'sudah_payment'), 0) AS room_sudah_payment_count,
-        COALESCE(SUM(($statsRangeSql) AND room = 'people'), 0) AS room_people_count,
-        COALESCE(SUM(($statsRangeSql) AND room = 'lainnya'), 0) AS room_lainnya_count,
-        COALESCE(SUM(($statsRangeSql) AND room = 'other'), 0) AS room_other_count
+        COALESCE(SUM(($statsRangeSql) AND ($internalSql)), 0) AS room_all_count,
+        COALESCE(SUM(($statsRangeSql) AND ($internalSql) AND room = 'customer_baru' AND NOT ($paymentDetectedSql)), 0) AS room_customer_baru_count,
+        COALESCE(SUM(($statsRangeSql) AND ($internalSql) AND (room = 'sudah_payment' OR ($paymentDetectedSql))), 0) AS room_sudah_payment_count,
+        COALESCE(SUM(($statsRangeSql) AND ($internalSql) AND room = 'peserta_pengajar'), 0) AS room_peserta_pengajar_count,
+        COALESCE(SUM(($statsRangeSql) AND ($internalSql) AND room = 'lainnya'), 0) AS room_lainnya_count
      FROM crm_conversations"
 );
 $stats = ['total' => 0, 'unread' => 0, 'read_count' => 0, 'followed' => 0];
-$roomCounts = ['all' => 0, 'customer_baru' => 0, 'sudah_payment' => 0, 'people' => 0, 'lainnya' => 0, 'other' => 0];
+$roomCounts = ['all' => 0, 'customer_baru' => 0, 'sudah_payment' => 0, 'peserta_pengajar' => 0, 'lainnya' => 0];
 if ($statsStmt) {
     $statsRow = $statsStmt->fetch_assoc();
     $stats = [
@@ -222,16 +229,15 @@ if ($statsStmt) {
         'all' => (int)($statsRow['room_all_count'] ?? 0),
         'customer_baru' => (int)($statsRow['room_customer_baru_count'] ?? 0),
         'sudah_payment' => (int)($statsRow['room_sudah_payment_count'] ?? 0),
-        'people' => (int)($statsRow['room_people_count'] ?? 0),
+        'peserta_pengajar' => (int)($statsRow['room_peserta_pengajar_count'] ?? 0),
         'lainnya' => (int)($statsRow['room_lainnya_count'] ?? 0),
-        'other' => (int)($statsRow['room_other_count'] ?? 0),
     ];
 }
 
 $unreadStmt = $conn->query(
     "SELECT COALESCE(SUM(unread_count > 0), 0) AS total
      FROM crm_conversations
-     WHERE ($roomSql) AND last_inbound_at >= CURDATE()"
+     WHERE ($roomSql) AND ($internalSql) AND last_inbound_at >= CURDATE()"
 );
 $unreadToday = 0;
 if ($unreadStmt) {
