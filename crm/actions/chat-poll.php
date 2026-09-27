@@ -47,7 +47,8 @@ $contact = trim((string)($_GET['contact'] ?? ''));
 
 if (!in_array($status, ['all', 'new', 'read', 'followed'], true)) $status = 'all';
 if (!in_array($range, ['today', 'week', 'month', 'all'], true)) $range = 'today';
-if (!in_array($room, ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'], true)) $room = 'customer_baru';
+$allowedRooms = ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'];
+if (!in_array($room, $allowedRooms, true)) $room = 'customer_baru';
 $paymentDetectedSql = crmChatRoutingPaymentDetectedSql();
 $internalSql = crmChatRoutingInternalSql();
 $roomSql = crmChatRoutingRoomSql($room);
