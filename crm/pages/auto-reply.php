@@ -361,6 +361,7 @@ foreach ($rules as $rule) {
         <?php endif; ?>
     </div>
 </section>
+</div>
 
 <div class="auto-reply-modal" id="autoReplyTestModal" aria-hidden="true">
     <div class="auto-reply-modal-card" role="dialog" aria-modal="true" aria-labelledby="autoReplyTestTitle">
