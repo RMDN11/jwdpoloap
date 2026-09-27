@@ -59,7 +59,7 @@ function crmGroupDays(string $value): string {
         <h1>Kirim ke Grup</h1>
         <p>Tulis sekali, pilih grup, lalu kirim atau jadwalkan.</p>
     </div>
-    <a class="group-manage-link" href="../kelola_grup.php"><i class="fa-solid fa-users-gear"></i> Kelola grup</a>
+    <a class="group-manage-link" href="index.php?page=manage-groups"><i class="fa-solid fa-users-gear"></i> Kelola grup</a>
 </section>
 
 <div id="crmGroupLoader" class="group-loader" hidden>
@@ -150,7 +150,7 @@ function crmGroupDays(string $value): string {
                     </div>
                 <?php endforeach; ?>
                 <?php if (!$groupsByCategory): ?>
-                    <div class="group-empty"><i class="fa-solid fa-users-slash"></i><strong>Belum ada grup</strong><span>Tambahkan grup terlebih dahulu.</span><a href="../kelola_grup.php">Kelola grup</a></div>
+                    <div class="group-empty"><i class="fa-solid fa-users-slash"></i><strong>Belum ada grup</strong><span>Tambahkan grup terlebih dahulu.</span><a href="index.php?page=manage-groups">Kelola grup</a></div>
                 <?php endif; ?>
             </div>
         </div>
