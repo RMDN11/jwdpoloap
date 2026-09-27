@@ -34,5 +34,15 @@ $internal = crmChatRoutingNormalizedInternalNumbers();
 if (!in_array('6288223053149', $internal, true)) {
     throw new RuntimeException('internal number directory missing expected initial number');
 }
+if (!in_array('248232064090227', $internal, true) || !in_array('62248232064090227', $internal, true)) {
+    throw new RuntimeException('admin number directory missing 248232064090227 variants');
+}
+
+$paymentSql = crmChatRoutingPaymentDetectedSql();
+foreach (['log_wa', 'wajib segera diisi', 'mohon diisi untuk pendataan finance kami'] as $needle) {
+    if (stripos($paymentSql, $needle) === false) {
+        throw new RuntimeException('payment SQL missing expected marker: ' . $needle);
+    }
+}
 
 echo "Chat Phase 3 routing foundation tests passed.\n";
