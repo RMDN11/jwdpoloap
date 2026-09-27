@@ -135,8 +135,8 @@ function crmChatRoutingIsQualifyingIntent(?string $category): bool {
 }
 
 function crmChatRoutingNormalizeMessage(string $message): string {
-    $message = strtolower(trim($message));
-    $message = preg_replace('/\s+/u', ' ', $message) ?? '';
+    $message = strtolower($message);
+    $message = preg_replace('/\s+/u', '', $message) ?? '';
     return trim($message);
 }
 
@@ -144,16 +144,8 @@ function crmChatRoutingIsPaymentMessage(string $message): bool {
     $m = crmChatRoutingNormalizeMessage($message);
     if ($m === '') return false;
 
-    $patterns = [
-        '/wajib\s+segera\s+diisi/u',
-        '/mohon\s+diisi\s+untuk\s+pendataan\s+finance\s+kami/u',
-    ];
-
-    foreach ($patterns as $pattern) {
-        if (preg_match($pattern, $m)) return true;
-    }
-
-    return false;
+    return str_contains($m, 'wajibsegeradiisi')
+        && str_contains($m, 'mohondiisiuntukpendataanfinancekami');
 }
 
 function crmChatRoutingPaymentDetectedSql(string $alias = 'crm_conversations'): string {
@@ -169,10 +161,10 @@ function crmChatRoutingPaymentDetectedSql(string $alias = 'crm_conversations'): 
                 OR payment_log.nowa = CONCAT('+', {$alias}.nowa)
                 OR CONCAT('62', payment_log.nowa) = {$alias}.nowa
               )
-              AND LOWER(REPLACE(REPLACE(COALESCE(payment_log.message, ''), CHAR(13), ' '), CHAR(10), ' '))
-                  LIKE '%wajib segera diisi%'
-              AND LOWER(REPLACE(REPLACE(COALESCE(payment_log.message, ''), CHAR(13), ' '), CHAR(10), ' '))
-                  LIKE '%mohon diisi untuk pendataan finance kami%'
+              AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(payment_log.message, '')), CHAR(13), ''), CHAR(10), ''), CHAR(9), ''), ' ', ''), CHAR(160), '')
+                  LIKE '%wajibsegeradiisi%'
+              AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(payment_log.message, '')), CHAR(13), ''), CHAR(10), ''), CHAR(9), ''), ' ', ''), CHAR(160), '')
+                  LIKE '%mohondiisiuntukpendataanfinancekami%'
         )
     )";
 }
