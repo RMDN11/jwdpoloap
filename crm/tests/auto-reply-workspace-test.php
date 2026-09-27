@@ -4,8 +4,9 @@ declare(strict_types=1);
 $index = file_get_contents(__DIR__ . '/../index.php');
 $page = file_get_contents(__DIR__ . '/../pages/auto-reply.php');
 $more = file_get_contents(__DIR__ . '/../pages/more.php');
+$css = file_get_contents(__DIR__ . '/../assets/css/auto-reply.css');
 
-if ($index === false || $page === false || $more === false) {
+if ($index === false || $page === false || $more === false || $css === false) {
     throw new RuntimeException('Cannot read CRM auto reply workspace files.');
 }
 
@@ -42,6 +43,24 @@ foreach ([
     if (!str_contains($more, $required)) {
         throw new RuntimeException("More workspace route is missing: {$required}");
     }
+}
+
+foreach ([
+    'assets/css/auto-reply.css',
+    'auto-reply-back',
+    'index.php?page=more',
+] as $required) {
+    if (!str_contains($index . $page, $required)) {
+        throw new RuntimeException("Missing Auto Reply polish element: {$required}");
+    }
+}
+
+if (str_contains($page, '<style>')) {
+    throw new RuntimeException('Auto Reply still contains inline style blocks.');
+}
+
+if (!str_contains($css, 'padding-bottom:104px')) {
+    throw new RuntimeException('Desktop scroll clearance is missing.');
 }
 
 echo "CRM Auto Reply workspace test passed.\n";
