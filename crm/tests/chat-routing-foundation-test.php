@@ -15,8 +15,11 @@ function assertSameValue($expected, $actual, string $label): void {
 assertSameValue('6281234567890', crmProspectNormalizeNumber('081234567890'), 'normalisasi nomor 08');
 assertSameValue('6281234567890', crmProspectNormalizeNumber('+62 812-3456-7890'), 'normalisasi nomor +62');
 
-assertSameValue(true, crmChatRoutingIsPaymentMessage('⛔ Wajib segera diisi'), 'payment pattern 1');
-assertSameValue(true, crmChatRoutingIsPaymentMessage('Mohon diisi untuk pendataan Finance kami'), 'payment pattern 2');
+assertSameValue(true, crmChatRoutingIsPaymentMessage("⛔ Wajib segera diisi\nMohon diisi untuk pendataan Finance kami"), 'payment message with line break');
+assertSameValue(true, crmChatRoutingIsPaymentMessage("📋 KBM 4 OKTOBER\n⛔ Wajib   segera   diisi\nMohon\\ndiisi para peserta untuk pendataan Finance kami"), 'payment message with whitespace variants');
+assertSameValue(true, crmChatRoutingIsPaymentMessage("Wajib segeradiisi\nMohon diisi untuk pendataan Finance kami"), 'payment message without space in segera diisi');
+assertSameValue(false, crmChatRoutingIsPaymentMessage('⛔ Wajib segera diisi'), 'payment marker 2 required');
+assertSameValue(false, crmChatRoutingIsPaymentMessage('Mohon diisi untuk pendataan Finance kami'), 'payment marker 1 required');
 assertSameValue(false, crmChatRoutingIsPaymentMessage('Silakan hubungi Finance jika ada pertanyaan.'), 'finance alone');
 assertSameValue(false, crmChatRoutingIsPaymentMessage('Wajib diisi'), 'partial payment phrase');
 
@@ -39,7 +42,7 @@ if (!in_array('248232064090227', $internal, true) || !in_array('6224823206409022
 }
 
 $paymentSql = crmChatRoutingPaymentDetectedSql();
-foreach (['log_wa', 'wajib segera diisi', 'mohon diisi untuk pendataan finance kami'] as $needle) {
+foreach (['log_wa', 'wajibsegeradiisi', 'mohondiisiuntukpendataanfinancekami'] as $needle) {
     if (stripos($paymentSql, $needle) === false) {
         throw new RuntimeException('payment SQL missing expected marker: ' . $needle);
     }
