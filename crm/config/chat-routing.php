@@ -157,20 +157,23 @@ function crmChatRoutingIsPaymentMessage(string $message): bool {
 }
 
 function crmChatRoutingPaymentDetectedSql(string $alias = 'crm_conversations'): string {
-    return "EXISTS (
-        SELECT 1
-        FROM log_wa payment_log
-        WHERE LOWER(TRIM(COALESCE({$alias}.room_source, 'auto'))) <> 'manual'
-          AND (
-            BINARY payment_log.nowa = BINARY {$alias}.nowa
-            OR BINARY payment_log.nowa = BINARY CONCAT('0', SUBSTRING({$alias}.nowa, 3))
-            OR BINARY payment_log.nowa = BINARY CONCAT('+', {$alias}.nowa)
-            OR BINARY CONCAT('62', payment_log.nowa) = BINARY {$alias}.nowa
+    return "(
+        {$alias}.payment_detected_at IS NOT NULL
+        OR EXISTS (
+            SELECT 1
+            FROM log_wa payment_log
+            WHERE LOWER(TRIM(COALESCE({$alias}.room_source, 'auto'))) <> 'manual'
+              AND (
+                payment_log.nowa = {$alias}.nowa
+                OR payment_log.nowa = CONCAT('0', SUBSTRING({$alias}.nowa, 3))
+                OR payment_log.nowa = CONCAT('+', {$alias}.nowa)
+                OR CONCAT('62', payment_log.nowa) = {$alias}.nowa
+              )
+              AND LOWER(REPLACE(REPLACE(COALESCE(payment_log.message, ''), CHAR(13), ' '), CHAR(10), ' '))
+                  LIKE '%wajib segera diisi%'
+              AND LOWER(REPLACE(REPLACE(COALESCE(payment_log.message, ''), CHAR(13), ' '), CHAR(10), ' '))
+                  LIKE '%mohon diisi untuk pendataan finance kami%'
         )
-        AND LOWER(REPLACE(REPLACE(COALESCE(payment_log.message, ''), CHAR(13), ' '), CHAR(10), ' '))
-            LIKE '%wajib segera diisi%'
-        AND LOWER(REPLACE(REPLACE(COALESCE(payment_log.message, ''), CHAR(13), ' '), CHAR(10), ' '))
-            LIKE '%mohon diisi untuk pendataan finance kami%'
     )";
 }
 
