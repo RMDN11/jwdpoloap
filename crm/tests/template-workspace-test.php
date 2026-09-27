@@ -14,7 +14,7 @@ if (!str_contains($index, "'templates'")) {
     throw new RuntimeException('Template Pesan route is missing from CRM allowed pages.');
 }
 
-foreach (['Template Pesan', 'Tambah Template', 'Library', 'template-copy', 'template-edit', 'crm-workspace-page', 'crm-workspace-grid', 'crm-workspace-card'] as $required) {
+foreach (['Template Pesan', 'Tambah Template', 'Library', 'template-copy', 'template-edit', 'crm-workspace-page', 'crm-workspace-grid', 'crm-workspace-card', 'crm-workspace-header-actions', 'crm-workspace-field'] as $required) {
     if (!str_contains($page, $required)) {
         throw new RuntimeException("Missing template workspace element: {$required}");
     }
@@ -26,7 +26,7 @@ foreach (['poloap_templates', 'index.php?page=templates', 'components/topbar.php
     }
 }
 
-foreach (['workspace-core.css', 'templates.css', 'max-width:1280px', '--crm-green:#168044', 'padding-bottom:104px'] as $required) {
+foreach (['workspace-core.css', 'templates.css', 'max-width:1280px', '--crm-green:#168044', 'padding-bottom:104px', 'crm-workspace-header-actions', '.template-form-card .crm-workspace-field input'] as $required) {
     if (!str_contains($core . $css . $index, $required)) {
         throw new RuntimeException("Missing shared workspace core element: {$required}");
     }
