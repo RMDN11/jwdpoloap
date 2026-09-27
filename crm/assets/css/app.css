@@ -999,3 +999,33 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
   .poloap-history-list{max-height:90px}
   .send-box textarea{min-height:70px}
 }
+
+/* More workspace rebuild */
+.more-hero{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px;border:1px solid #e2ebe5;border-radius:24px;background:linear-gradient(135deg,#ffffff 0%,#f0f8f3 100%);box-shadow:0 12px 30px rgba(24,55,41,.06)}
+.more-hero:after{content:"";position:absolute;width:180px;height:180px;border-radius:50%;right:-78px;top:-92px;background:rgba(22,128,68,.07)}
+.more-hero-copy{position:relative;z-index:1}
+.more-hero-copy .eyebrow{color:#168044;opacity:1}
+.more-hero h1{margin:5px 0 6px;font-size:30px;letter-spacing:-.055em;color:#102b21}
+.more-hero p{margin:0;color:#718078;font-size:12px;line-height:1.55}
+.more-hero-icon{position:relative;z-index:1;width:58px;height:58px;flex:0 0 58px;display:grid;place-items:center;border-radius:19px;background:#e2f4e8;color:#168044;font-size:22px;box-shadow:inset 0 0 0 1px rgba(22,128,68,.08)}
+.more-section{margin-top:25px}
+.more-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:11px}
+.more-kicker{display:block;margin-bottom:3px;color:#168044;font-size:9px;font-weight:850;letter-spacing:.12em;text-transform:uppercase}
+.more-section-head h2{margin:0;font-size:16px;letter-spacing:-.035em}
+.more-count{font-size:10px;color:#8a9891}
+.more-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.more-card{position:relative;min-height:148px;display:flex;flex-direction:column;align-items:flex-start;padding:15px;text-decoration:none;color:#18352a;background:#fff;border:1px solid #e2eae5;border-radius:19px;box-shadow:0 5px 18px rgba(24,55,41,.04);transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.more-card:hover{transform:translateY(-2px);border-color:#cfe0d5;box-shadow:0 10px 25px rgba(24,55,41,.08)}
+.more-card:focus-visible{outline:2px solid #168044;outline-offset:2px}
+.more-card-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:13px;font-size:15px}
+.more-card-icon.green{background:#e8f7ed;color:#168044}.more-card-icon.purple{background:#f1ebff;color:#7c3aed}.more-card-icon.blue{background:#eaf2ff;color:#2563eb}.more-card-icon.indigo{background:#eef0ff;color:#4f46e5}.more-card-icon.amber{background:#fff5dc;color:#d97706}
+.more-card-copy{display:block;margin-top:auto;padding-right:18px}
+.more-card-copy strong{display:block;font-size:12px;letter-spacing:-.01em}
+.more-card-copy small{display:block;margin-top:4px;color:#85928c;font-size:10px;line-height:1.45}
+.more-card-arrow{position:absolute;right:13px;top:13px;color:#b0bbb5;font-size:10px}
+.more-account{display:flex;align-items:center;gap:11px;margin-top:14px;padding:13px 14px;border:1px solid #f0dcdc;background:#fffafa;border-radius:17px}
+.more-account-icon{width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;border-radius:11px;background:#fff0f0;color:#dc2626;font-size:13px}
+.more-account-copy{min-width:0;flex:1}.more-account-copy strong{display:block;font-size:12px;color:#543333}.more-account-copy span{display:block;margin-top:3px;color:#a08080;font-size:10px}
+.more-logout{display:inline-flex;align-items:center;gap:5px;padding:9px 11px;border:1px solid #f0dcdc;border-radius:11px;color:#dc2626;text-decoration:none;font-size:10px;font-weight:800;white-space:nowrap}
+@media(min-width:769px){.more-hero{padding:28px 30px}.more-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.more-card{min-height:158px;padding:17px}.more-account{margin-top:16px}}
+@media(max-width:420px){.more-hero{padding:20px}.more-hero h1{font-size:27px}.more-grid{gap:8px}.more-card{min-height:142px;padding:13px}.more-card-copy small{font-size:9.5px}.more-account{align-items:flex-start}.more-account-copy{padding-top:2px}.more-logout{padding:8px 9px}}
