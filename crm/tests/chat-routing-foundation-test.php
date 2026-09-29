@@ -48,4 +48,8 @@ foreach (['log_wa', 'wajibsegeradiisi', 'mohondiisiuntukpendataanfinancekami'] a
     }
 }
 
+if (substr_count($paymentSql, '(') !== substr_count($paymentSql, ')')) {
+    throw new RuntimeException('payment SQL has unbalanced parentheses');
+}
+
 echo "Chat Phase 3 routing foundation tests passed.\n";
