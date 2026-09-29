@@ -545,42 +545,6 @@ $selectedName = trim((string)($selectedContact['nama'] ?? '')) ?: 'Hamba Allah';
                 </form>
             </div>
 
-            <div class="chat-routing-box">
-                <div class="chat-routing-title">
-                    <span><i class="fa-solid fa-route"></i> Routing</span>
-                    <small><?= (($selectedContact['room_source'] ?? 'auto') === 'manual') ? 'Manual' : 'Auto' ?></small>
-                </div>
-                <form method="post" action="actions/chat-route.php" class="chat-routing-form">
-                    <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
-                    <input type="hidden" name="contact_id" value="<?= htmlspecialchars($selectedContact['nowa']) ?>">
-                    <input type="hidden" name="return_status" value="<?= htmlspecialchars($status) ?>">
-                    <input type="hidden" name="return_range" value="<?= htmlspecialchars($range) ?>">
-                    <input type="hidden" name="return_room" value="<?= htmlspecialchars($room) ?>">
-                    <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
-                    <input type="hidden" name="return_p" value="<?= (int)$chatPage ?>">
-                    <select name="room" aria-label="Pilih room routing">
-                        <?php foreach ([
-                            'customer_baru' => 'Customer Baru',
-                            'sudah_payment' => 'Sudah Payment',
-                            'peserta_pengajar' => 'Peserta & Pengajar',
-                            'lainnya' => 'Lainnya',
-                        ] as $routingKey => $routingLabel): ?>
-                            <option value="<?= htmlspecialchars($routingKey) ?>" <?= (($selectedContact['room'] ?? 'lainnya') === $routingKey) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($routingLabel) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <label class="chat-routing-manual">
-                        <input type="checkbox" name="manual" value="1" <?= (($selectedContact['room_source'] ?? 'auto') === 'manual') ? 'checked' : '' ?>>
-                        Jadikan manual
-                    </label>
-                    <button type="submit"><i class="fa-solid fa-check"></i> Simpan</button>
-                    <?php if (($selectedContact['room_source'] ?? 'auto') === 'manual'): ?>
-                        <button type="submit" name="clear_manual" value="1" class="chat-routing-clear">↩ Auto</button>
-                    <?php endif; ?>
-                </form>
-            </div>
-
             <div class="chat-history-section">
                 <div class="section-title-row">
                     <span class="message-label">Percakapan terbaru</span>
