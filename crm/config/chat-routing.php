@@ -166,6 +166,7 @@ function crmChatRoutingPaymentDetectedSql(string $alias = 'crm_conversations'): 
                   LIKE '%wajibsegeradiisi%'
               AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(payment_log.message, '')), CHAR(13), ''), CHAR(10), ''), CHAR(9), ''), ' ', ''), CHAR(160), '')
                   LIKE '%mohondiisiuntukpendataanfinancekami%'
+            )
         )
     )";
 }
