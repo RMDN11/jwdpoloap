@@ -18,12 +18,15 @@ assertSameValue(false, crmChatRoutingIsPaymentMessage('Silakan hubungi Finance')
 assertSameValue(false, crmChatRoutingIsPaymentMessage('Wajib diisi'), 'partial payment phrase');
 
 assertSameValue('customer_baru', crmChatRoutingResolveAutomaticRoomFake('081234567890', 'Murojaah'), 'qualifying intent room');
-assertSameValue('lainnya', crmChatRoutingResolveAutomaticRoomFake('081234567890', 'Lainnya'), 'non qualifying room');
+assertSameValue('customer_baru', crmChatRoutingResolveAutomaticRoomFake('081234567890', 'Lainnya'), 'unclear intent defaults to customer baru');
+assertSameValue('customer_baru', crmChatRoutingResolveAutomaticRoomFake('081234567890', null), 'missing intent defaults to customer baru');
 assertSameValue('peserta_pengajar', crmChatRoutingResolveAutomaticRoomFake('6288223053149', 'Murojaah'), 'internal room');
 
 echo "Chat Phase 3 routing wiring tests passed.\n";
 
 function crmChatRoutingResolveAutomaticRoomFake(string $number, ?string $category): string {
     if (crmChatRoutingIsInternalNumber($number)) return 'peserta_pengajar';
-    return crmChatRoutingIsQualifyingIntent($category) ? 'customer_baru' : 'lainnya';
+    // Unknown contacts stay visible in the default inbox regardless of
+    // whether the first message has a recognized prospect intent.
+    return 'customer_baru';
 }
