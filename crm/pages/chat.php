@@ -28,6 +28,29 @@ if (!in_array($room, ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lai
 $paymentDetectedSql = crmChatRoutingPaymentDetectedSql('c');
 $internalSql = crmChatRoutingInternalSql('c');
 
+if ($selected !== '') {
+    $selectedNumberForRoom = crmProspectNormalizeNumber($selected);
+    $selectedRoomStmt = $conn->prepare(
+        "SELECT room
+         FROM crm_conversations c
+         WHERE (c.nowa = ? OR c.nowa = ?)
+           AND {$internalSql}
+         LIMIT 1"
+    );
+    if ($selectedRoomStmt) {
+        $selectedRoomStmt->bind_param('ss', $selected, $selectedNumberForRoom);
+        $selectedRoomStmt->execute();
+        $selectedRoomRow = $selectedRoomStmt->get_result()->fetch_assoc() ?: null;
+        $selectedRoomStmt->close();
+
+        $selectedPersistedRoom = (string)($selectedRoomRow['room'] ?? '');
+        if (in_array($selectedPersistedRoom, ['sudah_payment', 'peserta_pengajar', 'lainnya'], true)) {
+            $room = $selectedPersistedRoom;
+            $chatPage = 1;
+        }
+    }
+}
+
 $rangeSql = match ($range) {
     'week' => "c.last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)",
     'month' => "c.last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')",

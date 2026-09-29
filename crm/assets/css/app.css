@@ -833,6 +833,25 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .chat-history-section{
   flex:0 0 auto;
   min-height:150px;
+  padding:10px 11px 11px;
+  border:1px solid #dbe8f6;
+  border-radius:16px;
+  background:linear-gradient(145deg,#f7fbff 0%,#eef6ff 100%);
+  box-shadow:0 5px 16px rgba(52,98,153,.055);
+}
+.chat-history-section .section-title-row{
+  margin:0 0 8px;
+  padding-bottom:7px;
+  border-bottom:1px solid #dfeaf5;
+}
+.chat-history-section .section-title-row .message-label{
+  color:#365f8f;
+}
+.chat-history-section .section-title-row small{
+  color:#7892ad;
+}
+.chat-history-section .chat-history-scroll{
+  padding-right:3px;
 }
 .chat-history-scroll{
   min-height:90px;
