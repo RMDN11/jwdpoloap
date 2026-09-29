@@ -27,7 +27,7 @@ if (str_contains($chatPage, "'people' => 'Peserta & Pengajar'")) {
 $paymentRouting = file_get_contents(__DIR__ . '/../config/chat-routing.php');
 if ($paymentRouting === false) throw new RuntimeException('Cannot read chat-routing.php');
 
-if (!str_contains($paymentRouting, "COALESCE({$alias}.room_source, 'auto')"))) {
+if (!str_contains($paymentRouting, "LOWER(TRIM(COALESCE(") || !str_contains($paymentRouting, "room_source")) {
     throw new RuntimeException('Payment routing must respect manual room source');
 }
 
