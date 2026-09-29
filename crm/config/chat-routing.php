@@ -150,12 +150,13 @@ function crmChatRoutingIsPaymentMessage(string $message): bool {
 
 function crmChatRoutingPaymentDetectedSql(string $alias = 'crm_conversations'): string {
     return "(
-        {$alias}.payment_detected_at IS NOT NULL
-        OR EXISTS (
-            SELECT 1
-            FROM log_wa payment_log
-            WHERE LOWER(TRIM(COALESCE({$alias}.room_source, 'auto'))) <> 'manual'
-              AND (
+        LOWER(TRIM(COALESCE({$alias}.room_source, 'auto'))) <> 'manual'
+        AND (
+            {$alias}.payment_detected_at IS NOT NULL
+            OR EXISTS (
+                SELECT 1
+                FROM log_wa payment_log
+                WHERE (
                 payment_log.nowa = {$alias}.nowa
                 OR payment_log.nowa = CONCAT('0', SUBSTRING({$alias}.nowa, 3))
                 OR payment_log.nowa = CONCAT('+', {$alias}.nowa)
