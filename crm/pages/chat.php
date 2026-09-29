@@ -509,6 +509,78 @@ $selectedName = trim((string)($selectedContact['nama'] ?? '')) ?: 'Hamba Allah';
                 </a>
             </div>
 
+            <div class="chat-routing-box">
+                <div class="chat-routing-title">
+                    <span><i class="fa-solid fa-route"></i> Routing</span>
+                    <small><?= (($selectedContact['room_source'] ?? 'auto') === 'manual') ? 'Manual' : 'Auto' ?></small>
+                </div>
+                <form method="post" action="actions/chat-route.php" class="chat-routing-form">
+                    <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                    <input type="hidden" name="contact_id" value="<?= htmlspecialchars($selectedContact['nowa']) ?>">
+                    <input type="hidden" name="return_status" value="<?= htmlspecialchars($status) ?>">
+                    <input type="hidden" name="return_range" value="<?= htmlspecialchars($range) ?>">
+                    <input type="hidden" name="return_room" value="<?= htmlspecialchars($room) ?>">
+                    <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
+                    <input type="hidden" name="return_p" value="<?= (int)$chatPage ?>">
+                    <select name="room" aria-label="Pilih room routing">
+                        <?php foreach ([
+                            'customer_baru' => 'Customer Baru',
+                            'sudah_payment' => 'Sudah Payment',
+                            'peserta_pengajar' => 'Peserta & Pengajar',
+                            'lainnya' => 'Lainnya',
+                        ] as $routingKey => $routingLabel): ?>
+                            <option value="<?= htmlspecialchars($routingKey) ?>" <?= (($selectedContact['room'] ?? 'lainnya') === $routingKey) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($routingLabel) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <label class="chat-routing-manual">
+                        <input type="checkbox" name="manual" value="1" <?= (($selectedContact['room_source'] ?? 'auto') === 'manual') ? 'checked' : '' ?>>
+                        Jadikan manual
+                    </label>
+                    <button type="submit"><i class="fa-solid fa-check"></i> Simpan</button>
+                    <?php if (($selectedContact['room_source'] ?? 'auto') === 'manual'): ?>
+                        <button type="submit" name="clear_manual" value="1" class="chat-routing-clear">↩ Auto</button>
+                    <?php endif; ?>
+                </form>
+            </div>
+
+            <div class="chat-routing-box">
+                <div class="chat-routing-title">
+                    <span><i class="fa-solid fa-route"></i> Routing</span>
+                    <small><?= (($selectedContact['room_source'] ?? 'auto') === 'manual') ? 'Manual' : 'Auto' ?></small>
+                </div>
+                <form method="post" action="actions/chat-route.php" class="chat-routing-form">
+                    <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                    <input type="hidden" name="contact_id" value="<?= htmlspecialchars($selectedContact['nowa']) ?>">
+                    <input type="hidden" name="return_status" value="<?= htmlspecialchars($status) ?>">
+                    <input type="hidden" name="return_range" value="<?= htmlspecialchars($range) ?>">
+                    <input type="hidden" name="return_room" value="<?= htmlspecialchars($room) ?>">
+                    <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
+                    <input type="hidden" name="return_p" value="<?= (int)$chatPage ?>">
+                    <select name="room" aria-label="Pilih room routing">
+                        <?php foreach ([
+                            'customer_baru' => 'Customer Baru',
+                            'sudah_payment' => 'Sudah Payment',
+                            'peserta_pengajar' => 'Peserta & Pengajar',
+                            'lainnya' => 'Lainnya',
+                        ] as $routingKey => $routingLabel): ?>
+                            <option value="<?= htmlspecialchars($routingKey) ?>" <?= (($selectedContact['room'] ?? 'lainnya') === $routingKey) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($routingLabel) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <label class="chat-routing-manual">
+                        <input type="checkbox" name="manual" value="1" <?= (($selectedContact['room_source'] ?? 'auto') === 'manual') ? 'checked' : '' ?>>
+                        Jadikan manual
+                    </label>
+                    <button type="submit"><i class="fa-solid fa-check"></i> Simpan</button>
+                    <?php if (($selectedContact['room_source'] ?? 'auto') === 'manual'): ?>
+                        <button type="submit" name="clear_manual" value="1" class="chat-routing-clear">↩ Auto</button>
+                    <?php endif; ?>
+                </form>
+            </div>
+
             <div class="chat-history-section">
                 <div class="section-title-row">
                     <span class="message-label">Percakapan terbaru</span>
@@ -646,6 +718,202 @@ $selectedName = trim((string)($selectedContact['nama'] ?? '')) ?: 'Hamba Allah';
     if (backdrop && close) {
         backdrop.addEventListener('click', () => close.click());
     }
+
+    const selectedNumber = <?= $selectedContact ? json_encode($selectedContact['nowa']) : 'null' ?>;
+    const csrfToken = <?= json_encode(crmCsrfToken()) ?>;
+    const chatPollUrl = <?= json_encode('actions/chat-poll.php') ?>;
+    const chatCurrentSearch = <?= json_encode($search) ?>;
+    const chatCurrentStatus = <?= json_encode($status) ?>;
+    const chatCurrentRange = <?= json_encode($range) ?>;
+    const chatCurrentRoom = <?= json_encode($room) ?>;
+    const chatCurrentPage = <?= (int)$chatPage ?>;
+    let chatPollCursor = <?= json_encode(date('Y-m-d H:i:s')) ?>;
+    let chatPollBusy = false;
+
+    const normalizeChatNumber = (value) => {
+        let number = String(value || '').replace(/\D+/g, '');
+        if (number.startsWith('0')) number = '62' + number.slice(1);
+        if (number.startsWith('8')) number = '62' + number;
+        return number;
+    };
+
+    const escapeHtml = (value) => {
+        const div = document.createElement('div');
+        div.textContent = value ?? '';
+        return div.innerHTML;
+    };
+
+    const markSelectedRead = () => {
+        if (!selectedNumber) return Promise.resolve();
+        const form = new URLSearchParams();
+        form.set('nowa', selectedNumber);
+        form.set('csrf', csrfToken);
+        return fetch('actions/chat-mark-read.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+            body: form.toString(),
+            credentials: 'same-origin',
+            keepalive: true
+        }).then((response) => {
+            if (!response.ok) return;
+            document.querySelectorAll('.chat-item.is-new').forEach((item) => {
+                if (normalizeChatNumber(item.dataset.chatNowa || '') === normalizeChatNumber(selectedNumber)) {
+                    item.classList.remove('is-new');
+                    item.querySelector('.chat-new-badge')?.remove();
+                }
+            });
+        }).catch(() => {});
+    };
+
+    markSelectedRead();
+
+    const renderSelectedHistory = (messages) => {
+        const scroll = document.querySelector('.chat-history-scroll');
+        const countNode = document.querySelector('.chat-history-section .section-title-row small');
+        if (!scroll || !Array.isArray(messages)) return;
+        const ordered = [...messages].reverse();
+        scroll.innerHTML = ordered.length ? ordered.map((message) => {
+            const inbound = String(message.direction || '') === 'in';
+            const dateText = message.sent_at ? new Date(String(message.sent_at).replace(' ', 'T')).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            }) : '';
+            return '<div class="chat-log-item ' + (inbound ? 'chat-log-in' : 'chat-log-out') + '">' +
+                '<div class="chat-log-meta"><time>' + escapeHtml(dateText) + '</time><span class="chat-log-badge">' + (inbound ? 'Masuk' : 'Admin') + '</span></div>' +
+                '<p>' + escapeHtml(String(message.message || '')).replace(/\n/g, '<br>') + '</p>' +
+            '</div>';
+        }).join('') : '<div class="history-empty">Belum ada pesan dalam percakapan ini.</div>';
+        if (countNode) countNode.textContent = ordered.length + ' log terakhir';
+    };
+
+    const updateChatRoomCounts = (counts) => {
+        if (!counts) return;
+        Object.entries(counts).forEach(([key, value]) => {
+            const node = document.querySelector('[data-chat-room="' + key + '"] b');
+            if (node && Number.isFinite(Number(value))) node.textContent = String(value);
+        });
+    };
+
+    const updateChatStats = (stats) => {
+        if (!stats) return;
+        const values = {all: stats.total, new: stats.unread, read: stats.read_count, followed: stats.followed_count};
+        Object.entries(values).forEach(([key, value]) => {
+            const node = document.querySelector('[data-chat-stat="' + key + '"] strong');
+            if (node && Number.isFinite(Number(value))) node.textContent = String(value);
+        });
+    };
+
+    const chatItemUrl = (nowa) => {
+        const params = new URLSearchParams(window.location.search);
+        params.set('page', 'chat');
+        params.set('status', chatCurrentStatus);
+        params.set('range', chatCurrentRange);
+        params.set('room', chatCurrentRoom);
+        params.set('contact', nowa);
+        params.delete('p');
+        return '?' + params.toString();
+    };
+
+    const buildChatItem = (row) => {
+        const name = String(row.nama || 'Hamba Allah').trim() || 'Hamba Allah';
+        const preview = String(row.last_message || '').replace(/\s+/g, ' ').trim().slice(0, 68);
+        const direction = row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim';
+        const roomLabel = row.room === 'customer_baru' ? 'Customer Baru'
+            : (row.room === 'sudah_payment' ? 'Sudah Payment'
+            : (row.room === 'peserta_pengajar' ? 'Peserta & Pengajar'
+            : (row.room === 'lainnya' ? 'Lainnya' : direction)));
+        const time = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
+        const item = document.createElement('a');
+        item.className = 'chat-item' + (row.unread_count > 0 ? ' is-new' : '') + (row.room === 'lainnya' ? ' is-other' : '');
+        item.dataset.chatNowa = row.nowa;
+        item.href = chatItemUrl(row.nowa);
+        item.innerHTML = '<span class="activity-avatar">' + escapeHtml(name.slice(0, 1).toUpperCase()) + '</span>' +
+            '<span class="chat-body"><strong>' + escapeHtml(name) + '</strong><small><span class="chat-item-label">' + escapeHtml(roomLabel) + '</span> · ' + escapeHtml(preview) + '</small></span>' +
+            '<span class="chat-meta"><time>' + escapeHtml(time) + '</time>' +
+            (row.unread_count > 0 ? '<b class="chat-new-badge">BARU</b>' : (row.followup_count > 0 ? '<i class="fa-solid fa-check-double"></i>' : '')) + '</span>';
+        return item;
+    };
+
+    const updateChatItem = (row) => {
+        const item = document.querySelector('.chat-item[data-chat-nowa="' + CSS.escape(row.nowa) + '"]');
+        if (!item) return;
+        const body = item.querySelector('.chat-body');
+        const meta = item.querySelector('.chat-meta');
+        const roomLabel = row.room === 'customer_baru' ? 'Customer Baru'
+            : (row.room === 'sudah_payment' ? 'Sudah Payment'
+            : (row.room === 'peserta_pengajar' ? 'Peserta & Pengajar'
+            : (row.room === 'lainnya' ? 'Lainnya' : (row.last_direction === 'in' ? 'Pesan masuk' : 'Dikirim'))));
+        if (body) {
+            const name = body.querySelector('strong');
+            const detail = body.querySelector('small');
+            if (name) name.textContent = String(row.nama || 'Hamba Allah');
+            if (detail) detail.innerHTML = '<span class="chat-item-label">' + escapeHtml(roomLabel) + '</span> · ' + escapeHtml(String(row.last_message || '').replace(/\s+/g, ' ').trim().slice(0, 68));
+        }
+        if (meta) {
+            const timeNode = meta.querySelector('time');
+            if (timeNode) timeNode.textContent = row.last_message_at ? new Date(row.last_message_at.replace(' ', 'T')).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'}) : '';
+            meta.querySelector('.chat-new-badge')?.remove();
+            if (row.unread_count > 0) {
+                item.classList.add('is-new');
+                const badge = document.createElement('b');
+                badge.className = 'chat-new-badge';
+                badge.textContent = 'BARU';
+                meta.appendChild(badge);
+            } else {
+                item.classList.remove('is-new');
+            }
+        }
+    };
+
+    const syncChatList = (row) => {
+        const list = document.querySelector('.chat-list');
+        if (!list) return;
+        const item = document.querySelector('.chat-item[data-chat-nowa="' + CSS.escape(row.nowa) + '"]');
+        if (!row.matches_filter) {
+            if (item && !item.classList.contains('selected')) item.remove();
+            return;
+        }
+        if (item) {
+            updateChatItem(row);
+            return;
+        }
+        if (chatCurrentPage !== 1) return;
+        list.querySelector('.empty-state')?.remove();
+        list.prepend(buildChatItem(row));
+        const items = list.querySelectorAll('.chat-item');
+        if (items.length > 20) items[items.length - 1].remove();
+    };
+
+    const pollChat = async () => {
+        if (chatPollBusy || document.hidden) return;
+        chatPollBusy = true;
+        try {
+            const query = new URLSearchParams({
+                since: chatPollCursor, room: chatCurrentRoom, status: chatCurrentStatus,
+                range: chatCurrentRange, q: chatCurrentSearch
+            });
+            if (selectedNumber) query.set('contact', selectedNumber);
+            const response = await fetch(chatPollUrl + '?' + query.toString(), {credentials: 'same-origin', cache: 'no-store'});
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!data?.ok) return;
+            chatPollCursor = data.server_time || chatPollCursor;
+            updateChatStats(data.stats);
+            updateChatRoomCounts(data.room_counts);
+            for (const row of (data.conversations || [])) {
+                syncChatList(row);
+                if (selectedNumber && normalizeChatNumber(row.nowa || '') === normalizeChatNumber(selectedNumber)) {
+                    renderSelectedHistory(data.selected_history || []);
+                }
+            }
+            if (selectedNumber) markSelectedRead();
+        } catch (_) {
+            // Polling is non-critical. Next interval retries.
+        } finally {
+            chatPollBusy = false;
+        }
+    };
+
+    window.setInterval(pollChat, 10000);
 
     const select = document.getElementById('crmTemplateSelect');
     const preview = document.getElementById('crmTemplatePreview');
