@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? nu
 
 $returnStatus = (string)($_POST['return_status'] ?? 'all');
 $returnRange = (string)($_POST['return_range'] ?? 'today');
-$returnRoom = (string)($_POST['return_room'] ?? 'all');
+$returnRoom = (string)($_POST['return_room'] ?? 'customer_baru');
 $returnSearch = trim((string)($_POST['return_q'] ?? ''));
 $returnPage = max(1, (int)($_POST['return_p'] ?? 1));
 $returnUrl = static fn(string $contact = ''): string => crmChatBuildReturnUrl(
@@ -26,7 +26,7 @@ $returnUrl = static fn(string $contact = ''): string => crmChatBuildReturnUrl(
 );
 
 $contactId = trim((string)($_POST['contact_id'] ?? ''));
-$requestedRoom = trim((string)($_POST['room'] ?? 'lainnya'));
+$requestedRoom = trim((string)($_POST['room'] ?? 'customer_baru'));
 $clearManual = (string)($_POST['clear_manual'] ?? '') === '1';
 
 if ($contactId === '') {
