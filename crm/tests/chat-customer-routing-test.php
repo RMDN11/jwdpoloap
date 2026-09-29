@@ -9,6 +9,11 @@ if ($chatPage === false) {
 $required = [
     '$_GET[\'room\'] ?? \'customer_baru\'',
     '$allowedRooms = [\'customer_baru\', \'sudah_payment\', \'peserta_pengajar\', \'lainnya\']',
+    '$selectedNumberForRoom = crmProspectNormalizeNumber($selected);',
+    'if (in_array($selectedPersistedRoom, [\'sudah_payment\', \'peserta_pengajar\', \'lainnya\'], true))',
+    '$room = $selectedPersistedRoom;',
+    '.chat-history-section',
+    'background:linear-gradient(145deg,#f7fbff 0%,#eef6ff 100%)',
     'crmChatRoutingPaymentDetectedSql()',
     'payment_detected_at IS NOT NULL',
     'NOT ({$paymentDetectedSql})',
