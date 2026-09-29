@@ -156,10 +156,14 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .section-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .section-title-row small{color:#849189;font-size:11px}
 .chat-history-scroll{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow:auto;padding-right:2px}
-.chat-log-item{padding:10px 12px;border-radius:13px;background:#fff;border:1px solid #e7eee9}
-.chat-log-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;color:#8a968f;font-size:10px}
-.chat-log-item p,.poloap-history-item p{margin:0;color:#34443b;font-size:13px;line-height:1.55;white-space:normal;overflow-wrap:anywhere}
-.chat-log-badge{padding:3px 7px;border-radius:999px;background:#fff1f1;color:#c85a5a;font-size:9px;font-weight:700}
+.chat-log-item{padding:10px 12px;border-radius:13px;background:#fff;border:1px solid #e3e7e5}
+.chat-log-in{background:#fff;border-left:3px solid #b9c2be}
+.chat-log-out{background:#f3f5f5;border-left:3px solid #7f8b87}
+.chat-log-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;color:#7c8782;font-size:10px}
+.chat-log-item p,.poloap-history-item p{margin:0;color:#303b37;font-size:13px;line-height:1.55;white-space:normal;overflow-wrap:anywhere}
+.chat-log-badge{padding:3px 7px;border-radius:999px;background:#eef1f0;color:#58655f;font-size:9px;font-weight:700}
+.chat-log-in .chat-log-badge{background:#f1f3f2;color:#65716c}
+.chat-log-out .chat-log-badge{background:#e6e9e8;color:#46524d}
 .poloap-history-list{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto}
 .poloap-history-item{padding:10px 12px;border-radius:13px;background:#fff;border:1px solid #e7eee9}
 .poloap-history-item>div{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
