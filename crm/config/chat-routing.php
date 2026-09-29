@@ -184,11 +184,11 @@ function crmChatRoutingResolveAutomaticRoom(mysqli $conn, array $conversation, ?
         return ['room' => 'peserta_pengajar', 'source' => 'auto', 'reason' => 'known_contact'];
     }
 
-    if (crmChatRoutingIsQualifyingIntent($intentCategory)) {
-        return ['room' => 'customer_baru', 'source' => 'auto', 'reason' => 'qualifying_intent'];
-    }
-
-    return ['room' => 'lainnya', 'source' => 'auto', 'reason' => 'no_qualifying_intent'];
+    // Unknown contacts belong to the default inbox first.
+    // Intent classification is still stored for later routing/analytics,
+    // but an unclear first message must not make the conversation disappear
+    // from Customer Baru.
+    return ['room' => 'customer_baru', 'source' => 'auto', 'reason' => 'new_unknown_contact'];
 }
 
 function crmChatRoutingPersist(mysqli $conn, int $conversationId, string $room, string $source, ?string $intentCategory = null, ?string $paymentDetectedAt = null): bool {
