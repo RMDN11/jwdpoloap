@@ -203,6 +203,28 @@ $poloapHistory = [];
 if ($selected !== '') {
     $selectedNumber = crmProspectNormalizeNumber($selected);
 
+    // Keep the active conversation in its persisted routing room.
+    // Customer Baru remains the default only when no conversation is selected.
+    $selectedRoomStmt = $conn->prepare(
+        "SELECT room
+         FROM crm_conversations c
+         WHERE (c.nowa = ? OR c.nowa = ?)
+           AND {$internalSql}
+         LIMIT 1"
+    );
+    if ($selectedRoomStmt) {
+        $selectedRoomStmt->bind_param('ss', $selected, $selectedNumber);
+        $selectedRoomStmt->execute();
+        $selectedRoomRow = $selectedRoomStmt->get_result()->fetch_assoc() ?: null;
+        $selectedRoomStmt->close();
+
+        $selectedPersistedRoom = (string)($selectedRoomRow['room'] ?? '');
+        if (in_array($selectedPersistedRoom, ['sudah_payment', 'peserta_pengajar', 'lainnya'], true)) {
+            $room = $selectedPersistedRoom;
+            $chatPage = 1;
+        }
+    }
+
     $selectedStmt = $conn->prepare(
         "SELECT
             id, nowa, nama, status, last_message_at, last_inbound_at,
