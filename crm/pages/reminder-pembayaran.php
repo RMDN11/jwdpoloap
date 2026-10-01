@@ -31,6 +31,11 @@ $totalPeserta = 0;
 $belumBayar = 0;
 $todaySent = 0;
 
+$sourceWhere = '';
+if ($csvImportId > 0) {
+    $sourceWhere = "EXISTS (SELECT 1 FROM crm_csv_participants cp WHERE cp.peserta_id = p.id AND cp.import_id = " . $csvImportId . " AND cp.match_status = 'matched')";
+}
+
 $where = ["p.nowa IS NOT NULL", "p.nowa <> ''"];
 if ($sourceWhere !== '') $where[] = $sourceWhere;
 $params = [];
@@ -54,11 +59,6 @@ if ($statusPeserta !== '' && $statusPeserta !== 'semua') {
     $where[] = "p.status = ?";
     $params[] = $statusPeserta;
     $types .= 's';
-}
-
-$sourceWhere = '';
-if ($csvImportId > 0) {
-    $sourceWhere = "EXISTS (SELECT 1 FROM crm_csv_participants cp WHERE cp.peserta_id = p.id AND cp.import_id = " . $csvImportId . " AND cp.match_status = 'matched')";
 }
 
 $paymentJoin = '';
