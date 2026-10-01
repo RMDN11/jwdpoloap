@@ -5,9 +5,10 @@ $crmTitle = 'Reminder Pembayaran';
 $search = trim((string)($_GET['q'] ?? ''));
 $halaqoh = trim((string)($_GET['halaqoh'] ?? ''));
 $bulan = trim((string)($_GET['bulan'] ?? ''));
+$csvImportId = max(0, (int)($_GET['csv_import_id'] ?? 0));
 $statusBayar = (string)($_GET['status_bayar'] ?? 'belum_lunas');
 $statusPeserta = (string)($_GET['status_peserta'] ?? 'proses');
-$hasFilter = isset($_GET['q']) || isset($_GET['halaqoh']) || isset($_GET['bulan']) || isset($_GET['status_bayar']) || isset($_GET['status_peserta']);
+$hasFilter = isset($_GET['q']) || isset($_GET['halaqoh']) || isset($_GET['bulan']) || isset($_GET['status_bayar']) || isset($_GET['status_peserta']) || isset($_GET['csv_import_id']);
 
 $halaqohList = [];
 $r = $conn->query("SELECT DISTINCT halaqoh FROM peserta WHERE halaqoh IS NOT NULL AND halaqoh <> '' ORDER BY halaqoh");
@@ -16,6 +17,10 @@ if ($r) while ($row = $r->fetch_assoc()) $halaqohList[] = (string)$row['halaqoh'
 $bulanList = [];
 $r = $conn->query("SELECT DISTINCT bulan_pembayaran FROM pembayaran WHERE bulan_pembayaran IS NOT NULL AND bulan_pembayaran <> '' ORDER BY id DESC");
 if ($r) while ($row = $r->fetch_assoc()) $bulanList[] = (string)$row['bulan_pembayaran'];
+
+$csvImports = [];
+$r = $conn->query("SELECT id, label, imported_at, row_count, matched_count FROM crm_csv_imports ORDER BY imported_at DESC LIMIT 30");
+if ($r) $csvImports = $r->fetch_all(MYSQLI_ASSOC);
 
 $templates = [];
 $r = $conn->query("SELECT id, category, title, content FROM wa_templates ORDER BY category, title");
@@ -26,7 +31,13 @@ $totalPeserta = 0;
 $belumBayar = 0;
 $todaySent = 0;
 
+$sourceWhere = '';
+if ($csvImportId > 0) {
+    $sourceWhere = "EXISTS (SELECT 1 FROM crm_csv_participants cp WHERE cp.peserta_id = p.id AND cp.import_id = " . $csvImportId . " AND cp.match_status = 'matched' AND UPPER(TRIM(cp.status_siswa)) = 'ON')";
+}
+
 $where = ["p.nowa IS NOT NULL", "p.nowa <> ''"];
+if ($sourceWhere !== '') $where[] = $sourceWhere;
 $params = [];
 $types = '';
 
@@ -44,7 +55,7 @@ if ($halaqoh !== '') {
     $types .= 's';
 }
 
-if ($statusPeserta !== '' && $statusPeserta !== 'semua') {
+if ($csvImportId <= 0 && $statusPeserta !== '' && $statusPeserta !== 'semua') {
     $where[] = "p.status = ?";
     $params[] = $statusPeserta;
     $types .= 's';
@@ -133,6 +144,7 @@ if ($hasFilter) {
 
     // Daftar peserta tetap dibatasi 100 agar filter tidak memicu query/render raksasa.
     $sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status,
+            (SELECT cp.whatsapp_wali FROM crm_csv_participants cp WHERE cp.peserta_id = p.id AND cp.import_id = {$csvImportId} AND cp.match_status = 'matched' AND UPPER(TRIM(cp.status_siswa)) = 'ON' LIMIT 1) AS csv_nowa,
             {$paymentStatusSql} AS is_lunas
             FROM peserta p {$paymentJoin}
             WHERE " . implode(' AND ', $where) . "
@@ -269,6 +281,7 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
 
         <form class="reminder-filters reminder-filter-box" method="get">
             <input type="hidden" name="page" value="reminder-pembayaran">
+            <a class="reminder-secondary-link" href="?page=reminder-csv" style="align-self:center;justify-content:center">Kelola CSV</a>
 
             <label>
                 <span>Cari peserta</span>
@@ -279,7 +292,17 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
             </label>
 
             <label>
-                <span>Bulan pembayaran</span>
+                <span>Sumber peserta</span>
+                <select name="csv_import_id">
+                    <option value="0">Master peserta CRM</option>
+                    <?php foreach ($csvImports as $item): ?>
+                        <option value="<?= (int)$item['id'] ?>" <?= $csvImportId === (int)$item['id'] ? 'selected' : '' ?>>CSV · <?= htmlspecialchars($item['label']) ?> · <?= (int)$item['matched_count'] ?> cocok</option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                <span>Periode pembayaran</span>
                 <select name="bulan">
                     <option value="">Semua bulan</option>
                     <?php foreach ($bulanList as $item): ?>
@@ -351,12 +374,12 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
                                 class="reminder-target"
                                 value="<?= (int)$p['id'] ?>"
                                 data-name="<?= htmlspecialchars($p['nama_lengkap'], ENT_QUOTES) ?>"
-                                data-wa="<?= htmlspecialchars($p['nowa'], ENT_QUOTES) ?>"
+                                data-wa="<?= htmlspecialchars(($csvImportId > 0 ? ($p['csv_nowa'] ?? '') : $p['nowa']), ENT_QUOTES) ?>"
                             >
                             <span class="reminder-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr((string)$p['nama_lengkap'], 0, 1))) ?></span>
                             <span class="reminder-person-body">
                                 <strong><?= htmlspecialchars($p['nama_lengkap']) ?></strong>
-                                <small><?= htmlspecialchars($p['nowa']) ?> · <?= htmlspecialchars($p['halaqoh'] ?: '-') ?></small>
+                                <small><?= htmlspecialchars($csvImportId > 0 ? (($p['csv_nowa'] ?? '') ?: $p['nowa']) : $p['nowa']) ?> · <?= htmlspecialchars($p['halaqoh'] ?: '-') ?></small>
                                 <em class="reminder-history">
                                     <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
                                     <?= htmlspecialchars($formatReminderHistory((int)$p['reminder_count'], $p['reminder_last_at'])) ?>
@@ -379,6 +402,7 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
             <input type="hidden" name="selected" id="reminderSelectedInput" value="[]">
             <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
             <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
+            <input type="hidden" name="csv_import_id" value="<?= (int)$csvImportId ?>">
             <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
             <input type="hidden" name="status_peserta" value="<?= htmlspecialchars($statusPeserta, ENT_QUOTES) ?>">
             <input type="hidden" name="status_bayar" value="<?= htmlspecialchars($statusBayar, ENT_QUOTES) ?>">
