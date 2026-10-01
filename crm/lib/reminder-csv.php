@@ -38,13 +38,16 @@ function crmReminderCsvNormalizeWa(string $value): string
 
 function crmReminderCsvNormalizeStatus(string $value): string
 {
-    return strtoupper(trim($value));
+    $value = strtoupper(trim($value));
+    if (preg_match('/\\b(ON|OFF)\\b/', $value, $match)) {
+        return $match[1];
+    }
+    return $value;
 }
 
 function crmReminderCsvRequiredHeaders(): array
 {
     return [
-        'id',
         'program',
         'periode / level',
         'kelas / grup',
