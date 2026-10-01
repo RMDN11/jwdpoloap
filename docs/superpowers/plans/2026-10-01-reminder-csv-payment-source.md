@@ -17,17 +17,21 @@ This change adds crm_csv_imports and crm_csv_participants only. It must not muta
 - More than 5,000 valid rows are rejected.
 - Duplicate source rows are skipped and counted.
 - WhatsApp is normalized from 08... to 62....
+- Status Siswa is normalized to uppercase so `ON`, `On`, etc. are stored consistently.
 - A unique WhatsApp match links to peserta_id.
 - Multiple CRM participants sharing the same normalized WhatsApp become ambiguous, never auto-linked.
 - Any insert failure rolls back the whole import.
 
 ## Reminder checks
 For a selected CSV import and BATCH 56:
+- Only CSV rows with `Status Siswa = ON` are eligible; `OFF` is excluded.
+- CSV `WhatsApp Wali` is the preferred and actual send number; `peserta.nowa` is used for matching the CSV row to the CRM participant.
 - Belum bayar means a matched CSV participant has no pembayaran row for BATCH 56.
 - Sudah bayar means a matched CSV participant has a pembayaran row for BATCH 56.
 - The query never uses peserta.status as a substitute for payment existence.
+- When a CSV source is selected, the CRM `peserta.status` filter is not used to exclude CSV `ON` students.
 - Repeated CSV rows cannot multiply the reminder count because the source condition uses EXISTS.
-- Sending revalidates selected IDs against the selected CSV source and payment filter.
+- Sending revalidates selected IDs against the selected CSV source, `Status Siswa = ON`, CSV WhatsApp number, and payment filter.
 
 ## Regression checks
 - Existing reminder flow without csv_import_id still uses the existing CRM participant source.
