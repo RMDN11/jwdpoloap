@@ -40,6 +40,5 @@ CREATE TABLE IF NOT EXISTS crm_csv_participants (
  INDEX idx_crm_csv_import (import_id),
  INDEX idx_crm_csv_peserta (peserta_id),
  INDEX idx_crm_csv_wa (normalized_wa),
- INDEX idx_crm_csv_match (import_id, match_status),
- CONSTRAINT fk_crm_csv_participants_import FOREIGN KEY (import_id) REFERENCES crm_csv_imports(id) ON DELETE CASCADE
+ INDEX idx_crm_csv_match (import_id, match_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
