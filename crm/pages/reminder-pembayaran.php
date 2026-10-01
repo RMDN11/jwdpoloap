@@ -401,6 +401,7 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
             <input type="hidden" name="selected" id="reminderSelectedInput" value="[]">
             <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
             <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
+            <input type="hidden" name="csv_import_id" value="<?= (int)$csvImportId ?>">
             <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
             <input type="hidden" name="status_peserta" value="<?= htmlspecialchars($statusPeserta, ENT_QUOTES) ?>">
             <input type="hidden" name="status_bayar" value="<?= htmlspecialchars($statusBayar, ENT_QUOTES) ?>">
