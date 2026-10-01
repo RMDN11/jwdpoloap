@@ -8,7 +8,7 @@ $mode=(string)($_POST['mode'] ?? 'participants');
 $templateId=(int)($_POST['template_id'] ?? 0);
 
 $redirectParams = ['page' => 'reminder-pembayaran'];
-foreach (['q', 'bulan', 'halaqoh', 'status_peserta', 'status_bayar'] as $filterKey) {
+foreach (['q', 'bulan', 'csv_import_id', 'halaqoh', 'status_peserta', 'status_bayar'] as $filterKey) {
     if (isset($_POST[$filterKey]) && trim((string)$_POST[$filterKey]) !== '') {
         $redirectParams[$filterKey] = trim((string)$_POST[$filterKey]);
     }
