@@ -295,7 +295,7 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
             <label>
                 <span>Sumber peserta</span>
                 <select name="csv_file">
-                    <option value="0">Master peserta CRM</option>
+                    <option value="">Master peserta CRM</option>
                     <?php foreach ($csvImports as $item): ?>
                         <option value="<?= htmlspecialchars((string)$item['file'], ENT_QUOTES) ?>" <?= $csvFile === (string)$item['file'] ? 'selected' : '' ?>>CSV · <?= htmlspecialchars((string)$item['label']) ?> · <?= (int)$item['matched_count'] ?> cocok</option>
                     <?php endforeach; ?>
