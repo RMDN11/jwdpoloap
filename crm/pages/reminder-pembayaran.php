@@ -32,6 +32,7 @@ $belumBayar = 0;
 $todaySent = 0;
 
 $where = ["p.nowa IS NOT NULL", "p.nowa <> ''"];
+if ($sourceWhere !== '') $where[] = $sourceWhere;
 $params = [];
 $types = '';
 
@@ -55,9 +56,9 @@ if ($statusPeserta !== '' && $statusPeserta !== 'semua') {
     $types .= 's';
 }
 
-$sourceJoin = '';
+$sourceWhere = '';
 if ($csvImportId > 0) {
-    $sourceJoin = ' INNER JOIN crm_csv_participants cp ON cp.peserta_id = p.id AND cp.import_id = ' . $csvImportId . " AND cp.match_status = 'matched' ";
+    $sourceWhere = "EXISTS (SELECT 1 FROM crm_csv_participants cp WHERE cp.peserta_id = p.id AND cp.import_id = " . $csvImportId . " AND cp.match_status = 'matched')";
 }
 
 $paymentJoin = '';
@@ -86,7 +87,7 @@ if ($hasFilter) {
     // peserta yang memenuhi filter, bukan hanya 100 baris yang ditampilkan.
     $summarySql = "SELECT COUNT(*) AS total,
         COALESCE(SUM(CASE WHEN {$paymentStatusSql} = 0 THEN 1 ELSE 0 END), 0) AS belum_bayar
-        FROM peserta p {$sourceJoin}{$paymentJoin}
+        FROM peserta p {$paymentJoin}
         WHERE " . implode(' AND ', $where);
 
     $summaryStmt = $conn->prepare($summarySql);
