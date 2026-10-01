@@ -6,6 +6,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? nu
 
 $mode=(string)($_POST['mode'] ?? 'participants');
 $templateId=(int)($_POST['template_id'] ?? 0);
+$csvImportId=max(0,(int)($_POST['csv_import_id'] ?? 0));
+$bulan=trim((string)($_POST['bulan'] ?? ''));
+$statusBayar=(string)($_POST['status_bayar'] ?? 'belum_lunas');
+$statusPeserta=(string)($_POST['status_peserta'] ?? 'proses');
 
 $redirectParams = ['page' => 'reminder-pembayaran'];
 foreach (['q', 'bulan', 'csv_import_id', 'halaqoh', 'status_peserta', 'status_bayar'] as $filterKey) {
@@ -37,11 +41,41 @@ if($mode==='request'){
     if($row)$targets[]=['name'=>(string)$row['peserta_nama'],'nowa'=>(string)$row['peserta_nowa'],'request_id'=>$requestId];
 }else{
     $raw=json_decode((string)($_POST['selected']??'[]'),true);
-    if(is_array($raw))foreach($raw as $item){
-        $nowa=preg_replace('/\D+/','',(string)($item['nowa']??''));
-        if($nowa==='')continue;
-        if(str_starts_with($nowa,'0'))$nowa='62'.substr($nowa,1);
-        $targets[]=['name'=>trim((string)($item['name']??'Kak'))?:'Kak','nowa'=>$nowa,'request_id'=>null];
+    if(is_array($raw)){
+        $selectedIds=[];
+        foreach($raw as $item){ $id=(int)($item['id']??0); if($id>0)$selectedIds[$id]=true; }
+        if($csvImportId>0 && $selectedIds){
+            $conditions=[
+                "p.id = ?",
+                "EXISTS (SELECT 1 FROM crm_csv_participants cp WHERE cp.peserta_id=p.id AND cp.import_id={$csvImportId} AND cp.match_status='matched')",
+                "p.nowa IS NOT NULL","p.nowa <> ''"
+            ];
+            if($statusPeserta!=='' && $statusPeserta!=='semua') $conditions[]="p.status = ?";
+            if($bulan!==''){
+                if($statusBayar==='lunas') $conditions[]="EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id AND px.bulan_pembayaran=?)";
+                elseif($statusBayar==='belum_lunas') $conditions[]="NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id AND px.bulan_pembayaran=?)";
+            } elseif($statusBayar==='lunas') $conditions[]="EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id)";
+            elseif($statusBayar==='belum_lunas') $conditions[]="NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id)";
+            $sql="SELECT p.id,p.nama_lengkap,p.nowa FROM peserta p WHERE ".implode(' AND ',$conditions)." LIMIT 1";
+            $valid=$conn->prepare($sql);
+            foreach(array_keys($selectedIds) as $id){
+                $params=[$id]; $types='i';
+                if($statusPeserta!=='' && $statusPeserta!=='semua'){ $params[]=$statusPeserta;$types.='s'; }
+                if($bulan!=='' && ($statusBayar==='lunas'||$statusBayar==='belum_lunas')){$params[]=$bulan;$types.='s';}
+                $refs=[];foreach($params as $k=>$v)$refs[$k]=&$params[$k];
+                if($valid){call_user_func_array([$valid,'bind_param'],array_merge([$types],$refs));$valid->execute();$row=$valid->get_result()->fetch_assoc();$valid->reset();
+                    if($row)$targets[]=['name'=>(string)$row['nama_lengkap'],'nowa'=>(string)$row['nowa'],'request_id'=>null];
+                }
+            }
+            if($valid)$valid->close();
+        } else {
+            foreach($raw as $item){
+                $nowa=preg_replace('/\D+/','',(string)($item['nowa']??''));
+                if($nowa==='')continue;
+                if(str_starts_with($nowa,'0'))$nowa='62'.substr($nowa,1);
+                $targets[]=['name'=>trim((string)($item['name']??'Kak'))?:'Kak','nowa'=>$nowa,'request_id'=>null];
+            }
+        }
     }
 }
 if(!$targets){
