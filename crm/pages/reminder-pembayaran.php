@@ -5,9 +5,10 @@ $crmTitle = 'Reminder Pembayaran';
 $search = trim((string)($_GET['q'] ?? ''));
 $halaqoh = trim((string)($_GET['halaqoh'] ?? ''));
 $bulan = trim((string)($_GET['bulan'] ?? ''));
+$csvImportId = max(0, (int)($_GET['csv_import_id'] ?? 0));
 $statusBayar = (string)($_GET['status_bayar'] ?? 'belum_lunas');
 $statusPeserta = (string)($_GET['status_peserta'] ?? 'proses');
-$hasFilter = isset($_GET['q']) || isset($_GET['halaqoh']) || isset($_GET['bulan']) || isset($_GET['status_bayar']) || isset($_GET['status_peserta']);
+$hasFilter = isset($_GET['q']) || isset($_GET['halaqoh']) || isset($_GET['bulan']) || isset($_GET['status_bayar']) || isset($_GET['status_peserta']) || isset($_GET['csv_import_id']);
 
 $halaqohList = [];
 $r = $conn->query("SELECT DISTINCT halaqoh FROM peserta WHERE halaqoh IS NOT NULL AND halaqoh <> '' ORDER BY halaqoh");
@@ -16,6 +17,10 @@ if ($r) while ($row = $r->fetch_assoc()) $halaqohList[] = (string)$row['halaqoh'
 $bulanList = [];
 $r = $conn->query("SELECT DISTINCT bulan_pembayaran FROM pembayaran WHERE bulan_pembayaran IS NOT NULL AND bulan_pembayaran <> '' ORDER BY id DESC");
 if ($r) while ($row = $r->fetch_assoc()) $bulanList[] = (string)$row['bulan_pembayaran'];
+
+$csvImports = [];
+$r = $conn->query("SELECT id, label, imported_at, row_count, matched_count FROM crm_csv_imports ORDER BY imported_at DESC LIMIT 30");
+if ($r) $csvImports = $r->fetch_all(MYSQLI_ASSOC);
 
 $templates = [];
 $r = $conn->query("SELECT id, category, title, content FROM wa_templates ORDER BY category, title");
@@ -50,6 +55,11 @@ if ($statusPeserta !== '' && $statusPeserta !== 'semua') {
     $types .= 's';
 }
 
+$sourceJoin = '';
+if ($csvImportId > 0) {
+    $sourceJoin = ' INNER JOIN crm_csv_participants cp ON cp.peserta_id = p.id AND cp.import_id = ' . $csvImportId . " AND cp.match_status = 'matched' ";
+}
+
 $paymentJoin = '';
 if ($bulan !== '') {
     $paymentJoin = " LEFT JOIN (SELECT DISTINCT peserta_id FROM pembayaran WHERE bulan_pembayaran = ?) bp ON bp.peserta_id = p.id ";
@@ -76,7 +86,7 @@ if ($hasFilter) {
     // peserta yang memenuhi filter, bukan hanya 100 baris yang ditampilkan.
     $summarySql = "SELECT COUNT(*) AS total,
         COALESCE(SUM(CASE WHEN {$paymentStatusSql} = 0 THEN 1 ELSE 0 END), 0) AS belum_bayar
-        FROM peserta p {$paymentJoin}
+        FROM peserta p {$sourceJoin}{$paymentJoin}
         WHERE " . implode(' AND ', $where);
 
     $summaryStmt = $conn->prepare($summarySql);
@@ -269,6 +279,7 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
 
         <form class="reminder-filters reminder-filter-box" method="get">
             <input type="hidden" name="page" value="reminder-pembayaran">
+            <a class="reminder-secondary-link" href="?page=reminder-csv" style="align-self:center;justify-content:center">Kelola CSV</a>
 
             <label>
                 <span>Cari peserta</span>
@@ -279,7 +290,17 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
             </label>
 
             <label>
-                <span>Bulan pembayaran</span>
+                <span>Sumber peserta</span>
+                <select name="csv_import_id">
+                    <option value="0">Master peserta CRM</option>
+                    <?php foreach ($csvImports as $item): ?>
+                        <option value="<?= (int)$item['id'] ?>" <?= $csvImportId === (int)$item['id'] ? 'selected' : '' ?>>CSV · <?= htmlspecialchars($item['label']) ?> · <?= (int)$item['matched_count'] ?> cocok</option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+
+            <label>
+                <span>Periode pembayaran</span>
                 <select name="bulan">
                     <option value="">Semua bulan</option>
                     <?php foreach ($bulanList as $item): ?>
