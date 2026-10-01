@@ -1,14 +1,15 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/../lib/reminder-csv.php';
 
 $crmTitle = 'Reminder Pembayaran';
 $search = trim((string)($_GET['q'] ?? ''));
 $halaqoh = trim((string)($_GET['halaqoh'] ?? ''));
 $bulan = trim((string)($_GET['bulan'] ?? ''));
-$csvImportId = max(0, (int)($_GET['csv_import_id'] ?? 0));
+$csvFile = basename(trim((string)($_GET['csv_file'] ?? '')));
 $statusBayar = (string)($_GET['status_bayar'] ?? 'belum_lunas');
 $statusPeserta = (string)($_GET['status_peserta'] ?? 'proses');
-$hasFilter = isset($_GET['q']) || isset($_GET['halaqoh']) || isset($_GET['bulan']) || isset($_GET['status_bayar']) || isset($_GET['status_peserta']) || isset($_GET['csv_import_id']);
+$hasFilter = isset($_GET['q']) || isset($_GET['halaqoh']) || isset($_GET['bulan']) || isset($_GET['status_bayar']) || isset($_GET['status_peserta']) || isset($_GET['csv_file']);
 
 $halaqohList = [];
 $r = $conn->query("SELECT DISTINCT halaqoh FROM peserta WHERE halaqoh IS NOT NULL AND halaqoh <> '' ORDER BY halaqoh");
@@ -18,9 +19,7 @@ $bulanList = [];
 $r = $conn->query("SELECT DISTINCT bulan_pembayaran FROM pembayaran WHERE bulan_pembayaran IS NOT NULL AND bulan_pembayaran <> '' ORDER BY id DESC");
 if ($r) while ($row = $r->fetch_assoc()) $bulanList[] = (string)$row['bulan_pembayaran'];
 
-$csvImports = [];
-$r = $conn->query("SELECT id, label, imported_at, row_count, matched_count FROM crm_csv_imports ORDER BY imported_at DESC LIMIT 30");
-if ($r) $csvImports = $r->fetch_all(MYSQLI_ASSOC);
+$csvImports = crmReminderCsvList();
 
 $templates = [];
 $r = $conn->query("SELECT id, category, title, content FROM wa_templates ORDER BY category, title");
@@ -31,15 +30,60 @@ $totalPeserta = 0;
 $belumBayar = 0;
 $todaySent = 0;
 
-$sourceWhere = '';
-if ($csvImportId > 0) {
-    $sourceWhere = "EXISTS (SELECT 1 FROM crm_csv_participants cp WHERE cp.peserta_id = p.id AND cp.import_id = " . $csvImportId . " AND cp.match_status = 'matched' AND UPPER(TRIM(cp.status_siswa)) = 'ON')";
+$csvTargetByPesertaId = [];
+$csvParticipantIds = [];
+
+if ($csvFile !== '') {
+    try {
+        $csvRows = crmReminderCsvRead($csvFile);
+        $waMap = [];
+
+        $result = $conn->query("SELECT id, nowa FROM peserta WHERE nowa IS NOT NULL AND nowa <> ''");
+        if ($result) {
+            while ($participant = $result->fetch_assoc()) {
+                $normalized = crmReminderCsvNormalizeWa((string)$participant['nowa']);
+                if ($normalized === '') continue;
+                if (array_key_exists($normalized, $waMap)) {
+                    $waMap[$normalized] = 0;
+                } else {
+                    $waMap[$normalized] = (int)$participant['id'];
+                }
+            }
+        }
+
+        foreach ($csvRows as $row) {
+            if (crmReminderCsvNormalizeStatus((string)$row['status_siswa']) !== 'ON') continue;
+            $normalized = (string)$row['normalized_wa'];
+            if ($normalized === '' || !array_key_exists($normalized, $waMap) || $waMap[$normalized] === 0) continue;
+
+            $pesertaId = (int)$waMap[$normalized];
+            $csvParticipantIds[$pesertaId] = true;
+            $csvTargetByPesertaId[$pesertaId] = (string)$row['whatsapp_wali'];
+        }
+    } catch (Throwable $e) {
+        error_log('CRM CSV source read failed: ' . $e->getMessage());
+        $csvFile = '';
+        $csvTargetByPesertaId = [];
+        $csvParticipantIds = [];
+    }
 }
 
 $where = ["p.nowa IS NOT NULL", "p.nowa <> ''"];
-if ($sourceWhere !== '') $where[] = $sourceWhere;
 $params = [];
 $types = '';
+
+if ($csvFile !== '') {
+    $ids = array_map('intval', array_keys($csvParticipantIds));
+    if (!$ids) {
+        $where[] = '1 = 0';
+    } else {
+        $where[] = 'p.id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
+        foreach ($ids as $id) {
+            $params[] = $id;
+            $types .= 'i';
+        }
+    }
+}
 
 if ($search !== '') {
     $where[] = "(p.nama_lengkap LIKE ? OR p.nowa LIKE ?)";
@@ -55,7 +99,7 @@ if ($halaqoh !== '') {
     $types .= 's';
 }
 
-if ($csvImportId <= 0 && $statusPeserta !== '' && $statusPeserta !== 'semua') {
+if ($csvFile === '' && $statusPeserta !== '' && $statusPeserta !== 'semua') {
     $where[] = "p.status = ?";
     $params[] = $statusPeserta;
     $types .= 's';
@@ -83,8 +127,6 @@ $paymentStatusSql = $bulan !== ''
     : "CASE WHEN EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id) THEN 1 ELSE 0 END";
 
 if ($hasFilter) {
-    // Summary tidak memakai LIMIT. Jadi angka Belum Bayar benar-benar mewakili seluruh
-    // peserta yang memenuhi filter, bukan hanya 100 baris yang ditampilkan.
     $summarySql = "SELECT COUNT(*) AS total,
         COALESCE(SUM(CASE WHEN {$paymentStatusSql} = 0 THEN 1 ELSE 0 END), 0) AS belum_bayar
         FROM peserta p {$paymentJoin}
@@ -95,21 +137,14 @@ if ($hasFilter) {
         $summaryParams = $params;
         $summaryRefs = [];
         foreach ($summaryParams as $k => $v) $summaryRefs[$k] = &$summaryParams[$k];
-        if ($summaryParams) {
-            call_user_func_array([$summaryStmt, 'bind_param'], array_merge([$types], $summaryRefs));
-        }
+        if ($summaryParams) call_user_func_array([$summaryStmt, 'bind_param'], array_merge([$types], $summaryRefs));
         $summaryStmt->execute();
         $summary = $summaryStmt->get_result()->fetch_assoc() ?: [];
         $summaryStmt->close();
-
         $totalPeserta = (int)($summary['total'] ?? 0);
         $belumBayar = (int)($summary['belum_bayar'] ?? 0);
     }
 
-    // Hitung reminder hari ini berdasarkan peserta yang lolos filter.
-    // Hanya log yang benar-benar berstatus [TERKIRIM] yang dihitung.
-    // Pencocokan mendukung nomor 08xxx <-> 62xxx tanpa REGEXP_REPLACE,
-    // sehingga tidak menambah risiko incompatibility MySQL pada server produksi.
     $todayMatch = "(l.nowa = p.nowa
         OR l.nowa = CONCAT('+', p.nowa)
         OR (LEFT(p.nowa, 1) = '0' AND l.nowa = CONCAT('62', SUBSTRING(p.nowa, 2)))
@@ -121,8 +156,7 @@ if ($hasFilter) {
         FROM peserta p {$paymentJoin}
         WHERE " . implode(' AND ', $where) . "
         AND EXISTS (
-            SELECT 1
-            FROM log_wa l
+            SELECT 1 FROM log_wa l
             WHERE DATE(l.created_at) = CURDATE()
               AND l.message LIKE '[REMINDER] [TERKIRIM]%'
               AND {$todayMatch}
@@ -133,18 +167,14 @@ if ($hasFilter) {
         $todayParams = $params;
         $todayRefs = [];
         foreach ($todayParams as $k => $v) $todayRefs[$k] = &$todayParams[$k];
-        if ($todayParams) {
-            call_user_func_array([$todayStmt, 'bind_param'], array_merge([$types], $todayRefs));
-        }
+        if ($todayParams) call_user_func_array([$todayStmt, 'bind_param'], array_merge([$types], $todayRefs));
         $todayStmt->execute();
         $todayRow = $todayStmt->get_result()->fetch_assoc() ?: [];
         $todayStmt->close();
         $todaySent = (int)($todayRow['total'] ?? 0);
     }
 
-    // Daftar peserta tetap dibatasi 100 agar filter tidak memicu query/render raksasa.
     $sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status,
-            (SELECT cp.whatsapp_wali FROM crm_csv_participants cp WHERE cp.peserta_id = p.id AND cp.import_id = {$csvImportId} AND cp.match_status = 'matched' AND UPPER(TRIM(cp.status_siswa)) = 'ON' LIMIT 1) AS csv_nowa,
             {$paymentStatusSql} AS is_lunas
             FROM peserta p {$paymentJoin}
             WHERE " . implode(' AND ', $where) . "
@@ -156,30 +186,17 @@ if ($hasFilter) {
         $displayParams = $params;
         $displayRefs = [];
         foreach ($displayParams as $k => $v) $displayRefs[$k] = &$displayParams[$k];
-        if ($displayParams) {
-            call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $displayRefs));
-        }
+        if ($displayParams) call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $displayRefs));
         $stmt->execute();
         $participants = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
     }
 
-    // Ambil riwayat hanya untuk nomor peserta yang benar-benar ditampilkan.
-    // Log gagal sengaja tidak masuk karena action menyimpan [TERKIRIM] / [GAGAL].
     $historyMap = [];
-
-    $normalizeWa = static function (string $value): string {
-        $digits = preg_replace('/\D+/', '', $value) ?? '';
-        if ($digits !== '' && str_starts_with($digits, '0')) {
-            $digits = '62' . substr($digits, 1);
-        }
-        return $digits;
-    };
-
     $logNumbers = [];
     foreach ($participants as $participant) {
         $raw = (string)$participant['nowa'];
-        $normalized = $normalizeWa($raw);
+        $normalized = crmReminderCsvNormalizeWa($raw);
         if ($raw !== '') $logNumbers[$raw] = true;
         if ($normalized !== '') {
             $logNumbers[$normalized] = true;
@@ -196,12 +213,7 @@ if ($hasFilter) {
         $logNumbers = array_keys($logNumbers);
         $placeholders = implode(',', array_fill(0, count($logNumbers), '?'));
         $logTypes = str_repeat('s', count($logNumbers));
-        $logSql = "SELECT nowa, created_at
-                   FROM log_wa
-                   WHERE message LIKE '[REMINDER] [TERKIRIM]%'
-                     AND nowa IN ({$placeholders})
-                   ORDER BY created_at DESC";
-
+        $logSql = "SELECT nowa, created_at FROM log_wa WHERE message LIKE '[REMINDER] [TERKIRIM]%' AND nowa IN ({$placeholders}) ORDER BY created_at DESC";
         $logStmt = $conn->prepare($logSql);
         if ($logStmt) {
             $logParams = $logNumbers;
@@ -210,24 +222,19 @@ if ($hasFilter) {
             call_user_func_array([$logStmt, 'bind_param'], array_merge([$logTypes], $logRefs));
             $logStmt->execute();
             $logResult = $logStmt->get_result();
-
             while ($log = $logResult->fetch_assoc()) {
-                $normalized = $normalizeWa((string)$log['nowa']);
+                $normalized = crmReminderCsvNormalizeWa((string)$log['nowa']);
                 if ($normalized === '') continue;
-                if (!isset($historyMap[$normalized])) {
-                    $historyMap[$normalized] = ['count' => 0, 'last_at' => null];
-                }
+                if (!isset($historyMap[$normalized])) $historyMap[$normalized] = ['count' => 0, 'last_at' => null];
                 $historyMap[$normalized]['count']++;
-                if ($historyMap[$normalized]['last_at'] === null) {
-                    $historyMap[$normalized]['last_at'] = $log['created_at'];
-                }
+                if ($historyMap[$normalized]['last_at'] === null) $historyMap[$normalized]['last_at'] = $log['created_at'];
             }
             $logStmt->close();
         }
     }
 
     foreach ($participants as &$participant) {
-        $normalized = $normalizeWa((string)$participant['nowa']);
+        $normalized = crmReminderCsvNormalizeWa((string)$participant['nowa']);
         $participant['reminder_count'] = (int)($historyMap[$normalized]['count'] ?? 0);
         $participant['reminder_last_at'] = $historyMap[$normalized]['last_at'] ?? null;
     }
@@ -240,18 +247,12 @@ if ($r) $pendingRequests = $r->fetch_all(MYSQLI_ASSOC);
 
 $formatReminderHistory = static function (int $count, ?string $lastAt): string {
     if ($count < 1 || !$lastAt) return 'Belum pernah dihubungi';
-
     $timestamp = strtotime($lastAt);
     if (!$timestamp) return $count . 'x';
-
-    $date = date('Y-m-d', $timestamp) === date('Y-m-d')
-        ? 'Hari ini ' . date('H:i', $timestamp)
-        : date('d/m/Y H:i', $timestamp);
-
+    $date = date('Y-m-d', $timestamp) === date('Y-m-d') ? 'Hari ini ' . date('H:i', $timestamp) : date('d/m/Y H:i', $timestamp);
     return $count . 'x · ' . $date;
 };
 ?>
-
 <div class="reminder-payment-page">
     <div class="reminder-payment-topbar">
         <a class="reminder-back-btn" href="?page=reminder&tab=pembayaran" title="Kembali ke Reminder" aria-label="Kembali ke Reminder">
@@ -293,10 +294,10 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
 
             <label>
                 <span>Sumber peserta</span>
-                <select name="csv_import_id">
-                    <option value="0">Master peserta CRM</option>
+                <select name="csv_file">
+                    <option value="">Master peserta CRM</option>
                     <?php foreach ($csvImports as $item): ?>
-                        <option value="<?= (int)$item['id'] ?>" <?= $csvImportId === (int)$item['id'] ? 'selected' : '' ?>>CSV · <?= htmlspecialchars($item['label']) ?> · <?= (int)$item['matched_count'] ?> cocok</option>
+                        <option value="<?= htmlspecialchars((string)$item['file'], ENT_QUOTES) ?>" <?= $csvFile === (string)$item['file'] ? 'selected' : '' ?>>CSV · <?= htmlspecialchars((string)$item['label']) ?> · <?= (int)$item['matched_count'] ?> cocok</option>
                     <?php endforeach; ?>
                 </select>
             </label>
@@ -374,12 +375,12 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
                                 class="reminder-target"
                                 value="<?= (int)$p['id'] ?>"
                                 data-name="<?= htmlspecialchars($p['nama_lengkap'], ENT_QUOTES) ?>"
-                                data-wa="<?= htmlspecialchars(($csvImportId > 0 ? ($p['csv_nowa'] ?? '') : $p['nowa']), ENT_QUOTES) ?>"
+                                data-wa="<?= htmlspecialchars(($csvFile !== '' ? ($csvTargetByPesertaId[(int)$p['id']] ?? '') : $p['nowa']), ENT_QUOTES) ?>"
                             >
                             <span class="reminder-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr((string)$p['nama_lengkap'], 0, 1))) ?></span>
                             <span class="reminder-person-body">
                                 <strong><?= htmlspecialchars($p['nama_lengkap']) ?></strong>
-                                <small><?= htmlspecialchars($csvImportId > 0 ? (($p['csv_nowa'] ?? '') ?: $p['nowa']) : $p['nowa']) ?> · <?= htmlspecialchars($p['halaqoh'] ?: '-') ?></small>
+                                <small><?= htmlspecialchars($csvFile !== '' ? (($csvTargetByPesertaId[(int)$p['id']] ?? '') ?: $p['nowa']) : $p['nowa']) ?> · <?= htmlspecialchars($p['halaqoh'] ?: '-') ?></small>
                                 <em class="reminder-history">
                                     <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
                                     <?= htmlspecialchars($formatReminderHistory((int)$p['reminder_count'], $p['reminder_last_at'])) ?>
@@ -402,7 +403,7 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
             <input type="hidden" name="selected" id="reminderSelectedInput" value="[]">
             <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
             <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
-            <input type="hidden" name="csv_import_id" value="<?= (int)$csvImportId ?>">
+            <input type="hidden" name="csv_file" value="<?= htmlspecialchars($csvFile, ENT_QUOTES) ?>">
             <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
             <input type="hidden" name="status_peserta" value="<?= htmlspecialchars($statusPeserta, ENT_QUOTES) ?>">
             <input type="hidden" name="status_bayar" value="<?= htmlspecialchars($statusBayar, ENT_QUOTES) ?>">

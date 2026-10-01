@@ -6,13 +6,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? nu
 
 $mode=(string)($_POST['mode'] ?? 'participants');
 $templateId=(int)($_POST['template_id'] ?? 0);
-$csvImportId=max(0,(int)($_POST['csv_import_id'] ?? 0));
+$csvFile=basename(trim((string)($_POST['csv_file'] ?? '')));
 $bulan=trim((string)($_POST['bulan'] ?? ''));
 $statusBayar=(string)($_POST['status_bayar'] ?? 'belum_lunas');
 $statusPeserta=(string)($_POST['status_peserta'] ?? 'proses');
 
 $redirectParams = ['page' => 'reminder-pembayaran'];
-foreach (['q', 'bulan', 'csv_import_id', 'halaqoh', 'status_peserta', 'status_bayar'] as $filterKey) {
+foreach (['q', 'bulan', 'csv_file', 'halaqoh', 'status_peserta', 'status_bayar'] as $filterKey) {
     if (isset($_POST[$filterKey]) && trim((string)$_POST[$filterKey]) !== '') {
         $redirectParams[$filterKey] = trim((string)$_POST[$filterKey]);
     }
@@ -44,38 +44,75 @@ if($mode==='request'){
     if(is_array($raw)){
         $selectedIds=[];
         foreach($raw as $item){ $id=(int)($item['id']??0); if($id>0)$selectedIds[$id]=true; }
-        if($csvImportId>0 && $selectedIds){
-            $conditions=[
-                "p.id = ?",
-                "EXISTS (SELECT 1 FROM crm_csv_participants cp WHERE cp.peserta_id=p.id AND cp.import_id={$csvImportId} AND cp.match_status='matched' AND UPPER(TRIM(cp.status_siswa))='ON' AND TRIM(cp.whatsapp_wali)<>'' )",
-                "p.nowa IS NOT NULL","p.nowa <> ''"
-            ];
-            if($csvImportId <= 0 && $statusPeserta!=='' && $statusPeserta!=='semua') $conditions[]="p.status = ?";
-            if($bulan!==''){
-                if($statusBayar==='lunas') $conditions[]="EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id AND px.bulan_pembayaran=?)";
-                elseif($statusBayar==='belum_lunas') $conditions[]="NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id AND px.bulan_pembayaran=?)";
-            } elseif($statusBayar==='lunas') $conditions[]="EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id)";
-            elseif($statusBayar==='belum_lunas') $conditions[]="NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id)";
-            $sql="SELECT p.id,p.nama_lengkap,p.nowa,
-                (SELECT cp.whatsapp_wali FROM crm_csv_participants cp
-                 WHERE cp.peserta_id=p.id AND cp.import_id={$csvImportId}
-                   AND cp.match_status='matched'
-                   AND UPPER(TRIM(cp.status_siswa))='ON'
-                   AND TRIM(cp.whatsapp_wali)<>''
-                 LIMIT 1) AS target_nowa
-                FROM peserta p WHERE ".implode(' AND ',$conditions)." LIMIT 1";
-            $valid=$conn->prepare($sql);
-            foreach(array_keys($selectedIds) as $id){
-                $params=[$id]; $types='i';
-                if($csvImportId <= 0 && $statusPeserta!=='' && $statusPeserta!=='semua'){ $params[]=$statusPeserta;$types.='s'; }
-                if($bulan!=='' && ($statusBayar==='lunas'||$statusBayar==='belum_lunas')){$params[]=$bulan;$types.='s';}
-                $refs=[];foreach($params as $k=>$v)$refs[$k]=&$params[$k];
-                if($valid){call_user_func_array([$valid,'bind_param'],array_merge([$types],$refs));$valid->execute();$row=$valid->get_result()->fetch_assoc();$valid->reset();
-                    if($row)$targets[]=['name'=>(string)$row['nama_lengkap'],'nowa'=>(string)($row['target_nowa'] ?? ''),'request_id'=>null];
+
+        if($csvFile!=='' && $selectedIds){
+            require_once __DIR__ . '/../lib/reminder-csv.php';
+
+            try {
+                $csvRows=crmReminderCsvRead($csvFile);
+                $waMap=[];
+                $result=$conn->query("SELECT id,nowa FROM peserta WHERE nowa IS NOT NULL AND nowa<>''");
+                if($result){
+                    while($participant=$result->fetch_assoc()){
+                        $normalized=crmReminderCsvNormalizeWa((string)$participant['nowa']);
+                        if($normalized==='')continue;
+                        if(array_key_exists($normalized,$waMap))$waMap[$normalized]=0;
+                        else $waMap[$normalized]=(int)$participant['id'];
+                    }
                 }
+
+                $csvTargetByPesertaId=[];
+                foreach($csvRows as $csvRow){
+                    if(crmReminderCsvNormalizeStatus((string)$csvRow['status_siswa'])!=='ON')continue;
+                    $normalized=(string)$csvRow['normalized_wa'];
+                    if($normalized===''||!array_key_exists($normalized,$waMap)||$waMap[$normalized]===0)continue;
+                    $csvTargetByPesertaId[(int)$waMap[$normalized]]=(string)$csvRow['whatsapp_wali'];
+                }
+
+                foreach(array_keys($selectedIds) as $id){
+                    if(!isset($csvTargetByPesertaId[$id])||trim((string)$csvTargetByPesertaId[$id])==='')continue;
+
+                    $conditions=["p.id=?"];
+                    $params=[$id];
+                    $types='i';
+
+                    if($bulan!==''){
+                        if($statusBayar==='lunas'){
+                            $conditions[]="EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id AND px.bulan_pembayaran=?)";
+                            $params[]=$bulan;$types.='s';
+                        }elseif($statusBayar==='belum_lunas'){
+                            $conditions[]="NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id AND px.bulan_pembayaran=?)";
+                            $params[]=$bulan;$types.='s';
+                        }
+                    }elseif($statusBayar==='lunas'){
+                        $conditions[]="EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id)";
+                    }elseif($statusBayar==='belum_lunas'){
+                        $conditions[]="NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id)";
+                    }
+
+                    $sql="SELECT p.id,p.nama_lengkap FROM peserta p WHERE ".implode(' AND ',$conditions)." LIMIT 1";
+                    $valid=$conn->prepare($sql);
+                    if(!$valid)continue;
+
+                    $refs=[];
+                    foreach($params as $k=>$v)$refs[$k]=&$params[$k];
+                    call_user_func_array([$valid,'bind_param'],array_merge([$types],$refs));
+                    $valid->execute();
+                    $row=$valid->get_result()->fetch_assoc();
+                    $valid->close();
+
+                    if($row){
+                        $targets[]=[
+                            'name'=>(string)$row['nama_lengkap'],
+                            'nowa'=>(string)$csvTargetByPesertaId[$id],
+                            'request_id'=>null
+                        ];
+                    }
+                }
+            } catch(Throwable $e) {
+                error_log('CRM CSV send validation failed: '.$e->getMessage());
             }
-            if($valid)$valid->close();
-        } else {
+        }else{
             foreach($raw as $item){
                 $nowa=preg_replace('/\D+/','',(string)($item['nowa']??''));
                 if($nowa==='')continue;
