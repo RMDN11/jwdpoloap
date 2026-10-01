@@ -47,24 +47,31 @@ if($mode==='request'){
         if($csvImportId>0 && $selectedIds){
             $conditions=[
                 "p.id = ?",
-                "EXISTS (SELECT 1 FROM crm_csv_participants cp WHERE cp.peserta_id=p.id AND cp.import_id={$csvImportId} AND cp.match_status='matched')",
+                "EXISTS (SELECT 1 FROM crm_csv_participants cp WHERE cp.peserta_id=p.id AND cp.import_id={$csvImportId} AND cp.match_status='matched' AND UPPER(TRIM(cp.status_siswa))='ON' AND TRIM(cp.whatsapp_wali)<>'' )",
                 "p.nowa IS NOT NULL","p.nowa <> ''"
             ];
-            if($statusPeserta!=='' && $statusPeserta!=='semua') $conditions[]="p.status = ?";
+            if($csvImportId <= 0 && $statusPeserta!=='' && $statusPeserta!=='semua') $conditions[]="p.status = ?";
             if($bulan!==''){
                 if($statusBayar==='lunas') $conditions[]="EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id AND px.bulan_pembayaran=?)";
                 elseif($statusBayar==='belum_lunas') $conditions[]="NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id AND px.bulan_pembayaran=?)";
             } elseif($statusBayar==='lunas') $conditions[]="EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id)";
             elseif($statusBayar==='belum_lunas') $conditions[]="NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id)";
-            $sql="SELECT p.id,p.nama_lengkap,p.nowa FROM peserta p WHERE ".implode(' AND ',$conditions)." LIMIT 1";
+            $sql="SELECT p.id,p.nama_lengkap,p.nowa,
+                (SELECT cp.whatsapp_wali FROM crm_csv_participants cp
+                 WHERE cp.peserta_id=p.id AND cp.import_id={$csvImportId}
+                   AND cp.match_status='matched'
+                   AND UPPER(TRIM(cp.status_siswa))='ON'
+                   AND TRIM(cp.whatsapp_wali)<>''
+                 LIMIT 1) AS target_nowa
+                FROM peserta p WHERE ".implode(' AND ',$conditions)." LIMIT 1";
             $valid=$conn->prepare($sql);
             foreach(array_keys($selectedIds) as $id){
                 $params=[$id]; $types='i';
-                if($statusPeserta!=='' && $statusPeserta!=='semua'){ $params[]=$statusPeserta;$types.='s'; }
+                if($csvImportId <= 0 && $statusPeserta!=='' && $statusPeserta!=='semua'){ $params[]=$statusPeserta;$types.='s'; }
                 if($bulan!=='' && ($statusBayar==='lunas'||$statusBayar==='belum_lunas')){$params[]=$bulan;$types.='s';}
                 $refs=[];foreach($params as $k=>$v)$refs[$k]=&$params[$k];
                 if($valid){call_user_func_array([$valid,'bind_param'],array_merge([$types],$refs));$valid->execute();$row=$valid->get_result()->fetch_assoc();$valid->reset();
-                    if($row)$targets[]=['name'=>(string)$row['nama_lengkap'],'nowa'=>(string)$row['nowa'],'request_id'=>null];
+                    if($row)$targets[]=['name'=>(string)$row['nama_lengkap'],'nowa'=>(string)($row['target_nowa'] ?? ''),'request_id'=>null];
                 }
             }
             if($valid)$valid->close();
