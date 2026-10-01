@@ -53,7 +53,7 @@ try {
     error_log('CRM CSV file import failed: ' . $e->getMessage());
     $_SESSION['crm_flash'] = [
         'type' => 'error',
-        'message' => 'Import dibatalkan. CSV tidak dimasukkan ke database. Periksa format CSV dan izin folder server.',
+        'message' => 'Import gagal: ' . $e->getMessage(),
     ];
 }
 
