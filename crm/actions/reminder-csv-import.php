@@ -24,6 +24,9 @@ $normalizeHeader=static function(string $v): string {
 $normalizeWa=static function(string $v): string {
  $digits=preg_replace('/\D+/','',$v) ?? ''; if ($digits!=='' && str_starts_with($digits,'0')) $digits='62'.substr($digits,1); return $digits;
 };
+$normalizeStatus=static function(string $v): string {
+ return strtoupper(trim($v));
+};
 $required=['id','program','periode / level','kelas / grup','tutor pengajar','nama murid','jenis kelamin','nama wali','whatsapp wali','email wali','status siswa','jatah per minggu','jatah per hari','sesi selesai','total sesi program','progress (%)'];
 $header=fgetcsv($handle);
 if (!$header) { fclose($handle); $_SESSION['crm_flash']=['type'=>'error','message'=>'CSV kosong.']; header('Location: '.$redirect); exit; }
@@ -34,11 +37,11 @@ $rows=[];$seen=[];$duplicateCount=0;$rowNo=1;
 while(($row=fgetcsv($handle))!==false){
  $rowNo++; if(count($row)===1 && trim((string)$row[0])==='') continue;
  $get=static function(string $key) use($row,$positions):string{return trim((string)($row[$positions[$key]]??''));};
- $sourceId=$get('id');$name=$get('nama murid');$wa=$normalizeWa($get('whatsapp wali'));
+ $sourceId=$get('id');$name=$get('nama murid');$wa=$normalizeWa($get('whatsapp wali'));$statusSiswa=$normalizeStatus($get('status siswa'));
  if($name==='') continue;
  $dupKey=$sourceId!==''?'id:'.$sourceId:($wa!==''?'wa:'.$wa:'row:'.$rowNo);
  if(isset($seen[$dupKey])){$duplicateCount++;continue;} $seen[$dupKey]=true;
- $rows[]=['source_row'=>$rowNo,'source_id'=>$sourceId,'program'=>$get('program'),'periode_level'=>$get('periode / level'),'kelas_grup'=>$get('kelas / grup'),'tutor_pengajar'=>$get('tutor pengajar'),'nama_murid'=>$name,'jenis_kelamin'=>$get('jenis kelamin'),'nama_wali'=>$get('nama wali'),'whatsapp_wali'=>$get('whatsapp wali'),'email_wali'=>$get('email wali'),'status_siswa'=>$get('status siswa'),'jatah_per_minggu'=>$get('jatah per minggu'),'jatah_per_hari'=>$get('jatah per hari'),'sesi_selesai'=>$get('sesi selesai'),'total_sesi_program'=>$get('total sesi program'),'progress'=>$get('progress (%)'),'normalized_wa'=>$wa];
+ $rows[]=['source_row'=>$rowNo,'source_id'=>$sourceId,'program'=>$get('program'),'periode_level'=>$get('periode / level'),'kelas_grup'=>$get('kelas / grup'),'tutor_pengajar'=>$get('tutor pengajar'),'nama_murid'=>$name,'jenis_kelamin'=>$get('jenis kelamin'),'nama_wali'=>$get('nama wali'),'whatsapp_wali'=>$get('whatsapp wali'),'email_wali'=>$get('email wali'),'status_siswa'=>$statusSiswa,'jatah_per_minggu'=>$get('jatah per minggu'),'jatah_per_hari'=>$get('jatah per hari'),'sesi_selesai'=>$get('sesi selesai'),'total_sesi_program'=>$get('total sesi program'),'progress'=>$get('progress (%)'),'normalized_wa'=>$wa];
  if(count($rows)>5000){fclose($handle);$_SESSION['crm_flash']=['type'=>'error','message'=>'CSV melebihi batas 5.000 peserta.'];header('Location: '.$redirect);exit;}
 }
 fclose($handle);
