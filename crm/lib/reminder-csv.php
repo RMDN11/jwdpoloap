@@ -226,8 +226,16 @@ function crmReminderCsvImportFile(string $tmpPath, string $originalFilename, str
     $filename = 'csv_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8)) . '.csv';
     $destination = $dir . DIRECTORY_SEPARATOR . $filename;
 
-    if (!move_uploaded_file($tmpPath, $destination)) {
-        throw new RuntimeException('File CSV gagal dipindahkan ke folder server.');
+    $stored = move_uploaded_file($tmpPath, $destination);
+    if (!$stored) {
+        $stored = @copy($tmpPath, $destination);
+        if ($stored) {
+            @unlink($tmpPath);
+        }
+    }
+
+    if (!$stored || !is_file($destination)) {
+        throw new RuntimeException('File CSV gagal disimpan ke storage/reminder-csv.');
     }
 
     try {
