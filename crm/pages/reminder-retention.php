@@ -612,14 +612,41 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
         }
 
         event.preventDefault();
+
+        if (form.dataset.sending === '1') {
+            return;
+        }
+
+        form.dataset.sending = '1';
         form.classList.add('is-sending');
         form.setAttribute('aria-busy', 'true');
+
         sendButton.disabled = true;
-        sendButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
+        sendButton.innerHTML = '<span class="retention-loading-spinner" aria-hidden="true"></span> Mengirim...';
+
         targets.forEach(item => { item.disabled = true; });
         if (templateSelect) templateSelect.disabled = true;
 
-        window.setTimeout(() => form.submit(), 80);
+        const overlay = document.createElement('div');
+        overlay.className = 'retention-send-overlay';
+        overlay.setAttribute('role', 'status');
+        overlay.setAttribute('aria-live', 'polite');
+        overlay.innerHTML = `
+            <div class="retention-send-loading">
+                <span class="retention-loading-spinner large" aria-hidden="true"></span>
+                <strong>Mengirim reminder...</strong>
+                <small>Mohon tunggu, pesan sedang diproses.</small>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Beri browser dua frame untuk benar-benar menggambar loading state
+        // sebelum navigasi POST dimulai.
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                form.submit();
+            });
+        });
     });
 
     sync();
