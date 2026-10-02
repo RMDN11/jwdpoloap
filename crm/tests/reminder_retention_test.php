@@ -60,6 +60,31 @@ try {
         count($parsedCsv['rows']) === 1
         && $parsedCsv['rows'][0]['normalized_wa'] === '6281234567890'
         && $parsedCsv['rows'][0]['status_siswa'] === 'ON';
+
+$sharedWaCsvPath = tempnam(sys_get_temp_dir(), 'retention-shared-wa-');
+$sharedWaHandle = fopen($sharedWaCsvPath, 'wb');
+fputcsv($sharedWaHandle, crmReminderCsvRequiredHeaders());
+fputcsv($sharedWaHandle, [
+    'Tahfidz', 'Batch 54', 'AK 28', 'Tutor', 'Alif Al Fakhri Saragih',
+    'Ikhwan', 'Wali', '081234567890', 'alif@example.com', 'Aktif (ON)',
+    '5', '1', '3', '20', '15%',
+]);
+fputcsv($sharedWaHandle, [
+    'Tahfidz', 'Batch 54', 'AK 28', 'Tutor', 'Fakhira Ulina Saragih',
+    'Akhwat', 'Wali', '081234567890', 'fakhira@example.com', 'Aktif (ON)',
+    '5', '1', '3', '20', '15%',
+]);
+fclose($sharedWaHandle);
+
+try {
+    $sharedWaRows = crmReminderCsvParse($sharedWaCsvPath, 5000, false)['rows'];
+    $checks['CSV retention keeps different names with the same WhatsApp'] =
+        count($sharedWaRows) === 2
+        && $sharedWaRows[0]['nama_murid'] === 'Alif Al Fakhri Saragih'
+        && $sharedWaRows[1]['nama_murid'] === 'Fakhira Ulina Saragih';
+} finally {
+    @unlink($sharedWaCsvPath);
+}
 } finally {
     restore_error_handler();
     @unlink($csvPath);

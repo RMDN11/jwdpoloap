@@ -97,7 +97,9 @@ function crmRetentionDeduplicate(array $records): array
 
 function crmRetentionLoadCsv(string $filename): array
 {
-    $rows = crmReminderCsvRead($filename);
+    // Retention identity is name-only, so the CSV parser must not drop
+    // different participants who happen to share the same WhatsApp number.
+    $rows = crmReminderCsvRead($filename, false);
     $records = [];
 
     foreach ($rows as $row) {
