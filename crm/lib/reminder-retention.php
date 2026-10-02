@@ -102,7 +102,7 @@ function crmRetentionLoadCsv(string $filename): array
 
     foreach ($rows as $row) {
         // Peserta antrean / belum memiliki tutor tidak masuk cohort retention.
-        if (!crmRetentionHasTutor((string)($row['tutor_pengajar'] ?? '')) {
+        if (!crmRetentionHasTutor((string)($row['tutor_pengajar'] ?? ''))) {
             continue;
         }
 
