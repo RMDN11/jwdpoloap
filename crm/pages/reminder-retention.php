@@ -17,6 +17,7 @@ $analysis = null;
 $analysisError = '';
 $historyMap = [];
 $previousRecords = [];
+$allPreviousRecords = [];
 $currentRecords = [];
 
 try {
@@ -100,6 +101,7 @@ if ($analyze) {
     if ($analysisError === '') {
         try {
             $previousRecords = crmRetentionLoadSource($conn, $previousSource);
+            $allPreviousRecords = $previousRecords;
             $currentRecords = crmRetentionLoadSource($conn, $currentSource);
 
             if ($selectedAk !== '') {
@@ -134,6 +136,7 @@ if ($analyze) {
             $analysisError = 'Analisis retention gagal diproses. Periksa sumber yang dipilih dan coba lagi.';
             $analysis = null;
             $previousRecords = [];
+            $allPreviousRecords = [];
             $currentRecords = [];
             $historyMap = [];
         }
@@ -142,7 +145,7 @@ if ($analyze) {
 
 $akOptions = [];
 if ($analysis !== null) {
-    foreach ($previousRecords as $record) {
+    foreach ($allPreviousRecords as $record) {
         $key = (string)($record['group_key'] ?? '');
         if ($key === '') continue;
         $akOptions[$key] = crmRetentionDisplayGroup((string)($record['group'] ?? ''));
