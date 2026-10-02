@@ -66,7 +66,7 @@ function crmReminderCsvRequiredHeaders(): array
     ];
 }
 
-function crmReminderCsvParse(string $filePath, int $maxRows = 5000): array
+function crmReminderCsvParse(string $filePath, int $maxRows = 5000, bool $deduplicateByWa = true): array
 {
     $handle = fopen($filePath, 'rb');
     if (!$handle) {
@@ -113,7 +113,7 @@ function crmReminderCsvParse(string $filePath, int $maxRows = 5000): array
 
         $duplicateKey = $sourceId !== ''
             ? 'id:' . $sourceId
-            : ($normalizedWa !== '' ? 'wa:' . $normalizedWa : 'row:' . $rowNo);
+            : ($deduplicateByWa && $normalizedWa !== '' ? 'wa:' . $normalizedWa : 'row:' . $rowNo);
 
         if (isset($seen[$duplicateKey])) {
             $duplicateCount++;
@@ -189,10 +189,10 @@ function crmReminderCsvPath(string $filename): string
     return $realPath;
 }
 
-function crmReminderCsvRead(string $filename): array
+function crmReminderCsvRead(string $filename, bool $deduplicateByWa = true): array
 {
     $path = crmReminderCsvPath($filename);
-    return crmReminderCsvParse($path)['rows'];
+    return crmReminderCsvParse($path, 5000, $deduplicateByWa)['rows'];
 }
 
 function crmReminderCsvList(): array
