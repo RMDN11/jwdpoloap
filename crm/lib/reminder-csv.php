@@ -103,7 +103,7 @@ function crmReminderCsvParse(string $filePath, int $maxRows = 5000): array
             return trim((string)($row[$positions[$key]] ?? ''));
         };
 
-        $sourceId = $get('id');
+        $sourceId = array_key_exists('id', $positions) ? $get('id') : '';
         $name = $get('nama murid');
         $waRaw = $get('whatsapp wali');
         $normalizedWa = crmReminderCsvNormalizeWa($waRaw);
