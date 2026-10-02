@@ -272,7 +272,7 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
 
         <div class="retention-source-note">
             <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-            <span>CSV hanya dibaca dari file server. Payment dibaca dari tabel <code>pembayaran</code>. Identitas peserta dicocokkan berdasarkan nomor WhatsApp yang sudah dinormalisasi, bukan nama.</span>
+            <span>CSV hanya dibaca dari file server. Payment dibaca dari tabel <code>pembayaran</code>. Identitas retention dicocokkan berdasarkan nama peserta yang sudah dinormalisasi. Data CSV tanpa tutor (antrean) tidak masuk penghitungan.</span>
         </div>
 
         <?php if ($analysisError !== ''): ?>
@@ -478,18 +478,23 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                                             $targetWa = crmReminderCsvNormalizeWa((string)$record['target_wa']);
                                             $history = $historyMap[$targetWa] ?? [];
                                         ?>
-                                            <label class="retention-person selectable">
+                                            <label class="retention-person selectable<?= $targetWa === '' ? ' disabled' : '' ?>">
                                                 <input
                                                     type="checkbox"
                                                     class="retention-target"
                                                     value="<?= htmlspecialchars($targetWa, ENT_QUOTES) ?>"
                                                     data-name="<?= htmlspecialchars((string)$record['name'], ENT_QUOTES) ?>"
+                                                    <?= $targetWa === '' ? 'disabled' : '' ?>
                                                 >
                                                 <span class="retention-person-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr((string)$record['name'], 0, 1))) ?></span>
                                                 <div>
                                                     <strong><?= htmlspecialchars((string)$record['name']) ?></strong>
-                                                    <small><?= htmlspecialchars($targetWa) ?></small>
-                                                    <em><i class="fa-solid fa-rotate-left"></i> <?= htmlspecialchars($formatHistory($history)) ?></em>
+                                                    <small><?= $targetWa !== '' ? htmlspecialchars($targetWa) : 'Nomor WA tidak tersedia' ?></small>
+                                                    <?php if ($targetWa !== ''): ?>
+                                                        <em><i class="fa-solid fa-rotate-left"></i> <?= htmlspecialchars($formatHistory($history)) ?></em>
+                                                    <?php else: ?>
+                                                        <em><i class="fa-solid fa-circle-info"></i> Tidak bisa dikirimi reminder</em>
+                                                    <?php endif; ?>
                                                 </div>
                                                 <span class="retention-person-status stop">Tidak lanjut</span>
                                             </label>
@@ -508,8 +513,8 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
             <h2>Siap menghitung retention</h2>
             <p>Pilih sumber batch sebelumnya dan batch sekarang, lalu jalankan analisis. Peserta Baru tidak akan masuk ke denominator retention.</p>
             <div class="retention-empty-rules">
-                <span><i class="fa-solid fa-phone"></i> Cocokkan nomor WhatsApp</span>
-                <span><i class="fa-solid fa-ban"></i> Abaikan Status Peserta</span>
+                <span><i class="fa-solid fa-user"></i> Cocokkan nama peserta</span>
+                <span><i class="fa-solid fa-user-slash"></i> Abaikan antrean tanpa tutor</span>
                 <span><i class="fa-solid fa-database"></i> Tidak membuat tabel retention</span>
             </div>
         </section>

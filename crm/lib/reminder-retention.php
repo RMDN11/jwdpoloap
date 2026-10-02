@@ -11,7 +11,7 @@ require_once __DIR__ . '/reminder-csv.php';
  * - payment:<bulan_pembayaran>
  *
  * CSV rows stay filesystem-only. Payment data is read-only from pembayaran.
- * The comparison identity is the normalized WhatsApp number.
+ * The comparison identity is the normalized participant name.
  */
 
 function crmRetentionSourceKey(string $type, string $value): string
@@ -44,30 +44,52 @@ function crmRetentionDisplayGroup(string $value): string
 }
 
 /**
- * Keep exactly one record per normalized WhatsApp number.
- * Missing WhatsApp is never matched by name.
+ * Participant identity for retention is the name, not WhatsApp.
+ * Only case and repeated whitespace are normalized.
+ */
+function crmRetentionNormalizeName(string $value): string
+{
+    $value = str_replace(["\xC2\xA0", "\u{00A0}"], ' ', $value);
+    $value = trim($value);
+    $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+    return mb_strtolower($value);
+}
+
+function crmRetentionHasTutor(string $value): bool
+{
+    $value = trim($value);
+    if ($value === '') {
+        return false;
+    }
+
+    $normalized = crmRetentionNormalizeName($value);
+    return !in_array($normalized, ['-', 'antrean', 'antrian'], true);
+}
+
+/**
+ * Keep exactly one record per normalized participant name.
+ * WhatsApp remains contact data for follow-up, not the retention identity.
  */
 function crmRetentionDeduplicate(array $records): array
 {
     $unique = [];
 
     foreach ($records as $record) {
-        $wa = crmReminderCsvNormalizeWa((string)($record['wa'] ?? ''));
-        if ($wa === '' || isset($unique[$wa])) {
+        $name = trim((string)($record['name'] ?? ''));
+        $nameKey = crmRetentionNormalizeName($name);
+        if ($nameKey === '' || isset($unique[$nameKey])) {
             continue;
         }
 
-        $record['wa'] = $wa;
-        $record['target_wa'] = crmReminderCsvNormalizeWa((string)($record['target_wa'] ?? $wa));
-        if ($record['target_wa'] === '') {
-            $record['target_wa'] = $wa;
-        }
+        $record['name'] = $name !== '' ? $name : 'Tanpa nama';
+        $record['name_key'] = $nameKey;
+        $record['wa'] = crmReminderCsvNormalizeWa((string)($record['wa'] ?? ''));
+        $record['target_wa'] = crmReminderCsvNormalizeWa((string)($record['target_wa'] ?? $record['wa']));
         $record['group'] = trim((string)($record['group'] ?? ''));
         $record['group_key'] = crmRetentionNormalizeGroup($record['group']);
-        $record['name'] = trim((string)($record['name'] ?? '')) ?: 'Tanpa nama';
         $record['peserta_id'] = (int)($record['peserta_id'] ?? 0);
 
-        $unique[$wa] = $record;
+        $unique[$nameKey] = $record;
     }
 
     return $unique;
@@ -79,18 +101,18 @@ function crmRetentionLoadCsv(string $filename): array
     $records = [];
 
     foreach ($rows as $row) {
+        // Peserta antrean / belum memiliki tutor tidak masuk cohort retention.
+        if (!crmRetentionHasTutor((string)($row['tutor_pengajar'] ?? '')) {
+            continue;
+        }
+
         if (crmReminderCsvNormalizeStatus((string)($row['status_siswa'] ?? '')) !== 'ON') {
             continue;
         }
 
-        $wa = crmReminderCsvNormalizeWa((string)($row['whatsapp_wali'] ?? ''));
-        if ($wa === '') {
-            continue;
-        }
-
         $records[] = [
-            'wa' => $wa,
-            'target_wa' => $wa,
+            'wa' => (string)($row['whatsapp_wali'] ?? ''),
+            'target_wa' => (string)($row['whatsapp_wali'] ?? ''),
             'name' => (string)($row['nama_murid'] ?? ''),
             'group' => (string)($row['kelas_grup'] ?? ''),
             'peserta_id' => 0,
@@ -108,8 +130,6 @@ function crmRetentionLoadPayment(mysqli $conn, string $bulan): array
          FROM pembayaran b
          INNER JOIN peserta p ON p.id = b.peserta_id
          WHERE b.bulan_pembayaran = ?
-           AND p.nowa IS NOT NULL
-           AND p.nowa <> ''
          ORDER BY p.id ASC"
     );
 
@@ -122,14 +142,9 @@ function crmRetentionLoadPayment(mysqli $conn, string $bulan): array
     $result = $stmt->get_result();
 
     while ($row = $result->fetch_assoc()) {
-        $wa = crmReminderCsvNormalizeWa((string)$row['nowa']);
-        if ($wa === '') {
-            continue;
-        }
-
         $records[] = [
-            'wa' => $wa,
-            'target_wa' => $wa,
+            'wa' => (string)$row['nowa'],
+            'target_wa' => (string)$row['nowa'],
             'name' => (string)$row['nama_lengkap'],
             'group' => (string)$row['halaqoh'],
             'peserta_id' => (int)$row['peserta_id'],
@@ -166,12 +181,13 @@ function crmRetentionLoadSource(mysqli $conn, string $source): array
 
 function crmRetentionCompare(array $previous, array $current): array
 {
-    $currentByWa = $current;
+    $currentByName = $current;
     $continued = [];
     $notContinued = [];
     $breakdown = [];
 
-    foreach ($previous as $wa => $record) {
+    foreach ($previous as $nameKey => $record) {
+        $nameKey = (string)($record['name_key'] ?? crmRetentionNormalizeName((string)($record['name'] ?? '')));
         $groupKey = (string)($record['group_key'] ?? crmRetentionNormalizeGroup((string)($record['group'] ?? '')));
         $groupLabel = crmRetentionDisplayGroup((string)($record['group'] ?? ''));
 
@@ -187,8 +203,8 @@ function crmRetentionCompare(array $previous, array $current): array
 
         $breakdown[$groupKey]['total']++;
 
-        if (isset($currentByWa[$wa])) {
-            $continued[] = $record + ['current' => $currentByWa[$wa]];
+        if ($nameKey !== '' && isset($currentByName[$nameKey])) {
+            $continued[] = $record + ['current' => $currentByName[$nameKey]];
             $breakdown[$groupKey]['continued']++;
         } else {
             $notContinued[] = $record;
@@ -223,7 +239,6 @@ function crmRetentionCompare(array $previous, array $current): array
         'breakdown' => array_values($breakdown),
     ];
 }
-
 
 function crmRetentionLoadHistory(mysqli $conn, array $records): array
 {
