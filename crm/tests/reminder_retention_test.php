@@ -96,6 +96,20 @@ $checks['continued count is two by name'] = $comparison['continued_count'] === 2
 $checks['not continued count is one'] = $comparison['not_continued_count'] === 1;
 $checks['retention rate is 66.7 percent'] = abs($comparison['rate'] - (2 / 3 * 100)) < 0.01;
 
+// Moving AK in the current batch must not turn a continuing participant
+// into a non-retained participant when filtering the previous cohort by AK.
+$previousAk10 = crmRetentionDeduplicate([
+    ['name' => 'Pindah AK', 'wa' => '0811', 'target_wa' => '0811', 'group' => 'AK 10'],
+    ['name' => 'Tetap AK', 'wa' => '0822', 'target_wa' => '0822', 'group' => 'AK 10'],
+]);
+$currentMovedAk = crmRetentionDeduplicate([
+    ['name' => 'Pindah AK', 'wa' => '0833', 'target_wa' => '0833', 'group' => 'AK 11'],
+]);
+$movedComparison = crmRetentionCompare($previousAk10, $currentMovedAk);
+$checks['participant moving AK is still continued'] =
+    $movedComparison['continued_count'] === 1
+    && $movedComparison['not_continued_count'] === 1;
+
 $breakdown = [];
 foreach ($comparison['breakdown'] as $item) {
     $breakdown[$item['group']] = $item;
