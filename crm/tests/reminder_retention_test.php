@@ -14,6 +14,47 @@ $checks['normalizes CSV ON label'] =
 $checks['normalizes CSV OFF label'] =
     crmReminderCsvNormalizeStatus('Aktif (OFF)') === 'OFF';
 
+
+
+$csvPath = tempnam(sys_get_temp_dir(), 'retention-csv-');
+$csvHandle = fopen($csvPath, 'wb');
+fputcsv($csvHandle, crmReminderCsvRequiredHeaders());
+fputcsv($csvHandle, [
+    'Tahfidz Cilik',
+    'Batch 55',
+    'AK 1',
+    'Tutor',
+    'Murid CSV',
+    'Akhwat',
+    'Wali',
+    '081234567890',
+    'wali@example.com',
+    'Aktif (ON)',
+    '5',
+    '1',
+    '3',
+    '20',
+    '15%',
+]);
+fclose($csvHandle);
+
+set_error_handler(
+    static function (int $severity, string $message, string $file, int $line): never {
+        throw new ErrorException($message, 0, $severity, $file, $line);
+    }
+);
+
+try {
+    $parsedCsv = crmReminderCsvParse($csvPath);
+    $checks['15-column CSV parses without optional id warning'] =
+        count($parsedCsv['rows']) === 1
+        && $parsedCsv['rows'][0]['normalized_wa'] === '6281234567890'
+        && $parsedCsv['rows'][0]['status_siswa'] === 'ON';
+} finally {
+    restore_error_handler();
+    @unlink($csvPath);
+}
+
 $records = crmRetentionDeduplicate([
     ['wa' => '0812-1111-1111', 'target_wa' => '0812-1111-1111', 'name' => 'A', 'group' => 'AK 1'],
     ['wa' => '628111111111', 'target_wa' => '628111111111', 'name' => 'A Duplicate', 'group' => 'AK 1'],
