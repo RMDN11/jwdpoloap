@@ -32,6 +32,22 @@ $redirectToRetention = static function (string $query): string {
         $params['analyze'] = '1';
     }
 
+    if (isset($_POST['open_groups']) && is_scalar($_POST['open_groups'])) {
+        $openGroups = json_decode((string)$_POST['open_groups'], true);
+        if (is_array($openGroups)) {
+            $cleanOpenGroups = [];
+            foreach ($openGroups as $group) {
+                $groupKey = crmRetentionNormalizeGroup((string)$group);
+                if ($groupKey !== '') {
+                    $cleanOpenGroups[$groupKey] = true;
+                }
+            }
+            if ($cleanOpenGroups) {
+                $params['open_groups'] = json_encode(array_keys($cleanOpenGroups), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            }
+        }
+    }
+
     return '../index.php?' . http_build_query($params);
 };
 
