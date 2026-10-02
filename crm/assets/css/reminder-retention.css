@@ -1,0 +1,121 @@
+/* Retention Rate workspace */
+.retention-page{max-width:1280px;margin:0 auto;padding:4px 0 32px;color:#10231b}
+.retention-topbar{display:flex;align-items:center;margin-bottom:12px}
+.retention-hero{display:flex;justify-content:space-between;gap:20px;align-items:stretch;margin-bottom:16px;padding:22px 24px;border:1px solid #e4ebe7;border-radius:22px;background:linear-gradient(180deg,#fff,#f8fafc);box-shadow:0 5px 18px rgba(24,55,41,.04)}
+.retention-hero h1{margin:5px 0 5px;font-size:28px;letter-spacing:-.05em;color:#10231b}
+.retention-hero p{margin:0;color:#65756d;line-height:1.6}
+.retention-rule{min-width:270px;display:flex;flex-direction:column;justify-content:center;padding:14px 16px;border:1px solid #e4ebe7;border-radius:16px;background:#fff}
+.retention-rule strong{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#168044}
+.retention-rule span{margin-top:5px;font-size:14px;font-weight:800;color:#18352a}
+.retention-rule small{margin-top:5px;color:#829089;font-size:10px}
+.retention-source-card{margin-bottom:16px}
+.retention-source-form{display:grid;grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr) minmax(160px,.55fr) auto;gap:10px;align-items:end}
+.retention-source-form label{min-width:0}
+.retention-source-form label>span{display:block;margin-bottom:6px;font-size:11px;font-weight:700;color:#65756d}
+.retention-source-form select{width:100%;height:42px;border:1px solid #dbe5df;border-radius:11px;background:#fff;color:#18352a;padding:0 11px;font-size:12px;outline:none}
+.retention-source-form select:focus{border-color:#168044;box-shadow:0 0 0 3px rgba(22,128,68,.08)}
+.retention-arrow{height:42px;display:grid;place-items:center;color:#94a3a8}
+.retention-analyze-btn{height:42px;padding:0 16px;border:0;border-radius:11px;background:#166534;color:#fff;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.retention-analyze-btn:hover{background:#14532d}
+.retention-source-note{display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding:10px 12px;border-radius:12px;background:#f8fafc;color:#718178;font-size:10px;line-height:1.55}
+.retention-source-note i{color:#168044;margin-top:2px}
+.retention-source-note code,.retention-compose-help code{padding:2px 5px;border-radius:5px;background:#eef4f0;color:#355244}
+.retention-alert{display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding:11px 12px;border:1px solid #e4ebe7;border-radius:12px;background:#fbfdfc;color:#65756d;font-size:11px;line-height:1.5}
+.retention-alert.error{border-color:#fecaca;background:#fff7f7;color:#991b1b}
+.retention-alert i{margin-top:2px}
+.retention-summary-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.retention-summary-card{display:flex;align-items:center;gap:10px;padding:14px;border:1px solid #e4ebe7;background:#fff;border-radius:18px;box-shadow:0 5px 18px rgba(24,55,41,.04)}
+.retention-summary-card strong{display:block;font-size:20px;letter-spacing:-.04em;color:#10231b}
+.retention-summary-card small{display:block;margin-top:2px;font-size:10px;color:#829089;white-space:nowrap}
+.retention-summary-icon{width:39px;height:39px;display:grid;place-items:center;flex:0 0 auto;border-radius:12px;background:#f1f5f9;color:#64748b}
+.retention-summary-icon.blue{background:#eff6ff;color:#2563eb}
+.retention-summary-icon.purple{background:#faf5ff;color:#7c3aed}
+.retention-summary-icon.green,.retention-summary-icon.good{background:#e8f7ed;color:#168044}
+.retention-summary-icon.red,.retention-summary-icon.bad{background:#fff1f2;color:#dc2626}
+.retention-summary-card.bad{border-color:#fecaca;background:#fffafa}
+.retention-breakdown-card{margin-bottom:16px}
+.retention-count-note{font-size:10px;color:#829089;white-space:nowrap}
+.retention-breakdown-table-wrap{overflow:auto}
+.retention-breakdown-table{width:100%;border-collapse:collapse;font-size:12px}
+.retention-breakdown-table th{padding:9px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#829089;border-bottom:1px solid #e7eeea}
+.retention-breakdown-table td{padding:11px 10px;border-bottom:1px solid #edf2ef;color:#4d6158}
+.retention-breakdown-table tr:last-child td{border-bottom:0}
+.retention-breakdown-table td strong{color:#18352a}
+.retention-rate-pill,.retention-group-rate{display:inline-flex;align-items:center;justify-content:center;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:800}
+.retention-rate-pill.good,.retention-group-rate.good{background:#e8f7ed;color:#168044}
+.retention-rate-pill.bad,.retention-group-rate.bad{background:#fee2e2;color:#b91c1c}
+.retention-compose-card{margin-bottom:16px}
+.retention-compose-grid{display:grid;grid-template-columns:minmax(190px,.7fr) minmax(0,1.8fr) auto;gap:10px;align-items:end}
+.retention-preview-box{min-height:67px;padding:10px 12px;border:1px solid #dbe5df;border-radius:11px;background:#fbfdfc}
+.retention-preview-box>span{display:block;margin-bottom:5px;font-size:10px;font-weight:800;color:#829089;text-transform:uppercase;letter-spacing:.05em}
+.retention-preview-box p{margin:0;font-size:11px;line-height:1.45;color:#355244;white-space:pre-wrap;max-height:65px;overflow:auto}
+.retention-send-btn{height:42px;padding:0 15px;border:0;border-radius:11px;background:#166534;color:#fff;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.retention-send-btn:disabled{background:#cbd5d1;color:#fff;cursor:not-allowed}
+.retention-compose-help{display:block;margin-top:8px;font-size:10px;color:#829089}
+.retention-detail-card{margin-bottom:16px}
+.retention-detail-list{display:grid;gap:8px}
+.retention-group{border:1px solid #e4ebe7;border-radius:15px;overflow:hidden;background:#fff}
+.retention-group summary{display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;list-style:none}
+.retention-group summary::-webkit-details-marker{display:none}
+.retention-group-title{flex:1;min-width:0}
+.retention-group-title strong{display:block;font-size:13px;color:#18352a}
+.retention-group-title small{display:block;margin-top:3px;color:#829089;font-size:10px}
+.retention-chevron{font-size:10px;color:#94a3a8;transition:transform .2s}
+.retention-group[open] .retention-chevron{transform:rotate(180deg)}
+.retention-detail-columns{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #edf2ef}
+.retention-detail-panel{min-width:0;padding:14px}
+.retention-detail-panel+ .retention-detail-panel{border-left:1px solid #edf2ef}
+.retention-detail-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.retention-detail-panel-head strong{display:block;font-size:12px;color:#18352a}
+.retention-detail-panel-head small{display:block;margin-top:2px;color:#829089;font-size:10px}
+.retention-detail-panel-head>span{width:30px;height:30px;display:grid;place-items:center;border-radius:10px;background:#f1f5f9;color:#64748b;font-size:11px}
+.retention-detail-panel.continued .retention-detail-panel-head>span{background:#e8f7ed;color:#168044}
+.retention-detail-panel.not-continued .retention-detail-panel-head>span{background:#fff1f2;color:#dc2626}
+.retention-person-list{display:grid;gap:3px;max-height:420px;overflow:auto}
+.retention-person{display:flex;align-items:center;gap:9px;padding:8px;border-radius:11px;border:1px solid transparent}
+.retention-person.selectable{cursor:pointer}
+.retention-person.selectable:hover{background:#fbfdfc;border-color:#e4ebe7}
+.retention-person input{width:15px;height:15px;accent-color:#168044;flex:0 0 auto}
+.retention-person-avatar{width:31px;height:31px;display:grid;place-items:center;flex:0 0 auto;border-radius:10px;background:#edf8f1;color:#168044;font-size:10px;font-weight:800}
+.retention-person>div{min-width:0;flex:1}
+.retention-person strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#18352a}
+.retention-person small{display:block;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;color:#829089}
+.retention-person em{display:block;margin-top:2px;font-style:normal;font-size:9px;color:#94a3a8}
+.retention-person em i{margin-right:3px}
+.retention-person-status{padding:4px 7px;border-radius:999px;font-size:9px;font-weight:800;white-space:nowrap}
+.retention-person-status.continue{background:#e8f7ed;color:#168044}
+.retention-person-status.stop{background:#fff1f2;color:#b91c1c}
+.retention-mini-empty{padding:14px;border-radius:11px;background:#fbfdfc;color:#829089;font-size:10px;text-align:center}
+.retention-empty-state{text-align:center;padding:42px 20px}
+.retention-empty-icon{width:54px;height:54px;display:grid;place-items:center;margin:0 auto 12px;border-radius:17px;background:#edf8f1;color:#168044;font-size:21px}
+.retention-empty-state h2{margin:0;font-size:20px;color:#18352a}
+.retention-empty-state p{max-width:620px;margin:7px auto 0;color:#718178;font-size:12px;line-height:1.6}
+.retention-empty-rules{display:flex;justify-content:center;flex-wrap:wrap;gap:7px;margin-top:16px}
+.retention-empty-rules span{padding:7px 9px;border:1px solid #e4ebe7;border-radius:9px;background:#f8fafc;color:#65756d;font-size:9px}
+.retention-empty-rules i{margin-right:4px;color:#168044}
+.retention-selected-count{font-size:10px;color:#829089}
+
+@media(max-width:1050px){
+    .retention-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .retention-source-form{grid-template-columns:1fr 30px 1fr}
+    .retention-source-form label:nth-of-type(3){grid-column:1/2}
+    .retention-analyze-btn{grid-column:2/4}
+}
+@media(max-width:760px){
+    .retention-hero{flex-direction:column;padding:18px}
+    .retention-rule{min-width:0}
+    .retention-source-form{grid-template-columns:1fr}
+    .retention-arrow{display:none}
+    .retention-analyze-btn{grid-column:auto;width:100%}
+    .retention-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .retention-compose-grid{grid-template-columns:1fr}
+    .retention-send-btn{width:100%}
+    .retention-detail-columns{grid-template-columns:1fr}
+    .retention-detail-panel+.retention-detail-panel{border-left:0;border-top:1px solid #edf2ef}
+    .retention-count-note{display:none}
+}
+@media(max-width:430px){
+    .retention-summary-grid{grid-template-columns:1fr}
+    .retention-summary-card small{white-space:normal}
+    .retention-breakdown-table th:nth-child(2),.retention-breakdown-table td:nth-child(2){display:none}
+}
