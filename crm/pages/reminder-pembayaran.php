@@ -58,7 +58,7 @@ if ($csvFile !== '') {
 
             $pesertaId = (int)$waMap[$normalized];
             $csvParticipantIds[$pesertaId] = true;
-            $csvTargetByPesertaId[$pesertaId] = (string)$row['whatsapp_wali'];
+            $csvTargetByPesertaId[$pesertaId] = crmReminderCsvNormalizeWa((string)$row['whatsapp_wali']);
         }
     } catch (Throwable $e) {
         error_log('CRM CSV source read failed: ' . $e->getMessage());
@@ -145,35 +145,6 @@ if ($hasFilter) {
         $belumBayar = (int)($summary['belum_bayar'] ?? 0);
     }
 
-    $todayMatch = "(l.nowa = p.nowa
-        OR l.nowa = CONCAT('+', p.nowa)
-        OR (LEFT(p.nowa, 1) = '0' AND l.nowa = CONCAT('62', SUBSTRING(p.nowa, 2)))
-        OR (LEFT(p.nowa, 1) = '0' AND l.nowa = CONCAT('+62', SUBSTRING(p.nowa, 2)))
-        OR (LEFT(p.nowa, 2) = '62' AND l.nowa = CONCAT('0', SUBSTRING(p.nowa, 3)))
-        OR (LEFT(p.nowa, 2) = '62' AND l.nowa = CONCAT('+0', SUBSTRING(p.nowa, 3))))";
-
-    $todaySql = "SELECT COUNT(*) AS total
-        FROM peserta p {$paymentJoin}
-        WHERE " . implode(' AND ', $where) . "
-        AND EXISTS (
-            SELECT 1 FROM log_wa l
-            WHERE DATE(l.created_at) = CURDATE()
-              AND l.message LIKE '[REMINDER] [TERKIRIM]%'
-              AND {$todayMatch}
-        )";
-
-    $todayStmt = $conn->prepare($todaySql);
-    if ($todayStmt) {
-        $todayParams = $params;
-        $todayRefs = [];
-        foreach ($todayParams as $k => $v) $todayRefs[$k] = &$todayParams[$k];
-        if ($todayParams) call_user_func_array([$todayStmt, 'bind_param'], array_merge([$types], $todayRefs));
-        $todayStmt->execute();
-        $todayRow = $todayStmt->get_result()->fetch_assoc() ?: [];
-        $todayStmt->close();
-        $todaySent = (int)($todayRow['total'] ?? 0);
-    }
-
     $sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status,
             {$paymentStatusSql} AS is_lunas
             FROM peserta p {$paymentJoin}
@@ -194,18 +165,24 @@ if ($hasFilter) {
 
     $historyMap = [];
     $logNumbers = [];
+    $targetWaByPesertaId = [];
+
     foreach ($participants as $participant) {
-        $raw = (string)$participant['nowa'];
-        $normalized = crmReminderCsvNormalizeWa($raw);
-        if ($raw !== '') $logNumbers[$raw] = true;
-        if ($normalized !== '') {
-            $logNumbers[$normalized] = true;
-            if (str_starts_with($normalized, '62')) {
-                $local = '0' . substr($normalized, 2);
-                $logNumbers[$local] = true;
-                $logNumbers['+' . $normalized] = true;
-                $logNumbers['+' . $local] = true;
-            }
+        $participantId = (int)$participant['id'];
+        $rawTarget = $csvFile !== ''
+            ? (string)($csvTargetByPesertaId[$participantId] ?? '')
+            : (string)$participant['nowa'];
+        $normalized = crmReminderCsvNormalizeWa($rawTarget);
+        if ($normalized === '') continue;
+
+        $targetWaByPesertaId[$participantId] = $normalized;
+        $logNumbers[$normalized] = true;
+        $logNumbers['+' . $normalized] = true;
+
+        if (str_starts_with($normalized, '62')) {
+            $local = '0' . substr($normalized, 2);
+            $logNumbers[$local] = true;
+            $logNumbers['+' . $local] = true;
         }
     }
 
@@ -213,7 +190,12 @@ if ($hasFilter) {
         $logNumbers = array_keys($logNumbers);
         $placeholders = implode(',', array_fill(0, count($logNumbers), '?'));
         $logTypes = str_repeat('s', count($logNumbers));
-        $logSql = "SELECT nowa, created_at FROM log_wa WHERE message LIKE '[REMINDER] [TERKIRIM]%' AND nowa IN ({$placeholders}) ORDER BY created_at DESC";
+        $logSql = "SELECT nowa, created_at
+                   FROM log_wa
+                   WHERE message LIKE '[REMINDER] [TERKIRIM]%'
+                     AND nowa IN ({$placeholders})
+                   ORDER BY created_at DESC";
+
         $logStmt = $conn->prepare($logSql);
         if ($logStmt) {
             $logParams = $logNumbers;
@@ -222,19 +204,36 @@ if ($hasFilter) {
             call_user_func_array([$logStmt, 'bind_param'], array_merge([$logTypes], $logRefs));
             $logStmt->execute();
             $logResult = $logStmt->get_result();
+
             while ($log = $logResult->fetch_assoc()) {
                 $normalized = crmReminderCsvNormalizeWa((string)$log['nowa']);
                 if ($normalized === '') continue;
-                if (!isset($historyMap[$normalized])) $historyMap[$normalized] = ['count' => 0, 'last_at' => null];
+                if (!isset($historyMap[$normalized])) {
+                    $historyMap[$normalized] = ['count' => 0, 'last_at' => null, 'today' => false];
+                }
                 $historyMap[$normalized]['count']++;
-                if ($historyMap[$normalized]['last_at'] === null) $historyMap[$normalized]['last_at'] = $log['created_at'];
+                if ($historyMap[$normalized]['last_at'] === null) {
+                    $historyMap[$normalized]['last_at'] = $log['created_at'];
+                }
+                if (date('Y-m-d', strtotime((string)$log['created_at'])) === date('Y-m-d')) {
+                    $historyMap[$normalized]['today'] = true;
+                }
             }
             $logStmt->close();
         }
     }
 
+    $todaySent = 0;
+    $todaySeen = [];
+    foreach ($targetWaByPesertaId as $participantId => $normalizedTarget) {
+        if (!empty($historyMap[$normalizedTarget]['today']) && !isset($todaySeen[$participantId])) {
+            $todaySeen[$participantId] = true;
+            $todaySent++;
+        }
+    }
+
     foreach ($participants as &$participant) {
-        $normalized = crmReminderCsvNormalizeWa((string)$participant['nowa']);
+        $normalized = $targetWaByPesertaId[(int)$participant['id']] ?? crmReminderCsvNormalizeWa((string)$participant['nowa']);
         $participant['reminder_count'] = (int)($historyMap[$normalized]['count'] ?? 0);
         $participant['reminder_last_at'] = $historyMap[$normalized]['last_at'] ?? null;
     }
@@ -413,8 +412,13 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
                 <span class="reminder-wa-icon"><i class="fa-brands fa-whatsapp"></i></span>
             </div>
 
-            <label class="reminder-field">
-                <span>Template</span>
+            <div class="reminder-field">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                    <span>Template</span>
+                    <button type="button" class="reminder-secondary-link" id="manageReminderTemplates" style="border:0;background:transparent;padding:0;cursor:pointer">
+                        Kelola template
+                    </button>
+                </div>
                 <select name="template_id" id="reminderTemplate" <?= !$templates ? 'disabled' : '' ?>>
                     <option value="">Pilih template...</option>
                     <?php foreach ($templates as $tpl): ?>
@@ -423,7 +427,7 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
                         </option>
                     <?php endforeach; ?>
                 </select>
-            </label>
+            </div>
 
             <label class="reminder-field">
                 <span>Preview pesan</span>
@@ -472,6 +476,51 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
     </aside>
 </div>
 
+<div id="reminderTemplateModal" hidden style="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.42);padding:20px;align-items:center;justify-content:center">
+    <div style="width:min(680px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;padding:22px;box-shadow:0 20px 60px rgba(15,23,42,.2)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px">
+            <div>
+                <span class="reminder-kicker">Kelola pesan</span>
+                <h2 id="templateModalTitle" style="margin:3px 0 0">Template WhatsApp</h2>
+            </div>
+            <button type="button" id="closeReminderTemplateModal" aria-label="Tutup" style="border:0;background:#f1f5f9;border-radius:10px;width:36px;height:36px;cursor:pointer">×</button>
+        </div>
+
+        <div id="templateManagerList" style="display:grid;gap:8px;margin-bottom:16px">
+            <?php foreach ($templates as $tpl): ?>
+                <div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid #e2e8f0;border-radius:12px">
+                    <div style="flex:1;min-width:0">
+                        <strong style="display:block"><?= htmlspecialchars($tpl['title']) ?></strong>
+                        <small style="color:#64748b"><?= htmlspecialchars($tpl['category'] ?: 'Tanpa kategori') ?></small>
+                    </div>
+                    <button type="button" class="edit-reminder-template" data-id="<?= (int)$tpl['id'] ?>" data-category="<?= htmlspecialchars($tpl['category'], ENT_QUOTES) ?>" data-title="<?= htmlspecialchars($tpl['title'], ENT_QUOTES) ?>" data-content="<?= htmlspecialchars($tpl['content'], ENT_QUOTES) ?>" style="border:1px solid #dbe3ea;background:#fff;border-radius:9px;padding:7px 10px;cursor:pointer">
+                        Edit
+                    </button>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <form method="post" action="actions/reminder-template-save.php" id="reminderTemplateForm">
+            <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+            <input type="hidden" name="template_id" id="reminderTemplateId" value="">
+            <input type="hidden" name="return_query" value="<?= htmlspecialchars(http_build_query(array_filter([
+                'page'=>'reminder-pembayaran','q'=>$search,'bulan'=>$bulan,'csv_file'=>$csvFile,'halaqoh'=>$halaqoh,'status_peserta'=>$statusPeserta,'status_bayar'=>$statusBayar
+            ], static fn($v) => $v !== '')), ENT_QUOTES) ?>">
+
+            <div style="display:grid;gap:12px">
+                <label class="reminder-field"><span>Kategori</span><input type="text" name="category" id="reminderTemplateCategory" maxlength="100" placeholder="Pembayaran"></label>
+                <label class="reminder-field"><span>Judul template</span><input type="text" name="title" id="reminderTemplateTitle" maxlength="150" required placeholder="Reminder pembayaran"></label>
+                <label class="reminder-field"><span>Isi pesan</span><textarea name="content" id="reminderTemplateContent" rows="8" maxlength="5000" required placeholder="Assalamu'alaikum {nama}..."></textarea></label>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+                <button type="button" id="newReminderTemplate" class="reminder-secondary-link" style="border:1px solid #dbe3ea;background:#fff;border-radius:9px;padding:9px 12px;cursor:pointer">+ Template baru</button>
+                <button type="submit" class="reminder-send-btn" style="width:auto;padding:10px 16px">Simpan template</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 (() => {
     const checks = [...document.querySelectorAll('.reminder-target')];
@@ -508,6 +557,53 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
     template?.addEventListener('change', () => {
         const option = template.options[template.selectedIndex];
         preview.value = option?.dataset.content || '';
+    });
+
+    const templateModal = document.getElementById('reminderTemplateModal');
+    const manageTemplates = document.getElementById('manageReminderTemplates');
+    const closeTemplateModal = document.getElementById('closeReminderTemplateModal');
+    const newTemplate = document.getElementById('newReminderTemplate');
+    const templateForm = document.getElementById('reminderTemplateForm');
+    const templateId = document.getElementById('reminderTemplateId');
+    const templateCategory = document.getElementById('reminderTemplateCategory');
+    const templateTitle = document.getElementById('reminderTemplateTitle');
+    const templateContent = document.getElementById('reminderTemplateContent');
+
+    function openTemplateModal(edit = null) {
+        templateModal.hidden = false;
+        templateModal.style.display = 'flex';
+        if (edit) {
+            document.getElementById('templateModalTitle').textContent = 'Edit template';
+            templateId.value = edit.id || '';
+            templateCategory.value = edit.category || '';
+            templateTitle.value = edit.title || '';
+            templateContent.value = edit.content || '';
+        } else {
+            document.getElementById('templateModalTitle').textContent = 'Tambah template';
+            templateForm.reset();
+            templateId.value = '';
+        }
+    }
+
+    function closeTemplateManager() {
+        templateModal.style.display = 'none';
+        templateModal.hidden = true;
+    }
+
+    manageTemplates?.addEventListener('click', () => openTemplateModal());
+    closeTemplateModal?.addEventListener('click', closeTemplateManager);
+    newTemplate?.addEventListener('click', () => openTemplateModal());
+    templateModal?.addEventListener('click', event => {
+        if (event.target === templateModal) closeTemplateManager();
+    });
+
+    document.querySelectorAll('.edit-reminder-template').forEach(button => {
+        button.addEventListener('click', () => openTemplateModal({
+            id: button.dataset.id,
+            category: button.dataset.category,
+            title: button.dataset.title,
+            content: button.dataset.content
+        }));
     });
 
     form?.addEventListener('submit', event => {
