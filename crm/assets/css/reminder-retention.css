@@ -137,3 +137,6 @@
   .retention-group summary{grid-template-columns:minmax(0,1fr) 32px 32px 40px 60px 10px}
   .retention-group-rate{padding:4px 5px;font-size:9px}
 }
+
+.retention-compose-card.is-sending{opacity:.82;pointer-events:none}
+.retention-send-btn .fa-spin{margin-right:5px}

@@ -167,6 +167,19 @@ $returnQuery = http_build_query([
     'analyze' => '1',
 ]);
 
+$openGroups = [];
+if (isset($_GET['open_groups']) && is_scalar($_GET['open_groups'])) {
+    $decodedOpenGroups = json_decode((string)$_GET['open_groups'], true);
+    if (is_array($decodedOpenGroups)) {
+        foreach ($decodedOpenGroups as $group) {
+            $groupKey = crmRetentionNormalizeGroup((string)$group);
+            if ($groupKey !== '') {
+                $openGroups[$groupKey] = true;
+            }
+        }
+    }
+}
+
 $rate = (float)($analysis['rate'] ?? 0.0);
 $rateClass = $rate >= $threshold ? 'good' : 'bad';
 ?>
@@ -204,6 +217,7 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
         <form method="get" class="retention-source-form">
             <input type="hidden" name="page" value="reminder-retention">
             <input type="hidden" name="analyze" value="1">
+            <input type="hidden" name="open_groups" value="<?= htmlspecialchars((string)($_GET['open_groups'] ?? '[]'), ENT_QUOTES) ?>">
 
             <label>
                 <span>Batch sebelumnya</span>
@@ -320,6 +334,7 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                         <input type="hidden" name="selected" id="retentionSelectedInput" value="[]">
                         <input type="hidden" name="template_id" id="retentionTemplateId" value="<?= (int)$templates[0]['id'] ?>">
                         <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery, ENT_QUOTES) ?>">
+                        <input type="hidden" name="open_groups" id="retentionOpenGroups" value="<?= htmlspecialchars((string)($_GET['open_groups'] ?? '[]'), ENT_QUOTES) ?>">
 
                         <div class="retention-compose-grid">
                             <label class="reminder-field">
@@ -397,7 +412,7 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
 
                         $itemClass = (float)$item['rate'] >= $threshold ? 'good' : 'bad';
                     ?>
-                        <details class="retention-group" <?= count($analysis['breakdown']) === 1 ? 'open' : '' ?>>
+                        <details class="retention-group" data-group-key="<?= htmlspecialchars($groupKey, ENT_QUOTES) ?>" <?= (count($analysis['breakdown']) === 1 || isset($openGroups[$groupKey])) ? 'open' : '' ?>>
                             <summary>
                                 <span class="retention-group-title">
                                     <strong><?= htmlspecialchars((string)$item['group']) ?></strong>
@@ -566,8 +581,24 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
         sync();
     });
 
+    const openGroupsInput = document.getElementById('retentionOpenGroups');
+
+    const syncOpenGroups = () => {
+        const groups = [...document.querySelectorAll('.retention-group[open][data-group-key]')]
+            .map(item => item.dataset.groupKey || '')
+            .filter(Boolean);
+        if (openGroupsInput) {
+            openGroupsInput.value = JSON.stringify(groups);
+        }
+    };
+
+    document.querySelectorAll('.retention-group').forEach(group => {
+        group.addEventListener('toggle', syncOpenGroups);
+    });
+
     form.addEventListener('submit', event => {
         sync();
+        syncOpenGroups();
         const selected = getSelected();
 
         if (!selected.length || !getTemplate()) {
@@ -577,7 +608,18 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
 
         if (!window.confirm('Kirim reminder ke ' + selected.length + ' peserta yang dipilih?')) {
             event.preventDefault();
+            return;
         }
+
+        event.preventDefault();
+        form.classList.add('is-sending');
+        form.setAttribute('aria-busy', 'true');
+        sendButton.disabled = true;
+        sendButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
+        targets.forEach(item => { item.disabled = true; });
+        if (templateSelect) templateSelect.disabled = true;
+
+        window.setTimeout(() => form.submit(), 80);
     });
 
     sync();
