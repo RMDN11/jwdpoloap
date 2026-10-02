@@ -223,3 +223,75 @@ function crmRetentionCompare(array $previous, array $current): array
         'breakdown' => array_values($breakdown),
     ];
 }
+
+
+function crmRetentionLoadHistory(mysqli $conn, array $records): array
+{
+    $numbers = [];
+    foreach ($records as $record) {
+        $wa = crmReminderCsvNormalizeWa((string)($record['target_wa'] ?? $record['wa'] ?? ''));
+        if ($wa !== '') {
+            $numbers[$wa] = true;
+        }
+    }
+
+    if (!$numbers) {
+        return [];
+    }
+
+    $history = [];
+    $numbers = array_keys($numbers);
+
+    foreach (array_chunk($numbers, 250) as $chunk) {
+        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+        $types = str_repeat('s', count($chunk));
+        $stmt = $conn->prepare(
+            "SELECT nowa, created_at
+             FROM log_wa
+             WHERE message LIKE '[REMINDER] [TERKIRIM]%'
+               AND nowa IN ({$placeholders})
+             ORDER BY created_at DESC"
+        );
+
+        if (!$stmt) {
+            throw new RuntimeException('Gagal menyiapkan riwayat reminder retention.');
+        }
+
+        $params = $chunk;
+        $refs = [];
+        foreach ($params as $key => $value) {
+            $refs[$key] = &$params[$key];
+        }
+        call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        while ($row = $result->fetch_assoc()) {
+            $wa = crmReminderCsvNormalizeWa((string)$row['nowa']);
+            if ($wa === '') {
+                continue;
+            }
+
+            if (!isset($history[$wa])) {
+                $history[$wa] = [
+                    'count' => 0,
+                    'last_at' => null,
+                    'today' => false,
+                ];
+            }
+
+            $history[$wa]['count']++;
+            if ($history[$wa]['last_at'] === null) {
+                $history[$wa]['last_at'] = (string)$row['created_at'];
+            }
+
+            if (date('Y-m-d', strtotime((string)$row['created_at'])) === date('Y-m-d')) {
+                $history[$wa]['today'] = true;
+            }
+        }
+
+        $stmt->close();
+    }
+
+    return $history;
+}
