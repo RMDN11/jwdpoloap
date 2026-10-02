@@ -272,3 +272,28 @@
         line-height:1.45;
     }
 }
+
+
+/* True floating fallback for retention follow-up.
+ * The anchor keeps the original space, while the card floats only after
+ * its natural top position has been scrolled past. */
+.retention-followup-anchor{
+    position:relative;
+    width:100%;
+}
+
+.retention-followup-anchor .retention-compose-card.is-floating{
+    position:fixed;
+    z-index:70;
+    margin:0;
+    max-width:none;
+    background:#fff;
+    box-shadow:0 12px 32px rgba(24,55,41,.14);
+}
+
+@media(max-width:760px){
+    .retention-followup-anchor .retention-compose-card.is-floating{
+        border-radius:14px;
+        box-shadow:0 8px 24px rgba(24,55,41,.14);
+    }
+}
