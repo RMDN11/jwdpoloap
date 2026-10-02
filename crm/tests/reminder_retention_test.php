@@ -19,7 +19,7 @@ $checks['normalizes participant name'] =
 
 $checks['extracts template title from sent reminder log'] =
     crmRetentionExtractTemplateFromLogMessage(
-        '[REMINDER] [TERKIRIM] [TEMPLATE] Follow Up Batch 55 | Assalamu\\\'alaikum {nama}'
+        '[REMINDER] [TERKIRIM] [TEMPLATE] Follow Up Batch 55 | Halo {nama}'
     ) === 'Follow Up Batch 55';
 
 $checks['old reminder log remains compatible without template'] =
