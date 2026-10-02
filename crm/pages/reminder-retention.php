@@ -73,6 +73,7 @@ $formatRate = static function (float $rate): string {
 $formatHistory = static function (array $history): string {
     $count = (int)($history['count'] ?? 0);
     $lastAt = (string)($history['last_at'] ?? '');
+    $lastTemplate = trim((string)($history['last_template'] ?? ''));
 
     if ($count < 1 || $lastAt === '') {
         return 'Belum pernah dihubungi';
@@ -87,7 +88,11 @@ $formatHistory = static function (array $history): string {
         ? 'Hari ini ' . date('H:i', $timestamp)
         : date('d/m/Y H:i', $timestamp);
 
-    return $count . 'x · ' . $label;
+    $result = $count . 'x · ' . $label;
+    if ($lastTemplate !== '') {
+        $result .= ' · Template: ' . $lastTemplate;
+    }
+    return $result;
 };
 
 if ($analyze) {
@@ -318,6 +323,7 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
             </article>
         </section>
 
+        <div class="retention-followup-workspace">
         <?php if ($analysis['not_continued_count'] > 0): ?>
             <section class="reminder-card retention-compose-card">
                 <div class="reminder-card-head">
@@ -493,6 +499,7 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                 </div>
             <?php endif; ?>
         </section>
+        </div>
 
     <?php else: ?>
         <section class="reminder-card retention-empty-state">

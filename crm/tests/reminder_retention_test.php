@@ -17,6 +17,16 @@ $checks['normalizes CSV OFF label'] =
 $checks['normalizes participant name'] =
     crmRetentionNormalizeName("  Aisyah   Najma Fakhira ") === 'aisyah najma fakhira';
 
+$checks['extracts template title from sent reminder log'] =
+    crmRetentionExtractTemplateFromLogMessage(
+        '[REMINDER] [TERKIRIM] [TEMPLATE] Follow Up Batch 55 | Halo {nama}'
+    ) === 'Follow Up Batch 55';
+
+$checks['old reminder log remains compatible without template'] =
+    crmRetentionExtractTemplateFromLogMessage(
+        '[REMINDER] [TERKIRIM] Assalamu\\\'alaikum {nama}'
+    ) === '';
+
 $checks['blank tutor is excluded'] =
     crmRetentionHasTutor('') === false;
 

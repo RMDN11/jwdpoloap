@@ -243,6 +243,15 @@ function crmRetentionCompare(array $previous, array $current): array
     ];
 }
 
+function crmRetentionExtractTemplateFromLogMessage(string $message): string
+{
+    if (preg_match('/^\[REMINDER\] \[TERKIRIM\] \[TEMPLATE\] (.*?) \| /', $message, $matches)) {
+        return trim((string)$matches[1]);
+    }
+
+    return '';
+}
+
 function crmRetentionLoadHistory(mysqli $conn, array $records): array
 {
     $numbers = [];
@@ -264,7 +273,7 @@ function crmRetentionLoadHistory(mysqli $conn, array $records): array
         $placeholders = implode(',', array_fill(0, count($chunk), '?'));
         $types = str_repeat('s', count($chunk));
         $stmt = $conn->prepare(
-            "SELECT nowa, created_at
+            "SELECT nowa, created_at, message
              FROM log_wa
              WHERE message LIKE '[REMINDER] [TERKIRIM]%'
                AND nowa IN ({$placeholders})
@@ -295,12 +304,18 @@ function crmRetentionLoadHistory(mysqli $conn, array $records): array
                     'count' => 0,
                     'last_at' => null,
                     'today' => false,
+                    'last_template' => '',
                 ];
             }
 
             $history[$wa]['count']++;
             if ($history[$wa]['last_at'] === null) {
                 $history[$wa]['last_at'] = (string)$row['created_at'];
+            }
+
+            if ($history[$wa]['last_template'] === '') {
+                $message = (string)($row['message'] ?? '');
+                $history[$wa]['last_template'] = crmRetentionExtractTemplateFromLogMessage($message);
             }
 
             if (date('Y-m-d', strtotime((string)$row['created_at'])) === date('Y-m-d')) {
