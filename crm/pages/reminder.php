@@ -9,13 +9,14 @@ $tabs = [
     ['label' => 'Pengajar', 'icon' => 'fa-chalkboard-user', 'href' => '?page=reminder-pengajar', 'desc' => 'Kirim pesan kepada pengajar'],
     ['label' => 'Promosi', 'icon' => 'fa-bullhorn', 'href' => '?page=reminder-promosi', 'desc' => 'Kirim promosi dan broadcast peserta'],
     ['label' => 'Pengingat Peserta', 'icon' => 'fa-clock', 'href' => '?page=reminder-peserta', 'desc' => 'Kelola reminder dan follow-up peserta'],
+    ['label' => 'Retention Rate', 'icon' => 'fa-chart-line', 'href' => '?page=reminder-retention', 'desc' => 'Bandingkan peserta lama yang lanjut antar batch'],
 ];
 ?>
 
 <section class="page-head">
     <span class="eyebrow">Workspace</span>
     <h1>Reminder</h1>
-    <p>Kelola pengingat pembayaran, pengajar, promosi, dan peserta.</p>
+    <p>Kelola pengingat pembayaran, pengajar, promosi, peserta, dan analisis retention.</p>
 </section>
 
 <div class="action-list reminder-workspace-list">
