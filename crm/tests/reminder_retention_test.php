@@ -74,6 +74,13 @@ $records = crmRetentionDeduplicate([
 
 $checks['deduplicates normalized participant names'] = count($records) === 3;
 $checks['name key is used for identity'] = isset($records['aisyah najma']);
+$checks['same WhatsApp does not merge different names'] = count(crmRetentionDeduplicate([
+    ['wa' => '628111111111', 'target_wa' => '628111111111', 'name' => 'Alif Al Fakhri Saragih', 'group' => 'AK 28'],
+    ['wa' => '628111111111', 'target_wa' => '628111111111', 'name' => 'Fakhira Ulina Saragih', 'group' => 'AK 28'],
+])) === 2;
+
+$checks['case and whitespace variants still match by name'] =
+    crmRetentionNormalizeName(' FAKHIRA   Ulina Saragih ') === 'fakhira ulina saragih';
 $checks['missing WhatsApp can remain in retention cohort'] = isset($records['no wa']);
 
 $previous = crmRetentionDeduplicate([
