@@ -140,3 +140,62 @@
 
 .retention-compose-card.is-sending{opacity:.82;pointer-events:none}
 .retention-send-btn .fa-spin{margin-right:5px}
+
+
+.retention-send-overlay{
+    position:fixed;
+    inset:0;
+    z-index:99999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    background:rgba(15,23,42,.28);
+    backdrop-filter:blur(4px);
+}
+
+.retention-send-loading{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    min-width:220px;
+    padding:24px 28px;
+    border:1px solid rgba(255,255,255,.75);
+    border-radius:18px;
+    background:rgba(255,255,255,.96);
+    box-shadow:0 20px 60px rgba(15,23,42,.18);
+}
+
+.retention-send-loading strong{
+    font-size:14px;
+    color:#18352a;
+}
+
+.retention-send-loading small{
+    font-size:10px;
+    color:#829089;
+    text-align:center;
+}
+
+.retention-loading-spinner{
+    width:15px;
+    height:15px;
+    display:inline-block;
+    flex:0 0 auto;
+    border:2px solid rgba(255,255,255,.45);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:retentionSpin .7s linear infinite;
+}
+
+.retention-loading-spinner.large{
+    width:30px;
+    height:30px;
+    border:3px solid #dce9e1;
+    border-top-color:#168044;
+}
+
+@keyframes retentionSpin{
+    to{transform:rotate(360deg)}
+}
