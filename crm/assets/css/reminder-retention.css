@@ -119,3 +119,21 @@
     .retention-summary-card small{white-space:normal}
     .retention-breakdown-table th:nth-child(2),.retention-breakdown-table td:nth-child(2){display:none}
 }
+
+.retention-breakdown-list{display:grid;gap:8px}
+.retention-breakdown-head,.retention-group summary{display:grid;grid-template-columns:minmax(150px,1fr) 70px 70px 90px 105px 18px;align-items:center;gap:10px}
+.retention-breakdown-head{padding:0 14px 8px;color:#829089;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.retention-group-stat{font-size:11px;font-weight:800;color:#4d6158;text-align:center}
+.retention-group-stat.good-text{color:#168044}
+.retention-group-stat.bad-text{color:#b91c1c}
+.retention-group summary{padding:13px 14px}
+.retention-group-title strong{font-size:12px}
+@media(max-width:760px){
+  .retention-breakdown-head{display:none}
+  .retention-group summary{grid-template-columns:minmax(0,1fr) 42px 42px 52px 70px 12px;gap:6px}
+  .retention-group-stat{font-size:10px}
+}
+@media(max-width:430px){
+  .retention-group summary{grid-template-columns:minmax(0,1fr) 32px 32px 40px 60px 10px}
+  .retention-group-rate{padding:4px 5px;font-size:9px}
+}
