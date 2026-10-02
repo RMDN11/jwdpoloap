@@ -211,7 +211,7 @@ foreach ($targets as $target) {
 
     if (!$curlError && $httpCode >= 200 && $httpCode < 300) {
         $success++;
-        $logged = '[REMINDER] [TERKIRIM] ' . $message;
+        $logged = '[REMINDER] [TERKIRIM] [TEMPLATE] ' . (string)$template['title'] . ' | ' . $message;
         if ($logStmt) {
             $logStmt->bind_param('sss', $number, $name, $logged);
             $logStmt->execute();
@@ -219,7 +219,7 @@ foreach ($targets as $target) {
     } else {
         $failed++;
         $errors[] = $name;
-        $logged = '[REMINDER] [GAGAL] ' . $message;
+        $logged = '[REMINDER] [GAGAL] [TEMPLATE] ' . (string)$template['title'] . ' | ' . $message;
         if ($logStmt) {
             $logStmt->bind_param('sss', $number, $name, $logged);
             $logStmt->execute();
