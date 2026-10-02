@@ -14,7 +14,17 @@ $checks['normalizes CSV ON label'] =
 $checks['normalizes CSV OFF label'] =
     crmReminderCsvNormalizeStatus('Aktif (OFF)') === 'OFF';
 
+$checks['normalizes participant name'] =
+    crmRetentionNormalizeName("  Aisyah   Najma Fakhira ") === 'aisyah najma fakhira';
 
+$checks['blank tutor is excluded'] =
+    crmRetentionHasTutor('') === false;
+
+$checks['antrean tutor is excluded'] =
+    crmRetentionHasTutor('Antrean') === false;
+
+$checks['real tutor is included'] =
+    crmRetentionHasTutor('Ustadzah Fulanah') === true;
 
 $csvPath = tempnam(sys_get_temp_dir(), 'retention-csv-');
 $csvHandle = fopen($csvPath, 'wb');
@@ -56,23 +66,25 @@ try {
 }
 
 $records = crmRetentionDeduplicate([
-    ['wa' => '0812-1111-1111', 'target_wa' => '0812-1111-1111', 'name' => 'A', 'group' => 'AK 1'],
-    ['wa' => '628111111111', 'target_wa' => '628111111111', 'name' => 'A Duplicate', 'group' => 'AK 1'],
+    ['wa' => '0812-1111-1111', 'target_wa' => '0812-1111-1111', 'name' => 'Aisyah Najma', 'group' => 'AK 1'],
+    ['wa' => '628111111111', 'target_wa' => '628111111111', 'name' => '  AISYAH   NAJMA ', 'group' => 'AK 1'],
     ['wa' => '', 'target_wa' => '', 'name' => 'No WA', 'group' => 'AK 1'],
     ['wa' => '0822-2222-2222', 'target_wa' => '0822-2222-2222', 'name' => 'B', 'group' => 'AK 2'],
 ]);
 
-$checks['deduplicates normalized WhatsApp'] = count($records) === 2;
-$checks['does not match missing WhatsApp'] = !isset($records['']);
+$checks['deduplicates normalized participant names'] = count($records) === 3;
+$checks['name key is used for identity'] = isset($records['aisyah najma']);
+$checks['missing WhatsApp can remain in retention cohort'] = isset($records['no wa']);
 
 $previous = crmRetentionDeduplicate([
-    ['wa' => '0812-1111-1111', 'target_wa' => '0812-1111-1111', 'name' => 'A', 'group' => 'AK 1'],
+    ['wa' => '0812-1111-1111', 'target_wa' => '0812-1111-1111', 'name' => 'Aisyah Najma Fakhira', 'group' => 'AK 1'],
     ['wa' => '0822-2222-2222', 'target_wa' => '0822-2222-2222', 'name' => 'B', 'group' => 'AK 1'],
     ['wa' => '0833-3333-3333', 'target_wa' => '0833-3333-3333', 'name' => 'C', 'group' => 'AK 2'],
 ]);
 
 $current = crmRetentionDeduplicate([
-    ['wa' => '628121111111', 'target_wa' => '628121111111', 'name' => 'A', 'group' => 'AK 1'],
+    // Different WA, same participant name: must still count as continued.
+    ['wa' => '628129999999', 'target_wa' => '628129999999', 'name' => ' Aisyah   Najma Fakhira ', 'group' => 'AK 1'],
     ['wa' => '0833-3333-3333', 'target_wa' => '0833-3333-3333', 'name' => 'C', 'group' => 'AK 2'],
 ]);
 
@@ -80,7 +92,7 @@ $comparison = crmRetentionCompare($previous, $current);
 
 $checks['previous denominator is three'] = $comparison['previous_count'] === 3;
 $checks['current cohort is two'] = $comparison['current_count'] === 2;
-$checks['continued count is two'] = $comparison['continued_count'] === 2;
+$checks['continued count is two by name'] = $comparison['continued_count'] === 2;
 $checks['not continued count is one'] = $comparison['not_continued_count'] === 1;
 $checks['retention rate is 66.7 percent'] = abs($comparison['rate'] - (2 / 3 * 100)) < 0.01;
 
