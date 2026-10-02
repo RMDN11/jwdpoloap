@@ -108,12 +108,9 @@ try {
             $previous,
             static fn(array $record): bool => (string)($record['group_key'] ?? '') === $akKey
         );
-        $current = array_filter(
-            $current,
-            static fn(array $record): bool => (string)($record['group_key'] ?? '') === $akKey
-        );
+        // Keep the current batch unfiltered by AK so participants who
+        // move to another AK are still recognized as continued.
         $previous = array_values($previous);
-        $current = array_values($current);
     }
 
     $comparison = crmRetentionCompare($previous, $current);
