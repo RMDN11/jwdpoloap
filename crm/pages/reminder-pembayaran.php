@@ -163,41 +163,48 @@ if ($hasFilter) {
         $stmt->close();
     }
 
+    // Reminder history is optional UI metadata. Never let a history/log failure
+    // abort the whole Reminder Pembayaran page after a template save/edit redirect.
     $historyMap = [];
-    $logNumbers = [];
     $targetWaByPesertaId = [];
 
-    foreach ($participants as $participant) {
-        $participantId = (int)$participant['id'];
-        $rawTarget = $csvFile !== ''
-            ? (string)($csvTargetByPesertaId[$participantId] ?? '')
-            : (string)$participant['nowa'];
-        $normalized = crmReminderCsvNormalizeWa($rawTarget);
-        if ($normalized === '') continue;
+    try {
+        $logNumbers = [];
 
-        $targetWaByPesertaId[$participantId] = $normalized;
-        $logNumbers[$normalized] = true;
-        $logNumbers['+' . $normalized] = true;
+        foreach ($participants as $participant) {
+            $participantId = (int)$participant['id'];
+            $rawTarget = $csvFile !== ''
+                ? (string)($csvTargetByPesertaId[$participantId] ?? '')
+                : (string)$participant['nowa'];
+            $normalized = crmReminderCsvNormalizeWa($rawTarget);
+            if ($normalized === '') continue;
 
-        if (str_starts_with($normalized, '62')) {
-            $local = '0' . substr($normalized, 2);
-            $logNumbers[$local] = true;
-            $logNumbers['+' . $local] = true;
+            $targetWaByPesertaId[$participantId] = $normalized;
+            $logNumbers[$normalized] = true;
+            $logNumbers['+' . $normalized] = true;
+
+            if (str_starts_with($normalized, '62')) {
+                $local = '0' . substr($normalized, 2);
+                $logNumbers[$local] = true;
+                $logNumbers['+' . $local] = true;
+            }
         }
-    }
 
-    if ($logNumbers) {
-        $logNumbers = array_keys($logNumbers);
-        $placeholders = implode(',', array_fill(0, count($logNumbers), '?'));
-        $logTypes = str_repeat('s', count($logNumbers));
-        $logSql = "SELECT nowa, created_at
-                   FROM log_wa
-                   WHERE message LIKE '[REMINDER] [TERKIRIM]%'
-                     AND nowa IN ({$placeholders})
-                   ORDER BY created_at DESC";
+        if ($logNumbers) {
+            $logNumbers = array_keys($logNumbers);
+            $placeholders = implode(',', array_fill(0, count($logNumbers), '?'));
+            $logTypes = str_repeat('s', count($logNumbers));
+            $logSql = "SELECT nowa, created_at
+                       FROM log_wa
+                       WHERE message LIKE '[REMINDER] [TERKIRIM]%'
+                         AND nowa IN ({$placeholders})
+                       ORDER BY created_at DESC";
 
-        $logStmt = $conn->prepare($logSql);
-        if ($logStmt) {
+            $logStmt = $conn->prepare($logSql);
+            if (!$logStmt) {
+                throw new RuntimeException('Gagal menyiapkan query riwayat reminder.');
+            }
+
             $logParams = $logNumbers;
             $logRefs = [];
             foreach ($logParams as $k => $v) $logRefs[$k] = &$logParams[$k];
@@ -221,6 +228,9 @@ if ($hasFilter) {
             }
             $logStmt->close();
         }
+    } catch (Throwable $historyError) {
+        error_log('CRM reminder history read failed: ' . $historyError->getMessage());
+        $historyMap = [];
     }
 
     $todaySent = 0;

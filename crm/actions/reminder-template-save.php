@@ -14,9 +14,28 @@ $title = trim((string)($_POST['title'] ?? ''));
 $content = trim((string)($_POST['content'] ?? ''));
 $returnQuery = trim((string)($_POST['return_query'] ?? ''));
 
+$redirectToReminder = static function (string $query): string {
+    $params = ['page' => 'reminder-pembayaran'];
+    parse_str($query, $parsed);
+
+    foreach (['q', 'bulan', 'csv_file', 'halaqoh', 'status_peserta', 'status_bayar'] as $key) {
+        if (!isset($parsed[$key]) || !is_scalar($parsed[$key])) continue;
+
+        $value = trim((string)$parsed[$key]);
+        if ($key === 'csv_file') {
+            $value = basename($value);
+        }
+        if ($value !== '') {
+            $params[$key] = $value;
+        }
+    }
+
+    return '../index.php?' . http_build_query($params);
+};
+
 if ($title === '' || $content === '') {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Judul dan isi template wajib diisi.'];
-    header('Location: ../index.php?' . ($returnQuery !== '' ? $returnQuery : 'page=reminder-pembayaran'));
+    header('Location: ' . $redirectToReminder($returnQuery), true, 303);
     exit;
 }
 
@@ -43,5 +62,5 @@ try {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Template gagal disimpan.'];
 }
 
-header('Location: ../index.php?' . ($returnQuery !== '' ? $returnQuery : 'page=reminder-pembayaran'));
+header('Location: ' . $redirectToReminder($returnQuery), true, 303);
 exit;
