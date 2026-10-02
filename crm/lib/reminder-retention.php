@@ -243,6 +243,15 @@ function crmRetentionCompare(array $previous, array $current): array
     ];
 }
 
+function crmRetentionExtractTemplateFromLogMessage(string $message): string
+{
+    if (preg_match('/^\[REMINDER\] \[TERKIRIM\] \[TEMPLATE\] (.*?) \| /', $message, $matches)) {
+        return trim((string)$matches[1]);
+    }
+
+    return '';
+}
+
 function crmRetentionLoadHistory(mysqli $conn, array $records): array
 {
     $numbers = [];
@@ -306,9 +315,7 @@ function crmRetentionLoadHistory(mysqli $conn, array $records): array
 
             if ($history[$wa]['last_template'] === '') {
                 $message = (string)($row['message'] ?? '');
-                if (preg_match('/^\[REMINDER\] \[TERKIRIM\] \[TEMPLATE\] (.*?) \| /', $message, $matches)) {
-                    $history[$wa]['last_template'] = trim((string)$matches[1]);
-                }
+                $history[$wa]['last_template'] = crmRetentionExtractTemplateFromLogMessage($message);
             }
 
             if (date('Y-m-d', strtotime((string)$row['created_at'])) === date('Y-m-d')) {
