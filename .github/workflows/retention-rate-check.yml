@@ -1,0 +1,36 @@
+name: Retention Rate PR Check
+
+on:
+  pull_request:
+    paths:
+      - 'crm/actions/reminder-retention-send.php'
+      - 'crm/assets/css/reminder-retention.css'
+      - 'crm/index.php'
+      - 'crm/lib/reminder-csv.php'
+      - 'crm/lib/reminder-retention.php'
+      - 'crm/pages/reminder-retention.php'
+      - 'crm/pages/reminder.php'
+      - 'crm/tests/reminder_retention_test.php'
+
+jobs:
+  php-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mysqli, mbstring, curl
+
+      - name: PHP lint
+        run: |
+          php -l crm/lib/reminder-retention.php
+          php -l crm/pages/reminder-retention.php
+          php -l crm/actions/reminder-retention-send.php
+          php -l crm/tests/reminder_retention_test.php
+
+      - name: Retention unit test
+        run: php crm/tests/reminder_retention_test.php
