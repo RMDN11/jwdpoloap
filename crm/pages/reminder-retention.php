@@ -112,13 +112,10 @@ if ($analyze) {
                     static fn(array $record): bool => (string)($record['group_key'] ?? '') === $akKey
                 );
 
-                $currentRecords = array_filter(
-                    $currentRecords,
-                    static fn(array $record): bool => (string)($record['group_key'] ?? '') === $akKey
-                );
-
+                // AK is the cohort's grouping from the previous batch.
+                // Do not filter the current batch by AK: a participant may
+                // continue while moving to another AK.
                 $previousRecords = array_values($previousRecords);
-                $currentRecords = array_values($currentRecords);
             }
 
             $analysis = crmRetentionCompare($previousRecords, $currentRecords);
