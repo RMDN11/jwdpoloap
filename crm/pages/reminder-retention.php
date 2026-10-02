@@ -325,6 +325,7 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
 
         <div class="retention-followup-workspace">
         <?php if ($analysis['not_continued_count'] > 0): ?>
+            <div class="retention-followup-anchor">
             <section class="reminder-card retention-compose-card">
                 <div class="reminder-card-head">
                     <div>
@@ -371,6 +372,7 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                     </div>
                 <?php endif; ?>
             </section>
+            </div>
         <?php endif; ?>
 
         <section class="reminder-card retention-detail-card">
@@ -519,6 +521,73 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
 (() => {
     const form = document.getElementById('retentionSendForm');
     if (!form) return;
+
+    /*
+     * Sticky CSS bisa gagal ketika salah satu parent workspace memiliki
+     * overflow/scroll context. Karena follow-up harus benar-benar tetap
+     * terlihat saat scroll, gunakan fallback floating berbasis scroll.
+     * Anchor tetap mempertahankan tinggi card sehingga breakdown tidak meloncat.
+     */
+    const followupAnchor = document.querySelector('.retention-followup-anchor');
+    const followupCard = followupAnchor?.querySelector('.retention-compose-card');
+    const floatingTop = () => window.innerWidth <= 760 ? 8 : 12;
+    let followupStart = 0;
+    let floating = false;
+
+    const measureFollowup = () => {
+        if (!followupAnchor || !followupCard) return;
+        if (floating) {
+            const rect = followupAnchor.getBoundingClientRect();
+            followupCard.style.left = rect.left + 'px';
+            followupCard.style.width = rect.width + 'px';
+            followupCard.style.top = floatingTop() + 'px';
+            followupAnchor.style.height = followupCard.offsetHeight + 'px';
+            return;
+        }
+
+        followupCard.style.left = '';
+        followupCard.style.width = '';
+        followupCard.style.top = '';
+        followupAnchor.style.height = '';
+        followupStart = followupAnchor.getBoundingClientRect().top + window.scrollY;
+    };
+
+    const updateFollowupFloat = () => {
+        if (!followupAnchor || !followupCard) return;
+
+        const shouldFloat = window.scrollY > followupStart - floatingTop();
+
+        if (shouldFloat !== floating) {
+            floating = shouldFloat;
+            followupCard.classList.toggle('is-floating', floating);
+
+            if (floating) {
+                const rect = followupAnchor.getBoundingClientRect();
+                followupCard.style.left = rect.left + 'px';
+                followupCard.style.width = rect.width + 'px';
+                followupCard.style.top = floatingTop() + 'px';
+                followupAnchor.style.height = followupCard.offsetHeight + 'px';
+            } else {
+                followupCard.style.left = '';
+                followupCard.style.width = '';
+                followupCard.style.top = '';
+                followupAnchor.style.height = '';
+            }
+        } else if (floating) {
+            const rect = followupAnchor.getBoundingClientRect();
+            followupCard.style.left = rect.left + 'px';
+            followupCard.style.width = rect.width + 'px';
+            followupCard.style.top = floatingTop() + 'px';
+            followupAnchor.style.height = followupCard.offsetHeight + 'px';
+        }
+    };
+
+    measureFollowup();
+    window.addEventListener('scroll', updateFollowupFloat, { passive: true });
+    window.addEventListener('resize', () => {
+        measureFollowup();
+        updateFollowupFloat();
+    });
 
     const templateSelect = document.getElementById('retentionTemplate');
     const templateId = document.getElementById('retentionTemplateId');
