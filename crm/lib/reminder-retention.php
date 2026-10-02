@@ -129,7 +129,8 @@ function crmRetentionLoadPayment(mysqli $conn, string $bulan): array
         "SELECT p.id AS peserta_id, p.nama_lengkap, p.nowa, p.halaqoh
          FROM pembayaran b
          INNER JOIN peserta p ON p.id = b.peserta_id
-         WHERE b.bulan_pembayaran = ?
+         WHERE (b.bukti_transfer != 'manual_admin' OR b.bukti_transfer IS NULL)
+           AND b.bulan_pembayaran = ?
          ORDER BY p.id ASC"
     );
 
