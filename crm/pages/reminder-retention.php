@@ -432,7 +432,17 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                                 <i class="fa-solid fa-chevron-down retention-chevron" aria-hidden="true"></i>
                             </summary>
 
-                            <div class="retention-detail-columns">
+                            <?php
+                            $tutorReminderQuery = http_build_query([
+                                'page' => 'reminder-pengajar',
+                                'retention_context' => '1',
+                                'previous_source' => $previousSource,
+                                'current_source' => $currentSource,
+                                'retention_ak' => (string)$item['group'],
+                                'halaqoh' => (string)$item['group'],
+                            ]);
+                        ?>
+                        <div class="retention-detail-columns">
                                 <div class="retention-detail-panel continued">
                                     <div class="retention-detail-panel-head">
                                         <div><strong>Lanjut</strong><small><?= count($continuedForGroup) ?> peserta</small></div>
@@ -464,6 +474,16 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                                             <small><?= count($notContinuedForGroup) ?> peserta</small>
                                         </div>
                                         <div class="retention-detail-panel-actions">
+                                            <?php if ($notContinuedForGroup): ?>
+                                                <a
+                                                    class="retention-send-tutor-btn"
+                                                    href="?<?= htmlspecialchars($tutorReminderQuery, ENT_QUOTES) ?>"
+                                                    title="Kirim daftar peserta yang tidak lanjut ke tutor"
+                                                >
+                                                    <i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i>
+                                                    <span>Kirim ke Tutor</span>
+                                                </a>
+                                            <?php endif; ?>
                                             <button
                                                 type="button"
                                                 class="retention-copy-names-btn"
