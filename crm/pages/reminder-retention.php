@@ -482,14 +482,16 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                                         </div>
                                         <div class="retention-detail-panel-actions">
                                             <?php if ($notContinuedForGroup): ?>
-                                                <a
-                                                    class="retention-send-tutor-btn"
-                                                    href="?<?= htmlspecialchars($tutorReminderQuery, ENT_QUOTES) ?>"
-                                                    title="Kirim daftar peserta yang tidak lanjut ke tutor"
-                                                >
-                                                    <i class="fa-solid fa-chalkboard-user" aria-hidden="true"></i>
-                                                    <span>Kirim ke Tutor</span>
-                                                </a>
+                                                <form method="post" action="actions/reminder-retention-tutor-send.php" class="retention-send-tutor-form" data-retention-tutor-send>
+                                                    <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                                                    <input type="hidden" name="previous_source" value="<?= htmlspecialchars($previousSource, ENT_QUOTES) ?>">
+                                                    <input type="hidden" name="current_source" value="<?= htmlspecialchars($currentSource, ENT_QUOTES) ?>">
+                                                    <input type="hidden" name="retention_ak" value="<?= htmlspecialchars((string)$item['group'], ENT_QUOTES) ?>">
+                                                    <button class="retention-send-tutor-btn" type="submit" title="Kirim langsung daftar peserta tidak lanjut ke tutor">
+                                                        <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                                                        <span>Kirim ke Tutor</span>
+                                                    </button>
+                                                </form>
                                             <?php endif; ?>
                                             <button
                                                 type="button"
@@ -840,5 +842,27 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
             });
         });
     }
+})();
+</script>
+<script>
+(() => {
+    document.querySelectorAll('[data-retention-tutor-send]').forEach(form => {
+        form.addEventListener('submit', event => {
+            if (form.dataset.sending === '1') {
+                event.preventDefault();
+                return;
+            }
+
+            const button = form.querySelector('button[type="submit"]');
+            if (!window.confirm('Kirim daftar peserta tidak lanjut ke semua tutor AK ini sekarang?')) {
+                event.preventDefault();
+                return;
+            }
+
+            form.dataset.sending = '1';
+            button.disabled = true;
+            button.innerHTML = '<span class="retention-loading-spinner" aria-hidden="true"></span><span>Mengirim...</span>';
+        });
+    });
 })();
 </script>
