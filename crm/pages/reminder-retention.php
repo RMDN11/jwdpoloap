@@ -487,6 +487,8 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                                                     <input type="hidden" name="previous_source" value="<?= htmlspecialchars($previousSource, ENT_QUOTES) ?>">
                                                     <input type="hidden" name="current_source" value="<?= htmlspecialchars($currentSource, ENT_QUOTES) ?>">
                                                     <input type="hidden" name="retention_ak" value="<?= htmlspecialchars((string)$item['group'], ENT_QUOTES) ?>">
+                                                    <input type="hidden" name="open_groups" data-retention-tutor-open-groups value="<?= htmlspecialchars((string)($_GET['open_groups'] ?? '[]'), ENT_QUOTES) ?>">
+                                                    <input type="hidden" name="scroll_y" data-retention-tutor-scroll-y value="<?= (int)($_GET['scroll_y'] ?? 0) ?>">
                                                     <button class="retention-send-tutor-btn" type="submit" title="Kirim langsung daftar peserta tidak lanjut ke tutor">
                                                         <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
                                                         <span>Kirim ke Tutor</span>
@@ -859,9 +861,46 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                 return;
             }
 
+            event.preventDefault();
             form.dataset.sending = '1';
+            form.setAttribute('aria-busy', 'true');
+
+            const openGroupsInput = form.querySelector('[data-retention-tutor-open-groups]');
+            const scrollYInput = form.querySelector('[data-retention-tutor-scroll-y]');
+            const groups = [...document.querySelectorAll('.retention-group[open][data-group-key]')]
+                .map(item => item.dataset.groupKey || '')
+                .filter(Boolean);
+
+            if (openGroupsInput) {
+                openGroupsInput.value = JSON.stringify(groups);
+            }
+            if (scrollYInput) {
+                scrollYInput.value = String(Math.max(0, Math.round(window.scrollY || window.pageYOffset || 0)));
+            }
+
             button.disabled = true;
             button.innerHTML = '<span class="retention-loading-spinner" aria-hidden="true"></span><span>Mengirim...</span>';
+
+            const overlay = document.createElement('div');
+            overlay.className = 'retention-send-overlay';
+            overlay.setAttribute('role', 'status');
+            overlay.setAttribute('aria-live', 'polite');
+            overlay.innerHTML = `
+                <div class="retention-send-loading">
+                    <span class="retention-loading-spinner large" aria-hidden="true"></span>
+                    <strong>Mengirim reminder tutor...</strong>
+                    <small>Mohon tunggu, pesan sedang diproses.</small>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            // Samakan timing dengan pengiriman peserta agar loading sempat
+            // tergambar sebelum browser menjalankan POST/navigation.
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                    form.submit();
+                });
+            });
         });
     });
 })();
