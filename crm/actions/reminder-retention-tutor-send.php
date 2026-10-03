@@ -15,10 +15,11 @@ $previousSource = trim((string)($_POST['previous_source'] ?? ''));
 $currentSource = trim((string)($_POST['current_source'] ?? ''));
 $retentionAk = trim((string)($_POST['retention_ak'] ?? ''));
 
-$redirect = $redirectBase . '&previous_source=' . rawurlencode($previousSource)
-    . '&current_source=' . rawurlencode($currentSource)
-    . '&ak=' . rawurlencode($retentionAk)
-    . '&analyze=1';
+// Retention Rate dipakai dari workspace "Semua AK". Setelah direct send,
+    // jangan pindahkan filter ke AK yang baru saja dikirim.
+    $redirect = $redirectBase . '&previous_source=' . rawurlencode($previousSource)
+        . '&current_source=' . rawurlencode($currentSource)
+        . '&ak=&analyze=1';
 
 if ($previousSource === '' || $currentSource === '' || $retentionAk === '') {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Konteks retention tidak lengkap.'];
