@@ -9,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? nu
 }
 
 $label = trim((string)($_POST['label'] ?? ''));
+
 $file = $_FILES['csv'] ?? null;
 $redirect = '../index.php?page=reminder-csv';
 
