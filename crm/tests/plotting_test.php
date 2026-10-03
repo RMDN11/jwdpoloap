@@ -10,8 +10,9 @@ function expectSame($expected, $actual, string $message): void
     }
 }
 
-expectSame(80.0, plottingRetentionPercent(['Alya', 'Bima', 'Caca', 'Dina', 'Eka'], ['Alya', 'Bima', 'Caca', 'Fira', 'Gita']), 'Retention should be based on previous cohort names');
+expectSame(60.0, plottingRetentionPercent(['Alya', 'Bima', 'Caca', 'Dina', 'Eka'], ['Alya', 'Bima', 'Caca', 'Fira', 'Gita']), 'Retention should be based on previous cohort names');
 expectSame(0.0, plottingRetentionPercent([], ['Alya']), 'Empty previous cohort should return zero');
 expectSame(66.67, plottingRetentionPercent(['Alya', 'Bima', 'Caca'], ['Alya', 'Bima', 'Dina']), 'Retention should round to two decimals');
+expectSame(50.0, plottingRetentionPercent([' Alya  ', 'Bima', 'Alya'], ['alya', 'Dina']), 'Retention identity should normalize case and repeated whitespace');
 
 echo "3/3 plotting retention tests passed\n";
