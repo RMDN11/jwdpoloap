@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../lib/reminder-csv.php';
+
 /**
  * Plotting
  * Membandingkan beberapa snapshot CSV peserta tanpa menyimpan baris CSV ke database.
@@ -8,16 +10,34 @@ declare(strict_types=1);
  */
 
 $csvDir = dirname(__DIR__, 2) . '/storage/reminder-csv';
+$csvSources = crmReminderCsvList();
 $csvFiles = [];
+$csvSourceMeta = [];
 
-if (is_dir($csvDir)) {
-    foreach (glob($csvDir . '/*.csv') ?: [] as $path) {
-        if (is_file($path)) {
-            $csvFiles[] = basename($path);
-        }
-    }
+foreach ($csvSources as $meta) {
+    $file = basename((string)($meta['file'] ?? ''));
+    if ($file === '' || !is_file($csvDir . '/' . $file)) continue;
+    $csvFiles[] = $file;
+    $csvSourceMeta[$file] = $meta;
 }
-sort($csvFiles, SORT_NATURAL | SORT_FLAG_CASE);
+
+$csvLabel = static function (string $file) use ($csvSourceMeta): string {
+    $meta = $csvSourceMeta[$file] ?? [];
+    $label = trim((string)($meta['label'] ?? ''));
+    $original = trim((string)($meta['source_filename'] ?? ''));
+    if ($label !== '' && $original !== '') return $label . ' · ' . $original;
+    if ($label !== '') return $label;
+    if ($original !== '') return $original;
+    return $file;
+};
+
+$csvShortLabel = static function (string $file) use ($csvSourceMeta): string {
+    $meta = $csvSourceMeta[$file] ?? [];
+    $label = trim((string)($meta['label'] ?? ''));
+    if ($label !== '') return $label;
+    $original = trim((string)($meta['source_filename'] ?? ''));
+    return $original !== '' ? $original : $file;
+};
 
 $sourceA = trim((string)($_GET['csv_a'] ?? ''));
 $sourceB = trim((string)($_GET['csv_b'] ?? ''));
@@ -259,7 +279,7 @@ $formatRupiah = static fn(int $value): string => 'Rp ' . number_format($value, 0
                         <select name="csv_a">
                             <option value="">Pilih CSV...</option>
                             <?php foreach ($csvFiles as $file): ?>
-                                <option value="<?= htmlspecialchars($file, ENT_QUOTES) ?>" <?= $file === $sourceA ? 'selected' : '' ?>><?= htmlspecialchars($file) ?></option>
+                                <option value="<?= htmlspecialchars($file, ENT_QUOTES) ?>" <?= $file === $sourceA ? 'selected' : '' ?>><?= htmlspecialchars($csvLabel($file)) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </label>
@@ -268,7 +288,7 @@ $formatRupiah = static fn(int $value): string => 'Rp ' . number_format($value, 0
                         <select name="csv_b">
                             <option value="">Pilih CSV...</option>
                             <?php foreach ($csvFiles as $file): ?>
-                                <option value="<?= htmlspecialchars($file, ENT_QUOTES) ?>" <?= $file === $sourceB ? 'selected' : '' ?>><?= htmlspecialchars($file) ?></option>
+                                <option value="<?= htmlspecialchars($file, ENT_QUOTES) ?>" <?= $file === $sourceB ? 'selected' : '' ?>><?= htmlspecialchars($csvLabel($file)) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </label>
@@ -281,12 +301,12 @@ $formatRupiah = static fn(int $value): string => 'Rp ' . number_format($value, 0
     <?php if ($sourceA !== '' || $sourceB !== ''): ?>
         <section class="plotting-summary-grid">
             <div class="plotting-summary-card">
-                <span><?= htmlspecialchars($sourceA ?: 'Batch sebelumnya') ?></span>
+                <span><?= htmlspecialchars($sourceA !== '' ? $csvShortLabel($sourceA) : 'Batch sebelumnya') ?></span>
                 <strong><?= $totalQuotaA ?></strong>
                 <small><?= $totalGroupsA ?> halaqoh · <?= $formatRupiah($totalSalaryA) ?></small>
             </div>
             <div class="plotting-summary-card plotting-summary-card-current">
-                <span><?= htmlspecialchars($sourceB ?: 'Batch sekarang') ?></span>
+                <span><?= htmlspecialchars($sourceB !== '' ? $csvShortLabel($sourceB) : 'Batch sekarang') ?></span>
                 <strong><?= $totalQuotaB ?></strong>
                 <small><?= $totalGroupsB ?> halaqoh · <?= $formatRupiah($totalSalaryB) ?></small>
             </div>
@@ -351,8 +371,8 @@ $formatRupiah = static fn(int $value): string => 'Rp ' . number_format($value, 0
                         <thead>
                             <tr>
                                 <th>Halaqoh</th>
-                                <th><?= htmlspecialchars($sourceA ?: 'Batch 1') ?></th>
-                                <th><?= htmlspecialchars($sourceB ?: 'Batch 2') ?></th>
+                                <th><?= htmlspecialchars($sourceA !== '' ? $csvShortLabel($sourceA) : 'Batch 1') ?></th>
+                                <th><?= htmlspecialchars($sourceB !== '' ? $csvShortLabel($sourceB) : 'Batch 2') ?></th>
                                 <th>Perubahan</th>
                             </tr>
                         </thead>
