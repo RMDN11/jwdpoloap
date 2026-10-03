@@ -288,6 +288,7 @@ function reminderPengajarTime(string $datetime): string {
                 <form method="POST" action="actions/reminder-pengajar-send.php" id="reminderPengajarForm">
                     <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
                     <input type="hidden" name="selected" id="selectedPengajarPayload" value="[]">
+                    <input type="hidden" name="scroll_y" id="pengajarScrollY" value="<?= (int)($_GET['scroll_y'] ?? 0) ?>">
 
                     <div class="reminder-field">
                         <label for="pengajarMessage">Pesan</label>
@@ -427,6 +428,11 @@ function reminderPengajarTime(string $datetime): string {
     });
 
     document.getElementById('reminderPengajarForm')?.addEventListener('submit', event => {
+        const scrollYInput = document.getElementById('pengajarScrollY');
+        if (scrollYInput) {
+            scrollYInput.value = String(Math.max(0, Math.round(window.scrollY || window.pageYOffset || 0)));
+        }
+
         const selected = selectedItems();
         if (!selected.length || !messageEl.value.trim()) {
             event.preventDefault();
@@ -445,5 +451,14 @@ function reminderPengajarTime(string $datetime): string {
     messageEl?.focus();
     messageEl?.setSelectionRange(messageEl.value.length, messageEl.value.length);
     <?php endif; ?>
+
+    const restoreScrollY = <?= (int)($_GET['scroll_y'] ?? 0) ?>;
+    if (restoreScrollY > 0) {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                window.scrollTo(0, restoreScrollY);
+            });
+        });
+    }
 })();
 </script>
