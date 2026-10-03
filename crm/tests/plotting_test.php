@@ -14,5 +14,8 @@ expectSame(60.0, plottingRetentionPercent(['Alya', 'Bima', 'Caca', 'Dina', 'Eka'
 expectSame(0.0, plottingRetentionPercent([], ['Alya']), 'Empty previous cohort should return zero');
 expectSame(66.67, plottingRetentionPercent(['Alya', 'Bima', 'Caca'], ['Alya', 'Bima', 'Dina']), 'Retention should round to two decimals');
 expectSame(50.0, plottingRetentionPercent([' Alya  ', 'Bima', 'Alya'], ['alya', 'Dina']), 'Retention identity should normalize case and repeated whitespace');
+expectSame(true, plottingCurrentMatchesCategory(['total_peserta' => 9, 'total_gaji' => 600000], 'peserta_dikit', 10, 650000), 'Participant filter must use current batch');
+expectSame(false, plottingCurrentMatchesCategory(['total_peserta' => 12, 'total_gaji' => 600000], 'peserta_dikit', 10, 650000), 'Participant filter must reject current batch above threshold');
+expectSame(true, plottingCurrentMatchesCategory(['total_peserta' => 12, 'total_gaji' => 600000], 'gaji_rendah', 10, 650000), 'Salary filter must use current batch');
 
-echo "3/3 plotting retention tests passed\n";
+echo "7/7 plotting tests passed\n";
