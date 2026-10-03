@@ -32,7 +32,15 @@ $imports = crmReminderCsvList();
       <small><?= htmlspecialchars((string)$item['source_filename']) ?> · <?= htmlspecialchars((string)$item['imported_at']) ?></small>
       <em class="reminder-history"><?= (int)$item['matched_count'] ?> cocok · <?= (int)$item['unmatched_count'] ?> belum cocok · <?= (int)$item['duplicate_count'] ?> duplikat · <?= (int)$item['row_count'] ?> baris</em>
      </span>
-     <a class="reminder-secondary-link" href="?page=reminder-pembayaran&csv_file=<?= urlencode((string)$item['file']) ?>&status_bayar=belum_lunas&status_peserta=semua">Gunakan</a>
+     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+       <a class="reminder-secondary-link" href="?page=reminder-pembayaran&csv_file=<?= urlencode((string)$item['file']) ?>&status_bayar=belum_lunas&status_peserta=semua">Gunakan</a>
+       <form method="post" action="actions/reminder-csv-import.php" onsubmit="return confirm('Hapus CSV ini dari server? File dan metadata-nya akan dihapus permanen.');" style="margin:0">
+        <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="file" value="<?= htmlspecialchars((string)$item['file'], ENT_QUOTES) ?>">
+        <button type="submit" class="reminder-secondary-link" style="border:1px solid #e6b8bf;background:#fff4f5;color:#c72f47;cursor:pointer">Hapus</button>
+       </form>
+      </div>
     </div>
    <?php endforeach; endif; ?>
   </div>
