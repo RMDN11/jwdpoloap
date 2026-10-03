@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../lib/reminder-csv.php';
+
 /**
  * Plotting
  * Membandingkan beberapa snapshot CSV peserta tanpa menyimpan baris CSV ke database.
