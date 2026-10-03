@@ -298,10 +298,7 @@ function plottingCsvRows(string $filename, string $csvDir): array
 function plottingMatchesFilters(array $item, string $category, int $participantThreshold, int $salaryThreshold, string $searchTerm, string $genderFilter, string $halaqohFilter): bool
 {
     $current = $item['b'] ?? ['total_peserta' => 0, 'total_gaji' => 0, 'jenis' => $item['jenis'], 'list_peserta' => []];
-    if ($category === 'belum_ada' && $current['total_peserta'] > 0) return false;
-    if ($category === 'peserta_dikit' && $current['total_peserta'] >= $participantThreshold) return false;
-    if ($category === 'gaji_rendah' && $current['total_gaji'] >= $salaryThreshold) return false;
-    if ($category === 'keduanya' && ($current['total_peserta'] >= $participantThreshold || $current['total_gaji'] >= $salaryThreshold)) return false;
+    if (!plottingCurrentMatchesCategory($current, $category, $participantThreshold, $salaryThreshold)) return false;
     if ($genderFilter !== '' && $current['jenis'] !== $genderFilter) return false;
     if ($halaqohFilter !== '' && plottingNormalize($item['name']) !== plottingNormalize($halaqohFilter)) return false;
     if ($searchTerm !== '') {
