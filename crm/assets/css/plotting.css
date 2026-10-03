@@ -1,0 +1,43 @@
+.crm-plotting-page{padding-bottom:104px}
+.plotting-source-card,.plotting-filter-card,.plotting-table-card{margin-bottom:16px}
+.plotting-source-count{padding:7px 10px;border:1px solid #e1ebe4;border-radius:999px;background:#f7fbf8;color:#718078;font-size:9px;font-weight:800}
+.plotting-source-form,.plotting-filter-form{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
+.plotting-filter-form{grid-template-columns:1fr 1fr 1.4fr auto}
+.plotting-source-form .crm-workspace-field,.plotting-filter-form .crm-workspace-field{margin-bottom:0}
+.plotting-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.plotting-summary-card{padding:15px 16px;border:1px solid #e4ebe7;border-radius:18px;background:#fff;box-shadow:0 5px 18px rgba(24,55,41,.04)}
+.plotting-summary-card span{display:block;color:#829089;font-size:9px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plotting-summary-card strong{display:block;margin-top:5px;color:#18352a;font-size:23px;line-height:1.1}
+.plotting-summary-card small{display:block;margin-top:5px;color:#829089;font-size:9px}
+.plotting-summary-card-current{background:#f3faf5;border-color:#dce9e1}
+.plotting-summary-card-delta strong{color:#168044}
+.plotting-table-wrap{overflow:auto}
+.plotting-table{width:100%;border-collapse:collapse;min-width:720px}
+.plotting-table th{padding:11px 15px;background:#f7faf8;border-bottom:1px solid #e4ebe7;color:#7c8a83;font-size:9px;text-align:left;text-transform:uppercase;letter-spacing:.05em}
+.plotting-table td{padding:12px 15px;border-bottom:1px solid #edf2ef;vertical-align:top;color:#30473a;font-size:11px}
+.plotting-table td>strong{display:block;color:#18352a;font-size:12px}
+.plotting-table td>small{display:block;margin-top:3px;color:#8a9891;font-size:9px}
+.plotting-row-details summary{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;list-style:none}
+.plotting-row-details summary::-webkit-details-marker{display:none}
+.plotting-row-details summary>span{display:flex;flex-direction:column;min-width:0}
+.plotting-row-details summary strong{color:#18352a;font-size:11px}
+.plotting-row-details summary small{margin-top:3px;color:#829089;font-size:8px;font-weight:800}
+.plotting-row-details summary>i{color:#91a098;font-size:9px;transition:.18s}
+.plotting-row-details[open] summary>i{transform:rotate(180deg)}
+.plotting-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid #edf2ef}
+.plotting-detail-grid>div{padding:10px;border:1px solid #edf2ef;border-radius:12px;background:#fafcfb}
+.plotting-detail-grid b{display:block;color:#52645b;font-size:9px}
+.plotting-detail-grid span{display:block;margin-top:3px;color:#8a9891;font-size:8px}
+.plotting-detail-grid ul{margin:8px 0 0;padding-left:15px;color:#30473a;font-size:9px;line-height:1.6}
+.plotting-delta{display:inline-flex;align-items:center;padding:4px 7px;border-radius:8px;background:#f0f5f2;color:#53645b;font-size:10px;font-weight:850}
+.plotting-delta.is-down{background:#fff1f1;color:#dc2626}
+.plotting-delta.is-up{background:#edf8f1;color:#168044}
+.plotting-flags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.plotting-flags span{padding:3px 6px;border-radius:6px;background:#fff7cc;color:#9a6700;font-size:8px;font-weight:800}
+@media(max-width:760px){
+ .plotting-source-form,.plotting-filter-form{grid-template-columns:1fr}
+ .plotting-summary-grid{grid-template-columns:1fr 1fr}
+ .plotting-summary-card:last-child{grid-column:1/-1}
+ .plotting-detail-grid{grid-template-columns:1fr}
+ .plotting-source-form .crm-workspace-primary,.plotting-filter-form .crm-workspace-primary{width:100%}
+}

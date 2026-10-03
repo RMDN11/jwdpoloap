@@ -8,6 +8,7 @@ $items = [
     ['title' => 'Auto Reply', 'description' => 'Atur balasan otomatis', 'icon' => 'fa-solid fa-robot', 'href' => 'index.php?page=auto-reply'],
     ['title' => 'Kelola Grup', 'description' => 'Daftar dan pengelolaan grup', 'icon' => 'fa-solid fa-users', 'href' => 'index.php?page=manage-groups'],
     ['title' => 'Analytics', 'description' => 'Baca data prospek & kualitas lead', 'icon' => 'fa-solid fa-chart-line', 'href' => 'index.php?page=analytics'],
+    ['title' => 'Plotting', 'description' => 'Bandingkan CSV antar batch', 'icon' => 'fa-solid fa-code-compare', 'href' => 'index.php?page=plotting'],
 ];
 ?>
 <section class="page-head">
