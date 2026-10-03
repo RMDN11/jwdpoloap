@@ -51,3 +51,13 @@ function plottingCurrentMatchesCategory(array $current, string $category, int $p
         default => true,
     };
 }
+
+function plottingCurrentMatchesCategories(array $current, array $categories, int $participantThreshold, int $salaryThreshold): bool
+{
+    foreach ($categories as $category) {
+        if (!plottingCurrentMatchesCategory($current, (string)$category, $participantThreshold, $salaryThreshold)) {
+            return false;
+        }
+    }
+    return true;
+}
