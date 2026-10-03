@@ -438,3 +438,20 @@
         font-size:10px;
     }
 }
+
+.retention-send-tutor-form{
+    display:inline-flex;
+    margin:0;
+    padding:0;
+}
+
+.retention-send-tutor-form .retention-send-tutor-btn{
+    font:inherit;
+    cursor:pointer;
+}
+
+.retention-send-tutor-form .retention-send-tutor-btn:disabled{
+    opacity:.72;
+    cursor:wait;
+}
+
