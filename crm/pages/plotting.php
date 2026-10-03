@@ -61,14 +61,9 @@ $summaryKeys = [
     'total' => 'TOTAL PESERTA',
     'cop' => 'COP × Rp 30K',
     'gaji' => 'GAJI',
-    'batch' => 'BATCH SEKARANG',
+    'batch' => 'BATCH SEBELUMNYA',
 ];
-$summaryControlled = isset($_GET['summary_control']);
-$summaryParam = $_GET['summary'] ?? array_keys($summaryKeys);
-$visibleSummary = is_array($summaryParam) ? array_values(array_intersect(array_keys($summaryKeys), array_map('strval', $summaryParam))) : [];
-if (!$summaryControlled) {
-    $visibleSummary = array_keys($summaryKeys);
-}
+$visibleSummary = array_keys($summaryKeys);
 $nonTcPerPeserta = 135000;
 $tcPerPeserta = 155000;
 $copPerPeserta = 30000;
@@ -233,36 +228,13 @@ $formatPercent = static fn(float $value): string => rtrim(rtrim(number_format($v
     </section>
 
     <?php if ($sourceA !== '' || $sourceB !== ''): ?>
-        <section class="plotting-summary-controls">
-            <form method="get" class="plotting-summary-selector">
-                <input type="hidden" name="page" value="plotting">
-                <input type="hidden" name="csv_a" value="<?= htmlspecialchars($sourceA, ENT_QUOTES) ?>">
-                <input type="hidden" name="csv_b" value="<?= htmlspecialchars($sourceB, ENT_QUOTES) ?>">
-                <input type="hidden" name="participant_threshold" value="<?= $participantThreshold ?>">
-                <input type="hidden" name="salary_threshold" value="<?= $salaryThreshold ?>">
-                <input type="hidden" name="q" value="<?= htmlspecialchars($searchTerm, ENT_QUOTES) ?>">
-                <input type="hidden" name="gender" value="<?= htmlspecialchars($genderFilter, ENT_QUOTES) ?>">
-                <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqohFilter, ENT_QUOTES) ?>">
-                <input type="hidden" name="show_salary" value="<?= $showSalary ? 1 : 0 ?>">
-                <?php foreach ($categories as $selectedCategory): ?><input type="hidden" name="category[]" value="<?= htmlspecialchars($selectedCategory, ENT_QUOTES) ?>"><?php endforeach; ?>
-                <input type="hidden" name="summary_control" value="1">
-                <span class="plotting-summary-selector-label">Tampilkan data:</span>
-                <div class="plotting-summary-options">
-                    <?php foreach ($summaryKeys as $summaryKey => $summaryLabel): ?>
-                        <label class="plotting-summary-option"><input type="checkbox" name="summary[]" value="<?= htmlspecialchars($summaryKey) ?>" <?= in_array($summaryKey, $visibleSummary, true) ? 'checked' : '' ?>><span><?= htmlspecialchars($summaryLabel) ?></span></label>
-                    <?php endforeach; ?>
-                </div>
-                <button type="submit" class="plotting-summary-apply"><i class="fa-solid fa-check"></i> Terapkan</button>
-                <a class="plotting-summary-reset" href="<?= htmlspecialchars('index.php?' . http_build_query(['page'=>'plotting','csv_a'=>$sourceA,'csv_b'=>$sourceB,'participant_threshold'=>$participantThreshold,'salary_threshold'=>$salaryThreshold,'q'=>$searchTerm,'gender'=>$genderFilter,'halaqoh'=>$halaqohFilter,'show_salary'=>$showSalary ? 1 : 0,'category'=>$categories,'summary_control'=>1,'summary'=>array_keys($summaryKeys)])) ?>">Semua</a>
-            </form>
-        </section>
         <section class="plotting-summary-grid">
             <?php if (in_array('non_tc', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['non_tc']) ?></span><strong><?= $formatRupiah($totalNonTcFee) ?></strong><small class="plotting-summary-note"><?= $totalCurrentNonTc ?> × <?= $formatRupiah($nonTcPerPeserta) ?></small></div><?php endif; ?>
             <?php if (in_array('tc', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-blue"><span><?= htmlspecialchars($summaryKeys['tc']) ?></span><strong><?= $formatRupiah($totalTcFee) ?></strong><small class="plotting-summary-note"><?= $totalCurrentTc ?> × <?= $formatRupiah($tcPerPeserta) ?></small></div><?php endif; ?>
             <?php if (in_array('total', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-green"><span><?= htmlspecialchars($summaryKeys['total']) ?></span><strong><?= $totalCurrentQuota ?></strong></div><?php endif; ?>
             <?php if (in_array('cop', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['cop']) ?></span><strong><?= $formatRupiah($totalCop) ?></strong><small class="plotting-summary-note"><?= $totalCurrentQuota ?> peserta × <?= $formatRupiah($copPerPeserta) ?></small></div><?php endif; ?>
             <?php if (in_array('gaji', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['gaji']) ?></span><strong><?= $formatRupiah($totalCurrentSalary) ?></strong></div><?php endif; ?>
-            <?php if (in_array('batch', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-dark"><span><?= htmlspecialchars($summaryKeys['batch']) ?></span><strong><?= htmlspecialchars($csvShortLabel($sourceB ?: $sourceA)) ?></strong></div><?php endif; ?>
+            <?php if (in_array('batch', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-dark"><span><?= htmlspecialchars($summaryKeys['batch']) ?></span><strong><?= htmlspecialchars($csvShortLabel($sourceA ?: $sourceB)) ?></strong></div><?php endif; ?>
         </section>
 
         <section class="crm-workspace-card plotting-filter-card">
