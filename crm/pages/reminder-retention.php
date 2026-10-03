@@ -428,12 +428,10 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                                 </span>
                                 <span class="retention-group-stat"><?= (int)$item['total'] ?></span>
                                 <span class="retention-group-stat good-text">
-                                    <?= (int)$item['continued'] ?>
                                     <?php if ((int)$item['continued'] < 10): ?>
-                                        <span class="retention-low-continued-warning" title="Halaqoh ini memiliki kurang dari 10 peserta yang lanjut">
-                                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                                            <?= (int)$item['continued'] ?> lanjut · &lt; 10
-                                        </span>
+                                        <span class="retention-low-continued-warning" title="Kurang dari 10 peserta lanjut"><?= (int)$item['continued'] ?></span>
+                                    <?php else: ?>
+                                        <?= (int)$item['continued'] ?>
                                     <?php endif; ?>
                                 </span>
                                 <span class="retention-group-stat bad-text"><?= (int)$item['not_continued'] ?></span>
