@@ -297,3 +297,69 @@
         box-shadow:0 8px 24px rgba(24,55,41,.14);
     }
 }
+
+
+/* Copy nama untuk tutor: hanya nama, satu peserta per baris. */
+.retention-detail-panel-head > div:first-child{
+    min-width:0;
+}
+
+.retention-detail-panel-actions{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    flex:0 0 auto;
+}
+
+.retention-copy-names-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    height:30px;
+    padding:0 9px;
+    border:1px solid #dbe5df;
+    border-radius:9px;
+    background:#fff;
+    color:#65756d;
+    font-size:9px;
+    font-weight:800;
+    cursor:pointer;
+    white-space:nowrap;
+}
+
+.retention-copy-names-btn:hover{
+    border-color:#b9d8c5;
+    background:#f6fbf8;
+    color:#168044;
+}
+
+.retention-copy-names-btn:active{
+    transform:translateY(1px);
+}
+
+.retention-copy-names-btn i{
+    font-size:10px;
+}
+
+.retention-detail-status-icon{
+    width:30px;
+    height:30px;
+    display:grid;
+    place-items:center;
+    border-radius:10px;
+    background:#fff1f2;
+    color:#dc2626;
+    font-size:11px;
+}
+
+@media(max-width:430px){
+    .retention-copy-names-btn{
+        width:30px;
+        padding:0;
+        justify-content:center;
+    }
+
+    .retention-copy-names-btn span{
+        display:none;
+    }
+}
