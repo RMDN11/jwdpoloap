@@ -412,31 +412,29 @@
 }
 
 
-/* Penanda halaqoh dengan peserta lanjut kurang dari 10. */
+/* Penanda angka lanjut kurang dari 10. */
 .retention-low-continued-warning{
     display:inline-flex;
     align-items:center;
     justify-content:center;
-    gap:4px;
-    margin-top:5px;
-    padding:4px 7px;
+    min-width:26px;
+    height:25px;
+    padding:0 7px;
     border:1px solid #f4d06f;
     border-radius:7px;
     background:#fff7cc;
-    color:#b42318;
-    font-size:8px;
+    color:#dc2626;
+    font-size:11px;
     font-weight:900;
-    line-height:1.15;
-    white-space:nowrap;
-}
-
-.retention-low-continued-warning i{
-    font-size:8px;
+    line-height:1;
+    box-sizing:border-box;
 }
 
 @media(max-width:760px){
     .retention-low-continued-warning{
-        padding:3px 5px;
-        font-size:7px;
+        min-width:24px;
+        height:23px;
+        padding:0 6px;
+        font-size:10px;
     }
 }
