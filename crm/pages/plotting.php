@@ -47,11 +47,29 @@ if (!in_array($sourceB, $csvFiles, true)) $sourceB = '';
 
 $participantThreshold = max(0, (int)($_GET['participant_threshold'] ?? 10));
 $salaryThreshold = max(0, (int)($_GET['salary_threshold'] ?? 650000));
-$category = trim((string)($_GET['category'] ?? ''));
+$categoryParam = $_GET['category'] ?? [];
+$categories = is_array($categoryParam) ? $categoryParam : [$categoryParam];
+$categories = array_values(array_intersect(['belum_ada', 'peserta_dikit', 'gaji_rendah'], array_map('strval', $categories)));
 $searchTerm = trim((string)($_GET['q'] ?? ''));
 $genderFilter = trim((string)($_GET['gender'] ?? ''));
 $halaqohFilter = trim((string)($_GET['halaqoh'] ?? ''));
 $showSalary = ($_GET['show_salary'] ?? '1') !== '0';
+
+$summaryKeys = [
+    'non_tc' => 'NON TC',
+    'tc' => 'TC / CILIK',
+    'total' => 'TOTAL PESERTA',
+    'cop' => 'COP (Rp 30K / Halaqoh)',
+    'gaji' => 'GAJI',
+    'batch' => 'BATCH SEKARANG',
+];
+$summaryControlled = isset($_GET['summary_control']);
+$summaryParam = $_GET['summary'] ?? array_keys($summaryKeys);
+$visibleSummary = is_array($summaryParam) ? array_values(array_intersect(array_keys($summaryKeys), array_map('strval', $summaryParam))) : [];
+if (!$summaryControlled) {
+    $visibleSummary = array_keys($summaryKeys);
+}
+$copPerHalaqoh = 30000;
 
 function plottingCsvRows(string $filename, string $csvDir): array
 {
@@ -113,10 +131,10 @@ function plottingCsvRows(string $filename, string $csvDir): array
     return $rows;
 }
 
-function plottingMatchesFilters(array $item, string $category, int $participantThreshold, int $salaryThreshold, string $searchTerm, string $genderFilter, string $halaqohFilter): bool
+function plottingMatchesFilters(array $item, array $categories, int $participantThreshold, int $salaryThreshold, string $searchTerm, string $genderFilter, string $halaqohFilter): bool
 {
     $current = $item['b'] ?? ['total_peserta' => 0, 'total_gaji' => 0, 'jenis' => $item['jenis'], 'list_peserta' => []];
-    if (!plottingCurrentMatchesCategory($current, $category, $participantThreshold, $salaryThreshold)) return false;
+    if (!plottingCurrentMatchesCategories($current, $categories, $participantThreshold, $salaryThreshold)) return false;
     if ($genderFilter !== '' && $current['jenis'] !== $genderFilter) return false;
     if ($halaqohFilter !== '' && plottingNormalize($item['name']) !== plottingNormalize($halaqohFilter)) return false;
     if ($searchTerm !== '') {
@@ -144,7 +162,7 @@ function plottingRenderCard(array $item, string $sourceA, string $sourceB, calla
         <details>
             <summary>
                 <strong><?= htmlspecialchars($item['name']) ?></strong>
-                <span class="plotting-card-metrics"><b class="tc">TC: <?= (int)$current['total_tc'] ?></b><b class="non">Non: <?= (int)$current['total_non_tc'] ?></b><b class="total">Total: <?= (int)$current['total_peserta'] ?></b></span>
+                <span class="plotting-card-metrics"><b class="retention <?= $retentionClass ?>"><?= $formatPercent($retention) ?></b><b class="tc">TC: <?= (int)$current['total_tc'] ?></b><b class="non">Non: <?= (int)$current['total_non_tc'] ?></b><b class="total">Total: <?= (int)$current['total_peserta'] ?></b></span>
                 <i class="fa-solid fa-chevron-down"></i>
             </summary>
             <div class="plotting-card-detail">
@@ -186,7 +204,7 @@ foreach ($groupKeys as $key) {
         'continued' => $continued, 'previous_total' => count($previousUnique),
     ];
 }
-$filteredComparison = array_values(array_filter($comparison, static fn(array $item): bool => plottingMatchesFilters($item, $category, $participantThreshold, $salaryThreshold, $searchTerm, $genderFilter, $halaqohFilter)));
+$filteredComparison = array_values(array_filter($comparison, static fn(array $item): bool => plottingMatchesFilters($item, $categories, $participantThreshold, $salaryThreshold, $searchTerm, $genderFilter, $halaqohFilter)));
 $ikRows = array_values(array_filter($filteredComparison, static fn(array $item): bool => $item['jenis'] === 'IK'));
 $akRows = array_values(array_filter($filteredComparison, static fn(array $item): bool => $item['jenis'] === 'AK'));
 $halaqohOptions = $groupKeys;
@@ -194,6 +212,7 @@ $totalCurrentQuota = array_sum(array_column($dataB, 'total_peserta'));
 $totalCurrentSalary = array_sum(array_column($dataB, 'total_gaji'));
 $totalCurrentTc = array_sum(array_column($dataB, 'total_tc'));
 $totalCurrentNonTc = array_sum(array_column($dataB, 'total_non_tc'));
+$totalCop = count($dataB) * $copPerHalaqoh;
 $formatRupiah = static fn(int $value): string => 'Rp ' . number_format($value, 0, ',', '.');
 $formatPercent = static fn(float $value): string => rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',') . '%';
 ?>
@@ -210,24 +229,47 @@ $formatPercent = static fn(float $value): string => rtrim(rtrim(number_format($v
     </section>
 
     <?php if ($sourceA !== '' || $sourceB !== ''): ?>
+        <section class="plotting-summary-controls">
+            <form method="get" class="plotting-summary-selector">
+                <input type="hidden" name="page" value="plotting">
+                <input type="hidden" name="csv_a" value="<?= htmlspecialchars($sourceA, ENT_QUOTES) ?>">
+                <input type="hidden" name="csv_b" value="<?= htmlspecialchars($sourceB, ENT_QUOTES) ?>">
+                <input type="hidden" name="participant_threshold" value="<?= $participantThreshold ?>">
+                <input type="hidden" name="salary_threshold" value="<?= $salaryThreshold ?>">
+                <input type="hidden" name="q" value="<?= htmlspecialchars($searchTerm, ENT_QUOTES) ?>">
+                <input type="hidden" name="gender" value="<?= htmlspecialchars($genderFilter, ENT_QUOTES) ?>">
+                <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqohFilter, ENT_QUOTES) ?>">
+                <input type="hidden" name="show_salary" value="<?= $showSalary ? 1 : 0 ?>">
+                <?php foreach ($categories as $selectedCategory): ?><input type="hidden" name="category[]" value="<?= htmlspecialchars($selectedCategory, ENT_QUOTES) ?>"><?php endforeach; ?>
+                <input type="hidden" name="summary_control" value="1">
+                <span class="plotting-summary-selector-label">Tampilkan data:</span>
+                <div class="plotting-summary-options">
+                    <?php foreach ($summaryKeys as $summaryKey => $summaryLabel): ?>
+                        <label class="plotting-summary-option"><input type="checkbox" name="summary[]" value="<?= htmlspecialchars($summaryKey) ?>" <?= in_array($summaryKey, $visibleSummary, true) ? 'checked' : '' ?>><span><?= htmlspecialchars($summaryLabel) ?></span></label>
+                    <?php endforeach; ?>
+                </div>
+                <button type="submit" class="plotting-summary-apply"><i class="fa-solid fa-check"></i> Terapkan</button>
+                <a class="plotting-summary-reset" href="<?= htmlspecialchars('index.php?' . http_build_query(['page'=>'plotting','csv_a'=>$sourceA,'csv_b'=>$sourceB,'participant_threshold'=>$participantThreshold,'salary_threshold'=>$salaryThreshold,'q'=>$searchTerm,'gender'=>$genderFilter,'halaqoh'=>$halaqohFilter,'show_salary'=>$showSalary ? 1 : 0,'category'=>$categories,'summary_control'=>1,'summary'=>array_keys($summaryKeys)])) ?>">Semua</a>
+            </form>
+        </section>
         <section class="plotting-summary-grid">
-            <div class="plotting-summary-card"><span>NON TC</span><strong><?= $totalCurrentNonTc ?></strong></div>
-            <div class="plotting-summary-card plotting-summary-card-blue"><span>TC / CILIK</span><strong><?= $totalCurrentTc ?></strong></div>
-            <div class="plotting-summary-card plotting-summary-card-green"><span>TOTAL PESERTA</span><strong><?= $totalCurrentQuota ?></strong></div>
-            <div class="plotting-summary-card"><span>COP (x30k)</span><strong><?= $formatRupiah(count($dataB) * 30000) ?></strong></div>
-            <div class="plotting-summary-card"><span>GAJI</span><strong><?= $formatRupiah($totalCurrentSalary) ?></strong></div>
-            <div class="plotting-summary-card plotting-summary-card-dark"><span>BATCH SEKARANG</span><strong><?= htmlspecialchars($csvShortLabel($sourceB ?: $sourceA)) ?></strong></div>
+            <?php if (in_array('non_tc', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['non_tc']) ?></span><strong><?= $totalCurrentNonTc ?></strong></div><?php endif; ?>
+            <?php if (in_array('tc', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-blue"><span><?= htmlspecialchars($summaryKeys['tc']) ?></span><strong><?= $totalCurrentTc ?></strong></div><?php endif; ?>
+            <?php if (in_array('total', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-green"><span><?= htmlspecialchars($summaryKeys['total']) ?></span><strong><?= $totalCurrentQuota ?></strong></div><?php endif; ?>
+            <?php if (in_array('cop', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['cop']) ?></span><strong><?= $formatRupiah($totalCop) ?></strong><small class="plotting-summary-note"><?= count($dataB) ?> halaqoh × <?= $formatRupiah($copPerHalaqoh) ?></small></div><?php endif; ?>
+            <?php if (in_array('gaji', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['gaji']) ?></span><strong><?= $formatRupiah($totalCurrentSalary) ?></strong></div><?php endif; ?>
+            <?php if (in_array('batch', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-dark"><span><?= htmlspecialchars($summaryKeys['batch']) ?></span><strong><?= htmlspecialchars($csvShortLabel($sourceB ?: $sourceA)) ?></strong></div><?php endif; ?>
         </section>
 
         <section class="crm-workspace-card plotting-filter-card">
-            <div class="plotting-filter-head"><div class="plotting-filter-title"><span class="plotting-filter-icon"><i class="fa-solid fa-filter"></i></span><h2>Filter Data</h2></div><a class="plotting-salary-toggle" href="<?= htmlspecialchars('index.php?' . http_build_query(['page'=>'plotting','csv_a'=>$sourceA,'csv_b'=>$sourceB,'participant_threshold'=>$participantThreshold,'salary_threshold'=>$salaryThreshold,'category'=>$category,'q'=>$searchTerm,'gender'=>$genderFilter,'halaqoh'=>$halaqohFilter,'show_salary'=>$showSalary ? 0 : 1])) ?>"><i class="fa-solid <?= $showSalary ? 'fa-eye' : 'fa-eye-slash' ?>"></i> Gaji</a></div>
+            <div class="plotting-filter-head"><div class="plotting-filter-title"><span class="plotting-filter-icon"><i class="fa-solid fa-filter"></i></span><h2>Filter Data</h2></div><a class="plotting-salary-toggle" href="<?= htmlspecialchars('index.php?' . http_build_query(['page'=>'plotting','csv_a'=>$sourceA,'csv_b'=>$sourceB,'participant_threshold'=>$participantThreshold,'salary_threshold'=>$salaryThreshold,'category'=>$categories,'q'=>$searchTerm,'gender'=>$genderFilter,'halaqoh'=>$halaqohFilter,'show_salary'=>$showSalary ? 0 : 1,'summary_control'=>1,'summary'=>$visibleSummary])) ?>"><i class="fa-solid <?= $showSalary ? 'fa-eye' : 'fa-eye-slash' ?>"></i> Gaji</a></div>
             <form method="get" class="plotting-filter-form"><input type="hidden" name="page" value="plotting"><input type="hidden" name="csv_a" value="<?= htmlspecialchars($sourceA, ENT_QUOTES) ?>"><input type="hidden" name="csv_b" value="<?= htmlspecialchars($sourceB, ENT_QUOTES) ?>"><input type="hidden" name="participant_threshold" value="<?= $participantThreshold ?>"><input type="hidden" name="salary_threshold" value="<?= $salaryThreshold ?>"><input type="hidden" name="category" value="<?= htmlspecialchars($category, ENT_QUOTES) ?>">
                 <label class="crm-workspace-field"><span>Cari Peserta / WA</span><input type="search" name="q" value="<?= htmlspecialchars($searchTerm, ENT_QUOTES) ?>" placeholder="Ketik nama atau WA..."></label>
                 <label class="crm-workspace-field"><span>Halaqoh</span><select name="halaqoh"><option value="">Semua</option><?php foreach ($halaqohOptions as $halaqoh): $displayHalaqoh=$dataB[$halaqoh]['nama_halaqoh'] ?? $dataA[$halaqoh]['nama_halaqoh'] ?? $halaqoh; ?><option value="<?= htmlspecialchars($displayHalaqoh, ENT_QUOTES) ?>" <?= plottingNormalize($halaqohFilter) === plottingNormalize($displayHalaqoh) ? 'selected' : '' ?>><?= htmlspecialchars($displayHalaqoh) ?></option><?php endforeach; ?></select></label>
                 <div class="plotting-gender-field"><span>Gender</span><div class="plotting-gender-tabs"><button type="submit" name="gender" value="" class="<?= $genderFilter === '' ? 'is-active' : '' ?>">Semua</button><button type="submit" name="gender" value="IK" class="<?= $genderFilter === 'IK' ? 'is-active' : '' ?>">Ikhwan</button><button type="submit" name="gender" value="AK" class="<?= $genderFilter === 'AK' ? 'is-active' : '' ?>">Akhwat</button></div></div>
             </form>
-            <div class="plotting-category-row"><span>Filter Kategori Halaqoh</span><div class="plotting-category-chips"><?php $baseQuery=['page'=>'plotting','csv_a'=>$sourceA,'csv_b'=>$sourceB,'participant_threshold'=>$participantThreshold,'salary_threshold'=>$salaryThreshold,'q'=>$searchTerm,'gender'=>$genderFilter,'halaqoh'=>$halaqohFilter]; ?><a class="plotting-chip plotting-chip-red <?= $category === 'belum_ada' ? 'is-active' : '' ?>" href="<?= htmlspecialchars('index.php?' . http_build_query($baseQuery + ['category'=>'belum_ada'])) ?>"><i></i> Belum Ada Peserta</a><a class="plotting-chip plotting-chip-yellow <?= $category === 'peserta_dikit' ? 'is-active' : '' ?>" href="<?= htmlspecialchars('index.php?' . http_build_query($baseQuery + ['category'=>'peserta_dikit'])) ?>"><i></i> Peserta &lt; <?= $participantThreshold ?></a><a class="plotting-chip plotting-chip-green <?= $category === 'gaji_rendah' ? 'is-active' : '' ?>" href="<?= htmlspecialchars('index.php?' . http_build_query($baseQuery + ['category'=>'gaji_rendah'])) ?>"><i></i> Gaji &lt; <?= $formatRupiah($salaryThreshold) ?></a><a class="plotting-chip plotting-chip-reset" href="<?= htmlspecialchars('index.php?' . http_build_query($baseQuery + ['category'=>''])) ?>"><i class="fa-solid fa-xmark"></i> Reset Kategori</a></div></div>
-            <div class="plotting-thresholds"><form method="get" id="plotting-threshold-form"><input type="hidden" name="page" value="plotting"><input type="hidden" name="csv_a" value="<?= htmlspecialchars($sourceA, ENT_QUOTES) ?>"><input type="hidden" name="csv_b" value="<?= htmlspecialchars($sourceB, ENT_QUOTES) ?>"><input type="hidden" name="q" value="<?= htmlspecialchars($searchTerm, ENT_QUOTES) ?>"><input type="hidden" name="gender" value="<?= htmlspecialchars($genderFilter, ENT_QUOTES) ?>"><input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqohFilter, ENT_QUOTES) ?>"><input type="hidden" name="category" value="<?= htmlspecialchars($category, ENT_QUOTES) ?>"><label>Peserta di bawah <input type="number" name="participant_threshold" value="<?= $participantThreshold ?>" min="0"></label><label>Gaji di bawah <input type="number" name="salary_threshold" value="<?= $salaryThreshold ?>" min="0" step="50000"></label><button class="plotting-apply-btn" type="submit">Terapkan batas</button></form></div>
+            <div class="plotting-category-row"><span>Filter Kategori Halaqoh <small>(bisa pilih lebih dari satu)</small></span><div class="plotting-category-chips"><?php $baseQuery=['page'=>'plotting','csv_a'=>$sourceA,'csv_b'=>$sourceB,'participant_threshold'=>$participantThreshold,'salary_threshold'=>$salaryThreshold,'q'=>$searchTerm,'gender'=>$genderFilter,'halaqoh'=>$halaqohFilter,'summary_control'=>1,'summary'=>$visibleSummary]; ?><?php foreach ($categories as $selectedCategory) $baseQuery['category'][]=$selectedCategory; ?><?php foreach (['belum_ada'=>'plotting-chip-red','peserta_dikit'=>'plotting-chip-yellow','gaji_rendah'=>'plotting-chip-green'] as $categoryKey => $categoryClass): $nextCategories=$categories; if (in_array($categoryKey,$nextCategories,true)) { $nextCategories=array_values(array_diff($nextCategories,[$categoryKey])); } else { $nextCategories[]=$categoryKey; } $query=$baseQuery; $query['category']=$nextCategories; ?><a class="plotting-chip <?= $categoryClass ?> <?= in_array($categoryKey, $categories, true) ? 'is-active' : '' ?>" href="<?= htmlspecialchars('index.php?' . http_build_query($query)) ?>"><i></i> <?= $categoryKey === 'belum_ada' ? 'Belum Ada Peserta' : ($categoryKey === 'peserta_dikit' ? 'Peserta &lt; ' . $participantThreshold : 'Gaji &lt; ' . $formatRupiah($salaryThreshold)) ?></a><?php endforeach; ?><a class="plotting-chip plotting-chip-reset" href="<?= htmlspecialchars('index.php?' . http_build_query($baseQuery + ['category'=>[]])) ?>"><i class="fa-solid fa-xmark"></i> Reset Kategori</a></div></div>
+            <div class="plotting-thresholds"><form method="get" id="plotting-threshold-form"><input type="hidden" name="page" value="plotting"><input type="hidden" name="csv_a" value="<?= htmlspecialchars($sourceA, ENT_QUOTES) ?>"><input type="hidden" name="csv_b" value="<?= htmlspecialchars($sourceB, ENT_QUOTES) ?>"><input type="hidden" name="q" value="<?= htmlspecialchars($searchTerm, ENT_QUOTES) ?>"><input type="hidden" name="gender" value="<?= htmlspecialchars($genderFilter, ENT_QUOTES) ?>"><input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqohFilter, ENT_QUOTES) ?>"><?php foreach ($categories as $selectedCategory): ?><input type="hidden" name="category[]" value="<?= htmlspecialchars($selectedCategory, ENT_QUOTES) ?>"><?php endforeach; ?><?php foreach ($visibleSummary as $selectedSummary): ?><input type="hidden" name="summary[]" value="<?= htmlspecialchars($selectedSummary, ENT_QUOTES) ?>"><?php endforeach; ?><input type="hidden" name="summary_control" value="1"><label>Peserta di bawah <input type="number" name="participant_threshold" value="<?= $participantThreshold ?>" min="0"></label><label>Gaji di bawah <input type="number" name="salary_threshold" value="<?= $salaryThreshold ?>" min="0" step="50000"></label><button class="plotting-apply-btn" type="submit">Terapkan batas</button></form></div>
         </section>
 
         <section class="plotting-results-section"><div class="plotting-results-head"><span>Hasil Perbandingan</span><h2><?= count($filteredComparison) ?> Halaqoh</h2><p><?= htmlspecialchars($csvShortLabel($sourceA ?: 'Batch sebelumnya')) ?> → <?= htmlspecialchars($csvShortLabel($sourceB ?: 'Batch sekarang')) ?></p></div>
