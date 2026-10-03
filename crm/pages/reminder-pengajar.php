@@ -3,9 +3,56 @@ declare(strict_types=1);
 
 $crmTitle = 'Reminder Pengajar';
 
+$retentionContext = (string)($_GET['retention_context'] ?? '') === '1';
+$retentionPreviousSource = trim((string)($_GET['previous_source'] ?? ''));
+$retentionCurrentSource = trim((string)($_GET['current_source'] ?? ''));
+$retentionAk = trim((string)($_GET['retention_ak'] ?? ''));
+$retentionNames = [];
+$retentionPrefillMessage = '';
+$retentionContextError = '';
+
 $search = trim((string)($_GET['q'] ?? ''));
 $halaqoh = trim((string)($_GET['halaqoh'] ?? ''));
 $jenis = trim((string)($_GET['jenis'] ?? ''));
+
+if ($retentionContext && $retentionAk !== '' && $retentionPreviousSource !== '' && $retentionCurrentSource !== '') {
+    try {
+        require_once __DIR__ . '/../lib/reminder-retention.php';
+
+        $retentionPrevious = crmRetentionLoadSource($conn, $retentionPreviousSource);
+        $retentionCurrent = crmRetentionLoadSource($conn, $retentionCurrentSource);
+        $retentionAkKey = crmRetentionNormalizeGroup($retentionAk);
+
+        $retentionPrevious = array_values(array_filter(
+            $retentionPrevious,
+            static fn(array $record): bool => (string)($record['group_key'] ?? '') === $retentionAkKey
+        ));
+
+        $retentionComparison = crmRetentionCompare($retentionPrevious, $retentionCurrent);
+        $retentionNames = array_values(array_map(
+            static fn(array $record): string => trim((string)($record['name'] ?? '')),
+            $retentionComparison['not_continued'] ?? []
+        ));
+        $retentionNames = array_values(array_filter($retentionNames, static fn(string $name): bool => $name !== ''));
+
+        if ($retentionNames) {
+            $nameLines = array_map(static fn(string $name): string => '• ' . $name, $retentionNames);
+            $retentionPrefillMessage = "Assalamu'alaikum Kak, izin menginformasikan peserta yang tidak melanjutkan pada periode berikutnya dari {$retentionAk}:\n\n"
+                . implode("\n", $nameLines)
+                . "\n\nMohon dibantu follow up bila diperlukan. Jazakallahu khairan.";
+        } else {
+            $retentionContextError = 'Tidak ada peserta yang tidak lanjut pada AK ini.';
+        }
+    } catch (Throwable $e) {
+        error_log('CRM reminder pengajar retention context failed: ' . $e->getMessage());
+        $retentionContextError = 'Data retention tidak dapat dimuat. Silakan buka Reminder Pengajar secara normal.';
+    }
+
+    // Retention selalu membuka tutor berdasarkan AK batch sebelumnya.
+    if ($halaqoh === '') {
+        $halaqoh = $retentionAk;
+    }
+}
 
 $halaqohList = [];
 $result = $conn->query("SELECT DISTINCT halaqoh FROM pengampu WHERE halaqoh IS NOT NULL AND halaqoh <> '' ORDER BY halaqoh");
@@ -136,13 +183,33 @@ function reminderPengajarTime(string $datetime): string {
                 <div class="reminder-card-head">
                     <div>
                         <span class="reminder-kicker">Target</span>
-                        <h2>Pilih Pengajar</h2>
+                        <h2><?= $retentionContext && $retentionAk !== '' ? 'Tutor ' . htmlspecialchars($retentionAk) : 'Pilih Pengajar' ?></h2>
                     </div>
                     <span class="reminder-count"><?= count($pengajar) ?> pengajar</span>
                 </div>
+                <?php if ($retentionContext && $retentionNames): ?>
+                    <div class="reminder-retention-context">
+                        <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
+                        <div>
+                            <strong>Dari Retention · <?= htmlspecialchars($retentionAk) ?></strong>
+                            <span><?= count($retentionNames) ?> peserta tidak lanjut sudah dimasukkan ke draft pesan.</span>
+                        </div>
+                    </div>
+                <?php elseif ($retentionContextError !== ''): ?>
+                    <div class="reminder-retention-context error">
+                        <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                        <div><span><?= htmlspecialchars($retentionContextError) ?></span></div>
+                    </div>
+                <?php endif; ?>
 
                 <form method="GET" action="" class="reminder-pengajar-filter">
                     <input type="hidden" name="page" value="reminder-pengajar">
+                    <?php if ($retentionContext): ?>
+                        <input type="hidden" name="retention_context" value="1">
+                        <input type="hidden" name="previous_source" value="<?= htmlspecialchars($retentionPreviousSource, ENT_QUOTES) ?>">
+                        <input type="hidden" name="current_source" value="<?= htmlspecialchars($retentionCurrentSource, ENT_QUOTES) ?>">
+                        <input type="hidden" name="retention_ak" value="<?= htmlspecialchars($retentionAk, ENT_QUOTES) ?>">
+                    <?php endif; ?>
                     <input type="search" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Cari nama atau nomor WhatsApp...">
                     <select name="jenis" aria-label="Filter jenis pengajar">
                         <option value="">Semua Pengajar</option>
@@ -184,6 +251,7 @@ function reminderPengajarTime(string $datetime): string {
                                         value="<?= (int)$item['id'] ?>"
                                         data-name="<?= htmlspecialchars((string)$item['nama'], ENT_QUOTES) ?>"
                                         data-nowa="<?= htmlspecialchars((string)$item['nowa'], ENT_QUOTES) ?>"
+                                        <?= $retentionContext && $retentionAk !== '' && crmRetentionNormalizeGroup((string)$item['halaqoh']) === crmRetentionNormalizeGroup($retentionAk) ? 'checked' : '' ?>
                                     >
                                     <span class="reminder-avatar"><?= htmlspecialchars(reminderPengajarInitials((string)$item['nama'])) ?></span>
                                 </span>
@@ -229,7 +297,7 @@ function reminderPengajarTime(string $datetime): string {
                             maxlength="2000"
                             required
                             placeholder="Tulis pesan untuk pengajar..."
-                        ></textarea>
+                        ><?= htmlspecialchars($retentionPrefillMessage) ?></textarea>
                         <div class="reminder-message-meta">
                             <span>Pesan bisa diedit sebelum dikirim.</span>
                             <span id="pengajarCharCount">0 / 2000</span>
@@ -309,6 +377,9 @@ function reminderPengajarTime(string $datetime): string {
         const selected = selectedItems();
         countEl.textContent = selected.length + ' dipilih';
         payloadEl.value = JSON.stringify(selected);
+        if (selectAll) {
+            selectAll.checked = checkboxes.length > 0 && checkboxes.every(item => item.checked);
+        }
         sendBtn.disabled = selected.length === 0 || !messageEl.value.trim();
 
         if (!selected.length) {
@@ -369,5 +440,10 @@ function reminderPengajarTime(string $datetime): string {
 
     syncSelection();
     syncMessage();
+
+    <?php if ($retentionContext && $retentionNames): ?>
+    messageEl?.focus();
+    messageEl?.setSelectionRange(messageEl.value.length, messageEl.value.length);
+    <?php endif; ?>
 })();
 </script>
