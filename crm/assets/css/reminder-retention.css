@@ -410,3 +410,37 @@
         display:none;
     }
 }
+
+
+/* Alert halaqoh dengan peserta lanjut < 10. */
+.retention-total-stat{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+}
+.retention-total-stat > strong{
+    font-size:11px;
+    font-weight:800;
+    color:#4d6158;
+}
+.retention-low-continued-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    min-height:22px;
+    padding:3px 7px;
+    border:1px solid #f5c84c;
+    border-radius:7px;
+    background:#fff4bf;
+    color:#b42318;
+    font-size:8px;
+    font-weight:900;
+    line-height:1;
+    white-space:nowrap;
+}
+.retention-low-continued-badge i{
+    font-size:8px;
+}
