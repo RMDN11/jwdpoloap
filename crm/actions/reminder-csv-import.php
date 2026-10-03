@@ -8,10 +8,26 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? nu
     exit('Permintaan tidak valid.');
 }
 
+$redirect = '../index.php?page=reminder-csv';
+
+if (($_POST['action'] ?? '') === 'delete') {
+    $filename = trim((string)($_POST['file'] ?? ''));
+
+    try {
+        crmReminderCsvDelete($filename);
+        $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'CSV berhasil dihapus dari server.'];
+    } catch (Throwable $e) {
+        error_log('CRM CSV delete failed: ' . $e->getMessage());
+        $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'CSV gagal dihapus: ' . $e->getMessage()];
+    }
+
+    header('Location: ' . $redirect);
+    exit;
+}
+
 $label = trim((string)($_POST['label'] ?? ''));
 
 $file = $_FILES['csv'] ?? null;
-$redirect = '../index.php?page=reminder-csv';
 
 if (
     $label === ''
