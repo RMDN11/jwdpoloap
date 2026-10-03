@@ -38,3 +38,16 @@ function plottingRetentionPercent(array $previousNames, array $currentNames): fl
     $continued = count(array_intersect_key($previous, $current));
     return round(($continued / count($previous)) * 100, 2);
 }
+
+function plottingCurrentMatchesCategory(array $current, string $category, int $participantThreshold, int $salaryThreshold): bool
+{
+    $participants = (int)($current['total_peserta'] ?? 0);
+    $salary = (int)($current['total_gaji'] ?? 0);
+    return match ($category) {
+        'belum_ada' => $participants === 0,
+        'peserta_dikit' => $participants < $participantThreshold,
+        'gaji_rendah' => $salary < $salaryThreshold,
+        'keduanya' => $participants < $participantThreshold && $salary < $salaryThreshold,
+        default => true,
+    };
+}
