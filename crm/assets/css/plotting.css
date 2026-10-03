@@ -5,20 +5,20 @@
 .plotting-card-detail{padding:0 20px 20px;border-top:1px solid #edf0f1}.plotting-retention-hero{margin-top:15px;padding:15px 17px;border-radius:16px;background:#f5f8f6}.plotting-retention-hero span{display:block;color:#7a8580;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.plotting-retention-hero strong{display:block;margin-top:3px;font-size:31px;line-height:1;color:#16834b;letter-spacing:-.04em}.plotting-retention-hero small{display:block;margin-top:6px;color:#7d8782;font-size:9px}.plotting-retention-hero.is-mid{background:#fff9e9}.plotting-retention-hero.is-mid strong{color:#c38300}.plotting-retention-hero.is-low{background:#fff1f2}.plotting-retention-hero.is-low strong{color:#d9344f}.plotting-batch-comparison,.plotting-name-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.plotting-batch-comparison>div,.plotting-name-columns>div{padding:12px;border:1px solid #edf0ef;border-radius:12px;background:#fafcfb}.plotting-batch-comparison b,.plotting-name-columns>div>span{display:block;color:#7b8681;font-size:9px;font-weight:850}.plotting-batch-comparison strong{display:block;margin-top:4px;color:#27332d;font-size:12px}.plotting-batch-comparison small{display:block;margin-top:3px;color:#87918c;font-size:9px}.plotting-name-columns ul{margin:7px 0 0;padding-left:16px;color:#46534c;font-size:9px;line-height:1.65}.plotting-name-columns .muted{color:#a0aaa5;list-style:none;margin-left:-16px}.plotting-empty-column{padding:22px;border:1px dashed #dfe4e1;border-radius:18px;color:#929b96;font-size:11px;text-align:center}
 @media(max-width:980px){.plotting-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.plotting-halaqoh-grid{grid-template-columns:1fr}.plotting-filter-form{grid-template-columns:1fr 1fr}.plotting-gender-field{grid-column:1/-1}}@media(max-width:760px){.plotting-source-form{grid-template-columns:1fr}.plotting-summary-grid{grid-template-columns:1fr 1fr}.plotting-filter-card{padding:0 17px 18px}.plotting-filter-form{grid-template-columns:1fr}.plotting-gender-field{grid-column:auto}.plotting-category-chips{display:grid;grid-template-columns:1fr 1fr}.plotting-chip{justify-content:center}.plotting-thresholds{justify-content:stretch;flex-wrap:wrap}.plotting-thresholds form{width:100%;flex-wrap:wrap}.plotting-results-head h2{font-size:28px}.plotting-halaqoh-card details>summary{grid-template-columns:1fr auto;padding:12px 15px;min-height:0}.plotting-card-metrics{grid-column:1/-1;grid-row:2}.plotting-halaqoh-card summary>i{grid-column:2;grid-row:1}.plotting-name-columns,.plotting-batch-comparison{grid-template-columns:1fr}.plotting-summary-card strong{font-size:20px}}
 
-.plotting-summary-controls{margin-bottom:10px}
-.plotting-summary-selector{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-.plotting-summary-selector-label{color:#68716d;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.06em}
-.plotting-summary-options{display:flex;flex-wrap:wrap;gap:7px}
-.plotting-summary-option{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #dfe5e1;border-radius:999px;background:#fff;color:#66706b;font-size:10px;font-weight:750;cursor:pointer}
-.plotting-summary-option:has(input:checked){border-color:#16834b;background:#f2faf5;color:#16834b}
-.plotting-summary-option input{accent-color:#16834b}
-.plotting-summary-apply,.plotting-summary-reset{padding:7px 10px;border-radius:9px;font-size:10px;font-weight:800;text-decoration:none}
-.plotting-summary-apply{border:0;background:#16834b;color:#fff;cursor:pointer}
-.plotting-summary-reset{border:1px solid #dfe4e1;color:#68716d;background:#fff}
+
+
+
+
+
+
+
+
+
+
 .plotting-summary-note{display:block;margin-top:5px;color:#87918c;font-size:9px;font-weight:700}
 .plotting-category-row>span small{color:#9aa29e;font-size:9px;font-weight:700}
 .plotting-card-metrics .retention{font-size:10px;font-weight:900}
 .plotting-card-metrics .retention.is-good{border-color:#b9dfc7;background:#eefaf2;color:#16834b}
 .plotting-card-metrics .retention.is-mid{border-color:#f0d58c;background:#fff9e9;color:#b77700}
 .plotting-card-metrics .retention.is-low{border-color:#f1bbc4;background:#fff1f2;color:#d9344f}
-@media(max-width:760px){.plotting-summary-selector{align-items:flex-start}.plotting-summary-options{width:100%}.plotting-summary-option{flex:1 1 calc(50% - 7px);justify-content:center}.plotting-summary-apply{flex:1}}
+@media(max-width:760px){}
