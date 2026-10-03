@@ -37,7 +37,10 @@ if ($retentionContext && $retentionAk !== '' && $retentionPreviousSource !== '' 
 
         if ($retentionNames) {
             $nameLines = array_map(static fn(string $name): string => '• ' . $name, $retentionNames);
-            $retentionPrefillMessage = "Assalamu'alaikum Kak, izin menginformasikan peserta yang tidak melanjutkan pada periode berikutnya dari {$retentionAk}:\n\n"
+            $retentionNotContinuedCount = count($retentionNames);
+            $retentionPreviousCount = count($retentionPrevious);
+            $retentionPrefillMessage = "Assalamu'alaikum {nama}\n\n"
+                . "Izin menginformasikan {$retentionNotContinuedCount} peserta yang tidak melanjutkan pada periode berikutnya dari {$retentionAk} dari total {$retentionPreviousCount}:\n\n"
                 . implode("\n", $nameLines)
                 . "\n\nMohon dibantu follow up bila diperlukan. Jazakallahu khairan.";
         } else {
