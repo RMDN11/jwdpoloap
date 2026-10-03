@@ -14,12 +14,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? nu
 $previousSource = trim((string)($_POST['previous_source'] ?? ''));
 $currentSource = trim((string)($_POST['current_source'] ?? ''));
 $retentionAk = trim((string)($_POST['retention_ak'] ?? ''));
+$openGroups = trim((string)($_POST['open_groups'] ?? '[]'));
+$scrollY = max(0, (int)($_POST['scroll_y'] ?? 0));
 
-// Retention Rate dipakai dari workspace "Semua AK". Setelah direct send,
-    // jangan pindahkan filter ke AK yang baru saja dikirim.
-    $redirect = $redirectBase . '&previous_source=' . rawurlencode($previousSource)
-        . '&current_source=' . rawurlencode($currentSource)
-        . '&ak=&analyze=1';
+// Kembali ke workspace Semua AK dan pulihkan konteks tampilan setelah send.
+$redirect = $redirectBase . '&previous_source=' . rawurlencode($previousSource)
+    . '&current_source=' . rawurlencode($currentSource)
+    . '&ak=&analyze=1'
+    . '&open_groups=' . rawurlencode($openGroups)
+    . '&scroll_y=' . $scrollY;
 
 if ($previousSource === '' || $currentSource === '' || $retentionAk === '') {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Konteks retention tidak lengkap.'];
