@@ -342,6 +342,7 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
                         <input type="hidden" name="template_id" id="retentionTemplateId" value="<?= (int)$templates[0]['id'] ?>">
                         <input type="hidden" name="return_query" value="<?= htmlspecialchars($returnQuery, ENT_QUOTES) ?>">
                         <input type="hidden" name="open_groups" id="retentionOpenGroups" value="<?= htmlspecialchars((string)($_GET['open_groups'] ?? '[]'), ENT_QUOTES) ?>">
+                        <input type="hidden" name="scroll_y" id="retentionScrollY" value="<?= (int)($_GET['scroll_y'] ?? 0) ?>">
 
                         <div class="retention-compose-grid">
                             <label class="reminder-field">
@@ -766,6 +767,12 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
     form.addEventListener('submit', event => {
         sync();
         syncOpenGroups();
+
+        const scrollYInput = document.getElementById('retentionScrollY');
+        if (scrollYInput) {
+            scrollYInput.value = String(Math.max(0, Math.round(window.scrollY || window.pageYOffset || 0)));
+        }
+
         const selected = getSelected();
 
         if (!selected.length || !getTemplate()) {
@@ -817,5 +824,15 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
     });
 
     sync();
+
+    const restoreScrollY = <?= (int)($_GET['scroll_y'] ?? 0) ?>;
+    if (restoreScrollY > 0) {
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                window.scrollTo(0, restoreScrollY);
+                updateFollowupFloat();
+            });
+        });
+    }
 })();
 </script>

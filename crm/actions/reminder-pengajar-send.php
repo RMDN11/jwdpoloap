@@ -9,15 +9,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? nu
 }
 
 $message = trim((string)($_POST['message'] ?? ''));
+$scrollY = isset($_POST['scroll_y']) && is_scalar($_POST['scroll_y'])
+    ? max(0, min(100000, (int)$_POST['scroll_y']))
+    : 0;
+$redirect = '../index.php?page=reminder-pengajar' . ($scrollY > 0 ? '&scroll_y=' . $scrollY : '');
+
 if ($message === '') {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pesan tidak boleh kosong.'];
-    header('Location: ../index.php?page=reminder-pengajar');
+    header('Location: ' . $redirect);
     exit;
 }
 
 if (mb_strlen($message) > 2000) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pesan terlalu panjang. Maksimal 2000 karakter.'];
-    header('Location: ../index.php?page=reminder-pengajar');
+    header('Location: ' . $redirect);
     exit;
 }
 
@@ -34,7 +39,7 @@ if (is_array($raw)) {
 $ids = array_keys($ids);
 if (!$ids) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pilih minimal satu pengajar.'];
-    header('Location: ../index.php?page=reminder-pengajar');
+    header('Location: ' . $redirect);
     exit;
 }
 
@@ -52,7 +57,7 @@ $stmt = $conn->prepare("
 ");
 if (!$stmt) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menyiapkan data pengajar.'];
-    header('Location: ../index.php?page=reminder-pengajar');
+    header('Location: ' . $redirect);
     exit;
 }
 
@@ -65,7 +70,7 @@ $stmt->close();
 
 if (!$targets) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pengajar yang dipilih tidak ditemukan.'];
-    header('Location: ../index.php?page=reminder-pengajar');
+    header('Location: ' . $redirect);
     exit;
 }
 
@@ -161,5 +166,5 @@ $_SESSION['crm_flash'] = [
     'message' => $flash
 ];
 
-header('Location: ../index.php?page=reminder-pengajar');
+header('Location: ' . $redirect);
 exit;
