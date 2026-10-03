@@ -221,6 +221,20 @@ function crmReminderCsvList(): array
     return array_slice($items, 0, 30);
 }
 
+function crmReminderCsvDelete(string $filename): void
+{
+    $path = crmReminderCsvPath($filename);
+    $metaPath = dirname($path) . DIRECTORY_SEPARATOR . pathinfo($path, PATHINFO_FILENAME) . '.json';
+
+    if (is_file($metaPath) && !unlink($metaPath)) {
+        throw new RuntimeException('Metadata CSV gagal dihapus.');
+    }
+
+    if (!unlink($path)) {
+        throw new RuntimeException('File CSV gagal dihapus.');
+    }
+}
+
 function crmReminderCsvImportFile(string $tmpPath, string $originalFilename, string $label, mysqli $conn): array
 {
     $parsed = crmReminderCsvParse($tmpPath);
