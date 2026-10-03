@@ -32,6 +32,13 @@ $redirectToRetention = static function (string $query): string {
         $params['analyze'] = '1';
     }
 
+    $scrollY = isset($_POST['scroll_y']) && is_scalar($_POST['scroll_y'])
+        ? max(0, min(100000, (int)$_POST['scroll_y']))
+        : 0;
+    if ($scrollY > 0) {
+        $params['scroll_y'] = (string)$scrollY;
+    }
+
     if (isset($_POST['open_groups']) && is_scalar($_POST['open_groups'])) {
         $openGroups = json_decode((string)$_POST['open_groups'], true);
         if (is_array($openGroups)) {
