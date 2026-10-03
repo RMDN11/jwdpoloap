@@ -18,4 +18,9 @@ expectSame(true, plottingCurrentMatchesCategory(['total_peserta' => 9, 'total_ga
 expectSame(false, plottingCurrentMatchesCategory(['total_peserta' => 12, 'total_gaji' => 600000], 'peserta_dikit', 10, 650000), 'Participant filter must reject current batch above threshold');
 expectSame(true, plottingCurrentMatchesCategory(['total_peserta' => 12, 'total_gaji' => 600000], 'gaji_rendah', 10, 650000), 'Salary filter must use current batch');
 
-echo "7/7 plotting tests passed\n";
+expectSame(true, plottingCurrentMatchesCategories(['total_peserta' => 9, 'total_gaji' => 600000], ['peserta_dikit', 'gaji_rendah'], 10, 650000), 'Multiple category filters should use AND logic');
+expectSame(false, plottingCurrentMatchesCategories(['total_peserta' => 9, 'total_gaji' => 700000], ['peserta_dikit', 'gaji_rendah'], 10, 650000), 'Multiple category filters should reject when one condition fails');
+expectSame(true, plottingCurrentMatchesCategories(['total_peserta' => 0, 'total_gaji' => 0], ['belum_ada', 'gaji_rendah'], 10, 650000), 'Empty group should match combined empty/salary filters');
+expectSame(true, plottingCurrentMatchesCategories(['total_peserta' => 20, 'total_gaji' => 2000000], [], 10, 650000), 'No category filter should show all groups');
+
+echo "11/11 plotting tests passed\n";
