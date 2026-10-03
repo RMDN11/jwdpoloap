@@ -65,3 +65,60 @@
   .reminder-person-status{display:none}
 }
 
+
+
+/* Retention -> Reminder Pengajar context */
+.reminder-retention-context{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    margin:0 0 14px;
+    padding:11px 12px;
+    border:1px solid #d9ebe0;
+    border-radius:12px;
+    background:#f5fbf7;
+    color:#365449;
+}
+
+.reminder-retention-context > i{
+    flex:0 0 auto;
+    margin-top:2px;
+    color:#168044;
+}
+
+.reminder-retention-context strong,
+.reminder-retention-context span{
+    display:block;
+}
+
+.reminder-retention-context strong{
+    font-size:11px;
+    color:#18352a;
+}
+
+.reminder-retention-context span{
+    margin-top:3px;
+    font-size:10px;
+    line-height:1.45;
+    color:#65776e;
+}
+
+.reminder-retention-context.error{
+    border-color:#f3d1d1;
+    background:#fff7f7;
+}
+
+.reminder-retention-context.error > i{
+    color:#dc2626;
+}
+
+.reminder-retention-context.error span{
+    margin-top:0;
+    color:#9f3434;
+}
+
+@media(max-width:700px){
+    .reminder-retention-context{
+        padding:10px;
+    }
+}
