@@ -459,8 +459,23 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
 
                                 <div class="retention-detail-panel not-continued">
                                     <div class="retention-detail-panel-head">
-                                        <div><strong>Tidak lanjut</strong><small><?= count($notContinuedForGroup) ?> peserta</small></div>
-                                        <span><i class="fa-solid fa-user-minus"></i></span>
+                                        <div>
+                                            <strong>Tidak lanjut</strong>
+                                            <small><?= count($notContinuedForGroup) ?> peserta</small>
+                                        </div>
+                                        <div class="retention-detail-panel-actions">
+                                            <button
+                                                type="button"
+                                                class="retention-copy-names-btn"
+                                                data-copy-names
+                                                title="Salin nama peserta yang tidak lanjut"
+                                                aria-label="Salin nama peserta yang tidak lanjut"
+                                            >
+                                                <i class="fa-regular fa-copy" aria-hidden="true"></i>
+                                                <span>Salin nama</span>
+                                            </button>
+                                            <span class="retention-detail-status-icon"><i class="fa-solid fa-user-minus"></i></span>
+                                        </div>
                                     </div>
 
                                     <?php if (!$notContinuedForGroup): ?>
@@ -650,6 +665,62 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
         sendButton.disabled = selected.length < 1 || !getTemplate();
         renderPreview();
     };
+
+    const showCopyFeedback = (button, message) => {
+        if (!button) return;
+        const label = button.querySelector('span');
+        const icon = button.querySelector('i');
+        const originalLabel = label?.textContent || 'Salin nama';
+        const originalIcon = icon?.className || 'fa-regular fa-copy';
+
+        if (label) label.textContent = message;
+        if (icon) icon.className = 'fa-solid fa-check';
+
+        window.setTimeout(() => {
+            if (label) label.textContent = originalLabel;
+            if (icon) icon.className = originalIcon;
+        }, 1400);
+    };
+
+    document.querySelectorAll('[data-copy-names]').forEach(button => {
+        button.addEventListener('click', async () => {
+            const panel = button.closest('.retention-detail-panel.not-continued');
+            if (!panel) return;
+
+            const names = [...panel.querySelectorAll('.retention-person strong')]
+                .map(item => item.textContent.trim())
+                .filter(Boolean);
+
+            if (!names.length) {
+                showCopyFeedback(button, 'Kosong');
+                return;
+            }
+
+            const text = names.join('\n');
+
+            try {
+                await navigator.clipboard.writeText(text);
+                showCopyFeedback(button, 'Tersalin');
+            } catch (error) {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+
+                try {
+                    document.execCommand('copy');
+                    showCopyFeedback(button, 'Tersalin');
+                } catch (fallbackError) {
+                    showCopyFeedback(button, 'Gagal');
+                } finally {
+                    textarea.remove();
+                }
+            }
+        });
+    });
 
     targets.forEach(item => item.addEventListener('change', sync));
     templateSelect?.addEventListener('change', () => {
