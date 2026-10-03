@@ -56,10 +56,10 @@ $halaqohFilter = trim((string)($_GET['halaqoh'] ?? ''));
 $showSalary = ($_GET['show_salary'] ?? '1') !== '0';
 
 $summaryKeys = [
-    'non_tc' => 'NON TC',
-    'tc' => 'TC / CILIK',
+    'non_tc' => 'NON TC × Rp 135K',
+    'tc' => 'TC / CILIK × Rp 155K',
     'total' => 'TOTAL PESERTA',
-    'cop' => 'COP (Rp 30K / Halaqoh)',
+    'cop' => 'COP × Rp 30K',
     'gaji' => 'GAJI',
     'batch' => 'BATCH SEKARANG',
 ];
@@ -69,7 +69,9 @@ $visibleSummary = is_array($summaryParam) ? array_values(array_intersect(array_k
 if (!$summaryControlled) {
     $visibleSummary = array_keys($summaryKeys);
 }
-$copPerHalaqoh = 30000;
+$nonTcPerPeserta = 135000;
+$tcPerPeserta = 155000;
+$copPerPeserta = 30000;
 
 function plottingCsvRows(string $filename, string $csvDir): array
 {
@@ -212,7 +214,9 @@ $totalCurrentQuota = array_sum(array_column($dataB, 'total_peserta'));
 $totalCurrentSalary = array_sum(array_column($dataB, 'total_gaji'));
 $totalCurrentTc = array_sum(array_column($dataB, 'total_tc'));
 $totalCurrentNonTc = array_sum(array_column($dataB, 'total_non_tc'));
-$totalCop = count($dataB) * $copPerHalaqoh;
+$totalNonTcFee = $totalCurrentNonTc * $nonTcPerPeserta;
+$totalTcFee = $totalCurrentTc * $tcPerPeserta;
+$totalCop = $totalCurrentQuota * $copPerPeserta;
 $formatRupiah = static fn(int $value): string => 'Rp ' . number_format($value, 0, ',', '.');
 $formatPercent = static fn(float $value): string => rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',') . '%';
 ?>
@@ -253,10 +257,10 @@ $formatPercent = static fn(float $value): string => rtrim(rtrim(number_format($v
             </form>
         </section>
         <section class="plotting-summary-grid">
-            <?php if (in_array('non_tc', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['non_tc']) ?></span><strong><?= $totalCurrentNonTc ?></strong></div><?php endif; ?>
-            <?php if (in_array('tc', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-blue"><span><?= htmlspecialchars($summaryKeys['tc']) ?></span><strong><?= $totalCurrentTc ?></strong></div><?php endif; ?>
+            <?php if (in_array('non_tc', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['non_tc']) ?></span><strong><?= $formatRupiah($totalNonTcFee) ?></strong><small class="plotting-summary-note"><?= $totalCurrentNonTc ?> × <?= $formatRupiah($nonTcPerPeserta) ?></small></div><?php endif; ?>
+            <?php if (in_array('tc', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-blue"><span><?= htmlspecialchars($summaryKeys['tc']) ?></span><strong><?= $formatRupiah($totalTcFee) ?></strong><small class="plotting-summary-note"><?= $totalCurrentTc ?> × <?= $formatRupiah($tcPerPeserta) ?></small></div><?php endif; ?>
             <?php if (in_array('total', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-green"><span><?= htmlspecialchars($summaryKeys['total']) ?></span><strong><?= $totalCurrentQuota ?></strong></div><?php endif; ?>
-            <?php if (in_array('cop', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['cop']) ?></span><strong><?= $formatRupiah($totalCop) ?></strong><small class="plotting-summary-note"><?= count($dataB) ?> halaqoh × <?= $formatRupiah($copPerHalaqoh) ?></small></div><?php endif; ?>
+            <?php if (in_array('cop', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['cop']) ?></span><strong><?= $formatRupiah($totalCop) ?></strong><small class="plotting-summary-note"><?= $totalCurrentQuota ?> peserta × <?= $formatRupiah($copPerPeserta) ?></small></div><?php endif; ?>
             <?php if (in_array('gaji', $visibleSummary, true)): ?><div class="plotting-summary-card"><span><?= htmlspecialchars($summaryKeys['gaji']) ?></span><strong><?= $formatRupiah($totalCurrentSalary) ?></strong></div><?php endif; ?>
             <?php if (in_array('batch', $visibleSummary, true)): ?><div class="plotting-summary-card plotting-summary-card-dark"><span><?= htmlspecialchars($summaryKeys['batch']) ?></span><strong><?= htmlspecialchars($csvShortLabel($sourceB ?: $sourceA)) ?></strong></div><?php endif; ?>
         </section>
