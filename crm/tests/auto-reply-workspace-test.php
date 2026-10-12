@@ -3,11 +3,12 @@ declare(strict_types=1);
 
 $index = file_get_contents(__DIR__ . '/../index.php');
 $page = file_get_contents(__DIR__ . '/../pages/auto-reply.php');
+$action = file_get_contents(__DIR__ . '/../actions/auto-reply.php');
 $more = file_get_contents(__DIR__ . '/../pages/more.php');
 $css = file_get_contents(__DIR__ . '/../assets/css/auto-reply.css');
 $core = file_get_contents(__DIR__ . '/../assets/css/workspace-core.css');
 
-if ($index === false || $page === false || $more === false || $css === false || $core === false) {
+if ($index === false || $page === false || $action === false || $more === false || $css === false || $core === false) {
     throw new RuntimeException('Cannot read CRM auto reply workspace files.');
 }
 
@@ -72,6 +73,19 @@ foreach (['max-width:1280px', '--crm-green:#168044', 'padding-bottom:104px', 'gr
     if (!str_contains($core, $required)) {
         throw new RuntimeException("Missing shared workspace core rule: {$required}");
     }
+}
+
+if (!str_contains($index, "require __DIR__ . '/actions/auto-reply.php';")) {
+    throw new RuntimeException('Auto Reply POST controller is not loaded before page output.');
+}
+if (strpos($index, "require __DIR__ . '/actions/auto-reply.php';") > strpos($index, '<!DOCTYPE html>')) {
+    throw new RuntimeException('Auto Reply POST controller must run before HTML output.');
+}
+if (!str_contains($action, "header('Location: index.php?page=auto-reply', true, 303)")) {
+    throw new RuntimeException('Auto Reply POST controller must use a 303 redirect.');
+}
+if (str_contains($page, "header('Location: index.php?page=auto-reply')")) {
+    throw new RuntimeException('Auto Reply page renderer still contains a late redirect.');
 }
 
 if (str_contains($page, '<style>')) {

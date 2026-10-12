@@ -7,6 +7,11 @@ $page = $_GET['page'] ?? 'home';
 $allowedPages = ['home', 'chat', 'templates', 'auto-reply', 'manage-groups', 'analytics', 'reminder', 'reminder-pembayaran', 'reminder-csv', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'reminder-retention', 'plotting', 'more', 'activity', 'group'];
 if (!in_array($page, $allowedPages, true)) $page = 'home';
 
+// Process Auto Reply POST actions before any HTML is emitted so PRG redirects work.
+if ($page === 'auto-reply' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_reply_action'])) {
+    require __DIR__ . '/actions/auto-reply.php';
+}
+
 $pageFile = __DIR__ . '/pages/' . $page . '.php';
 $crmMaxLogId = 0;
 $crmMaxLogResult = $conn->query("SELECT COALESCE(MAX(id), 0) AS max_id FROM log_wa");
