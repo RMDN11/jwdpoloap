@@ -78,4 +78,8 @@ if (str_contains($page, '<style>')) {
     throw new RuntimeException('Auto Reply still contains inline style blocks.');
 }
 
+if (!preg_match('/^<\?php\s+declare\(strict_types=1\);\s+\/\/ CRM pages may process POST actions.*?ob_start\(\);/s', $index)) {
+    throw new RuntimeException('CRM output buffering must start before the shell renders so page actions can redirect safely.');
+}
+
 echo "CRM Auto Reply workspace test passed.\n";
