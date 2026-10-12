@@ -34,6 +34,13 @@ foreach ([
     'auto_reply_rules',
     'AutoReplyEngine',
     'crmVerifyCsrf',
+    'FILTER_VALIDATE_INT',
+    'Prioritas harus berupa angka 1 sampai 999.',
+    'Menyimpan perubahan',
+    'Data sama, tidak ada perubahan yang diperlukan.',
+    'SELECT id FROM auto_reply_rules WHERE id = ? LIMIT 1',
+    'Status sudah sesuai, tidak ada perubahan yang diperlukan.',
+    'autoReplySubmit.disabled = true',
     'components/topbar.php',
     'components/bottom-nav.php',
 ] as $required) {

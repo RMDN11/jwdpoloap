@@ -35,11 +35,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_reply_action']))
     if (in_array($action, ['add', 'edit'], true)) {
         $keyword = trim((string)($_POST['keyword'] ?? ''));
         $reply = trim((string)($_POST['reply'] ?? ''));
-        $priority = max(1, (int)($_POST['priority'] ?? 1));
+        $priorityRaw = trim((string)($_POST['priority'] ?? '1'));
+        $priority = filter_var($priorityRaw, FILTER_VALIDATE_INT);
         $ruleId = (int)($_POST['rule_id'] ?? 0);
 
-        if ($keyword === '' || $reply === '' || ($action === 'edit' && $ruleId <= 0)) {
+        if ($keyword === '' || $reply === '') {
             crmAutoReplyFlash('error', 'Keyword dan balasan wajib diisi.');
+            crmAutoReplyRedirect();
+        }
+
+        if (mb_strlen($keyword) > 120) {
+            crmAutoReplyFlash('error', 'Keyword maksimal 120 karakter.');
+            crmAutoReplyRedirect();
+        }
+
+        if ($priority === false || $priority < 1 || $priority > 999) {
+            crmAutoReplyFlash('error', 'Prioritas harus berupa angka 1 sampai 999.');
+            crmAutoReplyRedirect();
+        }
+
+        if ($action === 'edit' && $ruleId <= 0) {
+            crmAutoReplyFlash('error', 'ID rule tidak valid untuk diedit.');
             crmAutoReplyRedirect();
         }
 
@@ -74,16 +90,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_reply_action']))
                 $affected = $stmt->affected_rows;
                 $error = $stmt->error;
                 $stmt->close();
+
+                if ($ok && $affected === 0) {
+                    $check = $conn->prepare('SELECT id FROM auto_reply_rules WHERE id = ? LIMIT 1');
+                    $exists = false;
+                    if ($check) {
+                        $check->bind_param('i', $ruleId);
+                        $check->execute();
+                        $check->store_result();
+                        $exists = $check->num_rows > 0;
+                        $check->close();
+                    }
+                    if (!$exists) {
+                        $ok = false;
+                        $error = 'Rule tidak ditemukan. Mungkin sudah dihapus oleh pengguna lain.';
+                    }
+                }
             } else {
                 $ok = false;
                 $affected = 0;
                 $error = $conn->error;
             }
 
+            // UPDATE yang sukses tetap dianggap sukses walaupun nilai akhirnya sama (affected_rows = 0).
             crmAutoReplyFlash(
-                $ok ? ($affected > 0 ? 'success' : 'warning') : 'error',
+                $ok ? 'success' : 'error',
                 $ok
-                    ? ($affected > 0 ? 'Rule auto reply berhasil diperbarui.' : 'Tidak ada perubahan data.')
+                    ? ($affected > 0 ? 'Rule auto reply berhasil diperbarui.' : 'Data sama, tidak ada perubahan yang diperlukan.')
                     : 'Gagal memperbarui rule: ' . $error
             );
         }
@@ -116,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_reply_action']))
         crmAutoReplyFlash(
             $ok ? 'success' : 'error',
             $ok
-                ? ($affected > 0 ? 'Status rule diperbarui.' : 'Rule tidak ditemukan atau status sudah sama.')
+                ? ($affected > 0 ? 'Status rule diperbarui.' : 'Status sudah sesuai, tidak ada perubahan yang diperlukan.')
                 : 'Gagal memperbarui status: ' . $error
         );
         crmAutoReplyRedirect();
@@ -185,6 +218,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_reply_action']))
         );
         crmAutoReplyRedirect();
     }
+
+    crmAutoReplyFlash('error', 'Aksi Auto Reply tidak dikenal.');
+    crmAutoReplyRedirect();
 }
 
 $rules = [];
@@ -417,7 +453,31 @@ foreach ($rules as $rule) {
         priority.value = '1';
         title.textContent = 'Tambah Rule';
         submitText.textContent = 'Simpan Rule';
+        const submitButton = document.getElementById('autoReplySubmit');
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.classList.remove('is-saving');
+            submitButton.querySelector('i').className = 'fa-solid fa-floppy-disk';
+        }
     }
+
+    form?.addEventListener('submit', event => {
+        if (!form.reportValidity()) {
+            event.preventDefault();
+            return;
+        }
+
+        const submitButton = document.getElementById('autoReplySubmit');
+        if (!submitButton || submitButton.disabled) {
+            event.preventDefault();
+            return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.classList.add('is-saving');
+        submitButton.querySelector('i').className = 'fa-solid fa-spinner fa-spin';
+        submitText.textContent = action.value === 'edit' ? 'Menyimpan perubahan…' : 'Menyimpan rule…';
+    });
 
     document.getElementById('autoReplyNew')?.addEventListener('click', () => {
         resetForm();

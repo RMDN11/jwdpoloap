@@ -49,3 +49,6 @@
   .auto-reply-note{margin-inline:14px}
   .auto-reply-modal-head{padding:14px}
 }
+
+.auto-reply-editor .crm-btn:disabled{opacity:.72;cursor:wait;transform:none}
+.auto-reply-editor .crm-btn.is-saving{box-shadow:0 0 0 3px rgba(22,128,68,.12)}
