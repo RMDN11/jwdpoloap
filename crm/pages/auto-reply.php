@@ -90,6 +90,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_reply_action']))
                 $affected = $stmt->affected_rows;
                 $error = $stmt->error;
                 $stmt->close();
+
+                if ($ok && $affected === 0) {
+                    $check = $conn->prepare('SELECT id FROM auto_reply_rules WHERE id = ? LIMIT 1');
+                    $exists = false;
+                    if ($check) {
+                        $check->bind_param('i', $ruleId);
+                        $check->execute();
+                        $check->store_result();
+                        $exists = $check->num_rows > 0;
+                        $check->close();
+                    }
+                    if (!$exists) {
+                        $ok = false;
+                        $error = 'Rule tidak ditemukan. Mungkin sudah dihapus oleh pengguna lain.';
+                    }
+                }
             } else {
                 $ok = false;
                 $affected = 0;
@@ -133,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_reply_action']))
         crmAutoReplyFlash(
             $ok ? 'success' : 'error',
             $ok
-                ? ($affected > 0 ? 'Status rule diperbarui.' : 'Rule tidak ditemukan atau status sudah sama.')
+                ? ($affected > 0 ? 'Status rule diperbarui.' : 'Status sudah sesuai, tidak ada perubahan yang diperlukan.')
                 : 'Gagal memperbarui status: ' . $error
         );
         crmAutoReplyRedirect();
