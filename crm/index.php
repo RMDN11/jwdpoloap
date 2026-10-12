@@ -1,6 +1,12 @@
 <?php
 declare(strict_types=1);
 
+// CRM pages may process POST actions after the shell starts rendering.
+// Buffer output so header-based redirects still work from those handlers.
+if (!ob_get_level()) {
+    ob_start();
+}
+
 require_once __DIR__ . '/config/bootstrap.php';
 
 $page = $_GET['page'] ?? 'home';
