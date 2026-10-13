@@ -32,7 +32,6 @@ $counts = [
     'gagal' => crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='gagal'")
 ];
 $typeCounts = [
-    'kategori' => crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup"),
     'rutin' => crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE tipe_jadwal='harian'"),
     'sekali' => crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE tipe_jadwal IN ('sekali','sekarang')")
 ];
@@ -79,7 +78,7 @@ $displayStatus = static function (array $row): array {
 
 <section class="group-card group-schedule-management">
   <div class="group-schedule-toolbar">
-    <div><span class="group-kicker">Daftar jadwal</span><h2><?= $h(['kategori'=>'Berdasarkan kategori','rutin'=>'Jadwal rutin','sekali'=>'Jadwal sekali kirim'][$jenis]) ?></h2><p class="group-schedule-caption">Maksimal 300 jadwal terbaru ditampilkan.</p></div>
+    <div><span class="group-kicker">Daftar jadwal</span><h2><?= $h(['kategori'=>'Jadwal berdasarkan kategori','rutin'=>'Jadwal rutin','sekali'=>'Jadwal sekali kirim'][$jenis]) ?></h2><p class="group-schedule-caption">Maksimal 300 jadwal terbaru ditampilkan.</p><a class="group-schedule-create" href="../kirimgrup.php"><i class="fa-solid fa-plus"></i><span>Buat jadwal baru</span></a></div>
     <form method="get" class="group-schedule-filter">
       <input type="hidden" name="page" value="group-schedules"><input type="hidden" name="jenis" value="<?= $h($jenis) ?>">
       <label for="groupScheduleStatus">Status</label>
@@ -92,9 +91,8 @@ $displayStatus = static function (array $row): array {
   </div>
 
   <nav class="group-schedule-tabs" aria-label="Jenis jadwal">
-    <a class="<?= $jenis === 'kategori' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=kategori&amp;status=<?= $h($status) ?>"><i class="fa-solid fa-layer-group"></i><span>Kategori</span><b><?= (int)$typeCounts['kategori'] ?></b></a>
-    <a class="<?= $jenis === 'rutin' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=rutin&amp;status=<?= $h($status) ?>"><i class="fa-solid fa-arrows-rotate"></i><span>Rutin</span><b><?= (int)$typeCounts['rutin'] ?></b></a>
-    <a class="<?= $jenis === 'sekali' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=sekali&amp;status=<?= $h($status) ?>"><i class="fa-regular fa-calendar"></i><span>Sekali</span><b><?= (int)$typeCounts['sekali'] ?></b></a>
+    <a class="<?= $jenis === 'rutin' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=rutin&amp;status=<?= $h($status) ?>"><i class="fa-solid fa-arrows-rotate"></i><span>Rutin</span></a>
+    <a class="<?= $jenis === 'sekali' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=sekali&amp;status=<?= $h($status) ?>"><i class="fa-regular fa-calendar"></i><span>Sekali</span></a>
   </nav>
 
   <?php if (!$rows): ?>
