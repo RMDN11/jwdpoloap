@@ -16,6 +16,25 @@ function writeLog($message) {
 
 writeLog("=== CRON DIMULAI ===");
 
+function updateScheduleRow(mysqli $conn, int $id, string $sql, string $label): bool {
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        writeLog("ERROR UPDATE jadwal ID $id ($label): prepare gagal - " . $conn->error);
+        return false;
+    }
+    $stmt->bind_param('i', $id);
+    $ok = $stmt->execute();
+    if (!$ok) {
+        writeLog("ERROR UPDATE jadwal ID $id ($label): execute gagal - " . $stmt->error);
+    } elseif ($stmt->affected_rows < 0) {
+        writeLog("WARNING UPDATE jadwal ID $id ($label): affected_rows tidak valid");
+    } else {
+        writeLog("UPDATE jadwal ID $id ($label): berhasil, affected_rows=" . $stmt->affected_rows);
+    }
+    $stmt->close();
+    return $ok;
+}
+
 $secretToken = "jwd_secure_cron_2026";
 $isCli = (PHP_SAPI === 'cli');
 
@@ -97,7 +116,7 @@ if ($result->num_rows > 0) {
                     CURLOPT_TIMEOUT => 30,
                 ]);
             } else {
-                $conn->query("UPDATE jadwal_pesan_grup SET status = 'gagal' WHERE id = " . (int)$row['id']);
+                updateScheduleRow($conn, (int)$row['id'], "UPDATE jadwal_pesan_grup SET status = 'gagal' WHERE id = ?", 'media tidak ditemukan');
                 writeLog("ERROR: File media tidak ditemukan untuk ID " . $row['id'] . " | Path: " . $imagePathLocal);
                 $totalDiproses++;
                 continue;
@@ -132,13 +151,13 @@ if ($result->num_rows > 0) {
 
         if ($err || $httpcode < 200 || $httpcode >= 300) {
             writeLog("ERROR kirim ID " . $row['id'] . " | HTTP " . $httpcode . " | cURL: " . ($err ?: '-') . " | Respons: " . substr((string)$response, 0, 500));
-            $conn->query("UPDATE jadwal_pesan_grup SET status = 'gagal' WHERE id = " . (int)$row['id']);
+            updateScheduleRow($conn, (int)$row['id'], "UPDATE jadwal_pesan_grup SET status = 'gagal' WHERE id = ?", 'API gagal');
         } else {
             writeLog("API menerima kiriman ID " . $row['id'] . " | HTTP " . $httpcode . " | Respons: " . substr((string)$response, 0, 300));
             if ($row['tipe_jadwal'] === 'harian') {
-                $conn->query("UPDATE jadwal_pesan_grup SET terakhir_dikirim = '{$tanggalIni}' WHERE id = " . $row['id']);
+                updateScheduleRow($conn, (int)$row['id'], "UPDATE jadwal_pesan_grup SET terakhir_dikirim = CURDATE() WHERE id = ?", 'catat kiriman rutin');
             } else {
-                $conn->query("UPDATE jadwal_pesan_grup SET status = 'terkirim', terakhir_dikirim = '{$tanggalIni}' WHERE id = " . $row['id']);
+                updateScheduleRow($conn, (int)$row['id'], "UPDATE jadwal_pesan_grup SET status = 'terkirim', terakhir_dikirim = CURDATE() WHERE id = ?", 'tandai terkirim sekali');
             }
         }
         $totalDiproses++;
