@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/bootstrap.php';
 
 $page = $_GET['page'] ?? 'home';
-$allowedPages = ['home', 'chat', 'templates', 'auto-reply', 'manage-groups', 'analytics', 'reminder', 'reminder-pembayaran', 'reminder-csv', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'reminder-retention', 'plotting', 'more', 'activity', 'group'];
+$allowedPages = ['home', 'chat', 'templates', 'auto-reply', 'manage-groups', 'analytics', 'reminder', 'reminder-pembayaran', 'reminder-csv', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'reminder-retention', 'plotting', 'more', 'activity', 'group', 'group-schedules'];
 if (!in_array($page, $allowedPages, true)) $page = 'home';
 
 // Process Auto Reply POST actions before any HTML is emitted so PRG redirects work.
@@ -47,6 +47,9 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     <?php endif; ?>
     <?php if ($page === 'group'): ?>
         <link rel="stylesheet" href="assets/css/group-mobile.css?v=<?= filemtime(__DIR__ . '/assets/css/group-mobile.css') ?>">
+    <?php endif; ?>
+    <?php if ($page === 'group-schedules'): ?>
+        <link rel="stylesheet" href="assets/css/group-schedules.css?v=<?= filemtime(__DIR__ . '/assets/css/group-schedules.css') ?>">
     <?php endif; ?>
     <?php if (in_array($page, ['reminder', 'reminder-pembayaran', 'reminder-csv', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'reminder-retention'], true)): ?>
         <link rel="stylesheet" href="assets/css/reminder.css?v=<?= filemtime(__DIR__ . '/assets/css/reminder.css') ?>">
