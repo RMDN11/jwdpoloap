@@ -170,7 +170,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_manual_trigger'])
             if ($res['status'] == 'TERKIRIM') {
                 $successCount++;
                 if ($tipeJadwal == 'sekali') {
-                    $conn->query("UPDATE jadwal_pesan_grup SET status = 'sent' WHERE id = {$row['id']}");
+                    $conn->query("UPDATE jadwal_pesan_grup SET status = 'terkirim' WHERE id = {$row['id']}");
                 } elseif ($tipeJadwal == 'harian') {
                     $conn->query("UPDATE jadwal_pesan_grup SET terakhir_dikirim = CURDATE() WHERE id = {$row['id']}");
                 }
