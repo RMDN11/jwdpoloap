@@ -16,13 +16,20 @@ function writeLog($message) {
 
 writeLog("=== CRON DIMULAI ===");
 
-$secretToken = "jwd_secure_cron_2026"; 
-if (!isset($_GET['token']) || $_GET['token'] !== $secretToken) {
-    writeLog("ERROR: Akses Ditolak - Token tidak valid");
-    die("Akses Ditolak.");
-}
+$secretToken = "jwd_secure_cron_2026";
+$isCli = (PHP_SAPI === 'cli');
 
-writeLog("Token valid - melanjutkan proses");
+if (!$isCli) {
+    $providedToken = $_GET['token'] ?? '';
+    if (!is_string($providedToken) || !hash_equals($secretToken, $providedToken)) {
+        http_response_code(403);
+        writeLog("ERROR: Akses Ditolak - Token tidak valid (web)");
+        die("Akses Ditolak.");
+    }
+    writeLog("Token web valid - melanjutkan proses");
+} else {
+    writeLog("Eksekusi CLI terdeteksi - autentikasi token URL dilewati");
+}
 
 date_default_timezone_set('Asia/Jakarta');
 
@@ -90,7 +97,9 @@ if ($result->num_rows > 0) {
                     CURLOPT_TIMEOUT => 30,
                 ]);
             } else {
-                $conn->query("UPDATE jadwal_pesan_grup SET status = 'failed' WHERE id = " . $row['id']);
+                $conn->query("UPDATE jadwal_pesan_grup SET status = 'gagal' WHERE id = " . (int)$row['id']);
+                writeLog("ERROR: File media tidak ditemukan untuk ID " . $row['id'] . " | Path: " . $imagePathLocal);
+                $totalDiproses++;
                 continue;
             }
         } else {
@@ -121,13 +130,15 @@ if ($result->num_rows > 0) {
         $httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE); 
         curl_close($curl);
 
-        if ($err || $httpcode >= 400) {
-            $conn->query("UPDATE jadwal_pesan_grup SET status = 'failed' WHERE id = " . $row['id']);
+        if ($err || $httpcode < 200 || $httpcode >= 300) {
+            writeLog("ERROR kirim ID " . $row['id'] . " | HTTP " . $httpcode . " | cURL: " . ($err ?: '-') . " | Respons: " . substr((string)$response, 0, 500));
+            $conn->query("UPDATE jadwal_pesan_grup SET status = 'gagal' WHERE id = " . (int)$row['id']);
         } else {
+            writeLog("API menerima kiriman ID " . $row['id'] . " | HTTP " . $httpcode . " | Respons: " . substr((string)$response, 0, 300));
             if ($row['tipe_jadwal'] === 'harian') {
                 $conn->query("UPDATE jadwal_pesan_grup SET terakhir_dikirim = '{$tanggalIni}' WHERE id = " . $row['id']);
             } else {
-                $conn->query("UPDATE jadwal_pesan_grup SET status = 'sent', terakhir_dikirim = '{$tanggalIni}' WHERE id = " . $row['id']);
+                $conn->query("UPDATE jadwal_pesan_grup SET status = 'terkirim', terakhir_dikirim = '{$tanggalIni}' WHERE id = " . $row['id']);
             }
         }
         $totalDiproses++;
