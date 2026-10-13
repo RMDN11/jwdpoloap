@@ -4,7 +4,21 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../config/prospect.php';
 require_once __DIR__ . '/../config/chat.php';
-$blocked = crmGetBlockedNumbers($conn);
+
+$requestStartedAt = microtime(true);
+$stageStartedAt = $requestStartedAt;
+$sendRequestId = bin2hex(random_bytes(4));
+$sendStage = static function (string $stage) use (&$stageStartedAt, $requestStartedAt, $sendRequestId): void {
+    $now = microtime(true);
+    error_log(sprintf(
+        '[CRM_SEND %s] stage=%s stage_ms=%d total_ms=%d',
+        $sendRequestId,
+        $stage,
+        (int)(($now - $stageStartedAt) * 1000),
+        (int)(($now - $requestStartedAt) * 1000)
+    ));
+    $stageStartedAt = $now;
+};
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? null)) {
     http_response_code(403);
@@ -36,8 +50,27 @@ if ($contactId === '') {
 }
 
 $normalizedContact = crmProspectNormalizeNumber($contactId);
+$blockedVariants = array_values(array_unique(array_filter([
+    $normalizedContact,
+    $contactId,
+    str_starts_with($normalizedContact, '62') ? '0' . substr($normalizedContact, 2) : '',
+    $normalizedContact !== '' ? '+' . $normalizedContact : '',
+])));
+$blocked = false;
+if ($blockedVariants) {
+    $placeholders = implode(',', array_fill(0, count($blockedVariants), '?'));
+    $blockedStmt = $conn->prepare("SELECT 1 FROM blocked_peserta WHERE nowa IN ($placeholders) LIMIT 1");
+    if ($blockedStmt) {
+        $types = str_repeat('s', count($blockedVariants));
+        $blockedStmt->bind_param($types, ...$blockedVariants);
+        $blockedStmt->execute();
+        $blocked = $blockedStmt->get_result()->num_rows > 0;
+        $blockedStmt->close();
+    }
+}
+$sendStage('blocked_check');
 
-if (in_array($normalizedContact, array_map('crmProspectNormalizeNumber', $blocked), true)) {
+if ($blocked) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini diblokir sehingga pesan tidak dikirim.'];
     header('Location: ' . $returnUrl($contactId));
     exit;
@@ -56,6 +89,8 @@ if ($conversationStmt) {
     $contact = $conversationStmt->get_result()->fetch_assoc() ?: null;
     $conversationStmt->close();
 }
+
+$sendStage('conversation_lookup');
 
 if (!$contact) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Conversation tidak ditemukan.'];
@@ -80,6 +115,8 @@ if ($customMessage !== '') {
     $messageTemplate = (string)($template['content'] ?? '');
     $templateName = (string)($template['name'] ?? '');
 }
+
+$sendStage('template_resolved');
 
 if ($messageTemplate === '') {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pilih template atau isi pesan custom.'];
@@ -117,13 +154,16 @@ curl_setopt_array($ch, [
     CURLOPT_POST => true,
     CURLOPT_POSTFIELDS => $payload,
     CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $apiToken],
+    CURLOPT_CONNECTTIMEOUT => 5,
     CURLOPT_TIMEOUT => 15,
-    CURLOPT_SSL_VERIFYPEER => false,
+    CURLOPT_SSL_VERIFYPEER => true,
 ]);
 $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curlError = curl_error($ch);
+$curlTotalTime = (float)curl_getinfo($ch, CURLINFO_TOTAL_TIME);
 curl_close($ch);
+$sendStage('provider_http_' . $httpCode . '_curl_ms_' . (int)round($curlTotalTime * 1000));
 
 if ($curlError || $httpCode < 200 || $httpCode >= 300) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => $curlError ?: 'Pesan gagal dikirim. API mengembalikan kode ' . $httpCode . '.'];
@@ -137,6 +177,7 @@ $historyStmtLegacy->execute();
 $legacyRow = $historyStmtLegacy->get_result()->fetch_assoc();
 $historyStmtLegacy->close();
 
+$sendStage('legacy_history_lookup');
 $oldHistory = (string)($legacyRow['template_history'] ?? '');
 $historyEntry = date('d/m/Y H:i') . ' - ' . $templateName;
 $newHistory = $oldHistory !== '' ? $oldHistory . '|||' . $historyEntry : $historyEntry;
@@ -150,6 +191,7 @@ if ($update) {
     $update->close();
 }
 
+$sendStage('legacy_followup_update');
 $historyOk = false;
 $historyStmt = $conn->prepare("INSERT INTO crm_message_history (nowa, nama, template_id, template_name, message, sent_at, status) VALUES (?, ?, NULLIF(?, 0), ?, ?, NOW(), 'sent')");
 if ($historyStmt) {
@@ -158,6 +200,7 @@ if ($historyStmt) {
     $historyStmt->close();
 }
 
+$sendStage('legacy_history_insert');
 // Phase 2: simpan pesan outbound ke conversation layer tanpa memutus flow legacy.
 $chatMessageId = null;
 try {
@@ -217,6 +260,7 @@ try {
     // Conversation layer is additive during migration. Legacy send/history remain authoritative.
 }
 
+$sendStage('conversation_layer_complete');
 if (!$historyOk) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pesan terkirim ke ' . $name . ', tetapi riwayat CRM gagal disimpan.'];
 } elseif (!$updateOk) {
