@@ -108,7 +108,7 @@ $displayStatus = static function (array $row): array {
 
 <section class="group-card group-schedule-management">
   <div class="group-schedule-toolbar">
-    <div><span class="group-kicker">Daftar jadwal</span><h2><?= $h(['kategori'=>'Jadwal berdasarkan kategori','rutin'=>'Jadwal rutin','sekali'=>'Jadwal sekali kirim'][$jenis]) ?></h2><p class="group-schedule-caption">Maksimal 300 jadwal terbaru ditampilkan.</p><a class="group-schedule-create" href="../kirimgrup.php"><i class="fa-solid fa-plus"></i><span>Buat jadwal baru</span></a></div>
+    <div><span class="group-kicker">Daftar jadwal</span><h2><?= $h(['kategori'=>'Jadwal berdasarkan kategori','rutin'=>'Jadwal rutin','sekali'=>'Jadwal sekali kirim'][$jenis]) ?></h2><p class="group-schedule-caption">Maksimal 300 jadwal terbaru ditampilkan.</p><a class="group-schedule-create" href="index.php?page=group"><i class="fa-solid fa-plus"></i><span>Buat jadwal baru</span></a></div>
     <form method="get" class="group-schedule-filter">
       <input type="hidden" name="page" value="group-schedules"><input type="hidden" name="jenis" value="<?= $h($jenis) ?>">
       <label for="groupScheduleStatus">Status</label>
@@ -137,8 +137,10 @@ $displayStatus = static function (array $row): array {
               <?php foreach ($categoryRows as $row): ?>
                 <?php [$label, $class] = $displayStatus($row); ?>
                 <article class="group-schedule-item">
-                  <div class="group-schedule-item-main"><div class="group-schedule-item-title"><strong><?= $h($row['nama_grup']) ?></strong><span class="group-schedule-id">#<?= (int)$row['id'] ?></span></div><p><?= $h(mb_strimwidth((string)$row['pesan'], 0, 150, '…')) ?></p></div>
-                  <div class="group-schedule-item-time"><span class="group-schedule-type"><?= $row['tipe_jadwal'] === 'harian' ? 'Rutin' : ($row['tipe_jadwal'] === 'sekarang' ? 'Sekarang' : 'Sekali') ?></span><small><?= $h($formatSchedule($row)) ?></small></div>
+                  <div class="group-schedule-item-main">
+                    <div class="group-schedule-item-title"><span class="group-schedule-group-chip"><?= $h($row['nama_grup']) ?></span><span class="group-schedule-id">#<?= (int)$row['id'] ?></span></div>
+                    <div class="group-schedule-message-box"><span class="group-schedule-message-label"><i class="fa-regular fa-message"></i> Isi pesan</span><p><?= $h(mb_strimwidth((string)$row['pesan'], 0, 180, '…')) ?></p></div>
+                  </div>
                   <div class="group-schedule-item-state"><span class="group-schedule-status status-<?= $h($class) ?>"><?= $h($label) ?></span><small><?= !empty($row['terakhir_dikirim']) ? 'Terakhir: ' . $h(date('d M Y', strtotime((string)$row['terakhir_dikirim']))) : 'Belum ada catatan kirim' ?></small></div>
                   <div class="group-schedule-item-action"><?php if ($row['status'] === 'pending'): ?><form method="post" action="actions/group-schedules.php" onsubmit="return confirm('Batalkan jadwal untuk grup ini?');"><input type="hidden" name="csrf" value="<?= $h(crmCsrfToken()) ?>"><input type="hidden" name="action" value="cancel"><input type="hidden" name="id" value="<?= (int)$row['id'] ?>"><button class="group-schedule-cancel" type="submit">Batalkan</button></form><?php endif; ?></div>
                 </article>
@@ -150,8 +152,10 @@ $displayStatus = static function (array $row): array {
         <?php foreach ($rows as $row): ?>
           <?php [$label, $class] = $displayStatus($row); ?>
           <article class="group-schedule-item">
-            <div class="group-schedule-item-main"><div class="group-schedule-item-title"><strong><?= $h($row['nama_grup']) ?></strong><span class="group-schedule-id">#<?= (int)$row['id'] ?></span><span class="group-schedule-category-chip"><?= $h($row['kategori']) ?></span></div><p><?= $h(mb_strimwidth((string)$row['pesan'], 0, 150, '…')) ?></p></div>
-            <div class="group-schedule-item-time"><span class="group-schedule-type"><?= $row['tipe_jadwal'] === 'harian' ? 'Rutin' : ($row['tipe_jadwal'] === 'sekarang' ? 'Sekarang' : 'Sekali') ?></span><small><?= $h($formatSchedule($row)) ?></small></div>
+            <div class="group-schedule-item-main">
+              <div class="group-schedule-item-title"><span class="group-schedule-group-chip"><?= $h($row['nama_grup']) ?></span><span class="group-schedule-id">#<?= (int)$row['id'] ?></span></div>
+              <div class="group-schedule-message-box"><span class="group-schedule-message-label"><i class="fa-regular fa-message"></i> Isi pesan</span><p><?= $h(mb_strimwidth((string)$row['pesan'], 0, 180, '…')) ?></p></div>
+            </div>
             <div class="group-schedule-item-state"><span class="group-schedule-status status-<?= $h($class) ?>"><?= $h($label) ?></span><small><?= !empty($row['terakhir_dikirim']) ? 'Terakhir: ' . $h(date('d M Y', strtotime((string)$row['terakhir_dikirim']))) : 'Belum ada catatan kirim' ?></small></div>
             <div class="group-schedule-item-action"><?php if ($row['status'] === 'pending'): ?><form method="post" action="actions/group-schedules.php" onsubmit="return confirm('Batalkan jadwal untuk grup ini?');"><input type="hidden" name="csrf" value="<?= $h(crmCsrfToken()) ?>"><input type="hidden" name="action" value="cancel"><input type="hidden" name="id" value="<?= (int)$row['id'] ?>"><button class="group-schedule-cancel" type="submit">Batalkan</button></form><?php endif; ?></div>
           </article>
