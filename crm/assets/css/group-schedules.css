@@ -63,3 +63,26 @@
 .group-schedule-tabs{gap:8px}
 .group-schedule-tabs a{min-width:110px;justify-content:center}
 @media(max-width:600px){.group-schedule-toolbar{gap:12px}.group-schedule-create{margin-top:10px;width:100%}.group-schedule-tabs a{min-width:0}}
+
+/* PR #165: daily progress overview */
+.group-schedule-progress-panel{margin:0 0 18px;padding:18px;border:1px solid #e6ece8;border-radius:20px;background:linear-gradient(145deg,#fff 0%,#f9fcfa 100%);box-shadow:0 5px 22px rgba(18,38,28,.035)}
+.group-schedule-progress-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+.group-schedule-progress-heading h2{margin:3px 0 0;font-size:17px;letter-spacing:-.03em;color:#1c2b22}
+.group-schedule-progress-heading p{margin:5px 0 0;font-size:11px;color:#839087;line-height:1.5}
+.group-schedule-live{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid #e3eee6;border-radius:999px;background:#f5faf6;color:#607367;font-size:10px;font-weight:700;white-space:nowrap}
+.group-schedule-live i{width:6px;height:6px;border-radius:50%;background:#22a05a;box-shadow:0 0 0 3px #dff4e6}
+.group-schedule-progress-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.group-schedule-progress-card{min-width:0;padding:15px;border:1px solid #edf1ee;border-radius:15px;background:#fff}
+.group-schedule-progress-top{display:flex;align-items:center;gap:9px}
+.group-schedule-progress-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#eaf7ef;color:#19834a;font-size:13px}
+.group-schedule-progress-icon.once{background:#eef3fb;color:#5478ad}
+.group-schedule-progress-label{font-size:11px;font-weight:700;color:#617066}
+.group-schedule-progress-value{display:flex;align-items:baseline;gap:7px;margin:14px 0 10px}
+.group-schedule-progress-value strong{font-size:27px;line-height:1;font-weight:780;letter-spacing:-.04em;color:#1d3025}
+.group-schedule-progress-value span{font-size:11px;color:#859188}
+.group-schedule-progress-track{height:7px;overflow:hidden;border-radius:999px;background:#edf2ee}
+.group-schedule-progress-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#16834a,#45b879);transition:width .25s ease}
+.group-schedule-progress-card>small{display:block;margin-top:8px;font-size:10px;line-height:1.45;color:#849087}
+.group-schedule-progress-foot{display:flex;align-items:center;gap:7px;margin-top:12px;padding-top:10px;border-top:1px solid #f0f3f1;font-size:10px;color:#718078}
+.group-schedule-progress-foot i{color:#16834a}
+@media(max-width:600px){.group-schedule-progress-panel{padding:14px;border-radius:16px}.group-schedule-progress-heading{gap:10px}.group-schedule-progress-heading h2{font-size:15px}.group-schedule-progress-heading p{max-width:230px}.group-schedule-progress-grid{grid-template-columns:1fr;gap:9px}.group-schedule-progress-card{padding:13px}.group-schedule-progress-value{margin:10px 0}.group-schedule-progress-value strong{font-size:24px}}
