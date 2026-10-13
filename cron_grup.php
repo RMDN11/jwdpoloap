@@ -35,6 +35,23 @@ function updateScheduleRow(mysqli $conn, int $id, string $sql, string $label): b
     return $ok;
 }
 
+function updateScheduleDateRow(mysqli $conn, int $id, string $date, string $sql, string $label): bool {
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        writeLog("ERROR UPDATE jadwal ID $id ($label): prepare gagal - " . $conn->error);
+        return false;
+    }
+    $stmt->bind_param('si', $date, $id);
+    $ok = $stmt->execute();
+    if (!$ok) {
+        writeLog("ERROR UPDATE jadwal ID $id ($label): execute gagal - " . $stmt->error);
+    } else {
+        writeLog("UPDATE jadwal ID $id ($label): berhasil, affected_rows=" . $stmt->affected_rows);
+    }
+    $stmt->close();
+    return $ok;
+}
+
 $secretToken = "jwd_secure_cron_2026";
 $isCli = (PHP_SAPI === 'cli');
 
@@ -155,9 +172,9 @@ if ($result->num_rows > 0) {
         } else {
             writeLog("API menerima kiriman ID " . $row['id'] . " | HTTP " . $httpcode . " | Respons: " . substr((string)$response, 0, 300));
             if ($row['tipe_jadwal'] === 'harian') {
-                updateScheduleRow($conn, (int)$row['id'], "UPDATE jadwal_pesan_grup SET terakhir_dikirim = CURDATE() WHERE id = ?", 'catat kiriman rutin');
+                updateScheduleDateRow($conn, (int)$row['id'], $tanggalIni, "UPDATE jadwal_pesan_grup SET terakhir_dikirim = ? WHERE id = ?", 'catat kiriman rutin');
             } else {
-                updateScheduleRow($conn, (int)$row['id'], "UPDATE jadwal_pesan_grup SET status = 'terkirim', terakhir_dikirim = CURDATE() WHERE id = ?", 'tandai terkirim sekali');
+                updateScheduleDateRow($conn, (int)$row['id'], $tanggalIni, "UPDATE jadwal_pesan_grup SET status = 'terkirim', terakhir_dikirim = ? WHERE id = ?", 'tandai terkirim sekali');
             }
         }
         $totalDiproses++;

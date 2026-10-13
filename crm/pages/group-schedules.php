@@ -33,13 +33,20 @@ $counts = [
 ];
 
 date_default_timezone_set('Asia/Jakarta');
-$todayDay = (int)date('N');
-$todayDate = date('Y-m-d');
-$routineDueToday = crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='pending' AND tipe_jadwal='harian' AND FIND_IN_SET('$todayDay', hari_rutin) > 0 AND jam_harian <= CURTIME()");
+$nowJakarta = new DateTimeImmutable('now', new DateTimeZone('Asia/Jakarta'));
+$todayDay = (int)$nowJakarta->format('N');
+$todayDate = $nowJakarta->format('Y-m-d');
+$currentTime = $nowJakarta->format('H:i:s');
+$currentDateTime = $nowJakarta->format('Y-m-d H:i:s');
+
+// Gunakan waktu aplikasi Asia/Jakarta secara eksplisit agar hasil tidak bergantung
+// pada timezone default MySQL di server hosting.
+$routineDueToday = crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='pending' AND tipe_jadwal='harian' AND FIND_IN_SET('$todayDay', hari_rutin) > 0 AND jam_harian <= '$currentTime'");
 $routineSentToday = crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='pending' AND tipe_jadwal='harian' AND terakhir_dikirim='$todayDate' AND FIND_IN_SET('$todayDay', hari_rutin) > 0");
-$onceWaiting = crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='pending' AND tipe_jadwal='sekali' AND jadwal_kirim <= NOW()");
+$onceWaiting = crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='pending' AND tipe_jadwal IN ('sekali','sekarang') AND (tipe_jadwal='sekarang' OR jadwal_kirim <= '$currentDateTime')");
 $onceSentToday = crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='terkirim' AND tipe_jadwal IN ('sekali','sekarang') AND terakhir_dikirim='$todayDate'");
-$routineProgress = $routineDueToday > 0 ? (int)round(min(1, $routineSentToday / $routineDueToday) * 100) : 100;
+// Jika belum ada jadwal rutin yang jatuh tempo, jangan menampilkan progres 100% yang menyesatkan.
+$routineProgress = $routineDueToday > 0 ? (int)round(min(1, $routineSentToday / $routineDueToday) * 100) : 0;
 
 $typeCounts = [
     'rutin' => crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE tipe_jadwal='harian'"),
