@@ -15,6 +15,8 @@ $checks = [
     'group history has bounded scroll areas' => strpos($css, '.group-message-history-list') !== false && strpos($css, '.group-history-list') !== false && strpos($css, 'overflow-y:auto') !== false,
     'group reuse card is compact' => strpos($css, '.group-message-history-card') !== false && strpos($css, 'max-height:420px') !== false,
     'home routes group tool to CRM' => strpos($home, '?page=group') !== false,
+    'group schedule route exists' => strpos($index, "'group-schedules'") !== false,
+    'full schedule link stays inside CRM' => strpos($group, '?page=group-schedules') !== false && strpos($group, '../kirimgrup.php') === false,
 ];
 
 $failed = array_keys(array_filter($checks, fn($ok) => !$ok));
