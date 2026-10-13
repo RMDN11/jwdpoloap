@@ -31,6 +31,16 @@ $counts = [
     'terkirim' => crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='terkirim'"),
     'gagal' => crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='gagal'")
 ];
+
+date_default_timezone_set('Asia/Jakarta');
+$todayDay = (int)date('N');
+$todayDate = date('Y-m-d');
+$routineDueToday = crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='pending' AND tipe_jadwal='harian' AND FIND_IN_SET('$todayDay', hari_rutin) > 0 AND jam_harian <= CURTIME()");
+$routineSentToday = crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='pending' AND tipe_jadwal='harian' AND terakhir_dikirim='$todayDate' AND FIND_IN_SET('$todayDay', hari_rutin) > 0");
+$onceWaiting = crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='pending' AND tipe_jadwal='sekali' AND jadwal_kirim <= NOW()");
+$onceSentToday = crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE status='terkirim' AND tipe_jadwal IN ('sekali','sekarang') AND terakhir_dikirim='$todayDate'");
+$routineProgress = $routineDueToday > 0 ? (int)round(min(1, $routineSentToday / $routineDueToday) * 100) : 100;
+
 $typeCounts = [
     'rutin' => crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE tipe_jadwal='harian'"),
     'sekali' => crmCount($conn, "SELECT COUNT(*) total FROM jadwal_pesan_grup WHERE tipe_jadwal IN ('sekali','sekarang')")
@@ -74,6 +84,26 @@ $displayStatus = static function (array $row): array {
   <a class="group-schedule-stat stat-active <?= $status === 'aktif' ? 'active' : '' ?>" href="?page=group-schedules&amp;status=aktif&amp;jenis=<?= $h($jenis) ?>"><span><i class="fa-solid fa-arrows-rotate"></i> Aktif</span><strong><?= (int)$counts['aktif'] ?></strong><small>Jadwal yang masih berjalan</small></a>
   <a class="group-schedule-stat stat-sent <?= $status === 'terkirim' ? 'active' : '' ?>" href="?page=group-schedules&amp;status=terkirim&amp;jenis=<?= $h($jenis) ?>"><span><i class="fa-solid fa-check-double"></i> Terkirim</span><strong><?= (int)$counts['terkirim'] ?></strong><small>Jadwal sekali yang selesai</small></a>
   <a class="group-schedule-stat stat-failed <?= $status === 'gagal' ? 'active' : '' ?>" href="?page=group-schedules&amp;status=gagal&amp;jenis=<?= $h($jenis) ?>"><span><i class="fa-solid fa-triangle-exclamation"></i> Gagal</span><strong><?= (int)$counts['gagal'] ?></strong><small>Perlu ditinjau</small></a>
+</section>
+
+<section class="group-schedule-progress-panel">
+  <div class="group-schedule-progress-heading">
+    <div><span class="group-kicker">Aktivitas hari ini</span><h2>Progres pengiriman</h2><p>Ringkasan jadwal berdasarkan catatan pengiriman di database.</p></div>
+    <span class="group-schedule-live"><i></i> Pemantauan</span>
+  </div>
+  <div class="group-schedule-progress-grid">
+    <article class="group-schedule-progress-card">
+      <div class="group-schedule-progress-top"><span class="group-schedule-progress-icon"><i class="fa-solid fa-arrows-rotate"></i></span><span class="group-schedule-progress-label">Jadwal rutin hari ini</span></div>
+      <div class="group-schedule-progress-value"><strong><?= (int)$routineSentToday ?></strong><span>/ <?= (int)$routineDueToday ?> terkirim</span></div>
+      <div class="group-schedule-progress-track" role="progressbar" aria-label="Progres jadwal rutin hari ini" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $routineProgress ?>"><span style="width:<?= $routineProgress ?>%"></span></div>
+      <small><?= $routineDueToday > 0 ? $routineProgress . '% dari jadwal rutin yang jatuh tempo hari ini' : 'Belum ada jadwal rutin yang jatuh tempo' ?></small>
+    </article>
+    <article class="group-schedule-progress-card">
+      <div class="group-schedule-progress-top"><span class="group-schedule-progress-icon once"><i class="fa-regular fa-calendar"></i></span><span class="group-schedule-progress-label">Jadwal sekali menunggu</span></div>
+      <div class="group-schedule-progress-value"><strong><?= (int)$onceWaiting ?></strong><span>perlu diproses</span></div>
+      <div class="group-schedule-progress-foot"><i class="fa-solid fa-check"></i> <?= (int)$onceSentToday ?> jadwal sekali tercatat terkirim hari ini</div>
+    </article>
+  </div>
 </section>
 
 <section class="group-card group-schedule-management">
