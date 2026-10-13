@@ -224,7 +224,7 @@ function crmGroupDays(string $value): string {
                 </div>
             <?php endforeach; endif; ?>
         </div>
-        <?php if ($jadwalBerjalan): ?><a class="group-old-link" href="../kirimgrup.php">Kelola jadwal lengkap <i class="fa-solid fa-arrow-right"></i></a><?php endif; ?>
+        <a class="group-old-link" href="?page=group-schedules">Kelola jadwal lengkap <i class="fa-solid fa-arrow-right"></i></a>
     </div>
 
     <div class="group-card">
