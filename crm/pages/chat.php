@@ -25,7 +25,10 @@ if (!in_array($room, ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lai
     $room = 'customer_baru';
 }
 
-$paymentDetectedSql = crmChatRoutingPaymentDetectedSql('c');
+// Routing kategori disimpan pada crm_conversations oleh webhook/routing layer.
+ // Gunakan state tersimpan untuk filter inbox agar tidak menjalankan subquery
+ // korelatif ke log_wa berulang pada count, daftar, statistik, dan tab kategori.
+$paymentDetectedSql = "(LOWER(TRIM(COALESCE(c.room_source, 'auto'))) <> 'manual' AND (c.payment_detected_at IS NOT NULL OR c.room = 'sudah_payment'))";
 $internalSql = crmChatRoutingInternalSql('c');
 
 if ($selected !== '') {
