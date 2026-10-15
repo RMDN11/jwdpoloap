@@ -165,8 +165,20 @@ if ($dbConnected) {
 
 $autoReplyStatus = 'skipped';
 $engineFile = $baseDir . '/auto_reply_engine.php';
+$isTeacherContact = false;
+if ($dbConnected) {
+    try {
+        $isTeacherContact = crmChatIsTeacherNumber($conn, $senderPhone);
+    } catch (Throwable $e) {
+        logx("TEACHER DIRECTORY CHECK ERROR: " . $e->getMessage());
+    }
+}
 
-if (!file_exists($engineFile)) {
+if ($isTeacherContact) {
+    // Keep raw inbound message in log_wa/crm_messages, but never run prospect/auto-reply triggers for teachers.
+    $autoReplyStatus = 'skipped_teacher';
+    logx("AUTO REPLY/TRIGGER SKIPPED: known teacher contact");
+} elseif (!file_exists($engineFile)) {
     logx("AUTO REPLY ENGINE FILE NOT FOUND");
 } else {
     $apiUrl   = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : ($ONESENDER_API_URL ?? null);
