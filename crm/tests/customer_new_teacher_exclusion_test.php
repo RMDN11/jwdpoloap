@@ -10,7 +10,7 @@ $checks = [
     'teacher directory lookup uses only teacher/instructor tables' => strpos($directory, "table_name IN ('pengajar', 'pengampu')") !== false,
     'teacher lookup supports normalized phone variants' => strpos($directory, "'+' . $number") !== false && strpos($directory, "'0' . substr($number, 2)") !== false,
     'webhook preserves inbound storage before excluding teacher auto reply' => strpos($webhook, 'crmChatStoreMessage(') < strpos($webhook, 'AUTO REPLY/TRIGGER SKIPPED: known teacher contact'),
-    'webhook skips auto reply for known teachers' => strpos($webhook, 'elseif ($isTeacherContact)') === false && strpos($webhook, "if ($isTeacherContact)") !== false && strpos($webhook, "'skipped_teacher'") !== false,
+    'webhook skips auto reply for known teachers' => strpos($webhook, 'elseif ($isTeacherContact)') === false && strpos($webhook, 'if ($isTeacherContact)') !== false && strpos($webhook, "'skipped_teacher'") !== false,
     'manual prospect triggers continue to use existing crm_prospect_triggers' => strpos($prospect, 'FROM crm_prospect_triggers WHERE active = 1') !== false,
     'polling excludes known directory contacts from customer-new eligibility' => strpos($poll, 'crmPollIsDisqualified($conn, $variants, $directoryTables)') !== false,
 ];
