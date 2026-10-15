@@ -404,12 +404,11 @@ $selectedName = trim((string)($selectedContact['nama'] ?? '')) ?: 'Hamba Allah';
     <div class="chat-page-actions">
         <a class="chat-wa-link" href="?page=triggers"><i class="fa-solid fa-sliders"></i> Kelola Trigger</a>
         <?php if ($selectedContact): ?>
-        <div class="chat-page-actions">
             <a class="chat-wa-link" href="https://wa.me/<?= htmlspecialchars($selectedContact['clean_wa']) ?>" target="_blank" rel="noopener">
                 <i class="fa-brands fa-whatsapp"></i> WhatsApp
             </a>
-        </div>
-    <?php endif; ?>
+        <?php endif; ?>
+    </div>
 </section>
 
 <div class="chat-range-tabs" aria-label="Rentang waktu percakapan">
