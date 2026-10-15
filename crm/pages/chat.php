@@ -610,6 +610,11 @@ $selectedName = trim((string)($selectedContact['nama'] ?? '')) ?: 'Hamba Allah';
                                     <span class="chat-log-badge">Legacy</span>
                                 </div>
                                 <p><?= nl2br(htmlspecialchars((string)$message['message'])) ?></p>
+                                <div class="legacy-trigger-action">
+                                    <a class="trigger-inline-btn" href="<?= htmlspecialchars('?page=triggers&keyword=' . rawurlencode(mb_substr(trim((string)$message['message']), 0, 120))) ?>">
+                                        <i class="fa-solid fa-plus"></i> Trigger
+                                    </a>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
