@@ -7,6 +7,8 @@ $result = $conn->query("SELECT id, keyword, category, active, created_at FROM cr
 if ($result) while ($row = $result->fetch_assoc()) $triggers[] = $row;
 $h = static fn($value): string => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 $testMessage = trim((string)($_POST['test_message'] ?? ''));
+$prefillKeyword = trim((string)($_POST['keyword'] ?? $_GET['keyword'] ?? ''));
+$prefillKeyword = mb_substr($prefillKeyword, 0, 120);
 $testResult = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'dry_run') {
     $testResult = crmProspectClassifyMessage($testMessage, $conn);
@@ -20,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'dry_r
  <h2>Tambah trigger</h2>
  <form class="trigger-form" method="post" action="actions/triggers.php">
   <input type="hidden" name="csrf" value="<?= $h(crmCsrfToken()) ?>"><input type="hidden" name="action" value="add">
-  <label>Kata/frasa pemicu<input name="keyword" maxlength="120" required placeholder="Contoh: mau daftar program"></label>
+  <label>Kata/frasa pemicu<input name="keyword" maxlength="120" required value="<?= $h($prefillKeyword) ?>" placeholder="Contoh: mau daftar program"></label>
   <label>Kategori<select name="category" required>
    <?php foreach (['Bingung','Ziyadah Pemula','Ziyadah Lanjutan',"Muroja'ah",'Tahfidz Cilik','Mode Intensif','Mode Normal','Ekspresi Minat','Lainnya'] as $category): ?><option value="<?= $h($category) ?>"><?= $h($category) ?></option><?php endforeach; ?>
   </select></label>
