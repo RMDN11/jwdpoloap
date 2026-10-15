@@ -401,13 +401,14 @@ $selectedName = trim((string)($selectedContact['nama'] ?? '')) ?: 'Hamba Allah';
         <h1>Percakapan</h1>
         <p>Kelola pesan masuk, riwayat, dan balasan dalam satu workspace.</p>
     </div>
-    <?php if ($selectedContact): ?>
-        <div class="chat-page-actions">
+    <div class="chat-page-actions">
+        <a class="chat-wa-link" href="?page=triggers"><i class="fa-solid fa-sliders"></i> Kelola Trigger</a>
+        <?php if ($selectedContact): ?>
             <a class="chat-wa-link" href="https://wa.me/<?= htmlspecialchars($selectedContact['clean_wa']) ?>" target="_blank" rel="noopener">
                 <i class="fa-brands fa-whatsapp"></i> WhatsApp
             </a>
-        </div>
-    <?php endif; ?>
+        <?php endif; ?>
+    </div>
 </section>
 
 <div class="chat-range-tabs" aria-label="Rentang waktu percakapan">
