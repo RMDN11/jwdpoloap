@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/bootstrap.php';
 
 $page = $_GET['page'] ?? 'home';
-$allowedPages = ['home', 'chat', 'templates', 'auto-reply', 'manage-groups', 'analytics', 'reminder', 'reminder-pembayaran', 'reminder-csv', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'reminder-retention', 'plotting', 'more', 'activity', 'group', 'group-schedules'];
+$allowedPages = ['home', 'chat', 'templates', 'auto-reply', 'manage-groups', 'analytics', 'reminder', 'reminder-pembayaran', 'reminder-csv', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'reminder-retention', 'plotting', 'more', 'activity', 'group', 'group-schedules', 'triggers'];
 if (!in_array($page, $allowedPages, true)) $page = 'home';
 
 // Process Auto Reply POST actions before any HTML is emitted so PRG redirects work.
@@ -30,6 +30,9 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     <title>ReqraWA CRM</title>
     <link rel="icon" type="image/png" href="assets/logowa.png">
     <link rel="stylesheet" href="assets/css/app.css?v=<?= filemtime(__DIR__ . '/assets/css/app.css') ?>">
+    <?php if ($page === 'triggers'): ?>
+        <link rel="stylesheet" href="assets/css/triggers.css?v=<?= filemtime(__DIR__ . '/assets/css/triggers.css') ?>">
+    <?php endif; ?>
     <?php if ($page === 'auto-reply'): ?>
         <link rel="stylesheet" href="assets/css/auto-reply.css?v=<?= filemtime(__DIR__ . '/assets/css/auto-reply.css') ?>">
     <?php endif; ?>
