@@ -312,6 +312,11 @@ if ($tab === 'queue') {
                                                 <button type="submit" name="action" value="queue_prospect" class="btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Hanya jadwalkan 1 template terpilih ke antrean cron">
                                                     <i class="fa-solid fa-clock"></i> Antre 1 Pesan
                                                 </button>
+                                                <?php if ($item['queue'] && $item['queue']['status'] === 'pending'): ?>
+                                                    <button type="submit" name="action" value="stop_prospect" class="btn-danger" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Hentikan dan batalkan semua antrean follow-up untuk kontak ini (misal: tidak jadi daftar)" onclick="return confirm('Hentikan semua jadwal follow-up untuk kontak ini?');">
+                                                        <i class="fa-solid fa-ban"></i> Stop
+                                                    </button>
+                                                <?php endif; ?>
                                             </form>
                                         <?php endif; ?>
                                     </td>

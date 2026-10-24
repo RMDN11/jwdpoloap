@@ -337,6 +337,35 @@ function crmAutomationCancelQueueItem(mysqli $conn, int $queueId, string $reason
     return $ok;
 }
 
+function crmAutomationCancelAllPendingForContact(mysqli $conn, string $nowa, string $reason = 'cancelled_payment'): int
+{
+    $normalized = crmProspectNormalizeNumber($nowa);
+    $variants = array_values(array_unique(array_filter([
+        $normalized,
+        $nowa,
+        str_starts_with($normalized, '62') ? '0' . substr($normalized, 2) : '',
+        '+' . $normalized,
+    ])));
+
+    if (empty($variants)) {
+        return 0;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($variants), '?'));
+    $stmt = $conn->prepare("UPDATE crm_automation_queue SET status = ?, error_message = ? WHERE nowa IN ({$placeholders}) AND status = 'pending'");
+    if (!$stmt) {
+        return 0;
+    }
+
+    $types = 'ss' . str_repeat('s', count($variants));
+    $params = array_merge([$reason, $reason], $variants);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $affected = (int)$stmt->affected_rows;
+    $stmt->close();
+    return $affected;
+}
+
 function crmAutomationHasReceivedPayment(mysqli $conn, string $nowa): bool
 {
     $normalized = crmProspectNormalizeNumber($nowa);
@@ -352,6 +381,23 @@ function crmAutomationHasReceivedPayment(mysqli $conn, string $nowa): bool
     }
 
     $placeholders = implode(',', array_fill(0, count($variants), '?'));
+
+    // 1. Cek di tabel peserta (apakah peserta sudah berstatus aktif/terdaftar)
+    $tableCheck = $conn->query("SHOW TABLES LIKE 'peserta'");
+    if ($tableCheck && $tableCheck->num_rows > 0) {
+        $stmtPeserta = $conn->prepare("SELECT 1 FROM peserta WHERE nowa IN ({$placeholders}) LIMIT 1");
+        if ($stmtPeserta) {
+            $stmtPeserta->bind_param(str_repeat('s', count($variants)), ...$variants);
+            $stmtPeserta->execute();
+            if ($stmtPeserta->get_result()->num_rows > 0) {
+                $stmtPeserta->close();
+                return true;
+            }
+            $stmtPeserta->close();
+        }
+    }
+
+    // 2. Cek di log_wa apakah sudah pernah menerima chat form finance
     $sql = "SELECT 1 FROM log_wa 
             WHERE nowa IN ({$placeholders})
               AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(message, '')), CHAR(13), ''), CHAR(10), ''), CHAR(9), ''), ' ', ''), CHAR(160), '') LIKE '%wajibsegeradiisi%'
@@ -379,6 +425,7 @@ function crmAutomationHasUserReplied(mysqli $conn, string $nowa, string $registe
         $normalized,
         $nowa,
         str_starts_with($normalized, '62') ? '0' . substr($normalized, 2) : '',
+        '+' . $normalized,
     ])));
 
     if (empty($variants)) {
@@ -386,12 +433,35 @@ function crmAutomationHasUserReplied(mysqli $conn, string $nowa, string $registe
     }
 
     $placeholders = implode(',', array_fill(0, count($variants), '?'));
-    // Pesan masuk dari user: bukan pesan siaran grup dan bukan pesan keluar yang dikirim oleh sistem/CRM
+
+    // 1. Cek di crm_messages jika tabel ada (arah 'in' adalah balasan customer)
+    $tableCheck = $conn->query("SHOW TABLES LIKE 'crm_messages'");
+    if ($tableCheck && $tableCheck->num_rows > 0) {
+        $stmtMsg = $conn->prepare("SELECT id FROM crm_messages WHERE nowa IN ({$placeholders}) AND direction = 'in' AND created_at > ? LIMIT 1");
+        if ($stmtMsg) {
+            $types = str_repeat('s', count($variants)) . 's';
+            $params = array_merge($variants, [$registeredAt]);
+            $stmtMsg->bind_param($types, ...$params);
+            $stmtMsg->execute();
+            if ($stmtMsg->get_result()->num_rows > 0) {
+                $stmtMsg->close();
+                return true;
+            }
+            $stmtMsg->close();
+        }
+    }
+
+    // 2. Cek di log_wa (bukan pesan siaran grup dan bukan pesan keluar yang dikirim oleh sistem/CRM)
     $sql = "SELECT id FROM log_wa 
             WHERE (nowa IN ({$placeholders})) 
               AND created_at > ? 
               AND message NOT LIKE '[GRUP]%' 
+              AND message NOT LIKE '[PROMOSI]%'
               AND message NOT LIKE 'Ahlan kak%' 
+              AND message NOT LIKE 'Bismillah, ahlan kak%'
+              AND message NOT LIKE 'Sekadar info kak%'
+              AND message NOT LIKE 'Assalamu%alaikum kak%'
+              AND message != 'Data CSV/Manual'
             ORDER BY id DESC LIMIT 1";
 
     $stmt = $conn->prepare($sql);

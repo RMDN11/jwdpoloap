@@ -65,19 +65,19 @@ function crmAutomationDispatchSingle(mysqli $conn, int $queueId, string $apiUrl 
 
     // 1. Periksa apakah nomor sudah diblokir
     if (crmAutomationIsBlocked($conn, $nowa)) {
-        crmAutomationCancelQueueItem($conn, $queueId, 'cancelled_blocked');
+        crmAutomationCancelAllPendingForContact($conn, $nowa, 'cancelled_blocked');
         return ['status' => 'cancelled', 'reason' => 'cancelled_blocked'];
     }
 
     // 2. Periksa apakah peserta sudah membalas chat sebelum jadwal follow up
     if (crmAutomationHasUserReplied($conn, $nowa, $registeredAt)) {
-        crmAutomationCancelQueueItem($conn, $queueId, 'cancelled_replied');
+        crmAutomationCancelAllPendingForContact($conn, $nowa, 'cancelled_replied');
         return ['status' => 'cancelled', 'reason' => 'cancelled_replied'];
     }
 
-    // 3. Periksa apakah peserta sudah menerima chat form payment finance
+    // 3. Periksa apakah peserta sudah menerima chat form payment finance / sudah terdaftar
     if (crmAutomationHasReceivedPayment($conn, $nowa)) {
-        crmAutomationCancelQueueItem($conn, $queueId, 'cancelled_payment');
+        crmAutomationCancelAllPendingForContact($conn, $nowa, 'cancelled_payment');
         return ['status' => 'cancelled', 'reason' => 'cancelled_payment'];
     }
 

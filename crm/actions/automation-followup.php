@@ -193,6 +193,18 @@ switch ($action) {
         crmAutoRedirect('prospects');
         break;
 
+    case 'stop_prospect':
+        $nowa = trim((string)($_POST['nowa'] ?? ''));
+        if ($nowa === '') {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nomor WhatsApp tidak valid.'];
+            crmAutoRedirect('prospects');
+        }
+
+        $cancelledCount = crmAutomationCancelAllPendingForContact($conn, $nowa, 'cancelled_manual');
+        $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Follow-up kontak {$nowa} berhasil dihentikan ({$cancelledCount} antrean dibatalkan)."];
+        crmAutoRedirect('prospects');
+        break;
+
     case 'send_prospect_now':
         $nowa = trim((string)($_POST['nowa'] ?? ''));
         $nama = trim((string)($_POST['nama'] ?? 'Kak'));
