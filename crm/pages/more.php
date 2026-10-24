@@ -4,6 +4,7 @@ declare(strict_types=1);
 $crmTitle = 'More';
 
 $items = [
+    ['title' => 'Automation Follow Up', 'description' => 'Follow up otomatis pemicu program & antrean', 'icon' => 'fa-solid fa-clock-rotate-left', 'href' => 'index.php?page=automation-followup'],
     ['title' => 'Template Pesan', 'description' => 'Kelola template pesan', 'icon' => 'fa-regular fa-file-lines', 'href' => 'index.php?page=templates'],
     ['title' => 'Auto Reply', 'description' => 'Atur balasan otomatis', 'icon' => 'fa-solid fa-robot', 'href' => 'index.php?page=auto-reply'],
     ['title' => 'Kelola Grup', 'description' => 'Daftar dan pengelolaan grup', 'icon' => 'fa-solid fa-users', 'href' => 'index.php?page=manage-groups'],
