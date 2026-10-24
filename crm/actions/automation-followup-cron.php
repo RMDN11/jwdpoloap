@@ -29,9 +29,7 @@ if (!isset($conn) || !($conn instanceof mysqli)) {
 
 date_default_timezone_set('Asia/Jakarta');
 
-$apiUrl = defined('WA_API_URL') ? WA_API_URL : (getenv('WA_API_URL') ?: 'https://api.onesender.net/api/v1/messages');
-$apiToken = defined('WA_API_TOKEN') ? WA_API_TOKEN : (getenv('WA_API_TOKEN') ?: '');
-
+[$apiUrl, $apiToken] = crmAutomationGetApiCredentials();
 $summary = crmAutomationProcessPendingQueue($conn, $apiUrl, $apiToken);
 
 $now = date('Y-m-d H:i:s');

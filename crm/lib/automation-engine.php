@@ -30,8 +30,14 @@ function crmAutomationRenderMessage(string $template, array $data): string
     return str_replace($search, $replace, $template);
 }
 
-function crmAutomationDispatchSingle(mysqli $conn, int $queueId, string $apiUrl, string $apiToken): array
+function crmAutomationDispatchSingle(mysqli $conn, int $queueId, string $apiUrl = '', string $apiToken = ''): array
 {
+    if ($apiUrl === '' || $apiToken === '') {
+        [$defUrl, $defToken] = crmAutomationGetApiCredentials();
+        if ($apiUrl === '') $apiUrl = $defUrl;
+        if ($apiToken === '') $apiToken = $defToken;
+    }
+
     $stmt = $conn->prepare("
         SELECT q.id, q.nowa, q.nama, q.created_at, q.status, t.name AS template_name, t.content AS template_content, r.name AS rule_name
         FROM crm_automation_queue q
@@ -110,7 +116,8 @@ function crmAutomationDispatchSingle(mysqli $conn, int $queueId, string $apiUrl,
         ],
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT => 15,
-        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => 0,
     ]);
 
     $response = curl_exec($ch);
@@ -149,9 +156,15 @@ function crmAutomationDispatchSingle(mysqli $conn, int $queueId, string $apiUrl,
     return ['status' => 'sent', 'recipient' => $nowa];
 }
 
-function crmAutomationProcessPendingQueue(mysqli $conn, string $apiUrl, string $apiToken): array
+function crmAutomationProcessPendingQueue(mysqli $conn, string $apiUrl = '', string $apiToken = ''): array
 {
     crmAutomationEnsureTables($conn);
+
+    if ($apiUrl === '' || $apiToken === '') {
+        [$defUrl, $defToken] = crmAutomationGetApiCredentials();
+        if ($apiUrl === '') $apiUrl = $defUrl;
+        if ($apiToken === '') $apiToken = $defToken;
+    }
 
     $sql = "SELECT id FROM crm_automation_queue 
             WHERE status = 'pending' 

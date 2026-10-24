@@ -3,6 +3,76 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/prospect.php';
 
+function crmAutomationGetApiCredentials(): array
+{
+    global $apiUrl, $apiToken;
+
+    $url = defined('ONESENDER_API_URL')
+        ? ONESENDER_API_URL
+        : (!empty($apiUrl) ? $apiUrl : (defined('WA_API_URL') ? WA_API_URL : 'https://wa51024.oneapi.my.id/api/v1/messages'));
+
+    $token = defined('ONESENDER_API_TOKEN')
+        ? ONESENDER_API_TOKEN
+        : (!empty($apiToken) ? $apiToken : (defined('WA_API_TOKEN') ? WA_API_TOKEN : ''));
+
+    return [(string)$url, (string)$token];
+}
+
+function crmAutomationSeedDefaultTemplates(mysqli $conn): void
+{
+    $defaultTemplates = [
+        [
+            'name' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'desc' => 'Dikirimkan 30 menit setelah chat awal untuk mengecek apakah link website berhasil dibuka',
+            'content' => "Ahlan kak {nama}! 😊\n\nMau memastikan, apakah link rincian program Tahfidz Private-nya tadi sudah berhasil dibuka kak?\n\nBarangkali ada bagian dari pilihan waktu, kurikulum, atau biaya yang ingin kami bantu jelaskan lebih detail? Silakan langsung tanyakan di sini ya kak, kami siap membantu! 🙏",
+            'delay' => 30,
+        ],
+        [
+            'name' => 'Follow Up 2 (1 Jam - Fleksibilitas Jadwal & Target)',
+            'desc' => 'Dikirimkan 1 jam kemudian untuk menawarkan konsultasi jadwal santai',
+            'content' => "Bismillah, kak {nama}. Semoga kabarnya senantiasa diberkahi. ✨\n\nSekadar info kak, di program Tahfidz Private Jawwada jadwal belajarnya sangat fleksibel (bisa pagi, sore, atau malam) dengan sistem 1 guru 1 santri sehingga bimbingannya intensif.\n\nApakah kak {nama} ingin berkonsultasi santai dahulu mengenai target hafalan atau perbaikan bacaan Al-Qur'annya?",
+            'delay' => 60,
+        ],
+        [
+            'name' => 'Follow Up 3 (5 Jam - Reservasi Slot Terbatas)',
+            'desc' => 'Dikirimkan 5 jam kemudian untuk mengabarkan kuota pengajar pekan ini',
+            'content' => "Assalamu'alaikum kak {nama}. 🙏\n\nUntuk pembukaan halaqoh Tahfidz Private pekan ini kuotanya cukup terbatas karena menyesuaikan ketersediaan jadwal ustadz/ustadzah pembimbing.\n\nJika kak {nama} berminat, kami bisa bantu simpankan slot jadwal terbaiknya terlebih dahulu. Bagaimana kak, apakah berkenan untuk kami jadwalkan?",
+            'delay' => 300,
+        ],
+    ];
+
+    foreach ($defaultTemplates as $tpl) {
+        $check = $conn->prepare("SELECT id FROM crm_automation_templates WHERE name = ? LIMIT 1");
+        if ($check) {
+            $check->bind_param('s', $tpl['name']);
+            $check->execute();
+            $exists = $check->get_result()->fetch_assoc();
+            $check->close();
+
+            if (!$exists) {
+                $ins = $conn->prepare("INSERT INTO crm_automation_templates (name, content, description) VALUES (?, ?, ?)");
+                if ($ins) {
+                    $ins->bind_param('sss', $tpl['name'], $tpl['content'], $tpl['desc']);
+                    $ins->execute();
+                    $tplId = (int)$ins->insert_id;
+                    $ins->close();
+
+                    if ($tplId > 0) {
+                        $ruleName = 'Tahfidz Private - ' . $tpl['name'];
+                        $kw = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
+                        $insRule = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, 0)");
+                        if ($insRule) {
+                            $insRule->bind_param('ssii', $ruleName, $kw, $tplId, $tpl['delay']);
+                            $insRule->execute();
+                            $insRule->close();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 function crmAutomationEnsureTables(mysqli $conn): bool
 {
     static $ensured = false;
@@ -47,31 +117,7 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         INDEX idx_auto_queue_nowa (nowa)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-    // Seed default template for Tahfidz Private if empty
-    $checkTpl = $conn->query("SELECT id FROM crm_automation_templates LIMIT 1");
-    if ($checkTpl && $checkTpl->num_rows === 0) {
-        $seedContent = "Ahlan kak {nama}! 😊\n\nSekadar mengingatkan kembali terkait info Program Tahfidz Private Online Jawwada yang kemarin kak tanyakan.\n\nApakah ada bagian dari program atau jadwal yang ingin ditanyakan dahulu kak? Silakan berkonsultasi gratis bersama kami ya kak!";
-        $stmtSeed = $conn->prepare("INSERT INTO crm_automation_templates (name, content, description) VALUES (?, ?, ?)");
-        if ($stmtSeed) {
-            $name = 'Follow Up Tahfidz Private H+1';
-            $desc = 'Template otomatis lanjutan setelah calon peserta menerima rincian link website';
-            $stmtSeed->bind_param('sss', $name, $seedContent, $desc);
-            $stmtSeed->execute();
-            $templateId = (int)$stmtSeed->insert_id;
-            $stmtSeed->close();
-
-            if ($templateId > 0) {
-                $stmtRule = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, 1440, 1)");
-                if ($stmtRule) {
-                    $ruleName = 'Pemicu Tahfidz Private';
-                    $kw = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
-                    $stmtRule->bind_param('ssi', $ruleName, $kw, $templateId);
-                    $stmtRule->execute();
-                    $stmtRule->close();
-                }
-            }
-        }
-    }
+    crmAutomationSeedDefaultTemplates($conn);
 
     $ensured = true;
     return true;
@@ -195,7 +241,9 @@ function crmAutomationRegisterQueue(
     string $nowa,
     ?string $nama,
     int $ruleId,
-    int $delayMinutes
+    int $delayMinutes,
+    bool $allowInactiveRule = false,
+    int $templateIdOverride = 0
 ): int {
     crmAutomationEnsureTables($conn);
 
@@ -204,20 +252,23 @@ function crmAutomationRegisterQueue(
         return 0;
     }
 
-    // Ambil template id dari rule yang ditunjuk
-    $ruleStmt = $conn->prepare("SELECT template_id FROM crm_automation_rules WHERE id = ? AND is_active = 1 LIMIT 1");
-    if (!$ruleStmt) {
-        return 0;
-    }
-    $ruleStmt->bind_param('i', $ruleId);
-    $ruleStmt->execute();
-    $ruleRow = $ruleStmt->get_result()->fetch_assoc();
-    $ruleStmt->close();
+    $templateId = $templateIdOverride;
+    if ($templateId <= 0) {
+        $activeClause = $allowInactiveRule ? "" : " AND is_active = 1";
+        $ruleStmt = $conn->prepare("SELECT template_id FROM crm_automation_rules WHERE id = ? {$activeClause} LIMIT 1");
+        if (!$ruleStmt) {
+            return 0;
+        }
+        $ruleStmt->bind_param('i', $ruleId);
+        $ruleStmt->execute();
+        $ruleRow = $ruleStmt->get_result()->fetch_assoc();
+        $ruleStmt->close();
 
-    if (!$ruleRow) {
-        return 0;
+        if (!$ruleRow) {
+            return 0;
+        }
+        $templateId = (int)$ruleRow['template_id'];
     }
-    $templateId = (int)$ruleRow['template_id'];
 
     // Deduplikasi: Jika masih ada antrean berstatus pending untuk nomor dan rule ini, perbarui jadwalnya
     $checkStmt = $conn->prepare("SELECT id FROM crm_automation_queue WHERE nowa = ? AND rule_id = ? AND status = 'pending' LIMIT 1");

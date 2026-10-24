@@ -249,29 +249,26 @@ if ($tab === 'queue') {
                                         <?php if ($item['has_payment']): ?>
                                             <span style="color: #94a3b8; font-size: 0.75rem;"><i class="fa-solid fa-check"></i> Tidak Perlu</span>
                                         <?php else: ?>
-                                            <div style="display: flex; gap: 0.35rem;">
-                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
-                                                    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
-                                                    <input type="hidden" name="action" value="queue_prospect">
-                                                    <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
-                                                    <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
-                                                    <input type="hidden" name="rule_id" value="<?= $activeRuleId ?>">
-                                                    <input type="hidden" name="delay_minutes" value="0">
-                                                    <button type="submit" class="btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" title="Masukkan ke antrean cron">
-                                                        <i class="fa-solid fa-calendar-plus"></i> Jadwalkan
-                                                    </button>
-                                                </form>
-                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
-                                                    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
-                                                    <input type="hidden" name="action" value="send_prospect_now">
-                                                    <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
-                                                    <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
-                                                    <input type="hidden" name="rule_id" value="<?= $activeRuleId ?>">
-                                                    <button type="submit" class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;" title="Kirim follow up langsung sekarang">
-                                                        <i class="fa-solid fa-paper-plane"></i> Kirim Langsung
-                                                    </button>
-                                                </form>
-                                            </div>
+                                            <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+                                                <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
+                                                <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
+                                                <input type="hidden" name="rule_id" value="<?= $activeRuleId ?>">
+                                                <input type="hidden" name="delay_minutes" value="0">
+
+                                                <select name="template_id" class="form-control" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: auto; max-width: 180px;">
+                                                    <?php foreach ($templates as $tpl): ?>
+                                                        <option value="<?= (int)$tpl['id'] ?>"><?= htmlspecialchars($tpl['name']) ?></option>
+                                                    <?php endforeach; ?>
+                                                </select>
+
+                                                <button type="submit" name="action" value="send_prospect_now" class="btn-primary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Kirim pesan ini sekarang">
+                                                    <i class="fa-solid fa-paper-plane"></i> Kirim
+                                                </button>
+                                                <button type="submit" name="action" value="queue_prospect" class="btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Jadwalkan ke antrean">
+                                                    <i class="fa-solid fa-clock"></i> Antre
+                                                </button>
+                                            </form>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
