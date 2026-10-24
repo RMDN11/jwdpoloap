@@ -114,6 +114,7 @@ function crmAutomationDispatchSingle(mysqli $conn, int $queueId, string $apiUrl 
             'Content-Type: application/json',
             'Authorization: Bearer ' . $apiToken,
         ],
+        CURLOPT_USERAGENT => 'AutoReplyEngine/1.0 (Jawwada-CRM)',
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT => 15,
         CURLOPT_SSL_VERIFYPEER => false,
