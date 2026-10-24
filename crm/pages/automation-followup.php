@@ -567,7 +567,12 @@ if ($tab === 'queue') {
                                 <tr>
                                     <td><strong><?= htmlspecialchars($q['nowa']) ?></strong></td>
                                     <td><?= htmlspecialchars($q['nama'] ?: 'Kak') ?></td>
-                                    <td><?= htmlspecialchars($q['rule_name'] ?? 'Tahfidz Private') ?></td>
+                                    <td>
+                                        <strong><?= htmlspecialchars($q['template_name'] ?? $q['rule_name'] ?? 'Tahfidz Private') ?></strong>
+                                        <?php if (!empty($q['rule_name']) && $q['rule_name'] !== ($q['template_name'] ?? '')): ?>
+                                            <div style="font-size: 0.72rem; color: #64748b;"><?= htmlspecialchars($q['rule_name']) ?></div>
+                                        <?php endif; ?>
+                                    </td>
                                     <td>
                                         <?= date('d/m/Y H:i', strtotime($q['scheduled_at'])) ?>
                                     </td>
@@ -578,8 +583,11 @@ if ($tab === 'queue') {
                                             <span class="badge-status badge-sent"><i class="fa-solid fa-check"></i> Terkirim</span>
                                         <?php elseif (str_starts_with((string)$q['status'], 'cancelled')): ?>
                                             <span class="badge-status badge-cancelled" title="<?= htmlspecialchars((string)($q['error_message'] ?? '')) ?>">
-                                                <i class="fa-solid fa-ban"></i> Batal (<?= htmlspecialchars($q['status']) ?>)
+                                                <i class="fa-solid fa-ban"></i> Batal (<?= htmlspecialchars(str_replace('cancelled_', '', $q['status'])) ?>)
                                             </span>
+                                            <?php if (!empty($q['error_message'])): ?>
+                                                <div style="font-size: 0.7rem; color: #64748b; margin-top: 0.15rem;"><?= htmlspecialchars($q['error_message']) ?></div>
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <span class="badge-status badge-failed" title="<?= htmlspecialchars((string)($q['error_message'] ?? '')) ?>">
                                                 <i class="fa-solid fa-triangle-exclamation"></i> Gagal

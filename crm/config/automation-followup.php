@@ -171,7 +171,8 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
                     $tplId = (int)$ins->insert_id;
                     $ins->close();
 
-                    if ($tplId > 0) {
+                    // Hanya buat aturan sequence otomatis untuk template umum Follow Up 1 s/d 6
+                    if ($tplId > 0 && str_starts_with($tpl['name'], 'Follow Up ')) {
                         $ruleName = 'Tahfidz Private - ' . $tpl['name'];
                         $kw = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
                         $insRule = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, 0)");
@@ -308,6 +309,28 @@ function crmAutomationEnsureTables(mysqli $conn): bool
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     crmAutomationSeedDefaultTemplates($conn);
+
+    // Cleanup 1: Hapus aturan rules yang salah mengaitkan template spesifik minat dengan keyword umum
+    $conn->query("
+        DELETE r FROM crm_automation_rules r
+        JOIN crm_automation_templates t ON t.id = r.template_id
+        WHERE (t.name LIKE '%Tahfidz Cilik%' 
+            OR t.name LIKE '%Menghafal Pemula%' 
+            OR t.name LIKE '%Lanjutan%')
+          AND r.trigger_keyword LIKE '%tanya detail%'
+    ");
+
+    // Cleanup 2: Batalkan antrean pending duplikat yang tidak sengaja terjadwal bersamaan untuk template minat spesifik
+    $conn->query("
+        UPDATE crm_automation_queue q
+        JOIN crm_automation_templates t ON t.id = q.template_id
+        SET q.status = 'cancelled_duplicate_specific',
+            q.error_message = 'Dibatalkan: hanya Follow Up 1 General yang dijalankan dalam alur sequence'
+        WHERE q.status = 'pending'
+          AND (t.name LIKE '%Tahfidz Cilik - Follow Up 1%' 
+            OR t.name LIKE '%Lanjutan & Muroja\'ah - Follow Up 1%' 
+            OR t.name LIKE '%Menghafal Pemula - Follow Up 1%')
+    ");
 
     $ensured = true;
     return true;
@@ -628,35 +651,76 @@ function crmAutomationScheduleSequence(
         ];
     }
 
+    // Ambil urutan alur bertingkat 6 tahap umum (Follow Up 1 s/d 6)
+    // PENTING: Hanya template general 'Follow Up 1' s/d 'Follow Up 6', BUKAN template minat spesifik
     $rules = [];
-    $stmt = $conn->prepare("SELECT id, template_id, delay_minutes FROM crm_automation_rules WHERE ? LIKE CONCAT('%', trigger_keyword, '%') OR trigger_keyword LIKE CONCAT('%', ?, '%') ORDER BY delay_minutes ASC");
-    if ($stmt) {
-        $stmt->bind_param('ss', $keyword, $keyword);
-        $stmt->execute();
-        $rules = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        $stmt->close();
-    }
+    $seenTpl = [];
+    $resSeq = $conn->query("
+        SELECT r.id, r.template_id, r.delay_minutes, t.name AS template_name
+        FROM crm_automation_rules r
+        JOIN crm_automation_templates t ON t.id = r.template_id
+        WHERE (
+            t.name LIKE 'Follow Up 1 (%'
+            OR t.name LIKE 'Follow Up 2 (%'
+            OR t.name LIKE 'Follow Up 3 (%'
+            OR t.name LIKE 'Follow Up 4 (%'
+            OR t.name LIKE 'Follow Up 5 (%'
+            OR t.name LIKE 'Follow Up 6 (%'
+        )
+        AND t.name NOT LIKE '%Menghafal Pemula%'
+        AND t.name NOT LIKE '%Lanjutan%'
+        AND t.name NOT LIKE '%Tahfidz Cilik%'
+        ORDER BY r.delay_minutes ASC, r.id ASC
+    ");
 
-    // Fallback 1: Jika tidak ditemukan atau kurang dari 2 aturan, gunakan seluruh sequence utama (Follow Up 1 s/d 6)
-    if (count($rules) < 2) {
-        $fallbackKw = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
-        $stmtFb = $conn->prepare("SELECT id, template_id, delay_minutes FROM crm_automation_rules WHERE trigger_keyword = ? OR name LIKE '%Tahfidz Private - Follow Up%' ORDER BY delay_minutes ASC");
-        if ($stmtFb) {
-            $stmtFb->bind_param('s', $fallbackKw);
-            $stmtFb->execute();
-            $fbRules = $stmtFb->get_result()->fetch_all(MYSQLI_ASSOC);
-            $stmtFb->close();
-            if (!empty($fbRules)) {
-                $rules = $fbRules;
+    if ($resSeq instanceof mysqli_result) {
+        while ($row = $resSeq->fetch_assoc()) {
+            $tId = (int)$row['template_id'];
+            if (isset($seenTpl[$tId])) {
+                continue;
             }
+            $seenTpl[$tId] = true;
+            $rules[] = $row;
         }
     }
 
-    // Fallback 2: Jika masih kosong, ambil 6 aturan aktif pertama di database
+    // Fallback: Jika tabel rules belum memuat link ke template, ambil langsung dari tabel templates
     if (empty($rules)) {
-        $resAny = $conn->query("SELECT id, template_id, delay_minutes FROM crm_automation_rules ORDER BY delay_minutes ASC LIMIT 6");
-        if ($resAny instanceof mysqli_result) {
-            $rules = $resAny->fetch_all(MYSQLI_ASSOC);
+        $resTplFallback = $conn->query("
+            SELECT id AS template_id, name AS template_name,
+                   CASE 
+                       WHEN name LIKE 'Follow Up 1 (%' THEN 30
+                       WHEN name LIKE 'Follow Up 2 (%' THEN 60
+                       WHEN name LIKE 'Follow Up 3 (%' THEN 300
+                       WHEN name LIKE 'Follow Up 4 (%' THEN 1440
+                       WHEN name LIKE 'Follow Up 5 (%' THEN 4320
+                       WHEN name LIKE 'Follow Up 6 (%' THEN 10080
+                       ELSE 9999
+                   END AS delay_minutes
+            FROM crm_automation_templates
+            WHERE (
+                name LIKE 'Follow Up 1 (%'
+                OR name LIKE 'Follow Up 2 (%'
+                OR name LIKE 'Follow Up 3 (%'
+                OR name LIKE 'Follow Up 4 (%'
+                OR name LIKE 'Follow Up 5 (%'
+                OR name LIKE 'Follow Up 6 (%'
+            )
+            AND name NOT LIKE '%Menghafal Pemula%'
+            AND name NOT LIKE '%Lanjutan%'
+            AND name NOT LIKE '%Tahfidz Cilik%'
+            ORDER BY delay_minutes ASC, id ASC
+        ");
+        if ($resTplFallback instanceof mysqli_result) {
+            while ($rowTpl = $resTplFallback->fetch_assoc()) {
+                $tId = (int)$rowTpl['template_id'];
+                if (isset($seenTpl[$tId])) {
+                    continue;
+                }
+                $seenTpl[$tId] = true;
+                $rowTpl['id'] = 1;
+                $rules[] = $rowTpl;
+            }
         }
     }
 
