@@ -18,6 +18,23 @@ function crmAutomationGetApiCredentials(): array
     return [(string)$url, (string)$token];
 }
 
+function crmAutomationIsOperationalNumber(string $nowa): bool
+{
+    $clean = preg_replace('/\D+/', '', $nowa);
+    if ($clean === '') {
+        return false;
+    }
+    // Nomor operasional / CS utama Jawwada (088223053149 / 6288223053149)
+    if (str_ends_with($clean, '88223053149')) {
+        return true;
+    }
+    // Nomor internal / bot sistem lainnya
+    if (str_contains($clean, '248232064090227')) {
+        return true;
+    }
+    return false;
+}
+
 function crmAutomationClassifyLpLead(string $message): array
 {
     $m = strtolower($message);
@@ -490,8 +507,12 @@ function crmAutomationRegisterQueue(
 ): int {
     crmAutomationEnsureTables($conn);
 
+    if (crmAutomationIsOperationalNumber($nowa)) {
+        return 0;
+    }
+
     $normalized = crmProspectNormalizeNumber($nowa);
-    if ($normalized === '' || crmAutomationIsBlocked($conn, $normalized)) {
+    if ($normalized === '' || crmAutomationIsOperationalNumber($normalized) || crmAutomationIsBlocked($conn, $normalized)) {
         return 0;
     }
 
@@ -547,38 +568,79 @@ function crmAutomationRegisterQueue(
     return $queueId;
 }
 
+/**
+ * Menjadwalkan seluruh urutan follow-up untuk suatu nomor prospek.
+ *
+ * @return array{success: bool, count: int, reason: string, message: string}
+ */
 function crmAutomationScheduleSequence(
     mysqli $conn,
     string $nowa,
     ?string $nama,
     int $startTemplateId = 0,
     string $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada'
-): int {
+): array {
     crmAutomationEnsureTables($conn);
 
+    if (crmAutomationIsOperationalNumber($nowa)) {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'operational_number',
+            'message' => "Nomor {$nowa} adalah nomor operasional internal Jawwada, tidak dapat dijadwalkan follow-up.",
+        ];
+    }
+
     $normalized = crmProspectNormalizeNumber($nowa);
-    if ($normalized === '' || crmAutomationIsBlocked($conn, $normalized)) {
-        return 0;
+    if ($normalized === '') {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'invalid_number',
+            'message' => 'Nomor WhatsApp tidak valid atau kosong.',
+        ];
+    }
+
+    if (crmAutomationIsOperationalNumber($normalized)) {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'operational_number',
+            'message' => "Nomor {$nowa} adalah nomor operasional internal Jawwada, tidak dapat dijadwalkan follow-up.",
+        ];
+    }
+
+    if (crmAutomationIsBlocked($conn, $normalized)) {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'blocked',
+            'message' => "Nomor {$nowa} terdaftar dalam daftar blokir peserta (blocked_peserta).",
+        ];
     }
 
     if (crmAutomationHasReceivedPayment($conn, $normalized)) {
-        return 0;
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'already_paid',
+            'message' => "Kontak {$nowa} sudah tercatat sebagai peserta aktif atau sudah menerima pesan Finance (pembayaran).",
+        ];
     }
 
+    $rules = [];
     $stmt = $conn->prepare("SELECT id, template_id, delay_minutes FROM crm_automation_rules WHERE ? LIKE CONCAT('%', trigger_keyword, '%') OR trigger_keyword LIKE CONCAT('%', ?, '%') ORDER BY delay_minutes ASC");
-    if (!$stmt) {
-        return 0;
+    if ($stmt) {
+        $stmt->bind_param('ss', $keyword, $keyword);
+        $stmt->execute();
+        $rules = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        $stmt->close();
     }
 
-    $stmt->bind_param('ss', $keyword, $keyword);
-    $stmt->execute();
-    $rules = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
-
-    // Fallback: Jika tidak ditemukan atau kurang dari 2 aturan, gunakan seluruh sequence utama (Follow Up 1 s/d 6)
+    // Fallback 1: Jika tidak ditemukan atau kurang dari 2 aturan, gunakan seluruh sequence utama (Follow Up 1 s/d 6)
     if (count($rules) < 2) {
         $fallbackKw = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
-        $stmtFb = $conn->prepare("SELECT id, template_id, delay_minutes FROM crm_automation_rules WHERE trigger_keyword = ? ORDER BY delay_minutes ASC");
+        $stmtFb = $conn->prepare("SELECT id, template_id, delay_minutes FROM crm_automation_rules WHERE trigger_keyword = ? OR name LIKE '%Tahfidz Private - Follow Up%' ORDER BY delay_minutes ASC");
         if ($stmtFb) {
             $stmtFb->bind_param('s', $fallbackKw);
             $stmtFb->execute();
@@ -590,8 +652,21 @@ function crmAutomationScheduleSequence(
         }
     }
 
+    // Fallback 2: Jika masih kosong, ambil 6 aturan aktif pertama di database
     if (empty($rules)) {
-        return 0;
+        $resAny = $conn->query("SELECT id, template_id, delay_minutes FROM crm_automation_rules ORDER BY delay_minutes ASC LIMIT 6");
+        if ($resAny instanceof mysqli_result) {
+            $rules = $resAny->fetch_all(MYSQLI_ASSOC);
+        }
+    }
+
+    if (empty($rules)) {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'no_rules',
+            'message' => 'Belum ada aturan sequence follow-up yang tersedia di database.',
+        ];
     }
 
     // Tentukan delay awal jika startTemplateId dipilih
@@ -636,7 +711,21 @@ function crmAutomationScheduleSequence(
         }
     }
 
-    return $count;
+    if ($count > 0) {
+        return [
+            'success' => true,
+            'count' => $count,
+            'reason' => 'ok',
+            'message' => "Alur follow-up berhasil dijadwalkan secara berurutan untuk kontak {$nowa} ({$count} tahap pesan). Pesan pertama akan mulai dikirim dalam ±10 menit.",
+        ];
+    }
+
+    return [
+        'success' => false,
+        'count' => 0,
+        'reason' => 'queue_failed',
+        'message' => "Gagal memasukkan jadwal ke antrean database untuk kontak {$nowa}.",
+    ];
 }
 
 function crmAutomationRegisterSequence(
@@ -645,5 +734,6 @@ function crmAutomationRegisterSequence(
     ?string $nama,
     string $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada'
 ): int {
-    return crmAutomationScheduleSequence($conn, $nowa, $nama, 0, $keyword);
+    $res = crmAutomationScheduleSequence($conn, $nowa, $nama, 0, $keyword);
+    return (int)($res['count'] ?? 0);
 }

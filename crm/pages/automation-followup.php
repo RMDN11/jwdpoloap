@@ -47,11 +47,13 @@ if ($tab === 'prospects') {
                COUNT(*) AS trigger_count,
                SUBSTRING_INDEX(GROUP_CONCAT(l.message ORDER BY l.id DESC SEPARATOR '|||'), '|||', 1) AS last_message
         FROM log_wa l
-        WHERE l.message LIKE '%Tahfidz Private%'
+        WHERE (l.message LIKE '%Tahfidz Private%'
            OR l.message LIKE '%Kelas Menghafal%'
            OR l.message LIKE '%Penguatan Hafalan%'
            OR l.message LIKE '%Tahfidz Cilik%'
-           OR l.message LIKE '%tanya detail program Tahfidz%'
+           OR l.message LIKE '%tanya detail program Tahfidz%')
+           AND l.nowa NOT LIKE '%88223053149%'
+           AND l.nowa NOT LIKE '%248232064090227%'
         GROUP BY l.nowa
         ORDER BY last_trigger_at DESC
         LIMIT 250
@@ -71,7 +73,15 @@ if ($tab === 'prospects') {
 
         foreach ($rawProspects as $p) {
             $nowa = (string)$p['nowa'];
+            if (crmAutomationIsOperationalNumber($nowa)) {
+                continue;
+            }
+
             $normalized = crmProspectNormalizeNumber($nowa);
+            if ($normalized === '' || crmAutomationIsOperationalNumber($normalized)) {
+                continue;
+            }
+
             $hasPayment = crmAutomationHasReceivedPayment($conn, $nowa);
 
             if ($pfilter === 'unpaid' && $hasPayment) continue;
@@ -80,7 +90,15 @@ if ($tab === 'prospects') {
             $lastMsg = (string)($p['last_message'] ?? '');
             $category = crmAutomationClassifyLpLead($lastMsg);
 
-            if ($cfilter !== 'all' && $category['key'] !== $cfilter) continue;
+            // Tanya Detail (Hero) tidak perlu ada dalam filter 'all' (Semua Paket),
+            // dipisahkan agar admin dapat mereview isi pesan spesifiknya di tab khusus "Tanya Detail".
+            if ($cfilter === 'all') {
+                if ($category['key'] === 'general') {
+                    continue;
+                }
+            } elseif ($category['key'] !== $cfilter) {
+                continue;
+            }
 
             $qData = $existingQueue[$normalized] ?? null;
 
@@ -212,12 +230,21 @@ if ($tab === 'queue') {
                 <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-right: 0.25rem;">
                     <i class="fa-solid fa-tags"></i> Kategori Landing Page:
                 </span>
-                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=all" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'all' ? 'background: #0f172a; color: #fff;' : '' ?>">Semua Kategori</a>
-                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=general" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'general' ? 'background: #334155; color: #fff;' : '' ?>">Tanya Detail</a>
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=all" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'all' ? 'background: #0f172a; color: #fff;' : '' ?>" title="Hanya menampilkan calon peserta paket terarah (Pemula, Lanjutan, Cilik, CTA)">
+                    <i class="fa-solid fa-layer-group"></i> Semua Paket Terarah
+                </a>
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=general" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'general' ? 'background: #334155; color: #fff;' : '' ?>" title="Pertanyaan umum calon peserta dari tombol hero landing page (review manual)">
+                    <i class="fa-solid fa-comment-dots"></i> Tanya Detail (Review Manual)
+                </a>
                 <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=pemula" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'pemula' ? 'background: #1d4ed8; color: #fff;' : '' ?>">Menghafal Pemula</a>
                 <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=lanjutan" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'lanjutan' ? 'background: #6d28d9; color: #fff;' : '' ?>">Lanjutan & Muroja'ah</a>
                 <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=cilik" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'cilik' ? 'background: #be185d; color: #fff;' : '' ?>">Tahfidz Cilik</a>
                 <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=cta" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'cta' ? 'background: #047857; color: #fff;' : '' ?>">Pendaftaran CTA</a>
+
+                <div style="width: 100%; margin-top: 0.35rem; font-size: 0.72rem; color: #64748b; display: flex; align-items: center; gap: 0.35rem;">
+                    <i class="fa-solid fa-circle-info" style="color: #0284c7;"></i>
+                    <span>Tab <strong>Semua Paket Terarah</strong> khusus menampilkan prospek pendaftaran paket. Pertanyaan dari tombol <strong>Tanya Detail (Hero)</strong> dipisahkan di tab tersendiri agar Anda dapat memeriksa isi pesan spesifiknya terlebih dahulu sebelum mengatur tindak lanjut.</span>
+                </div>
             </div>
 
             <div class="crm-table-container">

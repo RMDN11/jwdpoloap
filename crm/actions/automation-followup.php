@@ -149,6 +149,11 @@ switch ($action) {
             crmAutoRedirect('prospects');
         }
 
+        if (crmAutomationIsOperationalNumber($nowa)) {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => "Nomor {$nowa} adalah nomor operasional internal Jawwada, tidak dapat dimasukkan ke antrean follow-up."];
+            crmAutoRedirect('prospects');
+        }
+
         if (crmAutomationHasReceivedPayment($conn, $nowa)) {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini sudah menerima pesan payment Finance, tidak dapat dimasukkan antrean.'];
             crmAutoRedirect('prospects');
@@ -158,7 +163,7 @@ switch ($action) {
         if ($queueId > 0) {
             $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Kontak {$nowa} berhasil dijadwalkan ke antrean follow-up."];
         } else {
-            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan kontak (mungkin nomor diblokir).'];
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan kontak (nomor diblokir atau tidak valid).'];
         }
         crmAutoRedirect('prospects');
         break;
@@ -174,8 +179,13 @@ switch ($action) {
             crmAutoRedirect('prospects');
         }
 
+        if (crmAutomationIsOperationalNumber($nowa)) {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => "Nomor {$nowa} adalah nomor operasional internal Jawwada, tidak dapat dijadwalkan follow-up."];
+            crmAutoRedirect('prospects');
+        }
+
         if (crmAutomationHasReceivedPayment($conn, $nowa)) {
-            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini sudah menerima pesan payment Finance, tidak dapat dimasukkan antrean.'];
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini sudah menerima pesan payment Finance / terdaftar sebagai peserta, tidak dapat dimasukkan alur follow-up.'];
             crmAutoRedirect('prospects');
         }
 
@@ -184,11 +194,11 @@ switch ($action) {
             $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
         }
 
-        $count = crmAutomationScheduleSequence($conn, $nowa, $nama, $templateId, $keyword);
-        if ($count > 0) {
-            $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Alur follow-up berhasil dijadwalkan secara berurutan untuk kontak {$nowa} ({$count} tahap pesan). Pesan pertama akan mulai dikirim dalam ±10 menit."];
+        $res = crmAutomationScheduleSequence($conn, $nowa, $nama, $templateId, $keyword);
+        if (!empty($res['success'])) {
+            $_SESSION['crm_flash'] = ['type' => 'success', 'message' => $res['message']];
         } else {
-            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan sequence (mungkin nomor diblokir atau aturan belum tersedia).'];
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan sequence: ' . ($res['message'] ?? 'Nomor diblokir atau aturan belum tersedia.')];
         }
         crmAutoRedirect('prospects');
         break;
@@ -216,6 +226,11 @@ switch ($action) {
             crmAutoRedirect('prospects');
         }
 
+        if (crmAutomationIsOperationalNumber($nowa)) {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => "Nomor {$nowa} adalah nomor operasional internal Jawwada, tidak dapat dikirim follow-up."];
+            crmAutoRedirect('prospects');
+        }
+
         if (crmAutomationHasReceivedPayment($conn, $nowa)) {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini sudah menerima pesan payment Finance.'];
             crmAutoRedirect('prospects');
@@ -231,7 +246,7 @@ switch ($action) {
                 $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pengiriman gagal: ' . ($res['reason'] ?? '')];
             }
         } else {
-            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal membuat antrean untuk kontak (mungkin nomor diblokir).'];
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal membuat antrean untuk kontak (nomor diblokir atau nomor operasional).'];
         }
         crmAutoRedirect('prospects');
         break;
