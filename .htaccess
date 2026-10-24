@@ -10,3 +10,10 @@
   php_flag display_errors On
   php_value error_reporting E_ALL
 </IfModule>
+
+# Keamanan: Blokir akses publik ke folder .git dan file konfigurasi sensitif
+RedirectMatch 404 /\.git
+<FilesMatch "^\.">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
