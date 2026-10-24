@@ -334,3 +334,49 @@ function crmAutomationRegisterQueue(
 
     return $queueId;
 }
+
+function crmAutomationRegisterSequence(
+    mysqli $conn,
+    string $nowa,
+    ?string $nama,
+    string $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada'
+): int {
+    crmAutomationEnsureTables($conn);
+
+    $normalized = crmProspectNormalizeNumber($nowa);
+    if ($normalized === '' || crmAutomationIsBlocked($conn, $normalized)) {
+        return 0;
+    }
+
+    if (crmAutomationHasReceivedPayment($conn, $normalized)) {
+        return 0;
+    }
+
+    $stmt = $conn->prepare("SELECT id, template_id, delay_minutes FROM crm_automation_rules WHERE ? LIKE CONCAT('%', trigger_keyword, '%') OR trigger_keyword LIKE CONCAT('%', ?, '%') ORDER BY delay_minutes ASC");
+    if (!$stmt) {
+        return 0;
+    }
+
+    $stmt->bind_param('ss', $keyword, $keyword);
+    $stmt->execute();
+    $rules = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+
+    if (empty($rules)) {
+        return 0;
+    }
+
+    $count = 0;
+    foreach ($rules as $r) {
+        $ruleId = (int)$r['id'];
+        $delay = (int)$r['delay_minutes'];
+        $tplId = (int)$r['template_id'];
+
+        $res = crmAutomationRegisterQueue($conn, $normalized, $nama, $ruleId, $delay, true, $tplId);
+        if ($res > 0) {
+            $count++;
+        }
+    }
+
+    return $count;
+}

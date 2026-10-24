@@ -163,6 +163,29 @@ switch ($action) {
         crmAutoRedirect('prospects');
         break;
 
+    case 'queue_sequence':
+        $nowa = trim((string)($_POST['nowa'] ?? ''));
+        $nama = trim((string)($_POST['nama'] ?? 'Kak'));
+
+        if ($nowa === '') {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nomor WhatsApp tidak valid.'];
+            crmAutoRedirect('prospects');
+        }
+
+        if (crmAutomationHasReceivedPayment($conn, $nowa)) {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini sudah menerima pesan payment Finance, tidak dapat dimasukkan antrean.'];
+            crmAutoRedirect('prospects');
+        }
+
+        $count = crmAutomationRegisterSequence($conn, $nowa, $nama);
+        if ($count > 0) {
+            $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Kontak {$nowa} berhasil didaftarkan ke seluruh alur sequence ({$count} tahap follow-up)."];
+        } else {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan sequence (mungkin nomor diblokir atau aturan belum tersedia).'];
+        }
+        crmAutoRedirect('prospects');
+        break;
+
     case 'send_prospect_now':
         $nowa = trim((string)($_POST['nowa'] ?? ''));
         $nama = trim((string)($_POST['nama'] ?? 'Kak'));

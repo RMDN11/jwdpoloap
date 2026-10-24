@@ -262,11 +262,14 @@ if ($tab === 'queue') {
                                                     <?php endforeach; ?>
                                                 </select>
 
-                                                <button type="submit" name="action" value="send_prospect_now" class="btn-primary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Kirim pesan ini sekarang">
+                                                <button type="submit" name="action" value="send_prospect_now" class="btn-primary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Kirim template terpilih langsung sekarang">
                                                     <i class="fa-solid fa-paper-plane"></i> Kirim
                                                 </button>
-                                                <button type="submit" name="action" value="queue_prospect" class="btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Jadwalkan ke antrean">
-                                                    <i class="fa-solid fa-clock"></i> Antre
+                                                <button type="submit" name="action" value="queue_prospect" class="btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Jadwalkan 1 template terpilih ke antrean cron">
+                                                    <i class="fa-solid fa-clock"></i> Antre 1 Pesan
+                                                </button>
+                                                <button type="submit" name="action" value="queue_sequence" class="btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem; background: #0f172a; color: #fff; border-color: #0f172a;" title="Jadwalkan seluruh alur (Follow Up 1 s/d 6 berjenjang) untuk kontak ini">
+                                                    <i class="fa-solid fa-layer-group"></i> Drip Lengkap
                                                 </button>
                                             </form>
                                         <?php endif; ?>
@@ -368,9 +371,9 @@ if ($tab === 'queue') {
 
     <!-- Tab 3: Templates -->
     <?php if ($tab === 'templates'): ?>
-        <div class="crm-card">
+        <div class="crm-card" id="tplFormCard">
             <div class="crm-card-header">
-                <h2>Buat / Edit Template Follow-Up</h2>
+                <h2 id="tplFormHeading">Buat / Edit Template Follow-Up</h2>
             </div>
             <form action="index.php?page=automation-followup" method="POST">
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
@@ -396,10 +399,16 @@ if ($tab === 'queue') {
                     </small>
                 </div>
 
-                <button type="submit" class="btn-primary">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    <span>Simpan Template</span>
-                </button>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="submit" id="tplSubmitBtn" class="btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Simpan Template</span>
+                    </button>
+                    <button type="button" id="tplCancelBtn" class="btn-secondary" style="display: none;" onclick="cancelEditTemplate()">
+                        <i class="fa-solid fa-xmark"></i>
+                        <span>Batal Edit</span>
+                    </button>
+                </div>
             </form>
         </div>
 
@@ -413,22 +422,32 @@ if ($tab === 'queue') {
                 <?php else: ?>
                     <?php foreach ($templates as $t): ?>
                         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                                 <div>
                                     <strong style="color: #0f172a;"><?= htmlspecialchars($t['name']) ?></strong>
                                     <?php if (!empty($t['description'])): ?>
                                         <p style="margin: 0.15rem 0 0; font-size: 0.75rem; color: #64748b;"><?= htmlspecialchars($t['description']) ?></p>
                                     <?php endif; ?>
                                 </div>
-                                <form action="index.php?page=automation-followup" method="POST" onsubmit="return confirm('Hapus template ini?');" style="margin: 0;">
-                                    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
-                                    <input type="hidden" name="action" value="delete_template">
-                                    <input type="hidden" name="tab" value="templates">
-                                    <input type="hidden" name="template_id" value="<?= (int)$t['id'] ?>">
-                                    <button type="submit" class="btn-danger">
-                                        <i class="fa-solid fa-trash"></i> Hapus
+                                <div style="display: flex; gap: 0.35rem; align-items: center;">
+                                    <button type="button" class="btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;" onclick="editTemplate(<?= htmlspecialchars(json_encode([
+                                        'id' => (int)$t['id'],
+                                        'name' => (string)$t['name'],
+                                        'description' => (string)($t['description'] ?? ''),
+                                        'content' => (string)$t['content'],
+                                    ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP)) ?>)">
+                                        <i class="fa-solid fa-pen-to-square"></i> Edit
                                     </button>
-                                </form>
+                                    <form action="index.php?page=automation-followup" method="POST" onsubmit="return confirm('Hapus template ini?');" style="margin: 0;">
+                                        <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                        <input type="hidden" name="action" value="delete_template">
+                                        <input type="hidden" name="tab" value="templates">
+                                        <input type="hidden" name="template_id" value="<?= (int)$t['id'] ?>">
+                                        <button type="submit" class="btn-danger" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;">
+                                            <i class="fa-solid fa-trash"></i> Hapus
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                             <div class="wa-preview-bubble">
                                 <?= nl2br(htmlspecialchars($t['content'])) ?>
@@ -528,4 +547,47 @@ if ($tab === 'queue') {
             </div>
         </div>
     <?php endif; ?>
+
+    <script>
+    function editTemplate(data) {
+        var tplId = document.getElementById('tplId');
+        var tplName = document.getElementById('tplName');
+        var tplDesc = document.getElementById('tplDesc');
+        var tplContent = document.getElementById('tplContent');
+        var heading = document.getElementById('tplFormHeading');
+        var btn = document.getElementById('tplSubmitBtn');
+        var cancelBtn = document.getElementById('tplCancelBtn');
+        var card = document.getElementById('tplFormCard');
+
+        if (tplId) tplId.value = data.id;
+        if (tplName) tplName.value = data.name;
+        if (tplDesc) tplDesc.value = data.description || '';
+        if (tplContent) tplContent.value = data.content || '';
+        if (heading) heading.textContent = 'Edit Template: ' + data.name;
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Perbarui Template</span>';
+        if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function cancelEditTemplate() {
+        var tplId = document.getElementById('tplId');
+        var tplName = document.getElementById('tplName');
+        var tplDesc = document.getElementById('tplDesc');
+        var tplContent = document.getElementById('tplContent');
+        var heading = document.getElementById('tplFormHeading');
+        var btn = document.getElementById('tplSubmitBtn');
+        var cancelBtn = document.getElementById('tplCancelBtn');
+
+        if (tplId) tplId.value = '0';
+        if (tplName) tplName.value = '';
+        if (tplDesc) tplDesc.value = '';
+        if (tplContent) tplContent.value = '';
+        if (heading) heading.textContent = 'Buat / Edit Template Follow-Up';
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>Simpan Template</span>';
+        if (cancelBtn) cancelBtn.style.display = 'none';
+    }
+    </script>
 </div>

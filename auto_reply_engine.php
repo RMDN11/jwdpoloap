@@ -145,14 +145,13 @@ class AutoReplyEngine
                         }
                     }
                     if (function_exists('crmAutomationRegisterQueue') && $this->isDbConnected()) {
-                        $stmtRule = $this->conn->prepare("SELECT id, delay_minutes FROM crm_automation_rules WHERE is_active = 1 AND ? LIKE CONCAT('%', trigger_keyword, '%') ORDER BY id ASC LIMIT 1");
+                        $stmtRule = $this->conn->prepare("SELECT id, delay_minutes FROM crm_automation_rules WHERE is_active = 1 AND ? LIKE CONCAT('%', trigger_keyword, '%') ORDER BY delay_minutes ASC");
                         if ($stmtRule) {
                             $stmtRule->bind_param('s', $message);
                             $stmtRule->execute();
-                            $matchedRule = $stmtRule->get_result()->fetch_assoc();
-                            $stmtRule->close();
-
-                            if ($matchedRule) {
+                            $resRules = $stmtRule->get_result();
+                            $queuedCount = 0;
+                            while ($matchedRule = $resRules->fetch_assoc()) {
                                 crmAutomationRegisterQueue(
                                     $this->conn,
                                     $phone,
@@ -160,7 +159,12 @@ class AutoReplyEngine
                                     (int)$matchedRule['id'],
                                     (int)$matchedRule['delay_minutes']
                                 );
-                                $this->logToFile("✅ Registered to crm_automation_rules queue for rule ID {$matchedRule['id']}");
+                                $queuedCount++;
+                            }
+                            $stmtRule->close();
+
+                            if ($queuedCount > 0) {
+                                $this->logToFile("✅ Registered {$queuedCount} sequence rules to crm_automation_rules queue");
                             }
                         }
                     }
