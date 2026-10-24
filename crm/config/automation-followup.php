@@ -575,6 +575,21 @@ function crmAutomationScheduleSequence(
     $rules = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 
+    // Fallback: Jika tidak ditemukan atau kurang dari 2 aturan, gunakan seluruh sequence utama (Follow Up 1 s/d 6)
+    if (count($rules) < 2) {
+        $fallbackKw = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
+        $stmtFb = $conn->prepare("SELECT id, template_id, delay_minutes FROM crm_automation_rules WHERE trigger_keyword = ? ORDER BY delay_minutes ASC");
+        if ($stmtFb) {
+            $stmtFb->bind_param('s', $fallbackKw);
+            $stmtFb->execute();
+            $fbRules = $stmtFb->get_result()->fetch_all(MYSQLI_ASSOC);
+            $stmtFb->close();
+            if (!empty($fbRules)) {
+                $rules = $fbRules;
+            }
+        }
+    }
+
     if (empty($rules)) {
         return 0;
     }
