@@ -101,7 +101,7 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
             'delay' => 300,
         ],
         [
-            'name' => 'Follow Up 4 (H+1 / 24 Jam - Solusi Ragu & Pengalaman Santri)',
+            'name' => 'Follow Up 4 (H+1 / 24 Jam - Solusi Ragu & Pengalaman Peserta)',
             'desc' => 'Menghilangkan rasa minder jika bacaan belum lancar, bimbingan dari nol',
             'content' => "Assalamu'alaikum kak {nama} ✨\n\nTidak perlu khawatir jika bacaan belum lancar ya kak. Di kelas privat ini ustadz/ustadzah akan membimbing dari nol (tahsin santai) tanpa beban minimal setoran.\n\nKira-kira apa target Al-Qur'an yang paling ingin kak {nama} capai saat ini? 🙏",
             'delay' => 1440,
@@ -117,6 +117,24 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
             'desc' => 'Penutupan sopan (breakup sequence) dan doa kebaikan tanpa terkesan memaksa',
             'content' => "Bismillah, kak {nama}. 🙏\n\nIzin kami arsipkan data konsultasinya sementara waktu ya kak, agar tidak mengganggu kesibukan kakak.\n\nJika sewaktu-waktu ingin memulai kembali, nomor ini selalu terbuka untuk kak {nama}. Semoga Allah Ta'ala mudahkan niat mulianya. Barakallahu fiik. 🤲✨",
             'delay' => 10080,
+        ],
+        [
+            'name' => 'Menghafal Pemula - Follow Up 1 (Tahsin dari Nol)',
+            'desc' => 'Follow-up calon peserta baru yang ingin belajar dari nol',
+            'content' => "Bismillah, ahlan kak {nama}! 😊\n\nTerima kasih sudah memilih Kelas Menghafal Pemula Jawwada. Tidak perlu khawatir jika bacaan belum lancar ya kak, karena di kelas privat ini kita akan benahi tahsin & makhrajnya terlebih dahulu secara santai (10 menit/hari via Telepon WA).\n\nKak {nama} rencananya ingin ambil Paket Normal (Rp135rb/bln) atau Paket Intensif (Rp245rb/bln) kak? 🙏",
+            'delay' => 30,
+        ],
+        [
+            'name' => 'Lanjutan & Muroja\'ah - Follow Up 1 (Mutqin & Target Juz)',
+            'desc' => 'Follow-up peserta yang sudah punya tabungan hafalan',
+            'content' => "Bismillah, ahlan kak {nama}! ✨\n\nAlhamdulillah atas ikhtiar menjaga hafalan Al-Qur'annya. Di kelas ini kak {nama} akan disimak langsung oleh Hafidz/Hafidzoh 30 Juz bersanad agar hafalan lama semakin mutqin dan hafalan baru bertambah lancar.\n\nSaat ini kak {nama} sudah ada tabungan juz berapa saja dan target selanjutnya ingin fokus di juz berapa kak? 🙏",
+            'delay' => 30,
+        ],
+        [
+            'name' => 'Tahfidz Cilik - Follow Up 1 (Pendekatan Bunda/Ayah)',
+            'desc' => 'Follow-up ramah untuk orang tua yang mendaftarkan anak',
+            'content' => "Bismillah, ahlan Bunda/Ayah {nama}! 😊\n\nSenang sekali Bunda/Ayah berniat membimbing ananda dekat dengan Al-Qur'an sejak dini. Di Tahfidz Cilik, belajarnya 1-on-1 via Private Video Call WA (Rp155rb/bln) dengan metode sabar & menyenangkan.\n\nBoleh tahu ananda saat ini usia berapa tahun dan apakah sudah mulai iqro atau juz 'amma?",
+            'delay' => 30,
         ],
     ];
 
@@ -165,26 +183,42 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
         [
             'name' => 'Tahfidz Private - Pendaftaran Langsung (CTA)',
             'kw' => 'Kak, saya mau daftar program Tahfidz Private Online',
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
             'delay' => 60,
         ],
         [
             'name' => 'Tahfidz Private - Kelas Menghafal Pemula',
             'kw' => 'Kelas Menghafal Pemula',
+            'tpl' => 'Menghafal Pemula - Follow Up 1 (Tahsin dari Nol)',
             'delay' => 60,
         ],
         [
             'name' => 'Tahfidz Private - Lanjutan & Penguatan Muroja\'ah',
             'kw' => 'Kelas Menghafal Lanjutan',
+            'tpl' => 'Lanjutan & Muroja\'ah - Follow Up 1 (Mutqin & Target Juz)',
             'delay' => 60,
         ],
         [
             'name' => 'Tahfidz Cilik - Bimbingan Anak (Video Call)',
             'kw' => 'Tahfidz Cilik',
+            'tpl' => 'Tahfidz Cilik - Follow Up 1 (Pendekatan Bunda/Ayah)',
             'delay' => 60,
         ],
     ];
 
     foreach ($lpVariations as $var) {
+        $targetTplId = 1;
+        $tplLookup = $conn->prepare("SELECT id FROM crm_automation_templates WHERE name = ? LIMIT 1");
+        if ($tplLookup) {
+            $tplLookup->bind_param('s', $var['tpl']);
+            $tplLookup->execute();
+            $tplRow = $tplLookup->get_result()->fetch_assoc();
+            $tplLookup->close();
+            if ($tplRow) {
+                $targetTplId = (int)$tplRow['id'];
+            }
+        }
+
         $checkVar = $conn->prepare("SELECT id FROM crm_automation_rules WHERE trigger_keyword = ? LIMIT 1");
         if ($checkVar) {
             $checkVar->bind_param('s', $var['kw']);
@@ -193,11 +227,19 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
             $checkVar->close();
 
             if (!$existsVar) {
-                $insVar = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', 1, ?, 0)");
+                $insVar = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, 0)");
                 if ($insVar) {
-                    $insVar->bind_param('ssi', $var['name'], $var['kw'], $var['delay']);
+                    $insVar->bind_param('ssii', $var['name'], $var['kw'], $targetTplId, $var['delay']);
                     $insVar->execute();
                     $insVar->close();
+                }
+            } else {
+                $updVar = $conn->prepare("UPDATE crm_automation_rules SET template_id = ?, name = ? WHERE id = ?");
+                if ($updVar) {
+                    $rId = (int)$existsVar['id'];
+                    $updVar->bind_param('isi', $targetTplId, $var['name'], $rId);
+                    $updVar->execute();
+                    $updVar->close();
                 }
             }
         }
