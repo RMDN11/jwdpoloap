@@ -267,6 +267,42 @@ switch ($action) {
         crmAutoRedirect('queue');
         break;
 
+    case 'clean_duplicate_queues':
+        // 1. Batalkan semua antrean pending yang memuat template minat spesifik
+        $conn->query("
+            UPDATE crm_automation_queue q
+            LEFT JOIN crm_automation_rules r ON r.id = q.rule_id
+            LEFT JOIN crm_automation_templates t ON t.id = q.template_id
+            SET q.status = 'cancelled_duplicate_specific',
+                q.error_message = 'Dibatalkan: hanya Follow Up 1 General yang dijalankan dalam alur sequence'
+            WHERE q.status = 'pending'
+              AND (
+                r.name LIKE '%Cilik%' OR r.name LIKE '%Pemula%' OR r.name LIKE '%Lanjutan%'
+                OR t.name LIKE '%Cilik%' OR t.name LIKE '%Pemula%' OR t.name LIKE '%Lanjutan%'
+              )
+        ");
+
+        // 2. Batalkan antrean pending yang bentrok pada jam dan menit yang sama
+        $conn->query("
+            UPDATE crm_automation_queue q
+            JOIN (
+                SELECT MIN(id) AS keep_id, nowa, DATE_FORMAT(scheduled_at, '%Y-%m-%d %H:%i') AS sched_slot
+                FROM crm_automation_queue
+                WHERE status = 'pending'
+                GROUP BY nowa, DATE_FORMAT(scheduled_at, '%Y-%m-%d %H:%i')
+                HAVING COUNT(*) > 1
+            ) dup ON dup.nowa = q.nowa 
+                 AND DATE_FORMAT(q.scheduled_at, '%Y-%m-%d %H:%i') = dup.sched_slot 
+                 AND q.id > dup.keep_id
+            SET q.status = 'cancelled_same_time_dup',
+                q.error_message = 'Dibatalkan otomatis: jadwal bentrok/bersamaan dengan antrean lain'
+            WHERE q.status = 'pending'
+        ");
+
+        $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pembersihan selesai: antrean spesifik dan antrean yang bentrok pada jam yang sama berhasil dibatalkan.'];
+        crmAutoRedirect('queue');
+        break;
+
     default:
         crmAutoRedirect('rules');
         break;

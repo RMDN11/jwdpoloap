@@ -320,16 +320,51 @@ function crmAutomationEnsureTables(mysqli $conn): bool
           AND r.trigger_keyword LIKE '%tanya detail%'
     ");
 
-    // Cleanup 2: Batalkan antrean pending duplikat yang tidak sengaja terjadwal bersamaan untuk template minat spesifik
+    // Cleanup 2: Sinkronkan jeda menit pada aturan rules follow up 1 s/d 6
+    $conn->query("
+        UPDATE crm_automation_rules r
+        JOIN crm_automation_templates t ON t.id = r.template_id
+        SET r.delay_minutes = CASE
+            WHEN t.name LIKE 'Follow Up 1 (%' THEN 30
+            WHEN t.name LIKE 'Follow Up 2 (%' THEN 60
+            WHEN t.name LIKE 'Follow Up 3 (%' THEN 300
+            WHEN t.name LIKE 'Follow Up 4 (%' THEN 1440
+            WHEN t.name LIKE 'Follow Up 5 (%' THEN 4320
+            WHEN t.name LIKE 'Follow Up 6 (%' THEN 10080
+            ELSE r.delay_minutes
+        END
+        WHERE t.name LIKE 'Follow Up %'
+    ");
+
+    // Cleanup 3: Batalkan antrean pending duplikat untuk template minat spesifik
     $conn->query("
         UPDATE crm_automation_queue q
-        JOIN crm_automation_templates t ON t.id = q.template_id
+        LEFT JOIN crm_automation_rules r ON r.id = q.rule_id
+        LEFT JOIN crm_automation_templates t ON t.id = q.template_id
         SET q.status = 'cancelled_duplicate_specific',
             q.error_message = 'Dibatalkan: hanya Follow Up 1 General yang dijalankan dalam alur sequence'
         WHERE q.status = 'pending'
-          AND (t.name LIKE '%Tahfidz Cilik - Follow Up 1%' 
-            OR t.name LIKE '%Lanjutan & Muroja\'ah - Follow Up 1%' 
-            OR t.name LIKE '%Menghafal Pemula - Follow Up 1%')
+          AND (
+            r.name LIKE '%Cilik%' OR r.name LIKE '%Pemula%' OR r.name LIKE '%Lanjutan%'
+            OR t.name LIKE '%Cilik%' OR t.name LIKE '%Pemula%' OR t.name LIKE '%Lanjutan%'
+          )
+    ");
+
+    // Cleanup 4: Batalkan antrean pending yang terjadwal di jam dan menit yang sama persis untuk nomor yang sama
+    $conn->query("
+        UPDATE crm_automation_queue q
+        JOIN (
+            SELECT MIN(id) AS keep_id, nowa, DATE_FORMAT(scheduled_at, '%Y-%m-%d %H:%i') AS sched_slot
+            FROM crm_automation_queue
+            WHERE status = 'pending'
+            GROUP BY nowa, DATE_FORMAT(scheduled_at, '%Y-%m-%d %H:%i')
+            HAVING COUNT(*) > 1
+        ) dup ON dup.nowa = q.nowa 
+             AND DATE_FORMAT(q.scheduled_at, '%Y-%m-%d %H:%i') = dup.sched_slot 
+             AND q.id > dup.keep_id
+        SET q.status = 'cancelled_same_time_dup',
+            q.error_message = 'Dibatalkan otomatis: jadwal bentrok/bersamaan dengan antrean lain'
+        WHERE q.status = 'pending'
     ");
 
     $ensured = true;
@@ -557,19 +592,19 @@ function crmAutomationRegisterQueue(
         $templateId = (int)$ruleRow['template_id'];
     }
 
-    // Deduplikasi: Jika masih ada antrean berstatus pending untuk nomor dan rule ini, perbarui jadwalnya
-    $checkStmt = $conn->prepare("SELECT id FROM crm_automation_queue WHERE nowa = ? AND rule_id = ? AND status = 'pending' LIMIT 1");
+    // Deduplikasi: Jika masih ada antrean berstatus pending untuk nomor dan template/rule ini, perbarui jadwalnya
+    $checkStmt = $conn->prepare("SELECT id FROM crm_automation_queue WHERE nowa = ? AND (template_id = ? OR (rule_id = ? AND rule_id > 0)) AND status = 'pending' LIMIT 1");
     if ($checkStmt) {
-        $checkStmt->bind_param('si', $normalized, $ruleId);
+        $checkStmt->bind_param('sii', $normalized, $templateId, $ruleId);
         $checkStmt->execute();
         $existing = $checkStmt->get_result()->fetch_assoc();
         $checkStmt->close();
 
         if ($existing) {
             $existingId = (int)$existing['id'];
-            $updateStmt = $conn->prepare("UPDATE crm_automation_queue SET scheduled_at = DATE_ADD(NOW(), INTERVAL ? MINUTE), nama = COALESCE(?, nama) WHERE id = ?");
+            $updateStmt = $conn->prepare("UPDATE crm_automation_queue SET scheduled_at = DATE_ADD(NOW(), INTERVAL ? MINUTE), nama = COALESCE(?, nama), template_id = ?, rule_id = ? WHERE id = ?");
             if ($updateStmt) {
-                $updateStmt->bind_param('isi', $delayMinutes, $nama, $existingId);
+                $updateStmt->bind_param('isiii', $delayMinutes, $nama, $templateId, $ruleId, $existingId);
                 $updateStmt->execute();
                 $updateStmt->close();
             }
@@ -651,125 +686,92 @@ function crmAutomationScheduleSequence(
         ];
     }
 
-    // Ambil urutan alur bertingkat 6 tahap umum (Follow Up 1 s/d 6)
-    // PENTING: Hanya template general 'Follow Up 1' s/d 'Follow Up 6', BUKAN template minat spesifik
-    $rules = [];
-    $seenTpl = [];
-    $resSeq = $conn->query("
-        SELECT r.id, r.template_id, r.delay_minutes, t.name AS template_name
-        FROM crm_automation_rules r
-        JOIN crm_automation_templates t ON t.id = r.template_id
-        WHERE (
-            t.name LIKE 'Follow Up 1 (%'
-            OR t.name LIKE 'Follow Up 2 (%'
-            OR t.name LIKE 'Follow Up 3 (%'
-            OR t.name LIKE 'Follow Up 4 (%'
-            OR t.name LIKE 'Follow Up 5 (%'
-            OR t.name LIKE 'Follow Up 6 (%'
-        )
-        AND t.name NOT LIKE '%Menghafal Pemula%'
-        AND t.name NOT LIKE '%Lanjutan%'
-        AND t.name NOT LIKE '%Tahfidz Cilik%'
-        ORDER BY r.delay_minutes ASC, r.id ASC
-    ");
+    // 1. Batalkan semua antrean pending lama untuk nomor ini agar tidak terjadi jadwal ganda/tumpang tindih
+    crmAutomationCancelAllPendingForContact($conn, $normalized, 'cancelled_rescheduled');
 
-    if ($resSeq instanceof mysqli_result) {
-        while ($row = $resSeq->fetch_assoc()) {
-            $tId = (int)$row['template_id'];
-            if (isset($seenTpl[$tId])) {
-                continue;
-            }
-            $seenTpl[$tId] = true;
-            $rules[] = $row;
-        }
-    }
+    // 2. Definisi 6 tahap follow up standar general dengan jeda waktu pasti dan berurutan
+    $sequenceSteps = [
+        1 => ['pattern' => 'Follow Up 1 (%', 'delay_from_now' => 10],     // 10 menit dari sekarang
+        2 => ['pattern' => 'Follow Up 2 (%', 'delay_from_now' => 60],     // 1 jam (60 mnt) dari sekarang
+        3 => ['pattern' => 'Follow Up 3 (%', 'delay_from_now' => 300],    // 5 jam (300 mnt) dari sekarang
+        4 => ['pattern' => 'Follow Up 4 (%', 'delay_from_now' => 1440],   // 24 jam / H+1 dari sekarang
+        5 => ['pattern' => 'Follow Up 5 (%', 'delay_from_now' => 4320],   // 3 hari / H+3 dari sekarang
+        6 => ['pattern' => 'Follow Up 6 (%', 'delay_from_now' => 10080],  // 7 hari / H+7 dari sekarang
+    ];
 
-    // Fallback: Jika tabel rules belum memuat link ke template, ambil langsung dari tabel templates
-    if (empty($rules)) {
-        $resTplFallback = $conn->query("
-            SELECT id AS template_id, name AS template_name,
-                   CASE 
-                       WHEN name LIKE 'Follow Up 1 (%' THEN 30
-                       WHEN name LIKE 'Follow Up 2 (%' THEN 60
-                       WHEN name LIKE 'Follow Up 3 (%' THEN 300
-                       WHEN name LIKE 'Follow Up 4 (%' THEN 1440
-                       WHEN name LIKE 'Follow Up 5 (%' THEN 4320
-                       WHEN name LIKE 'Follow Up 6 (%' THEN 10080
-                       ELSE 9999
-                   END AS delay_minutes
-            FROM crm_automation_templates
-            WHERE (
-                name LIKE 'Follow Up 1 (%'
-                OR name LIKE 'Follow Up 2 (%'
-                OR name LIKE 'Follow Up 3 (%'
-                OR name LIKE 'Follow Up 4 (%'
-                OR name LIKE 'Follow Up 5 (%'
-                OR name LIKE 'Follow Up 6 (%'
-            )
-            AND name NOT LIKE '%Menghafal Pemula%'
-            AND name NOT LIKE '%Lanjutan%'
-            AND name NOT LIKE '%Tahfidz Cilik%'
-            ORDER BY delay_minutes ASC, id ASC
+    $resolvedSteps = [];
+    foreach ($sequenceSteps as $num => $stepInfo) {
+        $stmtTpl = $conn->prepare("
+            SELECT t.id AS template_id, COALESCE(r.id, 1) AS rule_id
+            FROM crm_automation_templates t
+            LEFT JOIN crm_automation_rules r ON r.template_id = t.id
+            WHERE t.name LIKE ?
+              AND t.name NOT LIKE '%Menghafal Pemula%'
+              AND t.name NOT LIKE '%Lanjutan%'
+              AND t.name NOT LIKE '%Tahfidz Cilik%'
+            ORDER BY t.id ASC
+            LIMIT 1
         ");
-        if ($resTplFallback instanceof mysqli_result) {
-            while ($rowTpl = $resTplFallback->fetch_assoc()) {
-                $tId = (int)$rowTpl['template_id'];
-                if (isset($seenTpl[$tId])) {
-                    continue;
-                }
-                $seenTpl[$tId] = true;
-                $rowTpl['id'] = 1;
-                $rules[] = $rowTpl;
+        if ($stmtTpl) {
+            $stmtTpl->bind_param('s', $stepInfo['pattern']);
+            $stmtTpl->execute();
+            $rowTpl = $stmtTpl->get_result()->fetch_assoc();
+            $stmtTpl->close();
+            if ($rowTpl) {
+                $resolvedSteps[$num] = [
+                    'step' => $num,
+                    'template_id' => (int)$rowTpl['template_id'],
+                    'rule_id' => (int)$rowTpl['rule_id'],
+                    'base_delay' => (int)$stepInfo['delay_from_now'],
+                ];
             }
         }
     }
 
-    if (empty($rules)) {
+    if (empty($resolvedSteps)) {
         return [
             'success' => false,
             'count' => 0,
             'reason' => 'no_rules',
-            'message' => 'Belum ada aturan sequence follow-up yang tersedia di database.',
+            'message' => 'Template sequence Follow Up 1 s/d 6 belum tersedia di database.',
         ];
     }
 
-    // Tentukan delay awal jika startTemplateId dipilih
-    $startDelay = 0;
+    // Tentukan tahap mulai jika startTemplateId dipilih
+    $startStepNum = 1;
     if ($startTemplateId > 0) {
-        foreach ($rules as $r) {
-            if ((int)$r['template_id'] === $startTemplateId) {
-                $startDelay = (int)$r['delay_minutes'];
+        foreach ($resolvedSteps as $num => $stepData) {
+            if ($stepData['template_id'] === $startTemplateId) {
+                $startStepNum = $num;
                 break;
             }
         }
     }
 
-    $filteredRules = [];
-    foreach ($rules as $r) {
-        if ((int)$r['delay_minutes'] >= $startDelay) {
-            $filteredRules[] = $r;
-        }
-    }
-    if (empty($filteredRules)) {
-        $filteredRules = $rules;
-        $startDelay = 0;
-    }
+    $baseOffset = $resolvedSteps[$startStepNum]['base_delay'] ?? 10;
 
     $count = 0;
-    foreach ($filteredRules as $r) {
-        $ruleId = (int)$r['id'];
-        $tplId = (int)$r['template_id'];
-        $ruleDelay = (int)$r['delay_minutes'];
-
-        // Jadwalkan berurutan mulai dari tombol diklik:
-        // Pesan pertama mulai dalam 10 menit, pesan berikutnya berjarak sesuai selisih jeda
-        if ($startDelay > 0) {
-            $relativeDelay = ($ruleDelay - $startDelay) + 10;
-        } else {
-            $relativeDelay = $ruleDelay;
+    foreach ($resolvedSteps as $num => $stepData) {
+        if ($num < $startStepNum) {
+            continue; // Lewati tahap sebelum tahap mulai yang dipilih
         }
 
-        $res = crmAutomationRegisterQueue($conn, $normalized, $nama, $ruleId, $relativeDelay, true, $tplId);
+        // Hitung jeda relatif: tahap pertama selalu mulai dalam 10 menit, tahap selanjutnya berjarak sesuai interval
+        if ($num === $startStepNum) {
+            $relDelay = 10;
+        } else {
+            $relDelay = ($stepData['base_delay'] - $baseOffset) + 10;
+        }
+
+        $res = crmAutomationRegisterQueue(
+            $conn,
+            $normalized,
+            $nama,
+            $stepData['rule_id'],
+            $relDelay,
+            true,
+            $stepData['template_id']
+        );
         if ($res > 0) {
             $count++;
         }

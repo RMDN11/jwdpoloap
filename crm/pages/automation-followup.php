@@ -536,8 +536,21 @@ if ($tab === 'queue') {
     <?php if ($tab === 'queue'): ?>
         <div class="crm-card">
             <div class="crm-card-header">
-                <h2>Antrean & Log Pengiriman Follow Up</h2>
-                <div style="display: flex; gap: 0.35rem;">
+                <div>
+                    <h2>Antrean & Log Pengiriman Follow Up</h2>
+                    <p style="margin: 0.25rem 0 0; font-size: 0.8rem; color: #64748b;">
+                        Jadwal pesan terkirim berurutan secara berkala. Pesan otomatis berhenti jika peserta membalas chat atau membayar.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+                    <form action="index.php?page=automation-followup" method="POST" style="margin: 0;" onsubmit="return confirm('Bersihkan semua antrean bentrok yang terjadwal di jam bersamaan?');">
+                        <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <input type="hidden" name="action" value="clean_duplicate_queues">
+                        <input type="hidden" name="tab" value="queue">
+                        <button type="submit" class="btn-secondary" style="color: #dc2626; border-color: #fca5a5; background: #fff5f5; font-size: 0.75rem;" title="Batalkan antrean spesifik duplikat yang bentrok di jam yang sama">
+                            <i class="fa-solid fa-broom"></i> Bersihkan Jadwal Bentrok
+                        </button>
+                    </form>
                     <a href="?page=automation-followup&tab=queue" class="btn-secondary">Semua</a>
                     <a href="?page=automation-followup&tab=queue&qstatus=pending" class="btn-secondary">Pending</a>
                     <a href="?page=automation-followup&tab=queue&qstatus=sent" class="btn-secondary">Terkirim</a>
