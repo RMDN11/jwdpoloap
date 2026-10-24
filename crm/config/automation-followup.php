@@ -18,6 +18,54 @@ function crmAutomationGetApiCredentials(): array
     return [(string)$url, (string)$token];
 }
 
+function crmAutomationClassifyLpLead(string $message): array
+{
+    $m = strtolower($message);
+    if (str_contains($m, 'tahfidz cilik')) {
+        return [
+            'key' => 'cilik',
+            'label' => 'Tahfidz Cilik',
+            'color' => '#be185d',
+            'bg' => '#fce7f3',
+            'icon' => 'fa-child-reaching',
+        ];
+    }
+    if (str_contains($m, 'menghafal pemula')) {
+        return [
+            'key' => 'pemula',
+            'label' => 'Menghafal Pemula',
+            'color' => '#1d4ed8',
+            'bg' => '#dbeafe',
+            'icon' => 'fa-book-quran',
+        ];
+    }
+    if (str_contains($m, 'menghafal lanjutan') || str_contains($m, 'penguatan hafalan')) {
+        return [
+            'key' => 'lanjutan',
+            'label' => 'Lanjutan / Muroja\'ah',
+            'color' => '#6d28d9',
+            'bg' => '#ede9fe',
+            'icon' => 'fa-award',
+        ];
+    }
+    if (str_contains($m, 'saya mau daftar program') || str_contains($m, 'daftar sekarang')) {
+        return [
+            'key' => 'cta',
+            'label' => 'Pendaftaran CTA',
+            'color' => '#047857',
+            'bg' => '#d1fae5',
+            'icon' => 'fa-bolt',
+        ];
+    }
+    return [
+        'key' => 'general',
+        'label' => 'Tanya Detail (Hero)',
+        'color' => '#334155',
+        'bg' => '#f1f5f9',
+        'icon' => 'fa-comment-dots',
+    ];
+}
+
 function crmAutomationFormatDelay(int $minutes): string
 {
     if ($minutes < 60) {
@@ -107,6 +155,49 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
                     $upd->bind_param('ssi', $tpl['content'], $tpl['desc'], $tplId);
                     $upd->execute();
                     $upd->close();
+                }
+            }
+        }
+    }
+
+    // Seed variasi aturan khusus untuk tombol pendaftaran landing page (default is_active = 0)
+    $lpVariations = [
+        [
+            'name' => 'Tahfidz Private - Pendaftaran Langsung (CTA)',
+            'kw' => 'Kak, saya mau daftar program Tahfidz Private Online',
+            'delay' => 60,
+        ],
+        [
+            'name' => 'Tahfidz Private - Kelas Menghafal Pemula',
+            'kw' => 'Kelas Menghafal Pemula',
+            'delay' => 60,
+        ],
+        [
+            'name' => 'Tahfidz Private - Lanjutan & Penguatan Muroja\'ah',
+            'kw' => 'Kelas Menghafal Lanjutan',
+            'delay' => 60,
+        ],
+        [
+            'name' => 'Tahfidz Cilik - Bimbingan Anak (Video Call)',
+            'kw' => 'Tahfidz Cilik',
+            'delay' => 60,
+        ],
+    ];
+
+    foreach ($lpVariations as $var) {
+        $checkVar = $conn->prepare("SELECT id FROM crm_automation_rules WHERE trigger_keyword = ? LIMIT 1");
+        if ($checkVar) {
+            $checkVar->bind_param('s', $var['kw']);
+            $checkVar->execute();
+            $existsVar = $checkVar->get_result()->fetch_assoc();
+            $checkVar->close();
+
+            if (!$existsVar) {
+                $insVar = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', 1, ?, 0)");
+                if ($insVar) {
+                    $insVar->bind_param('ssi', $var['name'], $var['kw'], $var['delay']);
+                    $insVar->execute();
+                    $insVar->close();
                 }
             }
         }

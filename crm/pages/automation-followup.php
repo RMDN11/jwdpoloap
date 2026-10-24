@@ -38,15 +38,20 @@ if ($resTpl instanceof mysqli_result) {
 // Tab 1: Prospek Pemicu Log
 $prospects = [];
 $pfilter = (string)($_GET['pfilter'] ?? 'unpaid');
+$cfilter = (string)($_GET['cfilter'] ?? 'all');
 if ($tab === 'prospects') {
     $resP = $conn->query("
         SELECT l.nowa, 
                MAX(l.nama) AS nama, 
                MAX(l.created_at) AS last_trigger_at,
-               COUNT(*) AS trigger_count
+               COUNT(*) AS trigger_count,
+               SUBSTRING_INDEX(GROUP_CONCAT(l.message ORDER BY l.id DESC SEPARATOR '|||'), '|||', 1) AS last_message
         FROM log_wa l
-        WHERE l.message LIKE '%Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada%'
-           OR l.message LIKE '%tanya detail program Tahfidz Private%'
+        WHERE l.message LIKE '%Tahfidz Private%'
+           OR l.message LIKE '%Kelas Menghafal%'
+           OR l.message LIKE '%Penguatan Hafalan%'
+           OR l.message LIKE '%Tahfidz Cilik%'
+           OR l.message LIKE '%tanya detail program Tahfidz%'
         GROUP BY l.nowa
         ORDER BY last_trigger_at DESC
         LIMIT 250
@@ -72,6 +77,11 @@ if ($tab === 'prospects') {
             if ($pfilter === 'unpaid' && $hasPayment) continue;
             if ($pfilter === 'paid' && !$hasPayment) continue;
 
+            $lastMsg = (string)($p['last_message'] ?? '');
+            $category = crmAutomationClassifyLpLead($lastMsg);
+
+            if ($cfilter !== 'all' && $category['key'] !== $cfilter) continue;
+
             $qData = $existingQueue[$normalized] ?? null;
 
             $prospects[] = [
@@ -79,6 +89,8 @@ if ($tab === 'prospects') {
                 'nama' => $p['nama'] ?: 'Kak',
                 'last_trigger_at' => $p['last_trigger_at'],
                 'trigger_count' => (int)$p['trigger_count'],
+                'last_message' => $lastMsg,
+                'category' => $category,
                 'has_payment' => $hasPayment,
                 'queue' => $qData,
             ];
@@ -183,16 +195,29 @@ if ($tab === 'queue') {
                     </p>
                 </div>
                 <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
-                    <a href="?page=automation-followup&tab=prospects&pfilter=unpaid" class="btn-secondary" style="<?= $pfilter === 'unpaid' ? 'background: #166534; color: #fff;' : '' ?>">
+                    <a href="?page=automation-followup&tab=prospects&pfilter=unpaid<?= $cfilter !== 'all' ? '&cfilter=' . urlencode($cfilter) : '' ?>" class="btn-secondary" style="<?= $pfilter === 'unpaid' ? 'background: #166534; color: #fff;' : '' ?>">
                         <i class="fa-solid fa-filter"></i> Belum Diisi Finance
                     </a>
-                    <a href="?page=automation-followup&tab=prospects&pfilter=paid" class="btn-secondary" style="<?= $pfilter === 'paid' ? 'background: #166534; color: #fff;' : '' ?>">
+                    <a href="?page=automation-followup&tab=prospects&pfilter=paid<?= $cfilter !== 'all' ? '&cfilter=' . urlencode($cfilter) : '' ?>" class="btn-secondary" style="<?= $pfilter === 'paid' ? 'background: #166534; color: #fff;' : '' ?>">
                         <i class="fa-solid fa-circle-check"></i> Sudah Diisi Finance
                     </a>
-                    <a href="?page=automation-followup&tab=prospects&pfilter=all" class="btn-secondary" style="<?= $pfilter === 'all' ? 'background: #166534; color: #fff;' : '' ?>">
-                        Semua Kontak
+                    <a href="?page=automation-followup&tab=prospects&pfilter=all<?= $cfilter !== 'all' ? '&cfilter=' . urlencode($cfilter) : '' ?>" class="btn-secondary" style="<?= $pfilter === 'all' ? 'background: #166534; color: #fff;' : '' ?>">
+                        Semua Status
                     </a>
                 </div>
+            </div>
+
+            <!-- Category Filter from Landing Page -->
+            <div style="padding: 0.5rem 1.25rem 0.85rem; border-bottom: 1px solid #e2e8f0; display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; background: #fafafa;">
+                <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-right: 0.25rem;">
+                    <i class="fa-solid fa-tags"></i> Kategori Landing Page:
+                </span>
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=all" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'all' ? 'background: #0f172a; color: #fff;' : '' ?>">Semua Kategori</a>
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=general" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'general' ? 'background: #334155; color: #fff;' : '' ?>">Tanya Detail</a>
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=pemula" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'pemula' ? 'background: #1d4ed8; color: #fff;' : '' ?>">Menghafal Pemula</a>
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=lanjutan" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'lanjutan' ? 'background: #6d28d9; color: #fff;' : '' ?>">Lanjutan & Muroja'ah</a>
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=cilik" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'cilik' ? 'background: #be185d; color: #fff;' : '' ?>">Tahfidz Cilik</a>
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=cta" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'cta' ? 'background: #047857; color: #fff;' : '' ?>">Pendaftaran CTA</a>
             </div>
 
             <div class="crm-table-container">
@@ -201,7 +226,7 @@ if ($tab === 'queue') {
                         <tr>
                             <th>No. WhatsApp</th>
                             <th>Nama</th>
-                            <th>Chat Pemicu Terakhir</th>
+                            <th>Pemicu & Kategori</th>
                             <th>Status Finance</th>
                             <th>Status Antrean</th>
                             <th>Aksi Manual</th>
@@ -219,7 +244,22 @@ if ($tab === 'queue') {
                                 <tr>
                                     <td><strong><?= htmlspecialchars($item['nowa']) ?></strong></td>
                                     <td><?= htmlspecialchars($item['nama']) ?></td>
-                                    <td><?= date('d/m/Y H:i', strtotime($item['last_trigger_at'])) ?></td>
+                                    <td>
+                                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                            <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                                                <span style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 9999px; background: <?= htmlspecialchars($item['category']['bg']) ?>; color: <?= htmlspecialchars($item['category']['color']) ?>;">
+                                                    <i class="fa-solid <?= htmlspecialchars($item['category']['icon']) ?>"></i>
+                                                    <?= htmlspecialchars($item['category']['label']) ?>
+                                                </span>
+                                                <span style="font-size: 0.75rem; color: #64748b;"><?= date('d/m/Y H:i', strtotime($item['last_trigger_at'])) ?></span>
+                                            </div>
+                                            <?php if (!empty($item['last_message'])): ?>
+                                                <span style="font-size: 0.75rem; color: #334155; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;" title="<?= htmlspecialchars($item['last_message']) ?>">
+                                                    <?= htmlspecialchars(mb_strimwidth($item['last_message'], 0, 45, '...')) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
                                     <td>
                                         <?php if ($item['has_payment']): ?>
                                             <span class="badge-status badge-sent" title="Sudah dikirimi chat: ⛔ Wajib segera diisi Mohon diisi untuk pendataan Finance kami">
@@ -254,6 +294,7 @@ if ($tab === 'queue') {
                                                 <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
                                                 <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
                                                 <input type="hidden" name="rule_id" value="<?= $activeRuleId ?>">
+                                                <input type="hidden" name="keyword" value="<?= htmlspecialchars($item['last_message'] ?: '') ?>">
                                                 <input type="hidden" name="delay_minutes" value="0">
 
                                                 <select name="template_id" class="form-control" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: auto; max-width: 250px;">

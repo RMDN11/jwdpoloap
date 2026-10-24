@@ -179,7 +179,12 @@ switch ($action) {
             crmAutoRedirect('prospects');
         }
 
-        $count = crmAutomationScheduleSequence($conn, $nowa, $nama, $templateId);
+        $keyword = trim((string)($_POST['keyword'] ?? ''));
+        if ($keyword === '') {
+            $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
+        }
+
+        $count = crmAutomationScheduleSequence($conn, $nowa, $nama, $templateId, $keyword);
         if ($count > 0) {
             $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Alur follow-up berhasil dijadwalkan secara berurutan untuk kontak {$nowa} ({$count} tahap pesan). Pesan pertama akan mulai dikirim dalam ±10 menit."];
         } else {
