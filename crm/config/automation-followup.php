@@ -118,6 +118,41 @@ function crmAutomationCancelQueueItem(mysqli $conn, int $queueId, string $reason
     return $ok;
 }
 
+function crmAutomationHasReceivedPayment(mysqli $conn, string $nowa): bool
+{
+    $normalized = crmProspectNormalizeNumber($nowa);
+    $variants = array_values(array_unique(array_filter([
+        $normalized,
+        $nowa,
+        str_starts_with($normalized, '62') ? '0' . substr($normalized, 2) : '',
+        '+' . $normalized,
+    ])));
+
+    if (empty($variants)) {
+        return false;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($variants), '?'));
+    $sql = "SELECT 1 FROM log_wa 
+            WHERE nowa IN ({$placeholders})
+              AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(message, '')), CHAR(13), ''), CHAR(10), ''), CHAR(9), ''), ' ', ''), CHAR(160), '') LIKE '%wajibsegeradiisi%'
+              AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(message, '')), CHAR(13), ''), CHAR(10), ''), CHAR(9), ''), ' ', ''), CHAR(160), '') LIKE '%mohondiisiuntukpendataanfinancekami%'
+            LIMIT 1";
+
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return false;
+    }
+
+    $types = str_repeat('s', count($variants));
+    $stmt->bind_param($types, ...$variants);
+    $stmt->execute();
+    $hasPayment = $stmt->get_result()->num_rows > 0;
+    $stmt->close();
+
+    return $hasPayment;
+}
+
 function crmAutomationHasUserReplied(mysqli $conn, string $nowa, string $registeredAt): bool
 {
     $normalized = crmProspectNormalizeNumber($nowa);

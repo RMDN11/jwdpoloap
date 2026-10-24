@@ -69,6 +69,12 @@ function crmAutomationDispatchSingle(mysqli $conn, int $queueId, string $apiUrl,
         return ['status' => 'cancelled', 'reason' => 'cancelled_replied'];
     }
 
+    // 3. Periksa apakah peserta sudah menerima chat form payment finance
+    if (crmAutomationHasReceivedPayment($conn, $nowa)) {
+        crmAutomationCancelQueueItem($conn, $queueId, 'cancelled_payment');
+        return ['status' => 'cancelled', 'reason' => 'cancelled_payment'];
+    }
+
     $templateContent = (string)($row['template_content'] ?? '');
     if ($templateContent === '') {
         $stmtFail = $conn->prepare("UPDATE crm_automation_queue SET status = 'failed', error_message = 'Template pesan kosong' WHERE id = ?");

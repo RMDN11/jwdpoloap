@@ -28,6 +28,7 @@ if (!str_contains($moreContent, 'index.php?page=automation-followup')) {
 
 $requiredPageTokens = [
     'Automation Follow Up',
+    'tab=prospects',
     'tab=rules',
     'tab=templates',
     'tab=queue',

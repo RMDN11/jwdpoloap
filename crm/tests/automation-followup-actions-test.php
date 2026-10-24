@@ -19,6 +19,8 @@ $requiredTokens = [
     'delete_template',
     'cancel_queue',
     'send_now',
+    'queue_prospect',
+    'send_prospect_now',
     'crm_flash',
     'Location: index.php?page=automation-followup',
 ];

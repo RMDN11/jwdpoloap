@@ -137,6 +137,60 @@ switch ($action) {
         crmAutoRedirect('queue');
         break;
 
+    case 'queue_prospect':
+        $nowa = trim((string)($_POST['nowa'] ?? ''));
+        $nama = trim((string)($_POST['nama'] ?? 'Kak'));
+        $ruleId = (int)($_POST['rule_id'] ?? 0);
+        $delayMinutes = max(0, (int)($_POST['delay_minutes'] ?? 0));
+
+        if ($nowa === '') {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nomor WhatsApp tidak valid.'];
+            crmAutoRedirect('prospects');
+        }
+
+        if (crmAutomationHasReceivedPayment($conn, $nowa)) {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini sudah menerima pesan payment Finance, tidak dapat dimasukkan antrean.'];
+            crmAutoRedirect('prospects');
+        }
+
+        $queueId = crmAutomationRegisterQueue($conn, $nowa, $nama, $ruleId, $delayMinutes);
+        if ($queueId > 0) {
+            $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Kontak {$nowa} berhasil dijadwalkan ke antrean follow-up."];
+        } else {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan kontak (mungkin nomor diblokir atau aturan tidak aktif).'];
+        }
+        crmAutoRedirect('prospects');
+        break;
+
+    case 'send_prospect_now':
+        $nowa = trim((string)($_POST['nowa'] ?? ''));
+        $nama = trim((string)($_POST['nama'] ?? 'Kak'));
+        $ruleId = (int)($_POST['rule_id'] ?? 0);
+
+        if ($nowa === '') {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nomor WhatsApp tidak valid.'];
+            crmAutoRedirect('prospects');
+        }
+
+        if (crmAutomationHasReceivedPayment($conn, $nowa)) {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini sudah menerima pesan payment Finance.'];
+            crmAutoRedirect('prospects');
+        }
+
+        $queueId = crmAutomationRegisterQueue($conn, $nowa, $nama, $ruleId, 0);
+        if ($queueId > 0) {
+            $apiUrl = defined('WA_API_URL') ? WA_API_URL : (getenv('WA_API_URL') ?: 'https://api.onesender.net/api/v1/messages');
+            $apiToken = defined('WA_API_TOKEN') ? WA_API_TOKEN : (getenv('WA_API_TOKEN') ?: '');
+            $res = crmAutomationDispatchSingle($conn, $queueId, $apiUrl, $apiToken);
+            if ($res['status'] === 'sent') {
+                $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Pesan follow-up berhasil langsung dikirim ke {$nowa}."];
+            } else {
+                $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pengiriman gagal atau dibatalkan: ' . ($res['reason'] ?? '')];
+            }
+        }
+        crmAutoRedirect('prospects');
+        break;
+
     case 'send_now':
         $queueId = (int)($_POST['queue_id'] ?? 0);
         if ($queueId > 0) {
