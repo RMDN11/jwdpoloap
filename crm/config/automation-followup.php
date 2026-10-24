@@ -74,6 +74,15 @@ function crmAutomationClassifyLpLead(string $message): array
             'icon' => 'fa-bolt',
         ];
     }
+    if (str_contains($m, 'perkenalkan nama saya') || str_contains($m, 'nama saya')) {
+        return [
+            'key' => 'form_lead',
+            'label' => 'Bismillah Nama LP',
+            'color' => '#0284c7',
+            'bg' => '#e0f2fe',
+            'icon' => 'fa-user-pen',
+        ];
+    }
     return [
         'key' => 'general',
         'label' => 'Tanya Detail (Hero)',
@@ -247,6 +256,12 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
             'kw' => 'Tahfidz Cilik',
             'tpl' => 'Tahfidz Cilik - Follow Up 1 (Pendekatan Bunda/Ayah)',
             'delay' => 60,
+        ],
+        [
+            'name' => 'Tahfidz Private - Form Nama (Bismillah perkenalkan)',
+            'kw' => 'Bismillah, perkenalkan nama saya',
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'delay' => 30,
         ],
     ];
 

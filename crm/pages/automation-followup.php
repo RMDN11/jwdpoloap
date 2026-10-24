@@ -40,22 +40,72 @@ $prospects = [];
 $pfilter = (string)($_GET['pfilter'] ?? 'unpaid');
 $cfilter = (string)($_GET['cfilter'] ?? 'all');
 if ($tab === 'prospects') {
+    // Ambil pesan chat masuk terbaru per nomor WA secara real-time dari log_wa
+    // Fokus pada chat masuk pemicu program:
+    // 1. 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada'
+    // 2. Berawalan 'Bismillah, perkenalkan nama saya...'
+    // Serta variasi pemicu paket landing page dan antrean automasi aktif.
     $resP = $conn->query("
-        SELECT l.nowa, 
-               MAX(l.nama) AS nama, 
-               MAX(l.created_at) AS last_trigger_at,
-               COUNT(*) AS trigger_count,
-               SUBSTRING_INDEX(GROUP_CONCAT(l.message ORDER BY l.id DESC SEPARATOR '|||'), '|||', 1) AS last_message
+        SELECT l.id,
+               l.nowa,
+               l.nama,
+               l.message AS last_message,
+               l.created_at AS last_trigger_at,
+               latest.trigger_count,
+               latest.first_trigger_msg,
+               latest.first_trigger_at,
+               latest.history_text
         FROM log_wa l
-        WHERE (l.message LIKE '%Tahfidz Private%'
-           OR l.message LIKE '%Kelas Menghafal%'
-           OR l.message LIKE '%Penguatan Hafalan%'
-           OR l.message LIKE '%Tahfidz Cilik%'
-           OR l.message LIKE '%tanya detail program Tahfidz%')
-           AND l.nowa NOT LIKE '%88223053149%'
-           AND l.nowa NOT LIKE '%248232064090227%'
-        GROUP BY l.nowa
-        ORDER BY last_trigger_at DESC
+        INNER JOIN (
+            SELECT nowa,
+                   MAX(id) AS max_id,
+                   COUNT(*) AS trigger_count,
+                   MIN(created_at) AS first_trigger_at,
+                   SUBSTRING_INDEX(
+                       GROUP_CONCAT(
+                           CASE
+                               WHEN LOWER(message) LIKE '%bismillah, kak mau tanya detail program tahfidz private online jawwada%'
+                                 OR LOWER(message) LIKE 'bismillah%perkenalkan nama saya%'
+                                 OR LOWER(message) LIKE '%perkenalkan nama saya%'
+                                 OR LOWER(message) LIKE '%tahfidz cilik%'
+                                 OR LOWER(message) LIKE '%menghafal pemula%'
+                                 OR LOWER(message) LIKE '%menghafal lanjutan%'
+                                 OR LOWER(message) LIKE '%penguatan hafalan%'
+                                 OR LOWER(message) LIKE '%tahfidz private%'
+                                 OR LOWER(message) LIKE '%tanya detail program tahfidz%'
+                               THEN message
+                               ELSE NULL
+                           END
+                           ORDER BY id ASC SEPARATOR '|||___|||'
+                       ),
+                       '|||___|||',
+                       1
+                   ) AS first_trigger_msg,
+                   GROUP_CONCAT(DISTINCT
+                       CASE
+                           WHEN LOWER(message) LIKE '%tahfidz cilik%' THEN 'cilik'
+                           WHEN LOWER(message) LIKE '%menghafal pemula%' THEN 'pemula'
+                           WHEN LOWER(message) LIKE '%menghafal lanjutan%' OR LOWER(message) LIKE '%penguatan hafalan%' THEN 'lanjutan'
+                           WHEN LOWER(message) LIKE '%daftar program%' OR LOWER(message) LIKE '%daftar sekarang%' THEN 'cta'
+                           WHEN LOWER(message) LIKE 'bismillah%perkenalkan nama saya%' OR LOWER(message) LIKE '%perkenalkan nama saya%' THEN 'form_lead'
+                           WHEN LOWER(message) LIKE '%tahfidz private%' OR LOWER(message) LIKE '%tanya detail%' THEN 'hero'
+                           ELSE NULL
+                       END
+                       SEPARATOR ','
+                   ) AS history_text
+            FROM log_wa
+            WHERE nowa IS NOT NULL AND nowa != ''
+              AND nowa NOT LIKE '%88223053149%'
+              AND nowa NOT LIKE '%248232064090227%'
+              AND nowa NOT LIKE '%@g%'
+              AND message NOT LIKE '[GRUP]%'
+              AND message NOT LIKE '[PROMOSI]%'
+              AND message NOT LIKE '[REMINDER]%'
+              AND message != 'Data CSV/Manual'
+            GROUP BY nowa
+            HAVING first_trigger_msg IS NOT NULL OR nowa IN (SELECT nowa FROM crm_automation_queue)
+        ) latest ON l.id = latest.max_id
+        ORDER BY l.id DESC
         LIMIT 250
     ");
 
@@ -63,11 +113,13 @@ if ($tab === 'prospects') {
         $rawProspects = $resP->fetch_all(MYSQLI_ASSOC);
         
         $existingQueue = [];
-        $resQ = $conn->query("SELECT nowa, id, status, scheduled_at FROM crm_automation_queue");
+        $resQ = $conn->query("SELECT nowa, id, status, scheduled_at FROM crm_automation_queue ORDER BY (status = 'pending') DESC, id DESC");
         if ($resQ instanceof mysqli_result) {
             while ($qRow = $resQ->fetch_assoc()) {
                 $normQ = crmProspectNormalizeNumber((string)$qRow['nowa']);
-                $existingQueue[$normQ] = $qRow;
+                if (!isset($existingQueue[$normQ])) {
+                    $existingQueue[$normQ] = $qRow;
+                }
             }
         }
 
@@ -88,15 +140,44 @@ if ($tab === 'prospects') {
             if ($pfilter === 'paid' && !$hasPayment) continue;
 
             $lastMsg = (string)($p['last_message'] ?? '');
-            $category = crmAutomationClassifyLpLead($lastMsg);
+            $firstTriggerMsg = (string)($p['first_trigger_msg'] ?? '');
+            $historyText = (string)($p['history_text'] ?? '');
 
-            // Tanya Detail (Hero) tidak perlu ada dalam filter 'all' (Semua Paket),
-            // dipisahkan agar admin dapat mereview isi pesan spesifiknya di tab khusus "Tanya Detail".
-            if ($cfilter === 'all') {
-                if ($category['key'] === 'general') {
-                    continue;
+            // Ekstrak nama asli calon peserta jika data nama di database masih default/kosong
+            $nama = trim((string)($p['nama'] ?? ''));
+            if ($nama === '' || $nama === 'Kak' || $nama === 'Tanpa Nama' || $nama === 'Unknown') {
+                if (preg_match('/(?:perkenalkan nama saya|nama saya|nama sy)\s+([A-Za-z]+)/i', $firstTriggerMsg, $mName)
+                    || preg_match('/(?:perkenalkan nama saya|nama saya|nama sy)\s+([A-Za-z]+)/i', $lastMsg, $mName)) {
+                    $nama = ucfirst(strtolower(trim($mName[1])));
+                } else {
+                    $nama = 'Kak';
                 }
-            } elseif ($category['key'] !== $cfilter) {
+            }
+
+            // Klasifikasikan kategori berdasarkan pesan pemicu awal & riwayat
+            $combinedText = $firstTriggerMsg . ' ' . $historyText . ' ' . $lastMsg;
+            if (stripos($combinedText, 'tahfidz cilik') !== false) {
+                $category = crmAutomationClassifyLpLead('tahfidz cilik');
+            } elseif (stripos($combinedText, 'menghafal pemula') !== false) {
+                $category = crmAutomationClassifyLpLead('menghafal pemula');
+            } elseif (stripos($combinedText, 'menghafal lanjutan') !== false || stripos($combinedText, 'penguatan hafalan') !== false) {
+                $category = crmAutomationClassifyLpLead('menghafal lanjutan');
+            } elseif (stripos($combinedText, 'daftar program') !== false || stripos($combinedText, 'daftar sekarang') !== false) {
+                $category = crmAutomationClassifyLpLead('daftar program');
+            } elseif (stripos($combinedText, 'perkenalkan nama saya') !== false || stripos($combinedText, 'nama saya') !== false) {
+                $category = [
+                    'key' => 'form_lead',
+                    'label' => 'Bismillah Nama LP',
+                    'color' => '#0284c7',
+                    'bg' => '#e0f2fe',
+                    'icon' => 'fa-user-pen',
+                ];
+            } else {
+                $category = crmAutomationClassifyLpLead($firstTriggerMsg ?: $lastMsg);
+            }
+
+            // Filter kategori: 'all' menampilkan semua prospek chat masuk terbaru
+            if ($cfilter !== 'all' && $category['key'] !== $cfilter) {
                 continue;
             }
 
@@ -104,8 +185,9 @@ if ($tab === 'prospects') {
 
             $prospects[] = [
                 'nowa' => $nowa,
-                'nama' => $p['nama'] ?: 'Kak',
+                'nama' => $nama,
                 'last_trigger_at' => $p['last_trigger_at'],
+                'first_trigger_msg' => $firstTriggerMsg,
                 'trigger_count' => (int)$p['trigger_count'],
                 'last_message' => $lastMsg,
                 'category' => $category,
@@ -261,9 +343,9 @@ if ($tab === 'queue') {
         <div class="crm-card">
             <div class="crm-card-header">
                 <div>
-                    <h2>Calon Peserta Masuk (Pemicu Tahfidz Private)</h2>
+                    <h2>Chat Masuk & Prospek Baru (Tahfidz Private)</h2>
                     <p style="margin: 0.25rem 0 0; font-size: 0.8rem; color: #64748b;">
-                        Filter otomatis memisahkan mana yang sudah mengisi finance / pembayaran dan mana yang potensial di-follow-up.
+                        Daftar calon peserta dari chat pemicu WhatsApp dan pengisian form nama. Pesan dan waktu chat selalu sinkron real-time dari log WA.
                     </p>
                 </div>
                 <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
@@ -282,13 +364,16 @@ if ($tab === 'queue') {
             <!-- Category Filter from Landing Page -->
             <div style="padding: 0.5rem 1.25rem 0.85rem; border-bottom: 1px solid #e2e8f0; display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap; background: #fafafa;">
                 <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-right: 0.25rem;">
-                    <i class="fa-solid fa-tags"></i> Kategori Landing Page:
+                    <i class="fa-solid fa-tags"></i> Kategori Pemicu:
                 </span>
-                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=all" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'all' ? 'background: #0f172a; color: #fff;' : '' ?>" title="Hanya menampilkan calon peserta paket terarah (Pemula, Lanjutan, Cilik, CTA)">
-                    <i class="fa-solid fa-layer-group"></i> Semua Paket Terarah
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=all" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'all' ? 'background: #0f172a; color: #fff;' : '' ?>" title="Menampilkan seluruh chat masuk prospek terbaru secara up to date">
+                    <i class="fa-solid fa-layer-group"></i> Semua Chat Baru
                 </a>
-                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=general" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'general' ? 'background: #334155; color: #fff;' : '' ?>" title="Pertanyaan umum calon peserta dari tombol hero landing page (review manual)">
-                    <i class="fa-solid fa-comment-dots"></i> Tanya Detail (Review Manual)
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=general" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'general' ? 'background: #334155; color: #fff;' : '' ?>" title="Pemicu: Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada">
+                    <i class="fa-solid fa-comment-dots"></i> Tanya Detail Hero
+                </a>
+                <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=form_lead" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'form_lead' ? 'background: #0284c7; color: #fff;' : '' ?>" title="Pemicu: Berawalan Bismillah, perkenalkan nama saya...">
+                    <i class="fa-solid fa-user-pen"></i> Bismillah Nama LP
                 </a>
                 <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=pemula" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'pemula' ? 'background: #1d4ed8; color: #fff;' : '' ?>">Menghafal Pemula</a>
                 <a href="?page=automation-followup&tab=prospects&pfilter=<?= urlencode($pfilter) ?>&cfilter=lanjutan" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; <?= $cfilter === 'lanjutan' ? 'background: #6d28d9; color: #fff;' : '' ?>">Lanjutan & Muroja'ah</a>
@@ -297,7 +382,7 @@ if ($tab === 'queue') {
 
                 <div style="width: 100%; margin-top: 0.35rem; font-size: 0.72rem; color: #64748b; display: flex; align-items: center; gap: 0.35rem;">
                     <i class="fa-solid fa-circle-info" style="color: #0284c7;"></i>
-                    <span>Tab <strong>Semua Paket Terarah</strong> khusus menampilkan prospek pendaftaran paket. Pertanyaan dari tombol <strong>Tanya Detail (Hero)</strong> dipisahkan di tab tersendiri agar Anda dapat memeriksa isi pesan spesifiknya terlebih dahulu sebelum mengatur tindak lanjut.</span>
+                    <span>Fokus mendeteksi calon peserta dari chat pemicu <strong>"Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada"</strong> dan <strong>"Bismillah, perkenalkan nama saya..."</strong> secara real-time dari log WA.</span>
                 </div>
             </div>
 
@@ -344,11 +429,18 @@ if ($tab === 'queue') {
                                                     <i class="fa-solid <?= htmlspecialchars($item['category']['icon']) ?>"></i>
                                                     <?= htmlspecialchars($item['category']['label']) ?>
                                                 </span>
-                                                <span style="font-size: 0.72rem; color: #64748b;"><?= date('d/m/Y H:i', strtotime($item['last_trigger_at'])) ?></span>
+                                                <span style="font-size: 0.72rem; color: #64748b;" title="Waktu chat terbaru: <?= htmlspecialchars($item['last_trigger_at']) ?>">
+                                                    <i class="fa-regular fa-clock"></i> <?= date('d/m/Y H:i', strtotime($item['last_trigger_at'])) ?>
+                                                </span>
                                             </div>
                                             <?php if (!empty($item['last_message'])): ?>
                                                 <div class="crm-msg-quote" title="<?= htmlspecialchars($item['last_message']) ?>">
                                                     &ldquo;<?= htmlspecialchars(mb_strimwidth($item['last_message'], 0, 85, '...')) ?>&rdquo;
+                                                </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($item['first_trigger_msg']) && $item['first_trigger_msg'] !== $item['last_message']): ?>
+                                                <div style="font-size: 0.68rem; color: #94a3b8; font-style: italic; margin-top: -2px;" title="<?= htmlspecialchars($item['first_trigger_msg']) ?>">
+                                                    Pemicu awal: &ldquo;<?= htmlspecialchars(mb_strimwidth($item['first_trigger_msg'], 0, 60, '...')) ?>&rdquo;
                                                 </div>
                                             <?php endif; ?>
                                         </div>
