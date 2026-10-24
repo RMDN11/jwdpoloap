@@ -256,7 +256,7 @@ if ($tab === 'queue') {
                                                 <input type="hidden" name="rule_id" value="<?= $activeRuleId ?>">
                                                 <input type="hidden" name="delay_minutes" value="0">
 
-                                                <select name="template_id" class="form-control" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: auto; max-width: 180px;">
+                                                <select name="template_id" class="form-control" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: auto; max-width: 250px;">
                                                     <?php foreach ($templates as $tpl): ?>
                                                         <option value="<?= (int)$tpl['id'] ?>"><?= htmlspecialchars($tpl['name']) ?></option>
                                                     <?php endforeach; ?>
@@ -346,7 +346,7 @@ if ($tab === 'queue') {
                                 <span class="rule-kw"><?= htmlspecialchars($r['trigger_keyword']) ?></span>
                                 <span class="rule-meta">
                                     Template: <strong><?= htmlspecialchars($r['template_name'] ?? 'Tanpa Template') ?></strong> · 
-                                    Jeda: <strong><?= (int)$r['delay_minutes'] ?> menit</strong>
+                                    Jeda: <strong><?= htmlspecialchars(crmAutomationFormatDelay((int)$r['delay_minutes'])) ?></strong>
                                 </span>
                             </div>
                             <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
