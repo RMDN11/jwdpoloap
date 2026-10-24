@@ -96,6 +96,32 @@ function crmAutomationFormatDelay(int $minutes): string
     return number_format($minutes, 0, ',', '.') . " menit (H+{$days} / {$days} hari)";
 }
 
+function crmAutomationRelativeTime(string $datetime): string
+{
+    $diff = strtotime($datetime) - time();
+    if ($diff <= 60) {
+        return 'Segera / < 1 mnt';
+    }
+    $minutes = (int)round($diff / 60);
+    if ($minutes < 60) {
+        return "Dalam {$minutes} mnt";
+    }
+    $hours = (int)round($minutes / 60);
+    if ($hours < 24) {
+        return "Dalam {$hours} jam";
+    }
+    $days = (int)round($hours / 24);
+    return "Dalam {$days} hari";
+}
+
+function crmAutomationGetStepNumber(string $tplName): string
+{
+    if (preg_match('/Follow Up (\d+)/i', $tplName, $m)) {
+        return "Tahap {$m[1]} / 6";
+    }
+    return "Pesan Tunggal";
+}
+
 function crmAutomationSeedDefaultTemplates(mysqli $conn): void
 {
     $defaultTemplates = [

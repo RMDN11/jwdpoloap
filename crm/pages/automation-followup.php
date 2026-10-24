@@ -162,6 +162,56 @@ if ($tab === 'queue') {
         <p>Kelola pesan lanjutan otomatis setelah calon peserta menerima balasan pemicu program.</p>
     </section>
 
+    <!-- Workflow Pipeline Banner -->
+    <div class="crm-workflow-banner">
+        <div class="crm-workflow-header">
+            <h3>
+                <i class="fa-solid fa-diagram-project" style="color: #166534;"></i>
+                <span>Alur Otomasi & Follow-Up Calon Peserta</span>
+            </h3>
+            <span style="font-size: 0.75rem; color: #475569; display: inline-flex; align-items: center; gap: 0.35rem;">
+                <i class="fa-solid fa-shield-halved" style="color: #047857;"></i> Berhenti otomatis saat peserta membalas chat atau menyelesaikan pembayaran
+            </span>
+        </div>
+        <div class="crm-workflow-steps">
+            <div class="crm-step-card">
+                <div class="crm-step-badge" style="background: #e0f2fe; color: #0369a1;">1</div>
+                <div class="crm-step-body">
+                    <span class="crm-step-title">Chat Masuk</span>
+                    <span class="crm-step-desc">Pemicu landing page Tahfidz tercatat otomatis di Log Prospek.</span>
+                </div>
+            </div>
+            <div class="crm-step-card">
+                <div class="crm-step-badge" style="background: #fef3c7; color: #92400e;">2</div>
+                <div class="crm-step-body">
+                    <span class="crm-step-title">Balasan Otomatis</span>
+                    <span class="crm-step-desc">Auto-reply mengirim info katalog, rincian biaya & form minat.</span>
+                </div>
+            </div>
+            <div class="crm-step-card">
+                <div class="crm-step-badge" style="background: #f3e8ff; color: #7e22ce;">3</div>
+                <div class="crm-step-body">
+                    <span class="crm-step-title">Verifikasi Finance</span>
+                    <span class="crm-step-desc">Deteksi otomatis peserta yang sudah dikirimi form finance.</span>
+                </div>
+            </div>
+            <div class="crm-step-card">
+                <div class="crm-step-badge" style="background: #dbeafe; color: #1e40af;">4</div>
+                <div class="crm-step-body">
+                    <span class="crm-step-title">6 Tahap Drip FU</span>
+                    <span class="crm-step-desc">FU 1 (10m) &rarr; FU 2 (1j) &rarr; FU 3 (5j) &rarr; FU 4 (H+1) &rarr; FU 5 (H+3) &rarr; FU 6 (H+7).</span>
+                </div>
+            </div>
+            <div class="crm-step-card">
+                <div class="crm-step-badge" style="background: #dcfce7; color: #166534;">5</div>
+                <div class="crm-step-body">
+                    <span class="crm-step-title">Closing & Stop</span>
+                    <span class="crm-step-desc">Antrean otomatis batal begitu calon peserta membalas atau bayar.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Stat Grid -->
     <div class="crm-stat-grid">
         <div class="crm-stat-card">
@@ -182,23 +232,27 @@ if ($tab === 'queue') {
         </div>
     </div>
 
-    <!-- Tabs Nav -->
+    <!-- Tabs Nav with Count Pills -->
     <nav class="crm-tabs-nav" aria-label="Tab Automasi">
         <a href="?page=automation-followup&tab=prospects" class="crm-tab-btn <?= $tab === 'prospects' ? 'active' : '' ?>">
             <i class="fa-solid fa-users-viewfinder"></i>
             <span>Log Prospek Pemicu</span>
+            <span class="crm-tab-pill"><?= number_format(count($prospects)) ?></span>
         </a>
         <a href="?page=automation-followup&tab=rules" class="crm-tab-btn <?= $tab === 'rules' ? 'active' : '' ?>">
             <i class="fa-solid fa-list-check"></i>
             <span>Aturan Sequence</span>
+            <span class="crm-tab-pill"><?= number_format($statRulesActive) ?></span>
         </a>
         <a href="?page=automation-followup&tab=templates" class="crm-tab-btn <?= $tab === 'templates' ? 'active' : '' ?>">
             <i class="fa-regular fa-file-lines"></i>
             <span>Template Pesan</span>
+            <span class="crm-tab-pill"><?= number_format(count($templates)) ?></span>
         </a>
         <a href="?page=automation-followup&tab=queue" class="crm-tab-btn <?= $tab === 'queue' ? 'active' : '' ?>">
             <i class="fa-solid fa-clock"></i>
             <span>Antrean & Riwayat</span>
+            <span class="crm-tab-pill" style="<?= $statPending > 0 ? 'background: #fef3c7; color: #92400e;' : '' ?>"><?= number_format($statPending) ?></span>
         </a>
     </nav>
 
@@ -251,26 +305,38 @@ if ($tab === 'queue') {
                 <table class="crm-table">
                     <thead>
                         <tr>
-                            <th>No. WhatsApp</th>
-                            <th>Nama</th>
+                            <th>Kontak & Calon Peserta</th>
                             <th>Pemicu & Kategori</th>
                             <th>Status Finance</th>
                             <th>Status Antrean</th>
-                            <th>Aksi Manual</th>
+                            <th>Tindak Lanjut & Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($prospects)): ?>
                             <tr>
-                                <td colspan="6" style="text-align: center; color: #64748b; padding: 2rem;">
-                                    Tidak ada kontak prospek pada filter ini.
+                                <td colspan="5" style="text-align: center; color: #64748b; padding: 2.5rem 1rem;">
+                                    <i class="fa-solid fa-inbox" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 0.5rem; display: block;"></i>
+                                    <span>Tidak ada kontak prospek pada filter ini.</span>
                                 </td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($prospects as $item): ?>
                                 <tr>
-                                    <td><strong><?= htmlspecialchars($item['nowa']) ?></strong></td>
-                                    <td><?= htmlspecialchars($item['nama']) ?></td>
+                                    <td>
+                                        <div class="crm-contact-cell">
+                                            <div class="crm-avatar">
+                                                <?= htmlspecialchars(mb_strtoupper(mb_substr($item['nama'], 0, 1))) ?>
+                                            </div>
+                                            <div class="crm-contact-info">
+                                                <span class="crm-contact-name"><?= htmlspecialchars($item['nama']) ?></span>
+                                                <a href="https://wa.me/<?= htmlspecialchars(preg_replace('/\D+/', '', $item['nowa'])) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa" title="Buka obrolan di WhatsApp">
+                                                    <i class="fa-brands fa-whatsapp"></i>
+                                                    <span><?= htmlspecialchars($item['nowa']) ?></span>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </td>
                                     <td>
                                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                                             <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
@@ -278,19 +344,19 @@ if ($tab === 'queue') {
                                                     <i class="fa-solid <?= htmlspecialchars($item['category']['icon']) ?>"></i>
                                                     <?= htmlspecialchars($item['category']['label']) ?>
                                                 </span>
-                                                <span style="font-size: 0.75rem; color: #64748b;"><?= date('d/m/Y H:i', strtotime($item['last_trigger_at'])) ?></span>
+                                                <span style="font-size: 0.72rem; color: #64748b;"><?= date('d/m/Y H:i', strtotime($item['last_trigger_at'])) ?></span>
                                             </div>
                                             <?php if (!empty($item['last_message'])): ?>
-                                                <span style="font-size: 0.75rem; color: #334155; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;" title="<?= htmlspecialchars($item['last_message']) ?>">
-                                                    <?= htmlspecialchars(mb_strimwidth($item['last_message'], 0, 45, '...')) ?>
-                                                </span>
+                                                <div class="crm-msg-quote" title="<?= htmlspecialchars($item['last_message']) ?>">
+                                                    &ldquo;<?= htmlspecialchars(mb_strimwidth($item['last_message'], 0, 85, '...')) ?>&rdquo;
+                                                </div>
                                             <?php endif; ?>
                                         </div>
                                     </td>
                                     <td>
                                         <?php if ($item['has_payment']): ?>
                                             <span class="badge-status badge-sent" title="Sudah dikirimi chat: ⛔ Wajib segera diisi Mohon diisi untuk pendataan Finance kami">
-                                                <i class="fa-solid fa-file-invoice-dollar"></i> Sudah Isi Finance (Aman)
+                                                <i class="fa-solid fa-file-invoice-dollar"></i> Sudah Isi Finance
                                             </span>
                                         <?php else: ?>
                                             <span class="badge-status badge-pending" title="Belum pernah dikirimi pesan pendataan Finance">
@@ -302,49 +368,60 @@ if ($tab === 'queue') {
                                         <?php if ($item['queue']): ?>
                                             <?php $qs = (string)$item['queue']['status']; ?>
                                             <?php if ($qs === 'pending'): ?>
-                                                <span class="badge-status badge-pending">Terjadwal (<?= date('d/m H:i', strtotime($item['queue']['scheduled_at'])) ?>)</span>
+                                                <span class="badge-status badge-pending">
+                                                    <i class="fa-solid fa-calendar-check"></i> Terjadwal (<?= date('d/m H:i', strtotime($item['queue']['scheduled_at'])) ?>)
+                                                </span>
                                             <?php elseif ($qs === 'sent'): ?>
-                                                <span class="badge-status badge-sent">Terkirim</span>
+                                                <span class="badge-status badge-sent"><i class="fa-solid fa-check-double"></i> Terkirim</span>
                                             <?php else: ?>
-                                                <span class="badge-status badge-cancelled"><?= htmlspecialchars($qs) ?></span>
+                                                <span class="badge-status badge-cancelled"><?= htmlspecialchars(str_replace('cancelled_', '', $qs)) ?></span>
                                             <?php endif; ?>
                                         <?php else: ?>
-                                            <span style="color: #64748b; font-size: 0.8rem;">Belum Terjadwal</span>
+                                            <span style="color: #94a3b8; font-size: 0.75rem;"><i class="fa-regular fa-circle"></i> Belum Terjadwal</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
                                         <?php if ($item['has_payment']): ?>
-                                            <span style="color: #94a3b8; font-size: 0.75rem;"><i class="fa-solid fa-check"></i> Tidak Perlu</span>
+                                            <span style="color: #047857; font-size: 0.75rem; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Peserta Terdaftar</span>
                                         <?php else: ?>
-                                            <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
-                                                <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
-                                                <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
-                                                <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
-                                                <input type="hidden" name="rule_id" value="<?= $activeRuleId ?>">
-                                                <input type="hidden" name="keyword" value="<?= htmlspecialchars($item['last_message'] ?: '') ?>">
-                                                <input type="hidden" name="delay_minutes" value="0">
-
-                                                <select name="template_id" class="form-control" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: auto; max-width: 250px;">
-                                                    <?php foreach ($templates as $tpl): ?>
-                                                        <option value="<?= (int)$tpl['id'] ?>"><?= htmlspecialchars($tpl['name']) ?></option>
-                                                    <?php endforeach; ?>
-                                                </select>
-
-                                                <button type="submit" name="action" value="send_prospect_now" class="btn-primary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Kirim pesan ini sekarang via WhatsApp">
-                                                    <i class="fa-solid fa-paper-plane"></i> Kirim
-                                                </button>
-                                                <button type="submit" name="action" value="schedule_sequence" class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #0f172a; color: #fff; border-color: #0f172a; font-weight: 600;" title="Jadwalkan follow-up otomatis secara berurutan mulai dari sekarang (sangat cocok untuk log yang sudah terlewat)">
-                                                    <i class="fa-solid fa-calendar-check"></i> Jadwalkan Alur
-                                                </button>
-                                                <button type="submit" name="action" value="queue_prospect" class="btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Hanya jadwalkan 1 template terpilih ke antrean cron">
-                                                    <i class="fa-solid fa-clock"></i> Antre 1 Pesan
-                                                </button>
-                                                <?php if ($item['queue'] && $item['queue']['status'] === 'pending'): ?>
-                                                    <button type="submit" name="action" value="stop_prospect" class="btn-danger" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Hentikan dan batalkan semua antrean follow-up untuk kontak ini (misal: tidak jadi daftar)" onclick="return confirm('Hentikan semua jadwal follow-up untuk kontak ini?');">
-                                                        <i class="fa-solid fa-ban"></i> Stop
+                                            <div class="crm-action-group">
+                                                <!-- Primary: Jadwalkan Alur (6 Tahap) -->
+                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: flex; align-items: center; gap: 0.35rem;">
+                                                    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                    <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
+                                                    <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
+                                                    <input type="hidden" name="action" value="schedule_sequence">
+                                                    <input type="hidden" name="template_id" value="0">
+                                                    <button type="submit" class="btn-schedule-sequence" title="Jadwalkan otomatis urutan 6 follow up bertingkat (10m, 1j, 5j, 24j, 3h, 7h)">
+                                                        <i class="fa-solid fa-calendar-check"></i>
+                                                        <span>Jadwalkan Alur (6 Tahap)</span>
                                                     </button>
-                                                <?php endif; ?>
-                                            </form>
+                                                    <?php if ($item['queue'] && $item['queue']['status'] === 'pending'): ?>
+                                                        <button type="submit" name="action" value="stop_prospect" class="btn-danger" style="padding: 0.35rem 0.55rem; font-size: 0.72rem;" title="Hentikan dan batalkan semua jadwal follow-up kontak ini" onclick="return confirm('Hentikan semua jadwal follow-up untuk kontak ini?');">
+                                                            <i class="fa-solid fa-ban"></i> Stop
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </form>
+
+                                                <!-- Secondary: Kirim / Antre 1 Template Tertentu -->
+                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: flex; gap: 0.25rem; align-items: center;">
+                                                    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                    <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
+                                                    <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
+                                                    <input type="hidden" name="rule_id" value="<?= $activeRuleId ?>">
+                                                    <select name="template_id" class="form-control" style="padding: 0.2rem 0.4rem; font-size: 0.72rem; width: 145px; height: 28px;">
+                                                        <?php foreach ($templates as $tpl): ?>
+                                                            <option value="<?= (int)$tpl['id'] ?>"><?= htmlspecialchars(mb_strimwidth($tpl['name'], 0, 24, '...')) ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                    <button type="submit" name="action" value="send_prospect_now" class="btn-primary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; height: 28px;" title="Kirim template terpilih ini sekarang">
+                                                        <i class="fa-solid fa-paper-plane"></i> Kirim
+                                                    </button>
+                                                    <button type="submit" name="action" value="queue_prospect" class="btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.72rem; height: 28px;" title="Antrekan hanya 1 template terpilih ini">
+                                                        <i class="fa-solid fa-clock"></i> Antre 1
+                                                    </button>
+                                                </form>
+                                            </div>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -456,7 +533,7 @@ if ($tab === 'queue') {
 
                 <div class="form-group">
                     <label for="tplName">Nama Template</label>
-                    <input type="text" name="name" id="tplName" class="form-control" placeholder="Contoh: Follow Up H+1 Tahfidz Private" required>
+                    <input type="text" name="name" id="tplName" class="form-control" placeholder="Contoh: Tahfidz Private - Follow Up 1 (10 Menit)" required>
                 </div>
 
                 <div class="form-group">
@@ -465,10 +542,19 @@ if ($tab === 'queue') {
                 </div>
 
                 <div class="form-group">
-                    <label for="tplContent">Konten Pesan WhatsApp</label>
-                    <textarea name="content" id="tplContent" class="form-control" rows="6" placeholder="Ketik draf pesan WhatsApp..." required></textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <label for="tplContent" style="margin: 0;">Konten Pesan WhatsApp</label>
+                        <span style="font-size: 0.72rem; color: #64748b;"><span id="tplCharCount">0</span> karakter</span>
+                    </div>
+                    <div style="display: flex; gap: 0.35rem; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap;">
+                        <span style="font-size: 0.72rem; color: #475569; font-weight: 600;">Sisipkan variabel:</span>
+                        <button type="button" class="crm-var-chip" onclick="insertTplVar('{nama}')">{nama}</button>
+                        <button type="button" class="crm-var-chip" onclick="insertTplVar('{sapaan}')">{sapaan}</button>
+                        <button type="button" class="crm-var-chip" onclick="insertTplVar('{program}')">{program}</button>
+                    </div>
+                    <textarea name="content" id="tplContent" class="form-control" rows="6" placeholder="Ketik draf pesan WhatsApp..." oninput="updateTplCharCount()" required></textarea>
                     <small style="color: #64748b; font-size: 0.75rem; margin-top: 0.35rem;">
-                        Variabel dinamis: <code>{nama}</code> (Nama kontak/Kak), <code>{sapaan}</code> (Pagi/Siang/Sore/Malam), <code>{program}</code> (Nama Program).
+                        Variabel dinamis: <code>{nama}</code> (Nama peserta/Kak), <code>{sapaan}</code> (Pagi/Siang/Sore/Malam), <code>{program}</code> (Nama Program).
                     </small>
                 </div>
 
@@ -494,15 +580,24 @@ if ($tab === 'queue') {
                     <p style="color: #64748b; font-size: 0.875rem;">Belum ada template tersimpan.</p>
                 <?php else: ?>
                     <?php foreach ($templates as $t): ?>
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.1rem; display: flex; flex-direction: column; gap: 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                                 <div>
-                                    <strong style="color: #0f172a;"><?= htmlspecialchars($t['name']) ?></strong>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                        <strong style="color: #0f172a; font-size: 0.95rem;"><?= htmlspecialchars($t['name']) ?></strong>
+                                        <span class="crm-queue-step-tag">
+                                            <i class="fa-solid fa-layer-group" style="color: #0284c7;"></i>
+                                            <?= htmlspecialchars(crmAutomationGetStepNumber((string)$t['name'])) ?>
+                                        </span>
+                                    </div>
                                     <?php if (!empty($t['description'])): ?>
-                                        <p style="margin: 0.15rem 0 0; font-size: 0.75rem; color: #64748b;"><?= htmlspecialchars($t['description']) ?></p>
+                                        <p style="margin: 0.2rem 0 0; font-size: 0.75rem; color: #64748b;"><?= htmlspecialchars($t['description']) ?></p>
                                     <?php endif; ?>
                                 </div>
                                 <div style="display: flex; gap: 0.35rem; align-items: center;">
+                                    <button type="button" class="btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;" onclick="copyTplContent(this, <?= htmlspecialchars(json_encode((string)$t['content'])) ?>)">
+                                        <i class="fa-regular fa-copy"></i> <span>Salin</span>
+                                    </button>
                                     <button type="button" class="btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;" onclick="editTemplate(<?= htmlspecialchars(json_encode([
                                         'id' => (int)$t['id'],
                                         'name' => (string)$t['name'],
@@ -562,38 +657,57 @@ if ($tab === 'queue') {
                 <table class="crm-table">
                     <thead>
                         <tr>
-                            <th>No. WhatsApp</th>
-                            <th>Nama</th>
-                            <th>Program</th>
+                            <th>Kontak Calon Peserta</th>
+                            <th>Urutan & Template Pesan</th>
                             <th>Jadwal Kirim</th>
-                            <th>Status</th>
+                            <th>Status Eksekusi</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($queueItems)): ?>
                             <tr>
-                                <td colspan="6" style="text-align: center; color: #64748b; padding: 2rem;">Tidak ada antrean dalam filter ini.</td>
+                                <td colspan="5" style="text-align: center; color: #64748b; padding: 2rem;">Tidak ada antrean dalam filter ini.</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($queueItems as $q): ?>
                                 <tr>
-                                    <td><strong><?= htmlspecialchars($q['nowa']) ?></strong></td>
-                                    <td><?= htmlspecialchars($q['nama'] ?: 'Kak') ?></td>
                                     <td>
-                                        <strong><?= htmlspecialchars($q['template_name'] ?? $q['rule_name'] ?? 'Tahfidz Private') ?></strong>
-                                        <?php if (!empty($q['rule_name']) && $q['rule_name'] !== ($q['template_name'] ?? '')): ?>
-                                            <div style="font-size: 0.72rem; color: #64748b;"><?= htmlspecialchars($q['rule_name']) ?></div>
-                                        <?php endif; ?>
+                                        <div style="font-weight: 700; color: #0f172a; font-size: 0.85rem;"><?= htmlspecialchars($q['nama'] ?: 'Calon Peserta') ?></div>
+                                        <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', (string)$q['nowa']) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa">
+                                            <i class="fa-brands fa-whatsapp"></i> <?= htmlspecialchars($q['nowa']) ?>
+                                        </a>
                                     </td>
                                     <td>
-                                        <?= date('d/m/Y H:i', strtotime($q['scheduled_at'])) ?>
+                                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                            <div>
+                                                <span class="crm-queue-step-tag">
+                                                    <i class="fa-solid fa-layer-group" style="color: #0284c7;"></i>
+                                                    <?= htmlspecialchars(crmAutomationGetStepNumber((string)($q['template_name'] ?? $q['rule_name'] ?? ''))) ?>
+                                                </span>
+                                            </div>
+                                            <strong style="color: #1e293b; font-size: 0.8rem;"><?= htmlspecialchars($q['template_name'] ?? $q['rule_name'] ?? 'Tahfidz Private') ?></strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                            <span style="font-size: 0.8rem; color: #0f172a; font-weight: 600;">
+                                                <i class="fa-regular fa-calendar" style="color: #64748b;"></i> <?= date('d/m/Y H:i', strtotime($q['scheduled_at'])) ?>
+                                            </span>
+                                            <?php if ($q['status'] === 'pending'): ?>
+                                                <div>
+                                                    <span class="crm-countdown-tag">
+                                                        <i class="fa-regular fa-clock"></i> <?= htmlspecialchars(crmAutomationRelativeTime((string)$q['scheduled_at'])) ?>
+                                                    </span>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td>
                                         <?php if ($q['status'] === 'pending'): ?>
-                                            <span class="badge-status badge-pending"><i class="fa-solid fa-clock"></i> Pending</span>
+                                            <span class="badge-status badge-pending"><i class="fa-solid fa-clock"></i> Terjadwal</span>
                                         <?php elseif ($q['status'] === 'sent'): ?>
-                                            <span class="badge-status badge-sent"><i class="fa-solid fa-check"></i> Terkirim</span>
+                                            <span class="badge-status badge-sent"><i class="fa-solid fa-circle-check"></i> Terkirim</span>
                                         <?php elseif (str_starts_with((string)$q['status'], 'cancelled')): ?>
                                             <span class="badge-status badge-cancelled" title="<?= htmlspecialchars((string)($q['error_message'] ?? '')) ?>">
                                                 <i class="fa-solid fa-ban"></i> Batal (<?= htmlspecialchars(str_replace('cancelled_', '', $q['status'])) ?>)
@@ -609,22 +723,22 @@ if ($tab === 'queue') {
                                     </td>
                                     <td>
                                         <?php if ($q['status'] === 'pending'): ?>
-                                            <div style="display: flex; gap: 0.35rem;">
+                                            <div style="display: flex; gap: 0.35rem; align-items: center;">
                                                 <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
                                                     <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                                                     <input type="hidden" name="action" value="send_now">
                                                     <input type="hidden" name="tab" value="queue">
                                                     <input type="hidden" name="queue_id" value="<?= (int)$q['id'] ?>">
-                                                    <button type="submit" class="btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                                    <button type="submit" class="btn-primary" style="padding: 0.25rem 0.55rem; font-size: 0.72rem; height: 28px;" title="Kirim pesan ini sekarang tanpa menunggu jadwal">
                                                         <i class="fa-solid fa-paper-plane"></i> Kirim
                                                     </button>
                                                 </form>
-                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
+                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0;" onsubmit="return confirm('Batalkan pengiriman pesan ini?');">
                                                     <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                                                     <input type="hidden" name="action" value="cancel_queue">
                                                     <input type="hidden" name="tab" value="queue">
                                                     <input type="hidden" name="queue_id" value="<?= (int)$q['id'] ?>">
-                                                    <button type="submit" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                                    <button type="submit" class="btn-danger" style="padding: 0.25rem 0.55rem; font-size: 0.72rem; height: 28px;" title="Batalkan jadwal pesan ini">
                                                         <i class="fa-solid fa-xmark"></i> Batal
                                                     </button>
                                                 </form>
@@ -643,6 +757,44 @@ if ($tab === 'queue') {
     <?php endif; ?>
 
     <script>
+    function insertTplVar(variable) {
+        var el = document.getElementById('tplContent');
+        if (!el) return;
+        var start = el.selectionStart || 0;
+        var end = el.selectionEnd || 0;
+        var val = el.value;
+        el.value = val.substring(0, start) + variable + val.substring(end);
+        el.focus();
+        el.selectionStart = el.selectionEnd = start + variable.length;
+        updateTplCharCount();
+    }
+
+    function updateTplCharCount() {
+        var el = document.getElementById('tplContent');
+        var counter = document.getElementById('tplCharCount');
+        if (el && counter) {
+            counter.textContent = el.value.length;
+        }
+    }
+
+    function copyTplContent(btn, text) {
+        if (!navigator.clipboard) {
+            var temp = document.createElement('textarea');
+            temp.value = text;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+        } else {
+            navigator.clipboard.writeText(text);
+        }
+        var orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check" style="color: #166534;"></i> <span>Tersalin!</span>';
+        setTimeout(function() {
+            btn.innerHTML = orig;
+        }, 1800);
+    }
+
     function editTemplate(data) {
         var tplId = document.getElementById('tplId');
         var tplName = document.getElementById('tplName');
@@ -660,6 +812,8 @@ if ($tab === 'queue') {
         if (heading) heading.textContent = 'Edit Template: ' + data.name;
         if (btn) btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Perbarui Template</span>';
         if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+
+        updateTplCharCount();
 
         if (card) {
             card.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -682,6 +836,12 @@ if ($tab === 'queue') {
         if (heading) heading.textContent = 'Buat / Edit Template Follow-Up';
         if (btn) btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>Simpan Template</span>';
         if (cancelBtn) cancelBtn.style.display = 'none';
+
+        updateTplCharCount();
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        updateTplCharCount();
+    });
     </script>
 </div>
