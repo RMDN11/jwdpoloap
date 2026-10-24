@@ -262,14 +262,14 @@ if ($tab === 'queue') {
                                                     <?php endforeach; ?>
                                                 </select>
 
-                                                <button type="submit" name="action" value="send_prospect_now" class="btn-primary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Kirim template terpilih langsung sekarang">
+                                                <button type="submit" name="action" value="send_prospect_now" class="btn-primary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Kirim pesan ini sekarang via WhatsApp">
                                                     <i class="fa-solid fa-paper-plane"></i> Kirim
                                                 </button>
-                                                <button type="submit" name="action" value="queue_prospect" class="btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Jadwalkan 1 template terpilih ke antrean cron">
-                                                    <i class="fa-solid fa-clock"></i> Antre 1 Pesan
+                                                <button type="submit" name="action" value="schedule_sequence" class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: #0f172a; color: #fff; border-color: #0f172a; font-weight: 600;" title="Jadwalkan follow-up otomatis secara berurutan mulai dari sekarang (sangat cocok untuk log yang sudah terlewat)">
+                                                    <i class="fa-solid fa-calendar-check"></i> Jadwalkan Alur
                                                 </button>
-                                                <button type="submit" name="action" value="queue_sequence" class="btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem; background: #0f172a; color: #fff; border-color: #0f172a;" title="Jadwalkan seluruh alur (Follow Up 1 s/d 6 berjenjang) untuk kontak ini">
-                                                    <i class="fa-solid fa-layer-group"></i> Drip Lengkap
+                                                <button type="submit" name="action" value="queue_prospect" class="btn-secondary" style="padding: 0.3rem 0.55rem; font-size: 0.75rem;" title="Hanya jadwalkan 1 template terpilih ke antrean cron">
+                                                    <i class="fa-solid fa-clock"></i> Antre 1 Pesan
                                                 </button>
                                             </form>
                                         <?php endif; ?>

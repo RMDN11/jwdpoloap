@@ -36,38 +36,38 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
     $defaultTemplates = [
         [
             'name' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'desc' => 'Dikirimkan 30 menit setelah chat awal untuk mengecek apakah link website berhasil dibuka',
-            'content' => "Ahlan kak {nama}! 😊\n\nMau memastikan, apakah link rincian program Tahfidz Private-nya tadi sudah berhasil dibuka kak?\n\nBarangkali ada bagian dari pilihan waktu, kurikulum, atau biaya yang ingin kami bantu jelaskan lebih detail? Silakan langsung tanyakan di sini ya kak, kami siap membantu! 🙏",
+            'desc' => 'Check-in ramah apakah info program sudah berhasil dibuka',
+            'content' => "Bismillah, ahlan kak {nama}! 😊\n\nMau memastikan, apakah info program Tahfidz Private tadi sudah berhasil dibuka kak?\n\nJika ada pertanyaan soal pilihan waktu atau biaya belajarnya, silakan tanyakan ya kak, kami siap membantu. 🙏",
             'delay' => 30,
         ],
         [
-            'name' => 'Follow Up 2 (1 Jam - Fleksibilitas Jadwal & Target)',
-            'desc' => 'Dikirimkan 1 jam kemudian untuk menawarkan konsultasi jadwal santai',
-            'content' => "Bismillah, kak {nama}. Semoga kabarnya senantiasa diberkahi. ✨\n\nSekadar info kak, di program Tahfidz Private Jawwada jadwal belajarnya sangat fleksibel (bisa pagi, sore, atau malam) dengan sistem 1 guru 1 santri sehingga bimbingannya intensif.\n\nApakah kak {nama} ingin berkonsultasi santai dahulu mengenai target hafalan atau perbaikan bacaan Al-Qur'annya?",
+            'name' => 'Follow Up 2 (1 Jam - Fleksibilitas & Biaya Terjangkau)',
+            'desc' => 'Edukasi privat 1-on-1 via telepon WA 10 menit & biaya mulai Rp135rb/bln',
+            'content' => "Sekadar info kak {nama}, di Jawwada belajarnya private 1-on-1 via Telepon WA (10 menit/hari) jadi tidak menyita waktu. Biayanya sangat terjangkau mulai Rp135rb/bulan.\n\nKak {nama} rencananya ingin belajar di waktu luang pagi, sore, atau malam kak? ✨",
             'delay' => 60,
         ],
         [
             'name' => 'Follow Up 3 (5 Jam - Reservasi Slot Terbatas)',
-            'desc' => 'Dikirimkan 5 jam kemudian untuk mengabarkan kuota pengajar pekan ini',
-            'content' => "Assalamu'alaikum kak {nama}. 🙏\n\nUntuk pembukaan halaqoh Tahfidz Private pekan ini kuotanya cukup terbatas karena menyesuaikan ketersediaan jadwal ustadz/ustadzah pembimbing.\n\nJika kak {nama} berminat, kami bisa bantu simpankan slot jadwal terbaiknya terlebih dahulu. Bagaimana kak, apakah berkenan untuk kami jadwalkan?",
+            'desc' => 'Soft urgency kuota guru hafidz 30 juz pekan ini terbatas',
+            'content' => "Assalamu'alaikum kak {nama}. 🙏\n\nIzin mengabarkan, kuota pembimbing Hafidz/Hafidzoh 30 Juz untuk pekan ini tersisa sedikit karena jadwal privat yang terbatas.\n\nJika kak {nama} berminat, mau kami bantu simpankan slot belajarnya terlebih dahulu? 😊",
             'delay' => 300,
         ],
         [
             'name' => 'Follow Up 4 (H+1 / 24 Jam - Solusi Ragu & Pengalaman Santri)',
-            'desc' => 'Dikirimkan 1 hari setelah chat untuk meyakinkan calon santri yang ragu dengan kemampuan atau kesibukan',
-            'content' => "Assalamu'alaikum kak {nama} ✨\nSemoga hari ini penuh berkah dan kemudahan ya kak.\n\nSekadar berbagi cerita kak, banyak santri di Tahfidz Private Jawwada yang awalnya sempat ragu: *\"Apakah bisa menghafal di tengah kesibukan kerja/kuliah?\"* atau *\"Apakah bisa ikut kalau bacaan tajwid masih terbata-bata?\"*\n\nAlhamdulillah karena bimbingannya 1-on-1 (privat), ustadz/ustadzah akan menyesuaikan ritme belajar sepenuhnya dengan kemampuan kak {nama}. Belajar dimulai dari perbaikan makhraj & tahsin santai tanpa beban.\n\nKira-kira apa target hafalan atau harapan yang paling ingin kak {nama} capai saat ini? Jika ingin ngobrol santai dulu, kami siap membantu ya kak. 😊🙏",
+            'desc' => 'Menghilangkan rasa minder jika bacaan belum lancar, bimbingan dari nol',
+            'content' => "Assalamu'alaikum kak {nama} ✨\n\nTidak perlu khawatir jika bacaan belum lancar ya kak. Di kelas privat ini ustadz/ustadzah akan membimbing dari nol (tahsin santai) tanpa beban minimal setoran.\n\nKira-kira apa target Al-Qur'an yang paling ingin kak {nama} capai saat ini? 🙏",
             'delay' => 1440,
         ],
         [
             'name' => 'Follow Up 5 (H+3 / 3 Hari - Konsultasi & Free Placement Test)',
-            'desc' => 'Dikirimkan 3 hari kemudian untuk menawarkan tes penempatan level bacaan gratis tanpa komitmen',
-            'content' => "Ahlan wa sahlan kak {nama} 🙏\nSemoga dalam keadaan sehat wal'afiat.\n\nSupaya kak {nama} memiliki gambaran yang jelas dan tidak bingung menentukan langkah awal, tim Jawwada menyediakan sesi *Free Placement & Consultation*.\n\nDi sesi santai ini, kak {nama} bisa:\n1. Mengetahui level bacaan Al-Qur'an & tajwid saat ini\n2. Menentukan target juz yang realistis sesuai jadwal harian\n3. Mencocokkan kriteria ustadz/ustadzah yang paling cocok\n\nSesi konsultasi ini gratis dan tidak mengikat ya kak. Apakah kak {nama} berkenan jika kami bantu jadwalkan pekan ini? 😊✨",
+            'desc' => 'Tawaran gratis tes penempatan & pemetaan target hafalan via VN/chat santai',
+            'content' => "Ahlan kak {nama} 🙏\n\nAgar ada gambaran, tim kurikulum kami menyediakan sesi tes penempatan level bacaan & pemetaan target hafalan secara gratis via voice note / chat santai.\n\nApakah berkenan jika kami bantu jadwalkan pekan ini kak? 😊",
             'delay' => 4320,
         ],
         [
             'name' => 'Follow Up 6 (H+7 / 7 Hari - Konfirmasi Penutupan Data & Doa)',
-            'desc' => 'Dikirimkan 7 hari kemudian sebagai penutupan sopan (breakup sequence) agar tidak mengganggu prospek',
-            'content' => "Bismillah, Assalamu'alaikum kak {nama}. 🙏\n\nMohon maaf jika pesan kami sebelumnya sempat menyela kesibukan kak {nama}.\n\nKarena belum ada kabar kelanjutan mengenai rencana bimbingan Tahfidz Private-nya, izin kami rapikan dan arsipkan data konsultasi kak {nama} sementara waktu agar tidak mengganggu ya kak.\n\nNamun jika sewaktu-waktu kak {nama} sudah memiliki kelonggaran waktu atau ingin memulai kembali, kontak ini selalu terbuka untuk kak {nama}.\n\nJazaakallahu khayran sudah menghubungi Jawwada. Semoga Allah Ta'ala senantiasa memudahkan niat mulia kak {nama} untuk dekat dengan Al-Qur'an. Aamiin ya Rabbal 'Alamin. 🤲✨",
+            'desc' => 'Penutupan sopan (breakup sequence) dan doa kebaikan tanpa terkesan memaksa',
+            'content' => "Bismillah, kak {nama}. 🙏\n\nIzin kami arsipkan data konsultasinya sementara waktu ya kak, agar tidak mengganggu kesibukan kakak.\n\nJika sewaktu-waktu ingin memulai kembali, nomor ini selalu terbuka untuk kak {nama}. Semoga Allah Ta'ala mudahkan niat mulianya. Barakallahu fiik. 🤲✨",
             'delay' => 10080,
         ],
     ];
@@ -98,6 +98,15 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
                             $insRule->close();
                         }
                     }
+                }
+            } else {
+                // Update template agar otomatis ringkas & persuasif
+                $upd = $conn->prepare("UPDATE crm_automation_templates SET content = ?, description = ? WHERE id = ?");
+                if ($upd) {
+                    $tplId = (int)$exists['id'];
+                    $upd->bind_param('ssi', $tpl['content'], $tpl['desc'], $tplId);
+                    $upd->execute();
+                    $upd->close();
                 }
             }
         }
@@ -335,10 +344,11 @@ function crmAutomationRegisterQueue(
     return $queueId;
 }
 
-function crmAutomationRegisterSequence(
+function crmAutomationScheduleSequence(
     mysqli $conn,
     string $nowa,
     ?string $nama,
+    int $startTemplateId = 0,
     string $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada'
 ): int {
     crmAutomationEnsureTables($conn);
@@ -366,17 +376,56 @@ function crmAutomationRegisterSequence(
         return 0;
     }
 
-    $count = 0;
-    foreach ($rules as $r) {
-        $ruleId = (int)$r['id'];
-        $delay = (int)$r['delay_minutes'];
-        $tplId = (int)$r['template_id'];
+    // Tentukan delay awal jika startTemplateId dipilih
+    $startDelay = 0;
+    if ($startTemplateId > 0) {
+        foreach ($rules as $r) {
+            if ((int)$r['template_id'] === $startTemplateId) {
+                $startDelay = (int)$r['delay_minutes'];
+                break;
+            }
+        }
+    }
 
-        $res = crmAutomationRegisterQueue($conn, $normalized, $nama, $ruleId, $delay, true, $tplId);
+    $filteredRules = [];
+    foreach ($rules as $r) {
+        if ((int)$r['delay_minutes'] >= $startDelay) {
+            $filteredRules[] = $r;
+        }
+    }
+    if (empty($filteredRules)) {
+        $filteredRules = $rules;
+        $startDelay = 0;
+    }
+
+    $count = 0;
+    foreach ($filteredRules as $r) {
+        $ruleId = (int)$r['id'];
+        $tplId = (int)$r['template_id'];
+        $ruleDelay = (int)$r['delay_minutes'];
+
+        // Jadwalkan berurutan mulai dari tombol diklik:
+        // Pesan pertama mulai dalam 10 menit, pesan berikutnya berjarak sesuai selisih jeda
+        if ($startDelay > 0) {
+            $relativeDelay = ($ruleDelay - $startDelay) + 10;
+        } else {
+            $relativeDelay = $ruleDelay;
+        }
+
+        $res = crmAutomationRegisterQueue($conn, $normalized, $nama, $ruleId, $relativeDelay, true, $tplId);
         if ($res > 0) {
             $count++;
         }
     }
 
     return $count;
+}
+
+function crmAutomationRegisterSequence(
+    mysqli $conn,
+    string $nowa,
+    ?string $nama,
+    string $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada'
+): int {
+    return crmAutomationScheduleSequence($conn, $nowa, $nama, 0, $keyword);
 }

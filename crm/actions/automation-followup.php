@@ -163,9 +163,11 @@ switch ($action) {
         crmAutoRedirect('prospects');
         break;
 
+    case 'schedule_sequence':
     case 'queue_sequence':
         $nowa = trim((string)($_POST['nowa'] ?? ''));
         $nama = trim((string)($_POST['nama'] ?? 'Kak'));
+        $templateId = (int)($_POST['template_id'] ?? 0);
 
         if ($nowa === '') {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nomor WhatsApp tidak valid.'];
@@ -177,9 +179,9 @@ switch ($action) {
             crmAutoRedirect('prospects');
         }
 
-        $count = crmAutomationRegisterSequence($conn, $nowa, $nama);
+        $count = crmAutomationScheduleSequence($conn, $nowa, $nama, $templateId);
         if ($count > 0) {
-            $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Kontak {$nowa} berhasil didaftarkan ke seluruh alur sequence ({$count} tahap follow-up)."];
+            $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Alur follow-up berhasil dijadwalkan secara berurutan untuk kontak {$nowa} ({$count} tahap pesan). Pesan pertama akan mulai dikirim dalam ±10 menit."];
         } else {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan sequence (mungkin nomor diblokir atau aturan belum tersedia).'];
         }
