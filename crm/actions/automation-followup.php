@@ -26,30 +26,59 @@ switch ($action) {
         $ruleId = (int)($_POST['rule_id'] ?? 0);
         $name = trim((string)($_POST['name'] ?? ''));
         $keyword = trim((string)($_POST['trigger_keyword'] ?? ''));
+        $category = trim((string)($_POST['category'] ?? 'general'));
         $templateId = (int)($_POST['template_id'] ?? 0);
-        $delayMinutes = max(1, (int)($_POST['delay_minutes'] ?? 1440));
+        $delayMinutes = max(1, (int)($_POST['delay_minutes'] ?? 10));
         $isActive = isset($_POST['is_active']) ? 1 : 0;
 
-        if ($name === '' || $keyword === '' || $templateId <= 0) {
-            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nama aturan, kata kunci pemicu, dan template wajib diisi.'];
+        if ($templateId <= 0) {
+            // Default ke template pertama yang tersedia
+            $resFirstTpl = $conn->query("SELECT id FROM crm_automation_templates ORDER BY id ASC LIMIT 1");
+            if ($resFirstTpl && ($rowFt = $resFirstTpl->fetch_assoc())) {
+                $templateId = (int)$rowFt['id'];
+            } else {
+                $templateId = 1;
+            }
+        }
+
+        if ($name === '' || $keyword === '') {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nama program/label dan kata kunci pemicu wajib diisi.'];
             crmAutoRedirect('rules');
         }
 
+        if ($category === '') {
+            $category = 'general';
+        }
+
         if ($ruleId > 0) {
-            $stmt = $conn->prepare("UPDATE crm_automation_rules SET name = ?, trigger_keyword = ?, template_id = ?, delay_minutes = ?, is_active = ? WHERE id = ?");
+            $stmt = $conn->prepare("UPDATE crm_automation_rules SET name = ?, trigger_keyword = ?, category = ?, template_id = ?, delay_minutes = ?, is_active = ? WHERE id = ?");
             if ($stmt) {
-                $stmt->bind_param('ssiiii', $name, $keyword, $templateId, $delayMinutes, $isActive, $ruleId);
+                $stmt->bind_param('sssiiii', $name, $keyword, $category, $templateId, $delayMinutes, $isActive, $ruleId);
                 $stmt->execute();
                 $stmt->close();
-                $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Aturan automasi follow-up berhasil diperbarui.'];
+                $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pola pemicu automasi follow-up berhasil diperbarui.'];
             }
         } else {
-            $stmt = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, ?)");
+            $stmt = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, category, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, ?, ?)");
             if ($stmt) {
-                $stmt->bind_param('ssiii', $name, $keyword, $templateId, $delayMinutes, $isActive);
+                $stmt->bind_param('sssiii', $name, $keyword, $category, $templateId, $delayMinutes, $isActive);
                 $stmt->execute();
                 $stmt->close();
-                $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Aturan automasi follow-up baru berhasil ditambahkan.'];
+                $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pola pemicu automasi baru berhasil ditambahkan.'];
+            }
+        }
+        crmAutoRedirect('rules');
+        break;
+
+    case 'delete_rule':
+        $ruleId = (int)($_POST['rule_id'] ?? 0);
+        if ($ruleId > 0) {
+            $stmt = $conn->prepare("DELETE FROM crm_automation_rules WHERE id = ?");
+            if ($stmt) {
+                $stmt->bind_param('i', $ruleId);
+                $stmt->execute();
+                $stmt->close();
+                $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pola pemicu berhasil dihapus.'];
             }
         }
         crmAutoRedirect('rules');
@@ -63,7 +92,7 @@ switch ($action) {
                 $stmt->bind_param('i', $ruleId);
                 $stmt->execute();
                 $stmt->close();
-                $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Status aktif aturan berhasil diubah.'];
+                $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Status aktif pola pemicu berhasil diubah.'];
             }
         }
         crmAutoRedirect('rules');

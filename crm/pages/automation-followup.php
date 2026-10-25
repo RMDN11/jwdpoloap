@@ -323,7 +323,7 @@ if ($tab === 'queue') {
         </a>
         <a href="?page=automation-followup&tab=rules" class="crm-tab-btn <?= $tab === 'rules' ? 'active' : '' ?>">
             <i class="fa-solid fa-list-check"></i>
-            <span>Aturan Sequence</span>
+            <span>Pola Pemicu (Rules)</span>
             <span class="crm-tab-pill"><?= number_format($statRulesActive) ?></span>
         </a>
         <a href="?page=automation-followup&tab=templates" class="crm-tab-btn <?= $tab === 'templates' ? 'active' : '' ?>">
@@ -525,12 +525,15 @@ if ($tab === 'queue') {
         </div>
     <?php endif; ?>
 
-    <!-- Tab 2: Rules -->
+    <!-- Tab 2: Rules (Pola Pemicu) -->
     <?php if ($tab === 'rules'): ?>
-        <div class="crm-card">
+        <div class="crm-card" id="ruleFormCard">
             <div class="crm-card-header">
-                <h2>Tambah / Perbarui Aturan Sequence</h2>
+                <h2 id="ruleFormHeading">Tambah / Edit Pola Chat Masuk (Pemicu Alur Otomatis)</h2>
             </div>
+            <p style="color: #64748b; font-size: 0.8rem; margin: -0.5rem 0 1rem 0;">
+                Setiap chat WhatsApp baru yang memuat kata kunci/teks di bawah akan langsung otomatis dijadwalkan ke 6 tahap follow-up tanpa perlu klik manual.
+            </p>
             <form action="index.php?page=automation-followup" method="POST">
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                 <input type="hidden" name="action" value="save_rule">
@@ -538,75 +541,130 @@ if ($tab === 'queue') {
                 <input type="hidden" name="rule_id" id="ruleId" value="0">
 
                 <div class="form-group">
-                    <label for="ruleName">Nama Aturan / Program</label>
-                    <input type="text" name="name" id="ruleName" class="form-control" placeholder="Contoh: Follow Up Tahfidz Private" required>
+                    <label for="ruleKw">Teks / Kata Kunci Pesan Masuk <span style="color:#ef4444;">*</span></label>
+                    <input type="text" name="trigger_keyword" id="ruleKw" class="form-control" placeholder="Contoh: Kak, saya ingin daftar Tahfidz Cilik" required>
+                    <small style="color: #64748b; font-size: 0.72rem;">Bisa berupa kalimat lengkap dari tombol web atau kata kunci utama (misal: 'Tahfidz Cilik', 'Menghafal Pemula').</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="ruleKw">Kata Kunci Pesan Masuk Pemicu Awal</label>
-                    <input type="text" name="trigger_keyword" id="ruleKw" class="form-control" placeholder="Contoh: Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada" required>
-                    <small style="color: #64748b; font-size: 0.75rem;">Saat user mengirim pesan yang memuat kata kunci ini, kontak otomatis dijadwalkan follow up.</small>
+                    <label for="ruleName">Nama Program / Label Aturan <span style="color:#ef4444;">*</span></label>
+                    <input type="text" name="name" id="ruleName" class="form-control" placeholder="Contoh: Tahfidz Cilik (Tombol LP)" required>
                 </div>
 
                 <div class="form-group">
-                    <label for="ruleTemplate">Pilih Template Pesan Follow-Up</label>
-                    <select name="template_id" id="ruleTemplate" class="form-control" required>
-                        <option value="">-- Pilih Template --</option>
-                        <?php foreach ($templates as $tpl): ?>
-                            <option value="<?= (int)$tpl['id'] ?>"><?= htmlspecialchars($tpl['name']) ?></option>
-                        <?php endforeach; ?>
+                    <label for="ruleCategory">Kategori Tampilan (Badge)</label>
+                    <select name="category" id="ruleCategory" class="form-control">
+                        <option value="cilik">Tahfidz Cilik (Pink)</option>
+                        <option value="pemula">Menghafal Pemula (Biru)</option>
+                        <option value="lanjutan">Lanjutan & Muroja'ah (Ungu)</option>
+                        <option value="form_lead">Bismillah Nama LP (Sky Blue)</option>
+                        <option value="cta">Pendaftaran CTA (Hijau)</option>
+                        <option value="general" selected>Tanya Detail Hero (Netral)</option>
                     </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="ruleDelay">Jeda Waktu Kirim (Menit)</label>
-                    <input type="number" name="delay_minutes" id="ruleDelay" class="form-control" value="1440" min="1" required>
-                    <small style="color: #64748b; font-size: 0.75rem;">1440 menit = 24 jam (H+1). 120 menit = 2 jam.</small>
                 </div>
 
                 <div class="form-group" style="flex-direction: row; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
                     <input type="checkbox" name="is_active" id="ruleActive" value="1" checked style="width: 1.1rem; height: 1.1rem; accent-color: #166534;">
-                    <label for="ruleActive" style="margin: 0; cursor: pointer;">Aktifkan Aturan Ini</label>
+                    <label for="ruleActive" style="margin: 0; cursor: pointer; font-weight: 500;">Aktifkan Pola Pemicu Ini</label>
                 </div>
 
-                <button type="submit" class="btn-primary" style="margin-top: 0.5rem;">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    <span>Simpan Aturan</span>
-                </button>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                    <button type="submit" id="ruleSubmitBtn" class="btn-primary">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Simpan Pola Pemicu</span>
+                    </button>
+                    <button type="button" id="ruleCancelBtn" class="btn-secondary" style="display: none;" onclick="cancelEditRule()">
+                        <i class="fa-solid fa-xmark"></i>
+                        <span>Batal</span>
+                    </button>
+                </div>
             </form>
         </div>
 
         <div class="crm-card">
             <div class="crm-card-header">
-                <h2>Daftar Aturan Pemicu Aktif</h2>
+                <h2>Daftar Pola Chat Masuk (Pemicu Alur Otomatis)</h2>
+                <span style="font-size: 0.75rem; color: #64748b;"><?= count($rules) ?> pola terdaftar</span>
             </div>
-            <div class="rule-list">
-                <?php if (empty($rules)): ?>
-                    <p style="color: #64748b; font-size: 0.875rem;">Belum ada aturan yang dibuat. Silakan tambahkan aturan di atas.</p>
-                <?php else: ?>
-                    <?php foreach ($rules as $r): ?>
-                        <div class="rule-item">
-                            <div class="rule-info">
-                                <span class="rule-title"><?= htmlspecialchars($r['name']) ?></span>
-                                <span class="rule-kw"><?= htmlspecialchars($r['trigger_keyword']) ?></span>
-                                <span class="rule-meta">
-                                    Template: <strong><?= htmlspecialchars($r['template_name'] ?? 'Tanpa Template') ?></strong> · 
-                                    Jeda: <strong><?= htmlspecialchars(crmAutomationFormatDelay((int)$r['delay_minutes'])) ?></strong>
-                                </span>
-                            </div>
-                            <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
-                                <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
-                                <input type="hidden" name="action" value="toggle_rule">
-                                <input type="hidden" name="tab" value="rules">
-                                <input type="hidden" name="rule_id" value="<?= (int)$r['id'] ?>">
-                                <button type="submit" class="btn-secondary" style="font-size: 0.75rem;">
-                                    <i class="fa-solid <?= (int)$r['is_active'] === 1 ? 'fa-toggle-on' : 'fa-toggle-off' ?>" style="color: <?= (int)$r['is_active'] === 1 ? '#166534' : '#94a3b8' ?>; font-size: 1.1rem;"></i>
-                                    <span><?= (int)$r['is_active'] === 1 ? 'Aktif' : 'Non-Aktif' ?></span>
-                                </button>
-                            </form>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+            <div class="table-responsive">
+                <table class="crm-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 110px;">Status</th>
+                            <th>Pola Teks Chat Masuk</th>
+                            <th>Nama / Label</th>
+                            <th style="width: 150px;">Kategori</th>
+                            <th style="width: 130px; text-align: center;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($rules)): ?>
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: #64748b; padding: 1.5rem;">Belum ada pola pemicu. Silakan tambahkan pada form di atas.</td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($rules as $r): ?>
+                                <?php
+                                $rCat = (string)($r['category'] ?? 'general');
+                                $catBadge = match($rCat) {
+                                    'cilik' => ['label' => 'Tahfidz Cilik', 'bg' => '#fce7f3', 'color' => '#be185d', 'icon' => 'fa-child-reaching'],
+                                    'pemula' => ['label' => 'Menghafal Pemula', 'bg' => '#dbeafe', 'color' => '#1d4ed8', 'icon' => 'fa-book-quran'],
+                                    'lanjutan' => ['label' => 'Lanjutan / Muroja\'ah', 'bg' => '#ede9fe', 'color' => '#6d28d9', 'icon' => 'fa-award'],
+                                    'form_lead' => ['label' => 'Bismillah Nama LP', 'bg' => '#e0f2fe', 'color' => '#0284c7', 'icon' => 'fa-user-pen'],
+                                    'cta' => ['label' => 'Pendaftaran CTA', 'bg' => '#d1fae5', 'color' => '#047857', 'icon' => 'fa-bolt'],
+                                    default => ['label' => 'Tanya Detail (Hero)', 'bg' => '#f1f5f9', 'color' => '#334155', 'icon' => 'fa-comment-dots'],
+                                };
+                                ?>
+                                <tr>
+                                    <td>
+                                        <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
+                                            <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                            <input type="hidden" name="action" value="toggle_rule">
+                                            <input type="hidden" name="tab" value="rules">
+                                            <input type="hidden" name="rule_id" value="<?= (int)$r['id'] ?>">
+                                            <button type="submit" class="btn-toggle" style="background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+                                                <i class="fa-solid <?= (int)$r['is_active'] === 1 ? 'fa-toggle-on' : 'fa-toggle-off' ?>" style="color: <?= (int)$r['is_active'] === 1 ? '#16a34a' : '#94a3b8' ?>; font-size: 1.25rem;"></i>
+                                                <span style="font-weight: 600; color: <?= (int)$r['is_active'] === 1 ? '#16a34a' : '#64748b' ?>;">
+                                                    <?= (int)$r['is_active'] === 1 ? 'Aktif' : 'Non-Aktif' ?>
+                                                </span>
+                                            </button>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <code style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.82rem; color: #0f172a; font-weight: 600;">
+                                            <?= htmlspecialchars($r['trigger_keyword']) ?>
+                                        </code>
+                                    </td>
+                                    <td>
+                                        <strong><?= htmlspecialchars($r['name']) ?></strong>
+                                    </td>
+                                    <td>
+                                        <span class="crm-category-badge" style="background: <?= $catBadge['bg'] ?>; color: <?= $catBadge['color'] ?>; font-size: 0.72rem; padding: 0.2rem 0.5rem; border-radius: 6px; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
+                                            <i class="fa-solid <?= $catBadge['icon'] ?>"></i>
+                                            <?= htmlspecialchars($catBadge['label']) ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; gap: 0.35rem; justify-content: center; align-items: center;">
+                                            <button type="button" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.72rem;" onclick='editRule(<?= json_encode($r, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)' title="Ubah pola ini">
+                                                <i class="fa-solid fa-pen-to-square"></i> Edit
+                                            </button>
+                                            <form action="index.php?page=automation-followup" method="POST" style="margin: 0;" onsubmit="return confirm('Hapus pola pemicu ini?');">
+                                                <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                <input type="hidden" name="action" value="delete_rule">
+                                                <input type="hidden" name="tab" value="rules">
+                                                <input type="hidden" name="rule_id" value="<?= (int)$r['id'] ?>">
+                                                <button type="submit" class="btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.72rem;" title="Hapus pola ini">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     <?php endif; ?>
@@ -885,6 +943,51 @@ if ($tab === 'queue') {
         setTimeout(function() {
             btn.innerHTML = orig;
         }, 1800);
+    }
+
+    function editRule(data) {
+        var ruleId = document.getElementById('ruleId');
+        var ruleName = document.getElementById('ruleName');
+        var ruleKw = document.getElementById('ruleKw');
+        var ruleCat = document.getElementById('ruleCategory');
+        var ruleActive = document.getElementById('ruleActive');
+        var heading = document.getElementById('ruleFormHeading');
+        var btn = document.getElementById('ruleSubmitBtn');
+        var cancelBtn = document.getElementById('ruleCancelBtn');
+        var card = document.getElementById('ruleFormCard');
+
+        if (ruleId) ruleId.value = data.id;
+        if (ruleName) ruleName.value = data.name;
+        if (ruleKw) ruleKw.value = data.trigger_keyword;
+        if (ruleCat) ruleCat.value = data.category || 'general';
+        if (ruleActive) ruleActive.checked = (parseInt(data.is_active, 10) === 1);
+        if (heading) heading.textContent = 'Edit Pola Pemicu: ' + data.name;
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Perbarui Pola</span>';
+        if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function cancelEditRule() {
+        var ruleId = document.getElementById('ruleId');
+        var ruleName = document.getElementById('ruleName');
+        var ruleKw = document.getElementById('ruleKw');
+        var ruleCat = document.getElementById('ruleCategory');
+        var ruleActive = document.getElementById('ruleActive');
+        var heading = document.getElementById('ruleFormHeading');
+        var btn = document.getElementById('ruleSubmitBtn');
+        var cancelBtn = document.getElementById('ruleCancelBtn');
+
+        if (ruleId) ruleId.value = '0';
+        if (ruleName) ruleName.value = '';
+        if (ruleKw) ruleKw.value = '';
+        if (ruleCat) ruleCat.value = 'general';
+        if (ruleActive) ruleActive.checked = true;
+        if (heading) heading.textContent = 'Tambah / Edit Pola Chat Masuk (Pemicu Alur Otomatis)';
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> <span>Simpan Pola Pemicu</span>';
+        if (cancelBtn) cancelBtn.style.display = 'none';
     }
 
     function editTemplate(data) {

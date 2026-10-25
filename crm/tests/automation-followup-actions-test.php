@@ -15,6 +15,7 @@ $requiredTokens = [
     'crmVerifyCsrf',
     'save_rule',
     'toggle_rule',
+    'delete_rule',
     'save_template',
     'delete_template',
     'cancel_queue',
@@ -22,6 +23,7 @@ $requiredTokens = [
     'queue_prospect',
     'send_prospect_now',
     'crm_flash',
+    'category',
     'Location: index.php?page=automation-followup',
 ];
 

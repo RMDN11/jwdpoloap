@@ -84,6 +84,34 @@ def run_trigger_test(base_dir):
 
     print("automation-followup-trigger-test: OK")
 
+def run_actions_test(base_dir):
+    actions_path = os.path.join(base_dir, "crm/actions/automation-followup.php")
+    if not os.path.exists(actions_path):
+        raise AssertionError("Missing actions file.")
+    with open(actions_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    required_tokens = [
+        'crmVerifyCsrf',
+        'save_rule',
+        'toggle_rule',
+        'delete_rule',
+        'save_template',
+        'delete_template',
+        'cancel_queue',
+        'send_now',
+        'queue_prospect',
+        'send_prospect_now',
+        'crm_flash',
+        'category',
+        'Location: index.php?page=automation-followup',
+    ]
+    for token in required_tokens:
+        if token not in content:
+            raise AssertionError(f"Missing required action token: {token}")
+
+    print("automation-followup-actions-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -92,6 +120,8 @@ def main():
         run_db_test(base_dir)
     if test_name in ["automation-followup-trigger-test", "trigger", "all"]:
         run_trigger_test(base_dir)
+    if test_name in ["automation-followup-actions-test", "actions", "all"]:
+        run_actions_test(base_dir)
 
 if __name__ == "__main__":
     try:
