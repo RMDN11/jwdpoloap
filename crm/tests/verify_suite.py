@@ -283,6 +283,54 @@ def run_review_fixes_test(base_dir):
     assert "btn.classList.contains('copied')" in page, 'Missing double-click guard'
     print("automation-followup-review-fixes-test: OK")
 
+def run_retention_test(base_dir):
+    actions_path = os.path.join(base_dir, "crm/actions/automation-followup.php")
+    pages_path = os.path.join(base_dir, "crm/pages/automation-followup.php")
+    css_path = os.path.join(base_dir, "crm/assets/css/automation-followup.css")
+
+    with open(actions_path, "r", encoding="utf-8") as f:
+        actions = f.read()
+    with open(pages_path, "r", encoding="utf-8") as f:
+        page = f.read()
+    with open(css_path, "r", encoding="utf-8") as f:
+        css = f.read()
+
+    # 1. crmAutoRedirect signature in actions
+    if not re.search(r'function\s+crmAutoRedirect\s*\(\s*string\s+\$tab\s*=\s*[\'"](?:rules|prospects)[\'"],\s*\?string\s+\$returnUrl\s*=\s*null,\s*\?string\s+\$anchor\s*=\s*null\s*\)', actions):
+        raise AssertionError("crmAutoRedirect must accept optional $returnUrl and $anchor parameters")
+
+    # 2. return_url handling
+    if "return_url" not in actions or "$returnUrl" not in actions:
+        raise AssertionError("crmAutoRedirect must support return_url redirection")
+
+    # 3. row anchors in actions
+    for param in ["row-p-", "row-rule-", "row-queue-", "row-tpl-"]:
+        if param not in actions:
+            raise AssertionError(f"Missing row anchor handling for: {param}")
+
+    # 4. row IDs in pages
+    for row_id in ['id="row-p-', 'id="row-rule-', 'id="row-tpl-', 'id="row-queue-']:
+        if row_id not in page:
+            raise AssertionError(f"Missing row ID anchor in pages: {row_id}")
+
+    # 5. hidden return_url in pages
+    if 'name="return_url"' not in page:
+        raise AssertionError("Missing hidden input return_url in pages")
+
+    # 6. CSS animation for row pulse
+    if "crmRowPulse" not in css or ":target" not in css:
+        raise AssertionError("Missing CSS animation crmRowPulse or :target in automation-followup.css")
+
+    # 7. Search in pages
+    if 'name="search"' not in page or "$search" not in page:
+        raise AssertionError("Missing search filter integration in automation-followup.php")
+
+    # 8. LIMIT 100 removed
+    if re.search(r'FROM\s+crm_automation_queue[^\;]+LIMIT\s+100', page, re.IGNORECASE):
+        raise AssertionError("Hardcoded LIMIT 100 on crm_automation_queue query must be removed")
+
+    print("automation-followup-retention-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -307,6 +355,8 @@ def main():
         run_copy_wa_test(base_dir)
     if test_name in ["automation-followup-review-fixes-test", "review-fixes", "all"]:
         run_review_fixes_test(base_dir)
+    if test_name in ["automation-followup-retention-test", "retention", "all"]:
+        run_retention_test(base_dir)
 
 if __name__ == "__main__":
     try:

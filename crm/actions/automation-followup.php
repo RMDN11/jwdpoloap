@@ -14,10 +14,33 @@ crmAutomationEnsureTables($conn);
 
 $action = trim((string)($_POST['action'] ?? ''));
 $tab = trim((string)($_POST['tab'] ?? 'rules'));
+$returnUrl = trim((string)($_POST['return_url'] ?? ''));
 
-function crmAutoRedirect(string $tab = 'rules'): void
+function crmAutoRedirect(string $tab = 'rules', ?string $returnUrl = null, ?string $anchor = null): void
 {
-    header('Location: index.php?page=automation-followup&tab=' . urlencode($tab));
+    // Location: index.php?page=automation-followup
+    $target = 'index.php?page=automation-followup&tab=' . urlencode($tab);
+    if (!empty($returnUrl)) {
+        $parsed = parse_url($returnUrl);
+        $path = $parsed['path'] ?? '';
+        $query = !empty($parsed['query']) ? '?' . $parsed['query'] : '';
+        if (str_contains($path, 'index.php') || $path === '' || str_starts_with($path, '?')) {
+            if (empty($query) && str_starts_with($path, '?')) {
+                $query = $path;
+            }
+            if (!empty($query) && str_contains($query, 'page=automation-followup')) {
+                $target = 'index.php' . $query;
+            }
+        }
+    }
+
+    if (!empty($anchor)) {
+        $cleanAnchor = ltrim($anchor, '#');
+        $base = explode('#', $target)[0];
+        $target = $base . '#' . $cleanAnchor;
+    }
+
+    header('Location: ' . $target);
     exit;
 }
 
@@ -43,13 +66,14 @@ switch ($action) {
 
         if ($name === '' || $keyword === '') {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nama program/label dan kata kunci pemicu wajib diisi.'];
-            crmAutoRedirect('rules');
+            crmAutoRedirect('rules', $returnUrl);
         }
 
         if ($category === '') {
             $category = 'general';
         }
 
+        $savedRuleId = $ruleId;
         if ($ruleId > 0) {
             $stmt = $conn->prepare("UPDATE crm_automation_rules SET name = ?, trigger_keyword = ?, category = ?, template_id = ?, delay_minutes = ?, is_active = ? WHERE id = ?");
             if ($stmt) {
@@ -63,11 +87,13 @@ switch ($action) {
             if ($stmt) {
                 $stmt->bind_param('sssiii', $name, $keyword, $category, $templateId, $delayMinutes, $isActive);
                 $stmt->execute();
+                $savedRuleId = (int)$conn->insert_id;
                 $stmt->close();
                 $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pola pemicu automasi baru berhasil ditambahkan.'];
             }
         }
-        crmAutoRedirect('rules');
+        $anchor = $savedRuleId > 0 ? "row-rule-{$savedRuleId}" : null;
+        crmAutoRedirect('rules', $returnUrl, $anchor);
         break;
 
     case 'delete_rule':
@@ -81,7 +107,7 @@ switch ($action) {
                 $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pola pemicu berhasil dihapus.'];
             }
         }
-        crmAutoRedirect('rules');
+        crmAutoRedirect('rules', $returnUrl);
         break;
 
     case 'toggle_rule':
@@ -95,7 +121,7 @@ switch ($action) {
                 $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Status aktif pola pemicu berhasil diubah.'];
             }
         }
-        crmAutoRedirect('rules');
+        crmAutoRedirect('rules', $returnUrl, $ruleId > 0 ? "row-rule-{$ruleId}" : null);
         break;
 
     case 'save_template':
@@ -106,9 +132,10 @@ switch ($action) {
 
         if ($name === '' || $content === '') {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nama dan konten template wajib diisi.'];
-            crmAutoRedirect('templates');
+            crmAutoRedirect('templates', $returnUrl);
         }
 
+        $savedTplId = $templateId;
         if ($templateId > 0) {
             $stmt = $conn->prepare("UPDATE crm_automation_templates SET name = ?, content = ?, description = ? WHERE id = ?");
             if ($stmt) {
@@ -122,11 +149,13 @@ switch ($action) {
             if ($stmt) {
                 $stmt->bind_param('sss', $name, $content, $description);
                 $stmt->execute();
+                $savedTplId = (int)$conn->insert_id;
                 $stmt->close();
                 $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Template follow-up baru berhasil disimpan.'];
             }
         }
-        crmAutoRedirect('templates');
+        $anchor = $savedTplId > 0 ? "row-tpl-{$savedTplId}" : null;
+        crmAutoRedirect('templates', $returnUrl, $anchor);
         break;
 
     case 'delete_template':
@@ -142,7 +171,7 @@ switch ($action) {
 
                 if ($inUse) {
                     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Template tidak dapat dihapus karena masih digunakan dalam aturan aktif.'];
-                    crmAutoRedirect('templates');
+                    crmAutoRedirect('templates', $returnUrl, "row-tpl-{$templateId}");
                 }
             }
 
@@ -154,7 +183,7 @@ switch ($action) {
                 $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Template follow-up berhasil dihapus.'];
             }
         }
-        crmAutoRedirect('templates');
+        crmAutoRedirect('templates', $returnUrl);
         break;
 
     case 'cancel_queue':
@@ -163,7 +192,7 @@ switch ($action) {
             crmAutomationCancelQueueItem($conn, $queueId, 'cancelled_manual');
             $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Antrean berhasil dibatalkan secara manual.'];
         }
-        crmAutoRedirect('queue');
+        crmAutoRedirect('queue', $returnUrl, $queueId > 0 ? "row-queue-{$queueId}" : null);
         break;
 
     case 'queue_prospect':
@@ -172,20 +201,21 @@ switch ($action) {
         $ruleId = (int)($_POST['rule_id'] ?? 0);
         $templateId = (int)($_POST['template_id'] ?? 0);
         $delayMinutes = max(0, (int)($_POST['delay_minutes'] ?? 0));
+        $prospectAnchor = $nowa !== '' ? 'row-p-' . preg_replace('/\D/', '', $nowa) : null;
 
         if ($nowa === '') {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nomor WhatsApp tidak valid.'];
-            crmAutoRedirect('prospects');
+            crmAutoRedirect('prospects', $returnUrl);
         }
 
         if (crmAutomationIsOperationalNumber($nowa)) {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => "Nomor {$nowa} adalah nomor operasional internal Jawwada, tidak dapat dimasukkan ke antrean follow-up."];
-            crmAutoRedirect('prospects');
+            crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         }
 
         if (crmAutomationHasReceivedPayment($conn, $nowa)) {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini sudah menerima pesan payment Finance, tidak dapat dimasukkan antrean.'];
-            crmAutoRedirect('prospects');
+            crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         }
 
         $queueId = crmAutomationRegisterQueue($conn, $nowa, $nama, $ruleId, $delayMinutes, true, $templateId);
@@ -194,7 +224,7 @@ switch ($action) {
         } else {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan kontak (nomor diblokir atau tidak valid).'];
         }
-        crmAutoRedirect('prospects');
+        crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         break;
 
     case 'schedule_sequence':
@@ -202,20 +232,21 @@ switch ($action) {
         $nowa = trim((string)($_POST['nowa'] ?? ''));
         $nama = trim((string)($_POST['nama'] ?? 'Kak'));
         $templateId = (int)($_POST['template_id'] ?? 0);
+        $prospectAnchor = $nowa !== '' ? 'row-p-' . preg_replace('/\D/', '', $nowa) : null;
 
         if ($nowa === '') {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nomor WhatsApp tidak valid.'];
-            crmAutoRedirect('prospects');
+            crmAutoRedirect('prospects', $returnUrl);
         }
 
         if (crmAutomationIsOperationalNumber($nowa)) {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => "Nomor {$nowa} adalah nomor operasional internal Jawwada, tidak dapat dijadwalkan follow-up."];
-            crmAutoRedirect('prospects');
+            crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         }
 
         if (crmAutomationHasReceivedPayment($conn, $nowa)) {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini sudah menerima pesan payment Finance / terdaftar sebagai peserta, tidak dapat dimasukkan alur follow-up.'];
-            crmAutoRedirect('prospects');
+            crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         }
 
         $keyword = trim((string)($_POST['keyword'] ?? ''));
@@ -229,19 +260,20 @@ switch ($action) {
         } else {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan sequence: ' . ($res['message'] ?? 'Nomor diblokir atau aturan belum tersedia.')];
         }
-        crmAutoRedirect('prospects');
+        crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         break;
 
     case 'stop_prospect':
         $nowa = trim((string)($_POST['nowa'] ?? ''));
+        $prospectAnchor = $nowa !== '' ? 'row-p-' . preg_replace('/\D/', '', $nowa) : null;
         if ($nowa === '') {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nomor WhatsApp tidak valid.'];
-            crmAutoRedirect('prospects');
+            crmAutoRedirect('prospects', $returnUrl);
         }
 
         $cancelledCount = crmAutomationCancelAllPendingForContact($conn, $nowa, 'cancelled_manual');
         $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Follow-up kontak {$nowa} berhasil dihentikan ({$cancelledCount} antrean dibatalkan)."];
-        crmAutoRedirect('prospects');
+        crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         break;
 
     case 'send_prospect_now':
@@ -249,20 +281,21 @@ switch ($action) {
         $nama = trim((string)($_POST['nama'] ?? 'Kak'));
         $ruleId = (int)($_POST['rule_id'] ?? 0);
         $templateId = (int)($_POST['template_id'] ?? 0);
+        $prospectAnchor = $nowa !== '' ? 'row-p-' . preg_replace('/\D/', '', $nowa) : null;
 
         if ($nowa === '') {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nomor WhatsApp tidak valid.'];
-            crmAutoRedirect('prospects');
+            crmAutoRedirect('prospects', $returnUrl);
         }
 
         if (crmAutomationIsOperationalNumber($nowa)) {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => "Nomor {$nowa} adalah nomor operasional internal Jawwada, tidak dapat dikirim follow-up."];
-            crmAutoRedirect('prospects');
+            crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         }
 
         if (crmAutomationHasReceivedPayment($conn, $nowa)) {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Kontak ini sudah menerima pesan payment Finance.'];
-            crmAutoRedirect('prospects');
+            crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         }
 
         $queueId = crmAutomationRegisterQueue($conn, $nowa, $nama, $ruleId, 0, true, $templateId);
@@ -277,7 +310,7 @@ switch ($action) {
         } else {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal membuat antrean untuk kontak (nomor diblokir atau nomor operasional).'];
         }
-        crmAutoRedirect('prospects');
+        crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         break;
 
     case 'send_now':
@@ -293,7 +326,7 @@ switch ($action) {
                 $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pengiriman gagal: ' . ($res['reason'] ?? 'terjadi kendala jaringan/API.')];
             }
         }
-        crmAutoRedirect('queue');
+        crmAutoRedirect('queue', $returnUrl, $queueId > 0 ? "row-queue-{$queueId}" : null);
         break;
 
     case 'clean_duplicate_queues':
@@ -329,10 +362,10 @@ switch ($action) {
         ");
 
         $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pembersihan selesai: antrean spesifik dan antrean yang bentrok pada jam yang sama berhasil dibatalkan.'];
-        crmAutoRedirect('queue');
+        crmAutoRedirect('queue', $returnUrl);
         break;
 
     default:
-        crmAutoRedirect('rules');
+        crmAutoRedirect('rules', $returnUrl);
         break;
 }
