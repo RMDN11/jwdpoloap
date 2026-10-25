@@ -34,22 +34,22 @@
 - Create: `api_antigravity.php`
 - Test: `crm/tests/antigravity-bridge-test.php`
 
-- [x] **Step 1: Definisikan skema tabel dan token di `crm/config/admin-bot.php`**
+- [ ] **Step 1: Definisikan skema tabel dan token di `crm/config/admin-bot.php`**
   - Definisikan `ANTIGRAVITY_BRIDGE_TOKEN`.
   - Buat tabel `crm_antigravity_tasks` dalam fungsi `crmAdminBotEnsureTables`.
 
-- [x] **Step 2: Tambahkan router perintah `!agy` di `crm/lib/admin-bot.php`**
+- [ ] **Step 2: Tambahkan router perintah `!agy` di `crm/lib/admin-bot.php`**
   - Tangkap awalan `!agy`.
   - Jika argumen kosong, kirim pesan bantuan.
   - Jika ada task: insert ke `crm_antigravity_tasks`, kirimkan pesan konfirmasi awal:
     `⏳ *[Antigravity Agent]*: Perintah diterima & sedang diproses di MacBook...`
 
-- [x] **Step 3: Buat endpoint relay antrean `api_antigravity.php`**
+- [ ] **Step 3: Buat endpoint relay antrean `api_antigravity.php`**
   - Validasi token otentikasi.
   - Aksi `poll`: Ambil 1 task pending terlama, ubah status ke `processing`.
   - Aksi `complete`: Terima hasil eksekusi, ubah status ke `completed`.
 
-- [x] **Step 4: Buat test verifikasi server di `crm/tests/antigravity-bridge-test.php`**
+- [ ] **Step 4: Buat test verifikasi server di `crm/tests/antigravity-bridge-test.php`**
   - Uji token verifikasi, handler `!agy`, skema database, dan endpoint relay.
 
 ---
@@ -60,14 +60,14 @@
 - Create: `/Users/macbookair/bin/antigravity_wa_bridge.py`
 - Test: Manual execution & verification test
 
-- [x] **Step 1: Buat skrip daemon `antigravity_wa_bridge.py`**
+- [ ] **Step 1: Buat skrip daemon `antigravity_wa_bridge.py`**
   - Konfigurasi URL server, secret token, OneSender API URL & token.
   - Fungsi polling ke `api_antigravity.php`.
   - Fungsi eksekusi `agy -c -p --dangerously-skip-permissions "<prompt>"`.
   - Fungsi pengiriman pesan balik ke WhatsApp admin via OneSender REST API.
   - Dukungan pemecahan pesan panjang (chunking).
 
-- [x] **Step 2: Buat unit runner test untuk daemon**
+- [ ] **Step 2: Buat unit runner test untuk daemon**
   - Verifikasi bahwa skrip Python valid secara sintaks dan fungsi eksekusi siap dijalankan.
 
 ---
@@ -78,6 +78,6 @@
 - Modify: `crm/tests/verify_suite.py`
 - Run: `python3 crm/tests/verify_suite.py`
 
-- [x] **Step 1: Daftarkan test ke `verify_suite.py` dan jalankan verifikasi penuh**
-- [x] **Step 2: Commit dan push perubahan ke GitHub `main`**
-- [x] **Step 3: Jalankan daemon di background di MacBook**
+- [ ] **Step 1: Daftarkan test ke `verify_suite.py` dan jalankan verifikasi penuh**
+- [ ] **Step 2: Commit dan push perubahan ke GitHub `main`**
+- [ ] **Step 3: Jalankan daemon di background di MacBook**
