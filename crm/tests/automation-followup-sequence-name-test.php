@@ -92,7 +92,7 @@ assert(str_contains($cfgContent, "WHERE nowa = ? AND template_id = ? AND status 
 assert(!str_contains($cfgContent, "(template_id = ? OR (rule_id = ? AND rule_id > 0))"), "crmAutomationRegisterQueue must NOT overwrite across different templates via rule_id");
 
 // Must support 'Tahfidz Private - Follow Up' prefix in sequence matching
-assert(str_contains($cfgContent, "%Follow Up ' . \$num") || str_contains($cfgContent, "%Follow Up ' . \$step") || str_contains($cfgContent, "Follow Up ' . \$num") || str_contains($cfgContent, "CONCAT"), "Sequence resolution must match both prefixed and unprefixed Follow Up templates");
+assert(str_contains($cfgContent, "Follow Up {\$num}") || str_contains($cfgContent, "%Follow Up ' . \$num") || str_contains($cfgContent, "CONCAT"), "Sequence resolution must match both prefixed and unprefixed Follow Up templates");
 
 // Tab 4 queue must order by pending first and scheduled_at ASC
 $pagePath = $baseDir . '/crm/pages/automation-followup.php';

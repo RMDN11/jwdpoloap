@@ -485,6 +485,14 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         }
     }
 
+    // Pastikan tabel override finance manual selalu tersedia
+    $conn->query("CREATE TABLE IF NOT EXISTS crm_automation_finance (
+        nowa VARCHAR(50) PRIMARY KEY,
+        status VARCHAR(20) NOT NULL,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_auto_fin_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
     // Fast path: jika skema dan seed sudah lengkap, hindari DDL dan query berulang pada webhook
     $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v1_ensured' LIMIT 1");
     if ($metaEnsured && $metaEnsured->num_rows > 0) {
@@ -740,6 +748,41 @@ function crmAutomationCancelAllPendingForContact(mysqli $conn, string $nowa, str
     return $affected;
 }
 
+/**
+ * Mengubah status finance kontak secara manual (paid = Sudah Isi Finance, unpaid = Belum Diisi Finance).
+ * Jika status diubah menjadi 'paid', antrean follow-up pending untuk kontak ini otomatis dibatalkan.
+ */
+function crmAutomationSetFinanceStatus(mysqli $conn, string $nowa, string $status = 'paid'): bool
+{
+    crmAutomationEnsureTables($conn);
+    $normalized = crmProspectNormalizeNumber($nowa);
+    if ($normalized === '') {
+        return false;
+    }
+
+    $status = strtolower(trim($status)) === 'unpaid' ? 'unpaid' : 'paid';
+
+    $stmt = $conn->prepare("
+        INSERT INTO crm_automation_finance (nowa, status, updated_at) 
+        VALUES (?, ?, NOW()) 
+        ON DUPLICATE KEY UPDATE status = VALUES(status), updated_at = NOW()
+    ");
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('ss', $normalized, $status);
+    $stmt->execute();
+    $stmt->close();
+
+    // Jika ditandai 'paid' (Sudah), otomatis batalkan antrean pending kontak ini
+    if ($status === 'paid') {
+        crmAutomationCancelAllPendingForContact($conn, $normalized, 'cancelled_payment');
+    }
+
+    return true;
+}
+
 function crmAutomationHasReceivedPayment(mysqli $conn, string $nowa): bool
 {
     $normalized = crmProspectNormalizeNumber($nowa);
@@ -755,6 +798,21 @@ function crmAutomationHasReceivedPayment(mysqli $conn, string $nowa): bool
     }
 
     $placeholders = implode(',', array_fill(0, count($variants), '?'));
+
+    // 0. Cek tabel override finance manual
+    $tableFin = $conn->query("SHOW TABLES LIKE 'crm_automation_finance'");
+    if ($tableFin && $tableFin->num_rows > 0) {
+        $stmtFin = $conn->prepare("SELECT status FROM crm_automation_finance WHERE nowa IN ({$placeholders}) LIMIT 1");
+        if ($stmtFin) {
+            $stmtFin->bind_param(str_repeat('s', count($variants)), ...$variants);
+            $stmtFin->execute();
+            $resFin = $stmtFin->get_result()->fetch_assoc();
+            $stmtFin->close();
+            if ($resFin) {
+                return ($resFin['status'] === 'paid');
+            }
+        }
+    }
 
     // 1. Cek di tabel peserta (apakah peserta sudah berstatus aktif/terdaftar)
     $tableCheck = $conn->query("SHOW TABLES LIKE 'peserta'");
@@ -1002,9 +1060,9 @@ function crmAutomationScheduleSequence(
 
     $resolvedSteps = [];
     foreach ($sequenceSteps as $num => $stepInfo) {
-        $patExact = 'Follow Up ' . $num . ' (%';
-        $patPrefixed = '%Follow Up ' . $num . ' (%';
-        $patAny = '%Follow Up ' . $num . '%';
+        $patExact = "Follow Up {$num} (%";
+        $patPrefixed = "%Follow Up {$num} (%";
+        $patAny = "%Follow Up {$num}%";
 
         $stmtTpl = $conn->prepare("
             SELECT t.id AS template_id, COALESCE(r.id, 0) AS rule_id, t.name AS template_name
@@ -1015,8 +1073,8 @@ function crmAutomationScheduleSequence(
               AND t.name NOT LIKE '%Lanjutan%'
               AND t.name NOT LIKE '%Tahfidz Cilik%'
             ORDER BY 
-              (t.name LIKE 'Follow Up ' . $num . ' (%') DESC,
-              (t.name LIKE '%Tahfidz Private - Follow Up ' . $num . '%') DESC,
+              CASE WHEN t.name LIKE 'Follow Up {$num} (%' THEN 1 ELSE 0 END DESC,
+              CASE WHEN t.name LIKE '%Tahfidz Private - Follow Up {$num}%' THEN 1 ELSE 0 END DESC,
               t.id ASC
             LIMIT 1
         ");
@@ -1043,9 +1101,9 @@ function crmAutomationScheduleSequence(
             if (isset($resolvedSteps[$num])) {
                 continue;
             }
-            $patExact = 'Follow Up ' . $num . ' (%';
-            $patPrefixed = '%Follow Up ' . $num . ' (%';
-            $patAny = '%Follow Up ' . $num . '%';
+            $patExact = "Follow Up {$num} (%";
+            $patPrefixed = "%Follow Up {$num} (%";
+            $patAny = "%Follow Up {$num}%";
 
             $stmtRetry = $conn->prepare("
                 SELECT t.id AS template_id, COALESCE(r.id, 0) AS rule_id, t.name AS template_name
@@ -1055,7 +1113,9 @@ function crmAutomationScheduleSequence(
                   AND t.name NOT LIKE '%Menghafal Pemula%'
                   AND t.name NOT LIKE '%Lanjutan%'
                   AND t.name NOT LIKE '%Tahfidz Cilik%'
-                ORDER BY (t.name LIKE 'Follow Up ' . $num . ' (%') DESC, t.id ASC
+                ORDER BY 
+                  CASE WHEN t.name LIKE 'Follow Up {$num} (%' THEN 1 ELSE 0 END DESC,
+                  t.id ASC
                 LIMIT 1
             ");
             if ($stmtRetry) {

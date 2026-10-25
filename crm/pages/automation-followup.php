@@ -604,15 +604,37 @@ if ($tab !== 'queue') {
                                         </div>
                                     </td>
                                     <td>
-                                        <?php if ($item['has_payment']): ?>
-                                            <span class="badge-status badge-sent" title="Sudah dikirimi chat: ⛔ Wajib segera diisi Mohon diisi untuk pendataan Finance kami">
-                                                <i class="fa-solid fa-file-invoice-dollar"></i> Sudah Isi Finance
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="badge-status badge-pending" title="Belum pernah dikirimi pesan pendataan Finance">
-                                                <i class="fa-solid fa-clock"></i> Belum Diisi Finance
-                                            </span>
-                                        <?php endif; ?>
+                                        <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start;">
+                                            <?php if ($item['has_payment']): ?>
+                                                <span class="badge-status badge-sent" title="Status: Sudah isi/terdata di Finance">
+                                                    <i class="fa-solid fa-file-invoice-dollar"></i> Sudah Isi Finance
+                                                </span>
+                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
+                                                    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                    <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
+                                                    <input type="hidden" name="action" value="toggle_finance_status">
+                                                    <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
+                                                    <input type="hidden" name="status" value="unpaid">
+                                                    <button type="submit" class="btn-secondary" style="font-size: 0.68rem; padding: 0.15rem 0.45rem; height: 22px; display: inline-flex; align-items: center; gap: 0.25rem; color: #64748b;" onclick="return confirm('Ubah status finance kontak ini menjadi Belum Diisi Finance?');" title="Kembalikan status menjadi Belum">
+                                                        <i class="fa-solid fa-rotate-left"></i> Ubah ke Belum
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="badge-status badge-pending" title="Status: Belum ada data Finance">
+                                                    <i class="fa-solid fa-clock"></i> Belum Diisi Finance
+                                                </span>
+                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
+                                                    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                    <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
+                                                    <input type="hidden" name="action" value="toggle_finance_status">
+                                                    <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
+                                                    <input type="hidden" name="status" value="paid">
+                                                    <button type="submit" class="btn-secondary" style="font-size: 0.68rem; padding: 0.15rem 0.5rem; height: 24px; display: inline-flex; align-items: center; gap: 0.3rem; background: #ecfdf5; border-color: #a7f3d0; color: #047857; font-weight: 600;" onclick="return confirm('Ubah status finance kontak ini menjadi Sudah? Antrean follow up pending akan dihentikan otomatis.');" title="Ubah status menjadi Sudah Diisi Finance">
+                                                        <i class="fa-solid fa-circle-check"></i> Ubah Jadi Sudah
+                                                    </button>
+                                                </form>
+                                            <?php endif; ?>
+                                        </div>
                                     </td>
                                     <td>
                                         <?php if ($item['queue']): ?>

@@ -322,6 +322,32 @@ switch ($action) {
         crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         break;
 
+    case 'toggle_finance_status':
+    case 'set_finance_status':
+        $nowa = trim((string)($_POST['nowa'] ?? ''));
+        $targetStatus = trim((string)($_POST['status'] ?? 'paid'));
+        $prospectAnchor = $nowa !== '' ? 'row-p-' . preg_replace('/\D/', '', $nowa) : null;
+
+        if ($nowa === '') {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Nomor WhatsApp tidak valid.'];
+            crmAutoRedirect('prospects', $returnUrl);
+        }
+
+        if ($targetStatus !== 'unpaid') {
+            $targetStatus = 'paid';
+        }
+
+        $ok = crmAutomationSetFinanceStatus($conn, $nowa, $targetStatus);
+        if ($ok) {
+            $label = ($targetStatus === 'paid') ? 'Sudah Diisi Finance' : 'Belum Diisi Finance';
+            $_SESSION['crm_flash'] = ['type' => 'success', 'message' => "Status finance kontak {$nowa} berhasil diubah menjadi: {$label}."];
+        } else {
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal mengubah status finance kontak.'];
+        }
+
+        crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
+        break;
+
     case 'send_now':
         $queueId = (int)($_POST['queue_id'] ?? 0);
         if ($queueId > 0) {

@@ -364,7 +364,7 @@ def run_sequence_name_test(base_dir: str):
         raise AssertionError("crmAutomationRegisterQueue must NOT overwrite across different templates via rule_id")
 
     # 2. Sequence resolution flexible matching
-    if "%Follow Up ' . $num" not in cfg and "%Follow Up ' . $step" not in cfg and "Follow Up ' . $num" not in cfg and "CONCAT" not in cfg:
+    if "%Follow Up ' . $num" not in cfg and "Follow Up {$num}" not in cfg and "CONCAT" not in cfg:
         raise AssertionError("Sequence resolution must match both prefixed and unprefixed Follow Up templates")
 
     # 3. Explicit name extraction & smart rendering
@@ -379,6 +379,41 @@ def run_sequence_name_test(base_dir: str):
         raise AssertionError("Tab 4 Queue table must sort pending items chronologically by scheduled_at ASC")
 
     print("automation-followup-sequence-name-test: OK")
+
+def run_finance_scheduling_test(base_dir: str):
+    cfg_path = os.path.join(base_dir, 'crm/config/automation-followup.php')
+    with open(cfg_path, 'r', encoding='utf-8') as f:
+        cfg = f.read()
+
+    # 1. SQL query syntax check: no raw dot concatenation in string
+    if "' . $num . '" in cfg or "t.name LIKE 'Follow Up ' ." in cfg:
+        raise AssertionError("SQL query string has broken LIKE clause with raw dot concatenation")
+
+    # 2. Finance helper and table
+    if "crmAutomationSetFinanceStatus" not in cfg:
+        raise AssertionError("Function crmAutomationSetFinanceStatus must exist in config")
+    if "crm_automation_finance" not in cfg:
+        raise AssertionError("Config must manage crm_automation_finance table")
+
+    # 3. Actions file
+    act_path = os.path.join(base_dir, 'crm/actions/automation-followup.php')
+    with open(act_path, 'r', encoding='utf-8') as f:
+        act = f.read()
+    if "toggle_finance_status" not in act and "set_finance_status" not in act:
+        raise AssertionError("Actions must handle toggle_finance_status")
+    if "crmAutomationSetFinanceStatus" not in act:
+        raise AssertionError("Actions must call crmAutomationSetFinanceStatus")
+
+    # 4. Page file
+    page_path = os.path.join(base_dir, 'crm/pages/automation-followup.php')
+    with open(page_path, 'r', encoding='utf-8') as f:
+        page = f.read()
+    if "toggle_finance_status" not in page:
+        raise AssertionError("Prospects table must render toggle_finance_status form")
+    if "Ubah Jadi Sudah" not in page and "Tandai Sudah" not in page:
+        raise AssertionError("Prospects table must provide button to change finance status to Sudah")
+
+    print("automation-followup-finance-scheduling-test: OK")
 
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
@@ -410,6 +445,8 @@ def main():
         run_queue_bug_test(base_dir)
     if test_name in ["automation-followup-sequence-name-test", "sequence-name", "all"]:
         run_sequence_name_test(base_dir)
+    if test_name in ["automation-followup-finance-scheduling-test", "finance-scheduling", "all"]:
+        run_finance_scheduling_test(base_dir)
 
 if __name__ == "__main__":
     try:
