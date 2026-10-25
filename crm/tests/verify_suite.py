@@ -331,6 +331,27 @@ def run_retention_test(base_dir):
 
     print("automation-followup-retention-test: OK")
 
+def run_queue_bug_test(base_dir):
+    pages_path = os.path.join(base_dir, "crm/pages/automation-followup.php")
+    with open(pages_path, "r", encoding="utf-8") as f:
+        page = f.read()
+
+    per_page_pos = page.find("$perPage =")
+    queue_pos = page.find("if ($tab === 'queue')")
+
+    if per_page_pos == -1:
+        raise AssertionError("Missing $perPage definition")
+    if queue_pos == -1:
+        raise AssertionError("Missing queue tab query block")
+    if per_page_pos > queue_pos:
+        raise AssertionError(f"$perPage is defined at pos {per_page_pos} AFTER queue query at pos {queue_pos}, causing DivisionByZeroError!")
+
+    # Verify Tab Queue has contact avatar
+    if 'id="row-queue-' in page and 'crm-avatar' not in page[page.find('id="row-queue-'):]:
+        raise AssertionError("Tab Queue table rows missing crm-avatar styling")
+
+    print("automation-followup-queue-bug-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -357,6 +378,8 @@ def main():
         run_review_fixes_test(base_dir)
     if test_name in ["automation-followup-retention-test", "retention", "all"]:
         run_retention_test(base_dir)
+    if test_name in ["automation-followup-queue-bug-test", "queue-bug", "all"]:
+        run_queue_bug_test(base_dir)
 
 if __name__ == "__main__":
     try:

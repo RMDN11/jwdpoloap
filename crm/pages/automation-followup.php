@@ -15,6 +15,8 @@ if (!in_array($tab, ['prospects', 'rules', 'templates', 'queue'], true)) {
 
 $csrfToken = crmCsrfToken();
 $currentUrl = htmlspecialchars($_SERVER['REQUEST_URI'] ?? ('index.php?' . http_build_query($_GET)));
+$perPage = 15;
+$currentPage = max(1, (int)($_GET['p'] ?? 1));
 
 // Hitung statistik antrean
 $statPending = crmCount($conn, "SELECT COUNT(*) AS total FROM crm_automation_queue WHERE status = 'pending'");
@@ -276,10 +278,7 @@ if ($tab === 'queue') {
     }
 }
 
-// Setup pagination
-$perPage = 15;
-$currentPage = max(1, (int)($_GET['p'] ?? 1));
-
+// Helper pagination
 function crmRenderPagination(int $currentPage, int $totalPages, int $totalItems, int $perPage, array $baseParams): string
 {
     if ($totalItems <= 0) {
@@ -964,38 +963,60 @@ if ($tab !== 'queue') {
                         Jadwal pesan terkirim berurutan secara berkala. Pesan otomatis berhenti jika peserta membalas chat atau membayar.
                     </p>
                 </div>
-                <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
-                    <form method="GET" action="index.php" style="margin: 0; display: flex; gap: 0.25rem; align-items: center;">
-                        <input type="hidden" name="page" value="automation-followup">
-                        <input type="hidden" name="tab" value="queue">
-                        <input type="hidden" name="qstatus" value="<?= htmlspecialchars($filterStatus) ?>">
-                        <div style="position: relative; display: flex; align-items: center;">
-                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.65rem; color: #94a3b8; font-size: 0.72rem; pointer-events: none;"></i>
-                            <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Cari kontak antrean..." class="form-control" style="padding-left: 1.8rem; height: 30px; font-size: 0.75rem; width: 150px;">
-                        </div>
-                        <button type="submit" class="btn-secondary" style="height: 30px; padding: 0 0.55rem; font-size: 0.72rem;">Cari</button>
-                        <?php if ($search !== ''): ?>
-                            <a href="?page=automation-followup&tab=queue&qstatus=<?= urlencode($filterStatus) ?>" class="btn-secondary" style="height: 30px; padding: 0 0.5rem; font-size: 0.72rem; color: #ef4444;" title="Reset pencarian"><i class="fa-solid fa-xmark"></i></a>
-                        <?php endif; ?>
-                    </form>
-                    <a href="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? ('?page=automation-followup&tab=queue')) ?>" class="btn-secondary" style="height: 30px; padding: 0 0.55rem; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 0.3rem;" title="Muat ulang data terbaru">
-                        <i class="fa-solid fa-arrows-rotate"></i>
-                    </a>
+                <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
                     <form action="index.php?page=automation-followup" method="POST" style="margin: 0;" onsubmit="return confirm('Bersihkan semua antrean bentrok yang terjadwal di jam bersamaan?');">
                         <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                         <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                         <input type="hidden" name="action" value="clean_duplicate_queues">
                         <input type="hidden" name="tab" value="queue">
-                        <button type="submit" class="btn-secondary" style="color: #dc2626; border-color: #fca5a5; background: #fff5f5; font-size: 0.75rem; height: 30px; padding: 0 0.6rem;" title="Batalkan antrean spesifik duplikat yang bentrok di jam yang sama">
-                            <i class="fa-solid fa-broom"></i> Bersihkan Bentrok
+                        <button type="submit" class="btn-secondary" style="color: #dc2626; border-color: #fca5a5; background: #fff5f5; font-size: 0.75rem; height: 32px; padding: 0 0.65rem;" title="Batalkan antrean spesifik duplikat yang bentrok di jam yang sama">
+                            <i class="fa-solid fa-broom"></i> Bersihkan Jadwal Bentrok
                         </button>
                     </form>
-                    <?php $qSearch = ($search !== '') ? '&search=' . urlencode($search) : ''; ?>
-                    <a href="?page=automation-followup&tab=queue<?= $qSearch ?>" class="btn-secondary" style="height: 30px; padding: 0 0.55rem; font-size: 0.72rem; display: inline-flex; align-items: center; <?= $filterStatus === 'all' ? 'background: #166534; color: #fff;' : '' ?>">Semua</a>
-                    <a href="?page=automation-followup&tab=queue&qstatus=pending<?= $qSearch ?>" class="btn-secondary" style="height: 30px; padding: 0 0.55rem; font-size: 0.72rem; display: inline-flex; align-items: center; <?= $filterStatus === 'pending' ? 'background: #166534; color: #fff;' : '' ?>">Pending</a>
-                    <a href="?page=automation-followup&tab=queue&qstatus=sent<?= $qSearch ?>" class="btn-secondary" style="height: 30px; padding: 0 0.55rem; font-size: 0.72rem; display: inline-flex; align-items: center; <?= $filterStatus === 'sent' ? 'background: #166534; color: #fff;' : '' ?>">Terkirim</a>
-                    <a href="?page=automation-followup&tab=queue&qstatus=cancelled<?= $qSearch ?>" class="btn-secondary" style="height: 30px; padding: 0 0.55rem; font-size: 0.72rem; display: inline-flex; align-items: center; <?= $filterStatus === 'cancelled' ? 'background: #166534; color: #fff;' : '' ?>">Batal</a>
+                    <a href="<?= htmlspecialchars($_SERVER['REQUEST_URI'] ?? ('?page=automation-followup&tab=queue')) ?>" class="btn-secondary" style="height: 32px; padding: 0 0.65rem; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.35rem;" title="Muat ulang data terbaru tanpa mengubah filter">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refresh Data
+                    </a>
                 </div>
+            </div>
+
+            <!-- Queue Filter & Search Sub-Bar -->
+            <div style="padding: 0.6rem 1.25rem 0.85rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; background: #fafafa;">
+                <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #64748b; margin-right: 0.25rem;">
+                        <i class="fa-solid fa-filter"></i> Filter Status:
+                    </span>
+                    <?php $qSearch = ($search !== '') ? '&search=' . urlencode($search) : ''; ?>
+                    <a href="?page=automation-followup&tab=queue<?= $qSearch ?>" class="btn-secondary" style="height: 28px; padding: 0 0.6rem; font-size: 0.72rem; display: inline-flex; align-items: center; <?= $filterStatus === 'all' ? 'background: #166534; color: #fff;' : '' ?>">
+                        Semua Status
+                    </a>
+                    <a href="?page=automation-followup&tab=queue&qstatus=pending<?= $qSearch ?>" class="btn-secondary" style="height: 28px; padding: 0 0.6rem; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 0.35rem; <?= $filterStatus === 'pending' ? 'background: #166534; color: #fff;' : '' ?>">
+                        <i class="fa-solid fa-clock"></i> Pending
+                        <?php if ($statPending > 0): ?>
+                            <span style="font-size: 0.68rem; padding: 0.05rem 0.35rem; border-radius: 9999px; background: <?= $filterStatus === 'pending' ? 'rgba(255,255,255,0.25)' : '#fef3c7' ?>; color: <?= $filterStatus === 'pending' ? '#fff' : '#92400e' ?>; font-weight: 700;"><?= number_format($statPending) ?></span>
+                        <?php endif; ?>
+                    </a>
+                    <a href="?page=automation-followup&tab=queue&qstatus=sent<?= $qSearch ?>" class="btn-secondary" style="height: 28px; padding: 0 0.6rem; font-size: 0.72rem; display: inline-flex; align-items: center; <?= $filterStatus === 'sent' ? 'background: #166534; color: #fff;' : '' ?>">
+                        <i class="fa-solid fa-circle-check"></i> Terkirim
+                    </a>
+                    <a href="?page=automation-followup&tab=queue&qstatus=cancelled<?= $qSearch ?>" class="btn-secondary" style="height: 28px; padding: 0 0.6rem; font-size: 0.72rem; display: inline-flex; align-items: center; <?= $filterStatus === 'cancelled' ? 'background: #166534; color: #fff;' : '' ?>">
+                        <i class="fa-solid fa-ban"></i> Batal
+                    </a>
+                </div>
+
+                <!-- Search form on right -->
+                <form method="GET" action="index.php" style="margin: 0; display: flex; gap: 0.25rem; align-items: center;">
+                    <input type="hidden" name="page" value="automation-followup">
+                    <input type="hidden" name="tab" value="queue">
+                    <input type="hidden" name="qstatus" value="<?= htmlspecialchars($filterStatus) ?>">
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.65rem; color: #94a3b8; font-size: 0.72rem; pointer-events: none;"></i>
+                        <input type="text" name="search" value="<?= htmlspecialchars($search) ?>" placeholder="Cari kontak antrean..." class="form-control" style="padding-left: 1.8rem; height: 30px; font-size: 0.75rem; width: 170px;">
+                    </div>
+                    <button type="submit" class="btn-secondary" style="height: 30px; padding: 0 0.6rem; font-size: 0.72rem;">Cari</button>
+                    <?php if ($search !== ''): ?>
+                        <a href="?page=automation-followup&tab=queue&qstatus=<?= urlencode($filterStatus) ?>" class="btn-secondary" style="height: 30px; padding: 0 0.5rem; font-size: 0.72rem; color: #ef4444;" title="Reset pencarian"><i class="fa-solid fa-xmark"></i></a>
+                    <?php endif; ?>
+                </form>
             </div>
 
             <div class="crm-table-container">
@@ -1028,14 +1049,21 @@ if ($tab !== 'queue') {
                             <?php foreach ($pagedQueue as $q): ?>
                                 <tr id="row-queue-<?= (int)$q['id'] ?>">
                                     <td>
-                                        <div style="font-weight: 700; color: #0f172a; font-size: 0.85rem;"><?= htmlspecialchars($q['nama'] ?: 'Calon Peserta') ?></div>
-                                        <div class="crm-contact-wa-wrap">
-                                            <a href="https://wa.me/<?= htmlspecialchars(crmProspectNormalizeNumber((string)$q['nowa'])) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa" title="Buka obrolan di WhatsApp">
-                                                <i class="fa-brands fa-whatsapp"></i> <span><?= htmlspecialchars($q['nowa']) ?></span>
-                                            </a>
-                                            <button type="button" class="btn-copy-wa" onclick="crmCopyWaNumber('<?= htmlspecialchars(crmProspectNormalizeNumber((string)$q['nowa'])) ?>', this)" title="Salin nomor WhatsApp">
-                                                <i class="fa-regular fa-copy"></i>
-                                            </button>
+                                        <div class="crm-contact-cell">
+                                            <div class="crm-avatar">
+                                                <?= htmlspecialchars(mb_strtoupper(mb_substr($q['nama'] ?: 'C', 0, 1))) ?>
+                                            </div>
+                                            <div class="crm-contact-info">
+                                                <span class="crm-contact-name"><?= htmlspecialchars($q['nama'] ?: 'Calon Peserta') ?></span>
+                                                <div class="crm-contact-wa-wrap">
+                                                    <a href="https://wa.me/<?= htmlspecialchars(crmProspectNormalizeNumber((string)$q['nowa'])) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa" title="Buka obrolan di WhatsApp">
+                                                        <i class="fa-brands fa-whatsapp"></i> <span><?= htmlspecialchars($q['nowa']) ?></span>
+                                                    </a>
+                                                    <button type="button" class="btn-copy-wa" onclick="crmCopyWaNumber('<?= htmlspecialchars(crmProspectNormalizeNumber((string)$q['nowa'])) ?>', this)" title="Salin nomor WhatsApp">
+                                                        <i class="fa-regular fa-copy"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </td>
                                     <td>
