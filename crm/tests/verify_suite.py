@@ -207,6 +207,16 @@ def run_e2e_test(base_dir):
     assert 'Jadwalkan Alur (6 Tahap)' in page, 'page must maintain manual Jadwalkan Alur button for legacy prospects'
     assert 'Pola Pemicu (Rules)' in page, 'page must display Pola Pemicu in tab title'
     assert 'editRule' in page, 'page must provide editRule javascript function'
+    assert "ORDER BY (status = 'pending') DESC, scheduled_at ASC, id ASC" in page, 'page must sort pending queues by earliest scheduled_at first'
+
+    # 7. Review fix verifications
+    auto_reply_path = os.path.join(base_dir, 'auto_reply_engine.php')
+    with open(auto_reply_path, 'r', encoding='utf-8') as f:
+        auto_reply_content = f.read()
+    assert 'crmAutomationRegisterQueue' not in auto_reply_content, 'auto_reply_engine.php must not call crmAutomationRegisterQueue (webhook handles enrollment)'
+    assert 'crm_automation_meta' in config, 'config must use crm_automation_meta to avoid re-seeding deleted rules'
+    assert 'seed_rules_v1' in config, 'config must check seed_rules_v1 flag'
+    assert "r.name LIKE '%Cilik%'" not in config, 'Cleanup 3 must not cancel pending queues based on r.name'
 
     print("automation-followup-webhook-e2e-test: OK")
 

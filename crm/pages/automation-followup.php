@@ -113,7 +113,7 @@ if ($tab === 'prospects') {
         $rawProspects = $resP->fetch_all(MYSQLI_ASSOC);
         
         $existingQueue = [];
-        $resQ = $conn->query("SELECT nowa, id, status, scheduled_at, trigger_source FROM crm_automation_queue ORDER BY (status = 'pending') DESC, id DESC");
+        $resQ = $conn->query("SELECT nowa, id, status, scheduled_at, trigger_source FROM crm_automation_queue ORDER BY (status = 'pending') DESC, scheduled_at ASC, id ASC");
         if ($resQ instanceof mysqli_result) {
             while ($qRow = $resQ->fetch_assoc()) {
                 $normQ = crmProspectNormalizeNumber((string)$qRow['nowa']);

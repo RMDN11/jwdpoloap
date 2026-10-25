@@ -312,43 +312,50 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
         ],
     ];
 
-    foreach ($lpVariations as $var) {
-        $targetTplId = 1;
-        $tplLookup = $conn->prepare("SELECT id FROM crm_automation_templates WHERE name = ? LIMIT 1");
-        if ($tplLookup) {
-            $tplLookup->bind_param('s', $var['tpl']);
-            $tplLookup->execute();
-            $tplRow = $tplLookup->get_result()->fetch_assoc();
-            $tplLookup->close();
-            if ($tplRow) {
-                $targetTplId = (int)$tplRow['id'];
-            }
-        }
+    // Cek apakah pola variasi LP sudah pernah di-seed agar rule yang dihapus admin tidak muncul kembali
+    $metaCheck = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'seed_rules_v1' LIMIT 1");
+    $alreadySeeded = ($metaCheck && $metaCheck->num_rows > 0);
 
-        $checkVar = $conn->prepare("SELECT id FROM crm_automation_rules WHERE trigger_keyword = ? LIMIT 1");
-        if ($checkVar) {
-            $checkVar->bind_param('s', $var['kw']);
-            $checkVar->execute();
-            $existsVar = $checkVar->get_result()->fetch_assoc();
-            $checkVar->close();
-
-            if (!$existsVar) {
-                $insVar = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, category, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, ?, 1)");
-                if ($insVar) {
-                    $insVar->bind_param('sssii', $var['name'], $var['kw'], $var['cat'], $targetTplId, $var['delay']);
-                    $insVar->execute();
-                    $insVar->close();
-                }
-            } else {
-                $updVar = $conn->prepare("UPDATE crm_automation_rules SET category = ?, name = ? WHERE id = ?");
-                if ($updVar) {
-                    $rId = (int)$existsVar['id'];
-                    $updVar->bind_param('ssi', $var['cat'], $var['name'], $rId);
-                    $updVar->execute();
-                    $updVar->close();
+    if (!$alreadySeeded) {
+        foreach ($lpVariations as $var) {
+            $targetTplId = 1;
+            $tplLookup = $conn->prepare("SELECT id FROM crm_automation_templates WHERE name = ? LIMIT 1");
+            if ($tplLookup) {
+                $tplLookup->bind_param('s', $var['tpl']);
+                $tplLookup->execute();
+                $tplRow = $tplLookup->get_result()->fetch_assoc();
+                $tplLookup->close();
+                if ($tplRow) {
+                    $targetTplId = (int)$tplRow['id'];
                 }
             }
+
+            $checkVar = $conn->prepare("SELECT id FROM crm_automation_rules WHERE trigger_keyword = ? LIMIT 1");
+            if ($checkVar) {
+                $checkVar->bind_param('s', $var['kw']);
+                $checkVar->execute();
+                $existsVar = $checkVar->get_result()->fetch_assoc();
+                $checkVar->close();
+
+                if (!$existsVar) {
+                    $insVar = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, category, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, ?, 1)");
+                    if ($insVar) {
+                        $insVar->bind_param('sssii', $var['name'], $var['kw'], $var['cat'], $targetTplId, $var['delay']);
+                        $insVar->execute();
+                        $insVar->close();
+                    }
+                } else {
+                    $updVar = $conn->prepare("UPDATE crm_automation_rules SET category = ?, name = ? WHERE id = ?");
+                    if ($updVar) {
+                        $rId = (int)$existsVar['id'];
+                        $updVar->bind_param('ssi', $var['cat'], $var['name'], $rId);
+                        $updVar->execute();
+                        $updVar->close();
+                    }
+                }
+            }
         }
+        $conn->query("INSERT IGNORE INTO crm_automation_meta (meta_key, meta_value) VALUES ('seed_rules_v1', '1')");
     }
 }
 
@@ -356,6 +363,19 @@ function crmAutomationEnsureTables(mysqli $conn): bool
 {
     static $ensured = false;
     if ($ensured) {
+        return true;
+    }
+
+    $conn->query("CREATE TABLE IF NOT EXISTS crm_automation_meta (
+        meta_key VARCHAR(64) PRIMARY KEY,
+        meta_value VARCHAR(255) NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Fast path: jika skema dan seed sudah lengkap, hindari DDL dan query berulang pada webhook
+    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v1_ensured' LIMIT 1");
+    if ($metaEnsured && $metaEnsured->num_rows > 0) {
+        $ensured = true;
         return true;
     }
 
@@ -435,20 +455,18 @@ function crmAutomationEnsureTables(mysqli $conn): bool
             WHEN t.name LIKE 'Follow Up 6 (%' THEN 10080
             ELSE r.delay_minutes
         END
-        WHERE t.name LIKE 'Follow Up %'
+        WHERE t.name LIKE 'Follow Up %' AND r.name LIKE 'Tahfidz Private - %'
     ");
 
-    // Cleanup 3: Batalkan antrean pending duplikat untuk template minat spesifik
+    // Cleanup 3: Batalkan antrean pending duplikat untuk template minat spesifik lama
     $conn->query("
         UPDATE crm_automation_queue q
-        LEFT JOIN crm_automation_rules r ON r.id = q.rule_id
         LEFT JOIN crm_automation_templates t ON t.id = q.template_id
         SET q.status = 'cancelled_duplicate_specific',
             q.error_message = 'Dibatalkan: hanya Follow Up 1 General yang dijalankan dalam alur sequence'
         WHERE q.status = 'pending'
           AND (
-            r.name LIKE '%Cilik%' OR r.name LIKE '%Pemula%' OR r.name LIKE '%Lanjutan%'
-            OR t.name LIKE '%Cilik%' OR t.name LIKE '%Pemula%' OR t.name LIKE '%Lanjutan%'
+            t.name LIKE '%- Follow Up 1 (%'
           )
     ");
 
@@ -468,6 +486,8 @@ function crmAutomationEnsureTables(mysqli $conn): bool
             q.error_message = 'Dibatalkan otomatis: jadwal bentrok/bersamaan dengan antrean lain'
         WHERE q.status = 'pending'
     ");
+
+    $conn->query("INSERT IGNORE INTO crm_automation_meta (meta_key, meta_value) VALUES ('schema_v1_ensured', '1')");
 
     $ensured = true;
     return true;
@@ -513,7 +533,7 @@ function crmAutomationFindMatchingTrigger(mysqli $conn, string $message): ?array
     if ($cleanMsg === '') {
         return null;
     }
-    $lowerMsg = strtolower($cleanMsg);
+    $lowerMsg = mb_strtolower($cleanMsg, 'UTF-8');
     $activeTriggers = crmAutomationGetActiveTriggers($conn);
 
     // Prioritaskan kata kunci pemicu yang lebih spesifik/panjang terlebih dahulu
@@ -522,7 +542,7 @@ function crmAutomationFindMatchingTrigger(mysqli $conn, string $message): ?array
     });
 
     foreach ($activeTriggers as $trig) {
-        $kw = strtolower(trim($trig['trigger_keyword']));
+        $kw = mb_strtolower(trim($trig['trigger_keyword']), 'UTF-8');
         if ($kw !== '' && str_contains($lowerMsg, $kw)) {
             return $trig;
         }
