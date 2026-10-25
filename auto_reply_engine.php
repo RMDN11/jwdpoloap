@@ -84,9 +84,23 @@ class AutoReplyEngine
                 return false;
             }
             
-            // PERBAIKAN: Pindahkan kode ini ke LUAR blok if agar tereksekusi dengan benar
-            // Ubah format tag nama menjadi nama WhatsApp asli
-            $replyText = str_ireplace(['{nama}', '[nama]'], $userName, $replyText);
+            // Format tag nama: gunakan nama HANYA jika secara eksplisit disebut dalam pesan chat
+            $explicitName = null;
+            if (function_exists('crmAutomationExtractExplicitName')) {
+                $explicitName = crmAutomationExtractExplicitName($message);
+            }
+            if (function_exists('crmAutomationRenderMessage')) {
+                $replyText = crmAutomationRenderMessage($replyText, ['nama' => $explicitName]);
+            } else {
+                $targetName = $explicitName ?: '';
+                if ($targetName !== '') {
+                    $replyText = str_ireplace(['{nama}', '[nama]'], $targetName, $replyText);
+                } else {
+                    $replyText = preg_replace('/(?:kak|Kak)\s+\{nama\}/i', 'kak', $replyText);
+                    $replyText = str_ireplace(['{nama}', '[nama]'], '', $replyText);
+                    $replyText = preg_replace('/[ \t]{2,}/', ' ', $replyText);
+                }
+            }
             
             // Kirim pesan ke API OneSender
             $sent = $this->sendViaOneSender($phone, $replyText);

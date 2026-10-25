@@ -352,6 +352,34 @@ def run_queue_bug_test(base_dir):
 
     print("automation-followup-queue-bug-test: OK")
 
+def run_sequence_name_test(base_dir: str):
+    cfg_path = os.path.join(base_dir, 'crm/config/automation-followup.php')
+    with open(cfg_path, 'r', encoding='utf-8') as f:
+        cfg = f.read()
+
+    # 1. Deduplication per template_id
+    if "WHERE nowa = ? AND template_id = ? AND status = 'pending'" not in cfg:
+        raise AssertionError("crmAutomationRegisterQueue must deduplicate by nowa and template_id only")
+    if "(template_id = ? OR (rule_id = ? AND rule_id > 0))" in cfg:
+        raise AssertionError("crmAutomationRegisterQueue must NOT overwrite across different templates via rule_id")
+
+    # 2. Sequence resolution flexible matching
+    if "%Follow Up ' . $num" not in cfg and "%Follow Up ' . $step" not in cfg and "Follow Up ' . $num" not in cfg and "CONCAT" not in cfg:
+        raise AssertionError("Sequence resolution must match both prefixed and unprefixed Follow Up templates")
+
+    # 3. Explicit name extraction & smart rendering
+    if "crmAutomationExtractExplicitName" not in cfg:
+        raise AssertionError("crmAutomationExtractExplicitName must be implemented in automation-followup.php")
+
+    # 4. Tab 4 chronological sort order
+    page_path = os.path.join(base_dir, 'crm/pages/automation-followup.php')
+    with open(page_path, 'r', encoding='utf-8') as f:
+        page = f.read()
+    if "(q.status = 'pending') DESC, q.scheduled_at ASC" not in page:
+        raise AssertionError("Tab 4 Queue table must sort pending items chronologically by scheduled_at ASC")
+
+    print("automation-followup-sequence-name-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -380,6 +408,8 @@ def main():
         run_retention_test(base_dir)
     if test_name in ["automation-followup-queue-bug-test", "queue-bug", "all"]:
         run_queue_bug_test(base_dir)
+    if test_name in ["automation-followup-sequence-name-test", "sequence-name", "all"]:
+        run_sequence_name_test(base_dir)
 
 if __name__ == "__main__":
     try:

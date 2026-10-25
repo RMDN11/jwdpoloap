@@ -264,13 +264,20 @@ if ($tab === 'queue') {
     $pageQueue = min($currentPage, $totalPagesQueue);
     $offsetQueue = ($pageQueue - 1) * $perPage;
 
+    $orderQueue = "ORDER BY (q.status = 'pending') DESC, q.scheduled_at ASC, q.id ASC";
+    if ($filterStatus === 'sent') {
+        $orderQueue = "ORDER BY q.sent_at DESC, q.id DESC";
+    } elseif ($filterStatus === 'cancelled' || $filterStatus === 'failed') {
+        $orderQueue = "ORDER BY q.id DESC";
+    }
+
     $resQueue = $conn->query("
         SELECT q.*, r.name AS rule_name, t.name AS template_name
         FROM crm_automation_queue q
         LEFT JOIN crm_automation_rules r ON r.id = q.rule_id
         LEFT JOIN crm_automation_templates t ON t.id = q.template_id
         WHERE {$whereClause}
-        ORDER BY q.id DESC
+        {$orderQueue}
         LIMIT {$offsetQueue}, {$perPage}
     ");
     if ($resQueue instanceof mysqli_result) {

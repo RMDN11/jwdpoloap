@@ -131,6 +131,111 @@ function crmAutomationGetStepNumber(string $tplName): string
     return "Pesan Tunggal";
 }
 
+/**
+ * Ekstrak nama calon peserta HANYA jika secara eksplisit dituliskan dalam pesan chat masuk.
+ * Jika calon peserta tidak menyebutkan namanya, kembalikan null agar tidak menggunakan pushName WA yang sering tidak sesuai.
+ */
+function crmAutomationExtractExplicitName(string $message): ?string
+{
+    $patterns = [
+        '/(?:perkenalkan\s+nama\s+saya|nama\s+saya|nama\s+sy|nama\s*:|panggil\s+saya)\s+([A-Za-z\p{L}\'\-]+(?:\s+[A-Za-z\p{L}\'\-]+)?)/iu',
+        '/^(?:saya|sy)\s+([A-Za-z\p{L}\'\-]+(?:\s+[A-Za-z\p{L}\'\-]+)?)[,\.]?\s+(?:mau|ingin|daftar)/iu',
+    ];
+
+    $forbidden = [
+        'kak', 'kakak', 'saya', 'sy', 'admin', 'bismillah', 'assalamualaikum', 'assalamu\'alaikum',
+        'halo', 'tanya', 'mau', 'ingin', 'daftar', 'peserta', 'tahfidz', 'private', 'online', 'jawwada',
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (preg_match($pattern, $message, $m)) {
+            $extracted = trim((string)$m[1]);
+            $lower = strtolower($extracted);
+            if (!in_array($lower, $forbidden, true) && mb_strlen($extracted) >= 2) {
+                return mb_convert_case($extracted, MB_CASE_TITLE, 'UTF-8');
+            }
+        }
+    }
+
+    return null;
+}
+
+if (!function_exists('crmAutomationRenderMessage')) {
+    /**
+     * Render template pesan follow-up Jawwada.
+     * Mengabaikan penyebutan nama jika nama tidak secara eksplisit disebutkan di pesan.
+     */
+    function crmAutomationRenderMessage(string $template, array $data): string
+    {
+        $rawNama = trim((string)($data['nama'] ?? ''));
+        $hasExplicitName = false;
+        $nama = '';
+
+        $isGeneric = (
+            $rawNama === '' ||
+            in_array(strtolower($rawNama), ['kak', 'unknown', 'tanpa nama', 'null', 'calon peserta', 'peserta'], true)
+        );
+
+        if (!$isGeneric) {
+            $hasExplicitName = true;
+            $nama = $rawNama;
+        }
+
+        date_default_timezone_set('Asia/Jakarta');
+        $hour = (int)date('G');
+        if ($hour >= 4 && $hour < 11) {
+            $sapaan = 'Pagi';
+        } elseif ($hour >= 11 && $hour < 15) {
+            $sapaan = 'Siang';
+        } elseif ($hour >= 15 && $hour < 18) {
+            $sapaan = 'Sore';
+        } else {
+            $sapaan = 'Malam';
+        }
+
+        $program = trim((string)($data['program'] ?? 'Tahfidz Private'));
+        $rendered = $template;
+
+        if ($hasExplicitName) {
+            // Jika nama peserta memang diketahui secara eksplisit:
+            $search = ['{nama}', '{NAMA}', '[nama]', '[NAMA]'];
+            $rendered = str_ireplace($search, $nama, $rendered);
+        } else {
+            // Jika nama TIDAK disebut oleh prospek: hilangkan penyebutan nama secara rapi & alami
+            $replacements = [
+                '/(?:Bismillah,\s+)?ahlan\s+Bunda\/Ayah\s+\{nama\}!/i' => 'Bismillah, ahlan Bunda/Ayah! 😊',
+                '/Bunda\/Ayah\s+\{nama\}/i' => 'Bunda/Ayah',
+                '/terbuka\s+untuk\s+kak\s+\{nama\}/i' => 'terbuka untuk kakak',
+                '/Untuk\s+kak\s+\{nama\}/i' => 'Untuk kakak',
+                '/untuk\s+kak\s+\{nama\}/i' => 'untuk kakak',
+                '/(?:kak|Kak)\s+\{nama\}\s+rencananya/i' => 'Kakak rencananya',
+                '/(?:jika|Jika)\s+kak\s+\{nama\}\s+berminat/i' => 'Jika kakak berminat',
+                '/(?:apakah|Apakah)\s+kak\s+\{nama\}\s+berkenan/i' => 'Apakah kakak berkenan',
+                '/kak\s+\{nama\}\s+akan\s+disimak/i' => 'kakak akan disimak',
+                '/kak\s+\{nama\}\s+sudah\s+ada/i' => 'kakak sudah ada',
+                '/kak\s+\{nama\}\s+paling\s+ingin/i' => 'kakak paling ingin',
+                '/kak\s+\{nama\}\s+memiliki/i' => 'kakak memiliki',
+                '/kak\s+\{nama\}/i' => 'kak',
+                '/Kak\s+\{nama\}/i' => 'Kak',
+                '/\{nama\}/i' => '',
+                '/\[nama\]/i' => '',
+            ];
+
+            foreach ($replacements as $pattern => $replacement) {
+                $rendered = preg_replace($pattern, $replacement, $rendered);
+            }
+
+            // Rapikan spasi berlebih dan spasi sebelum tanda baca
+            $rendered = preg_replace('/[ \t]{2,}/', ' ', $rendered);
+            $rendered = preg_replace('/\s+([,\.!\?])/', '$1', $rendered);
+        }
+
+        $rendered = str_replace(['{sapaan}', '{program}'], [$sapaan, $program], $rendered);
+
+        return trim($rendered);
+    }
+}
+
 function crmAutomationSeedDefaultTemplates(mysqli $conn): void
 {
     $defaultTemplates = [
@@ -367,6 +472,16 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         if (!$cleanedCheck || $cleanedCheck->num_rows === 0) {
             $conn->query("DELETE FROM crm_automation_rules WHERE name LIKE 'Tahfidz Private - Follow Up %'");
             $conn->query("INSERT IGNORE INTO crm_automation_meta (meta_key, meta_value) VALUES ('legacy_fu_rules_cleaned_v1', '1')");
+        }
+    }
+
+    // Pastikan seluruh template alur follow up 1..6 selalu ada di database
+    $hasTemplatesTable = $conn->query("SHOW TABLES LIKE 'crm_automation_templates'");
+    if ($hasTemplatesTable && $hasTemplatesTable->num_rows > 0) {
+        $tplCountRes = $conn->query("SELECT COUNT(*) AS total FROM crm_automation_templates WHERE name LIKE '%Follow Up %'");
+        $tplCount = $tplCountRes ? (int)($tplCountRes->fetch_assoc()['total'] ?? 0) : 0;
+        if ($tplCount < 6) {
+            crmAutomationSeedDefaultTemplates($conn);
         }
     }
 
@@ -777,10 +892,10 @@ function crmAutomationRegisterQueue(
         $templateId = (int)$ruleRow['template_id'];
     }
 
-    // Deduplikasi: Jika masih ada antrean berstatus pending untuk nomor dan template/rule ini, perbarui jadwalnya
-    $checkStmt = $conn->prepare("SELECT id FROM crm_automation_queue WHERE nowa = ? AND (template_id = ? OR (rule_id = ? AND rule_id > 0)) AND status = 'pending' LIMIT 1");
+    // Deduplikasi: Jika masih ada antrean berstatus pending untuk nomor dan template ini, perbarui jadwalnya
+    $checkStmt = $conn->prepare("SELECT id FROM crm_automation_queue WHERE nowa = ? AND template_id = ? AND status = 'pending' LIMIT 1");
     if ($checkStmt) {
-        $checkStmt->bind_param('sii', $normalized, $templateId, $ruleId);
+        $checkStmt->bind_param('si', $normalized, $templateId);
         $checkStmt->execute();
         $existing = $checkStmt->get_result()->fetch_assoc();
         $checkStmt->close();
@@ -877,29 +992,36 @@ function crmAutomationScheduleSequence(
 
     // 2. Definisi 6 tahap follow up standar general dengan jeda waktu pasti dan berurutan
     $sequenceSteps = [
-        1 => ['pattern' => 'Follow Up 1 (%', 'delay_from_now' => 10],     // 10 menit dari sekarang
-        2 => ['pattern' => 'Follow Up 2 (%', 'delay_from_now' => 60],     // 1 jam (60 mnt) dari sekarang
-        3 => ['pattern' => 'Follow Up 3 (%', 'delay_from_now' => 300],    // 5 jam (300 mnt) dari sekarang
-        4 => ['pattern' => 'Follow Up 4 (%', 'delay_from_now' => 1440],   // 24 jam / H+1 dari sekarang
-        5 => ['pattern' => 'Follow Up 5 (%', 'delay_from_now' => 4320],   // 3 hari / H+3 dari sekarang
-        6 => ['pattern' => 'Follow Up 6 (%', 'delay_from_now' => 10080],  // 7 hari / H+7 dari sekarang
+        1 => ['delay_from_now' => 10],     // 10 menit dari sekarang
+        2 => ['delay_from_now' => 60],     // 1 jam (60 mnt) dari sekarang
+        3 => ['delay_from_now' => 300],    // 5 jam (300 mnt) dari sekarang
+        4 => ['delay_from_now' => 1440],   // 24 jam / H+1 dari sekarang
+        5 => ['delay_from_now' => 4320],   // 3 hari / H+3 dari sekarang
+        6 => ['delay_from_now' => 10080],  // 7 hari / H+7 dari sekarang
     ];
 
     $resolvedSteps = [];
     foreach ($sequenceSteps as $num => $stepInfo) {
+        $patExact = 'Follow Up ' . $num . ' (%';
+        $patPrefixed = '%Follow Up ' . $num . ' (%';
+        $patAny = '%Follow Up ' . $num . '%';
+
         $stmtTpl = $conn->prepare("
-            SELECT t.id AS template_id, COALESCE(r.id, 1) AS rule_id
+            SELECT t.id AS template_id, COALESCE(r.id, 0) AS rule_id, t.name AS template_name
             FROM crm_automation_templates t
-            LEFT JOIN crm_automation_rules r ON r.template_id = t.id
-            WHERE t.name LIKE ?
+            LEFT JOIN crm_automation_rules r ON r.template_id = t.id AND r.is_active = 1
+            WHERE (t.name LIKE ? OR t.name LIKE ? OR t.name LIKE ?)
               AND t.name NOT LIKE '%Menghafal Pemula%'
               AND t.name NOT LIKE '%Lanjutan%'
               AND t.name NOT LIKE '%Tahfidz Cilik%'
-            ORDER BY t.id ASC
+            ORDER BY 
+              (t.name LIKE 'Follow Up ' . $num . ' (%') DESC,
+              (t.name LIKE '%Tahfidz Private - Follow Up ' . $num . '%') DESC,
+              t.id ASC
             LIMIT 1
         ");
         if ($stmtTpl) {
-            $stmtTpl->bind_param('s', $stepInfo['pattern']);
+            $stmtTpl->bind_param('sss', $patExact, $patPrefixed, $patAny);
             $stmtTpl->execute();
             $rowTpl = $stmtTpl->get_result()->fetch_assoc();
             $stmtTpl->close();
@@ -910,6 +1032,45 @@ function crmAutomationScheduleSequence(
                     'rule_id' => (int)$rowTpl['rule_id'],
                     'base_delay' => (int)$stepInfo['delay_from_now'],
                 ];
+            }
+        }
+    }
+
+    // Jika ada tahap yang belum teresolusi (misal template belum lengkap di DB), seed template dan coba lagi
+    if (count($resolvedSteps) < 6) {
+        crmAutomationSeedDefaultTemplates($conn);
+        foreach ($sequenceSteps as $num => $stepInfo) {
+            if (isset($resolvedSteps[$num])) {
+                continue;
+            }
+            $patExact = 'Follow Up ' . $num . ' (%';
+            $patPrefixed = '%Follow Up ' . $num . ' (%';
+            $patAny = '%Follow Up ' . $num . '%';
+
+            $stmtRetry = $conn->prepare("
+                SELECT t.id AS template_id, COALESCE(r.id, 0) AS rule_id, t.name AS template_name
+                FROM crm_automation_templates t
+                LEFT JOIN crm_automation_rules r ON r.template_id = t.id AND r.is_active = 1
+                WHERE (t.name LIKE ? OR t.name LIKE ? OR t.name LIKE ?)
+                  AND t.name NOT LIKE '%Menghafal Pemula%'
+                  AND t.name NOT LIKE '%Lanjutan%'
+                  AND t.name NOT LIKE '%Tahfidz Cilik%'
+                ORDER BY (t.name LIKE 'Follow Up ' . $num . ' (%') DESC, t.id ASC
+                LIMIT 1
+            ");
+            if ($stmtRetry) {
+                $stmtRetry->bind_param('sss', $patExact, $patPrefixed, $patAny);
+                $stmtRetry->execute();
+                $rowR = $stmtRetry->get_result()->fetch_assoc();
+                $stmtRetry->close();
+                if ($rowR) {
+                    $resolvedSteps[$num] = [
+                        'step' => $num,
+                        'template_id' => (int)$rowR['template_id'],
+                        'rule_id' => (int)$rowR['rule_id'],
+                        'base_delay' => (int)$stepInfo['delay_from_now'],
+                    ];
+                }
             }
         }
     }
@@ -1066,21 +1227,15 @@ function crmAutomationHandleIncomingWebhook(
         ];
     }
 
-    // Ekstrak nama calon peserta jika nama kosong atau default "Kak"
-    $cleanName = trim((string)$nama);
-    if ($cleanName === '' || $cleanName === 'Kak' || $cleanName === 'Tanpa Nama' || $cleanName === 'Unknown') {
-        if (preg_match('/(?:perkenalkan nama saya|nama saya|nama sy)\s+([A-Za-z]+)/i', $message, $mName)) {
-            $cleanName = ucfirst(strtolower(trim($mName[1])));
-        } else {
-            $cleanName = 'Kak';
-        }
-    }
+    // Ekstrak nama calon peserta HANYA jika secara eksplisit ditulis dalam isi chat.
+    // Tidak mengambil dari pushName WhatsApp agar pesan follow-up tidak memuat nama aneh/tidak sesuai.
+    $leadName = crmAutomationExtractExplicitName($message);
 
     // Jadwalkan 6 tahap alur follow-up standar dengan penanda 'auto_webhook'
     $res = crmAutomationScheduleSequence(
         $conn,
         $normalized,
-        $cleanName,
+        $leadName,
         0,
         $message,
         'auto_webhook'

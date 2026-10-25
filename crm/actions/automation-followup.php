@@ -197,7 +197,10 @@ switch ($action) {
 
     case 'queue_prospect':
         $nowa = trim((string)($_POST['nowa'] ?? ''));
-        $nama = trim((string)($_POST['nama'] ?? 'Kak'));
+        $nama = trim((string)($_POST['nama'] ?? ''));
+        if (in_array(strtolower($nama), ['kak', 'unknown', 'tanpa nama', 'null', 'calon peserta', 'peserta'], true)) {
+            $nama = null;
+        }
         $ruleId = (int)($_POST['rule_id'] ?? 0);
         $templateId = (int)($_POST['template_id'] ?? 0);
         $delayMinutes = max(0, (int)($_POST['delay_minutes'] ?? 0));
@@ -230,7 +233,10 @@ switch ($action) {
     case 'schedule_sequence':
     case 'queue_sequence':
         $nowa = trim((string)($_POST['nowa'] ?? ''));
-        $nama = trim((string)($_POST['nama'] ?? 'Kak'));
+        $nama = trim((string)($_POST['nama'] ?? ''));
+        if (in_array(strtolower($nama), ['kak', 'unknown', 'tanpa nama', 'null', 'calon peserta', 'peserta'], true)) {
+            $nama = null;
+        }
         $templateId = (int)($_POST['template_id'] ?? 0);
         $prospectAnchor = $nowa !== '' ? 'row-p-' . preg_replace('/\D/', '', $nowa) : null;
 
@@ -278,7 +284,10 @@ switch ($action) {
 
     case 'send_prospect_now':
         $nowa = trim((string)($_POST['nowa'] ?? ''));
-        $nama = trim((string)($_POST['nama'] ?? 'Kak'));
+        $nama = trim((string)($_POST['nama'] ?? ''));
+        if (in_array(strtolower($nama), ['kak', 'unknown', 'tanpa nama', 'null', 'calon peserta', 'peserta'], true)) {
+            $nama = null;
+        }
         $ruleId = (int)($_POST['rule_id'] ?? 0);
         $templateId = (int)($_POST['template_id'] ?? 0);
         $prospectAnchor = $nowa !== '' ? 'row-p-' . preg_replace('/\D/', '', $nowa) : null;

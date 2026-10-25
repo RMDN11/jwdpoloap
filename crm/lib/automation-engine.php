@@ -3,31 +3,73 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/automation-followup.php';
 
-function crmAutomationRenderMessage(string $template, array $data): string
-{
-    $nama = trim((string)($data['nama'] ?? ''));
-    if ($nama === '' || strtolower($nama) === 'unknown') {
-        $nama = 'Kak';
+if (!function_exists('crmAutomationRenderMessage')) {
+    function crmAutomationRenderMessage(string $template, array $data): string
+    {
+        $rawNama = trim((string)($data['nama'] ?? ''));
+        $hasExplicitName = false;
+        $nama = '';
+
+        $isGeneric = (
+            $rawNama === '' ||
+            in_array(strtolower($rawNama), ['kak', 'unknown', 'tanpa nama', 'null', 'calon peserta', 'peserta'], true)
+        );
+
+        if (!$isGeneric) {
+            $hasExplicitName = true;
+            $nama = $rawNama;
+        }
+
+        date_default_timezone_set('Asia/Jakarta');
+        $hour = (int)date('G');
+        if ($hour >= 4 && $hour < 11) {
+            $sapaan = 'Pagi';
+        } elseif ($hour >= 11 && $hour < 15) {
+            $sapaan = 'Siang';
+        } elseif ($hour >= 15 && $hour < 18) {
+            $sapaan = 'Sore';
+        } else {
+            $sapaan = 'Malam';
+        }
+
+        $program = trim((string)($data['program'] ?? 'Tahfidz Private'));
+        $rendered = $template;
+
+        if ($hasExplicitName) {
+            $search = ['{nama}', '{NAMA}', '[nama]', '[NAMA]'];
+            $rendered = str_ireplace($search, $nama, $rendered);
+        } else {
+            $replacements = [
+                '/(?:Bismillah,\s+)?ahlan\s+Bunda\/Ayah\s+\{nama\}!/i' => 'Bismillah, ahlan Bunda/Ayah! 😊',
+                '/Bunda\/Ayah\s+\{nama\}/i' => 'Bunda/Ayah',
+                '/terbuka\s+untuk\s+kak\s+\{nama\}/i' => 'terbuka untuk kakak',
+                '/Untuk\s+kak\s+\{nama\}/i' => 'Untuk kakak',
+                '/untuk\s+kak\s+\{nama\}/i' => 'untuk kakak',
+                '/(?:kak|Kak)\s+\{nama\}\s+rencananya/i' => 'Kakak rencananya',
+                '/(?:jika|Jika)\s+kak\s+\{nama\}\s+berminat/i' => 'Jika kakak berminat',
+                '/(?:apakah|Apakah)\s+kak\s+\{nama\}\s+berkenan/i' => 'Apakah kakak berkenan',
+                '/kak\s+\{nama\}\s+akan\s+disimak/i' => 'kakak akan disimak',
+                '/kak\s+\{nama\}\s+sudah\s+ada/i' => 'kakak sudah ada',
+                '/kak\s+\{nama\}\s+paling\s+ingin/i' => 'kakak paling ingin',
+                '/kak\s+\{nama\}\s+memiliki/i' => 'kakak memiliki',
+                '/kak\s+\{nama\}/i' => 'kak',
+                '/Kak\s+\{nama\}/i' => 'Kak',
+                '/\{nama\}/i' => '',
+                '/\[nama\]/i' => '',
+            ];
+
+            foreach ($replacements as $pattern => $replacement) {
+                $rendered = preg_replace($pattern, $replacement, $rendered);
+            }
+
+            $rendered = preg_replace('/[ \t]{2,}/', ' ', $rendered);
+            $rendered = preg_replace('/\s+([,\.!\?])/', '$1', $rendered);
+        }
+
+        $rendered = str_replace(['{sapaan}', '{program}'], [$sapaan, $program], $rendered);
+
+        return trim($rendered);
     }
-
-    date_default_timezone_set('Asia/Jakarta');
-    $hour = (int)date('G');
-    if ($hour >= 4 && $hour < 11) {
-        $sapaan = 'Pagi';
-    } elseif ($hour >= 11 && $hour < 15) {
-        $sapaan = 'Siang';
-    } elseif ($hour >= 15 && $hour < 18) {
-        $sapaan = 'Sore';
-    } else {
-        $sapaan = 'Malam';
-    }
-
-    $program = trim((string)($data['program'] ?? 'Tahfidz Private'));
-
-    $search = ['{nama}', '{sapaan}', '{program}'];
-    $replace = [$nama, $sapaan, $program];
-
-    return str_replace($search, $replace, $template);
 }
 
 function crmAutomationDispatchSingle(mysqli $conn, int $queueId, string $apiUrl = '', string $apiToken = ''): array
