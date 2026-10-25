@@ -38,7 +38,7 @@ if ($resTpl instanceof mysqli_result) {
 // Tab 1: Prospek Pemicu Log
 $prospects = [];
 $pfilter = (string)($_GET['pfilter'] ?? 'unpaid');
-$cfilter = (string)($_GET['cfilter'] ?? 'all');
+$cfilter = (string)($_GET['cfilter'] ?? $_GET['cat'] ?? 'all');
 if ($tab === 'prospects') {
     // Ambil pesan chat masuk terbaru per nomor WA secara real-time dari log_wa
     // Fokus pada chat masuk pemicu program:
@@ -155,12 +155,9 @@ if ($tab === 'prospects') {
             }
 
             // Validasi apakah pesan prospek cocok dengan pola pemicu aturan aktif
-            $matchedRule = crmAutomationFindMatchingTrigger($conn, $firstTriggerMsg ?: $lastMsg);
+            $matchedRule = !empty($firstTriggerMsg) ? crmAutomationFindMatchingTrigger($conn, $firstTriggerMsg) : null;
             if (!$matchedRule && !empty($lastMsg)) {
                 $matchedRule = crmAutomationFindMatchingTrigger($conn, $lastMsg);
-            }
-            if (!$matchedRule && !empty($firstTriggerMsg)) {
-                $matchedRule = crmAutomationFindMatchingTrigger($conn, $firstTriggerMsg);
             }
 
             $qData = $existingQueue[$normalized] ?? null;
@@ -507,11 +504,11 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                                             <div class="crm-contact-info">
                                                 <span class="crm-contact-name"><?= htmlspecialchars($item['nama']) ?></span>
                                                 <div class="crm-contact-wa-wrap">
-                                                    <a href="https://wa.me/<?= htmlspecialchars(preg_replace('/\D+/', '', $item['nowa'])) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa" title="Buka obrolan di WhatsApp">
+                                                    <a href="https://wa.me/<?= htmlspecialchars(crmProspectNormalizeNumber($item['nowa'])) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa" title="Buka obrolan di WhatsApp">
                                                         <i class="fa-brands fa-whatsapp"></i>
                                                         <span><?= htmlspecialchars($item['nowa']) ?></span>
                                                     </a>
-                                                    <button type="button" class="btn-copy-wa" onclick="crmCopyWaNumber('<?= htmlspecialchars(preg_replace('/\D+/', '', $item['nowa'])) ?>', this)" title="Salin nomor WhatsApp">
+                                                    <button type="button" class="btn-copy-wa" onclick="crmCopyWaNumber('<?= htmlspecialchars(crmProspectNormalizeNumber($item['nowa'])) ?>', this)" title="Salin nomor WhatsApp">
                                                         <i class="fa-regular fa-copy"></i>
                                                     </button>
                                                 </div>
@@ -628,7 +625,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                     </tbody>
                 </table>
             </div>
-            <?= crmRenderPagination($pageProspects, $totalPagesProspects, $totalProspects, $perPage, ['page' => 'automation-followup', 'tab' => 'prospects', 'cat' => $cfilter, 'pfilter' => $pfilter]) ?>
+            <?= crmRenderPagination($pageProspects, $totalPagesProspects, $totalProspects, $perPage, ['page' => 'automation-followup', 'tab' => 'prospects', 'cfilter' => $cfilter, 'pfilter' => $pfilter]) ?>
         </div>
     <?php endif; ?>
 
@@ -933,10 +930,10 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                                     <td>
                                         <div style="font-weight: 700; color: #0f172a; font-size: 0.85rem;"><?= htmlspecialchars($q['nama'] ?: 'Calon Peserta') ?></div>
                                         <div class="crm-contact-wa-wrap">
-                                            <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', (string)$q['nowa']) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa" title="Buka obrolan di WhatsApp">
+                                            <a href="https://wa.me/<?= htmlspecialchars(crmProspectNormalizeNumber((string)$q['nowa'])) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa" title="Buka obrolan di WhatsApp">
                                                 <i class="fa-brands fa-whatsapp"></i> <span><?= htmlspecialchars($q['nowa']) ?></span>
                                             </a>
-                                            <button type="button" class="btn-copy-wa" onclick="crmCopyWaNumber('<?= preg_replace('/[^0-9]/', '', (string)$q['nowa']) ?>', this)" title="Salin nomor WhatsApp">
+                                            <button type="button" class="btn-copy-wa" onclick="crmCopyWaNumber('<?= htmlspecialchars(crmProspectNormalizeNumber((string)$q['nowa'])) ?>', this)" title="Salin nomor WhatsApp">
                                                 <i class="fa-regular fa-copy"></i>
                                             </button>
                                         </div>
@@ -1154,7 +1151,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
     }
 
     function crmCopyWaNumber(nowa, btn) {
-        if (!nowa) return;
+        if (!nowa || btn.classList.contains('copied')) return;
         var origHtml = btn.innerHTML;
         var feedback = function() {
             btn.innerHTML = '<i class="fa-solid fa-check" style="color: #10b981;"></i>';

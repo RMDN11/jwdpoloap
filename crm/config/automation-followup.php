@@ -361,10 +361,13 @@ function crmAutomationEnsureTables(mysqli $conn): bool
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     // Migration: Hapus baris aturan legacy (Tahfidz Private - Follow Up 1..6) yang tidak lagi relevan
-    $cleanedCheck = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'legacy_fu_rules_cleaned_v1' LIMIT 1");
-    if (!$cleanedCheck || $cleanedCheck->num_rows === 0) {
-        $conn->query("DELETE FROM crm_automation_rules WHERE name LIKE 'Tahfidz Private - Follow Up %'");
-        $conn->query("INSERT IGNORE INTO crm_automation_meta (meta_key, meta_value) VALUES ('legacy_fu_rules_cleaned_v1', '1')");
+    $hasRulesTable = $conn->query("SHOW TABLES LIKE 'crm_automation_rules'");
+    if ($hasRulesTable && $hasRulesTable->num_rows > 0) {
+        $cleanedCheck = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'legacy_fu_rules_cleaned_v1' LIMIT 1");
+        if (!$cleanedCheck || $cleanedCheck->num_rows === 0) {
+            $conn->query("DELETE FROM crm_automation_rules WHERE name LIKE 'Tahfidz Private - Follow Up %'");
+            $conn->query("INSERT IGNORE INTO crm_automation_meta (meta_key, meta_value) VALUES ('legacy_fu_rules_cleaned_v1', '1')");
+        }
     }
 
     // Fast path: jika skema dan seed sudah lengkap, hindari DDL dan query berulang pada webhook
@@ -493,8 +496,13 @@ function crmAutomationEnsureTables(mysqli $conn): bool
  *
  * @return array<int, array{id: int, name: string, trigger_keyword: string, category: string, is_active: int}>
  */
-function crmAutomationGetActiveTriggers(mysqli $conn): array
+function crmAutomationGetActiveTriggers(mysqli $conn, bool $forceRefresh = false): array
 {
+    static $cachedTriggers = null;
+    if ($cachedTriggers !== null && !$forceRefresh) {
+        return $cachedTriggers;
+    }
+
     crmAutomationEnsureTables($conn);
     $triggers = [];
     $res = $conn->query("
@@ -514,7 +522,8 @@ function crmAutomationGetActiveTriggers(mysqli $conn): array
             ];
         }
     }
-    return $triggers;
+    $cachedTriggers = $triggers;
+    return $cachedTriggers;
 }
 
 /**

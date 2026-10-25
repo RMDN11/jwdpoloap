@@ -267,6 +267,22 @@ def run_copy_wa_test(base_dir):
     assert '.btn-copy-wa' in css, 'CSS missing .btn-copy-wa styling'
     print("automation-followup-copy-wa-test: OK")
 
+def run_review_fixes_test(base_dir):
+    page_path = os.path.join(base_dir, "crm/pages/automation-followup.php")
+    config_path = os.path.join(base_dir, "crm/config/automation-followup.php")
+    with open(page_path, "r", encoding="utf-8") as f:
+        page = f.read()
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = f.read()
+
+    assert "'cfilter' => $cfilter" in page, 'Missing cfilter in pagination'
+    assert "$_GET['cfilter'] ?? $_GET['cat']" in page, 'Missing fallback'
+    assert 'https://wa.me/<?= htmlspecialchars(crmProspectNormalizeNumber(' in page, 'Missing normalized wa.me'
+    assert "SHOW TABLES LIKE 'crm_automation_rules'" in config, 'Missing table existence check'
+    assert '$cachedTriggers' in config, 'Missing cachedTriggers'
+    assert "btn.classList.contains('copied')" in page, 'Missing double-click guard'
+    print("automation-followup-review-fixes-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -289,6 +305,8 @@ def main():
         run_pagination_test(base_dir)
     if test_name in ["automation-followup-copy-wa-test", "copy-wa", "all"]:
         run_copy_wa_test(base_dir)
+    if test_name in ["automation-followup-review-fixes-test", "review-fixes", "all"]:
+        run_review_fixes_test(base_dir)
 
 if __name__ == "__main__":
     try:
