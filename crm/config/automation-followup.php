@@ -65,7 +65,7 @@ function crmAutomationClassifyLpLead(string $message): array
             'icon' => 'fa-award',
         ];
     }
-    if (str_contains($m, 'saya mau daftar program') || str_contains($m, 'daftar sekarang')) {
+    if (str_contains($m, 'saya mau daftar') || str_contains($m, 'saya ingin daftar') || str_contains($m, 'daftar sekarang')) {
         return [
             'key' => 'cta',
             'label' => 'Pendaftaran CTA',
@@ -231,37 +231,84 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
         }
     }
 
-    // Seed variasi aturan khusus untuk tombol pendaftaran landing page (default is_active = 0)
+    // Seed pola pemicu pesan masuk untuk alur automasi pendaftaran landing page (is_active = 1)
     $lpVariations = [
         [
-            'name' => 'Tahfidz Private - Pendaftaran Langsung (CTA)',
-            'kw' => 'Kak, saya mau daftar program Tahfidz Private Online',
+            'name' => 'Tahfidz Cilik (Tombol LP)',
+            'kw' => 'Kak, saya ingin daftar Tahfidz Cilik',
             'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 60,
+            'delay' => 10,
+            'cat' => 'cilik',
         ],
         [
-            'name' => 'Tahfidz Private - Kelas Menghafal Pemula',
-            'kw' => 'Kelas Menghafal Pemula',
-            'tpl' => 'Menghafal Pemula - Follow Up 1 (Tahsin dari Nol)',
-            'delay' => 60,
-        ],
-        [
-            'name' => 'Tahfidz Private - Lanjutan & Penguatan Muroja\'ah',
-            'kw' => 'Kelas Menghafal Lanjutan',
-            'tpl' => 'Lanjutan & Muroja\'ah - Follow Up 1 (Mutqin & Target Juz)',
-            'delay' => 60,
-        ],
-        [
-            'name' => 'Tahfidz Cilik - Bimbingan Anak (Video Call)',
+            'name' => 'Tahfidz Cilik (Keyword)',
             'kw' => 'Tahfidz Cilik',
-            'tpl' => 'Tahfidz Cilik - Follow Up 1 (Pendekatan Bunda/Ayah)',
-            'delay' => 60,
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'delay' => 10,
+            'cat' => 'cilik',
         ],
         [
-            'name' => 'Tahfidz Private - Form Nama (Bismillah perkenalkan)',
+            'name' => 'Menghafal Pemula (Tombol LP)',
+            'kw' => 'Kak, saya ingin daftar Kelas Menghafal Pemula',
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'delay' => 10,
+            'cat' => 'pemula',
+        ],
+        [
+            'name' => 'Menghafal Pemula (Keyword)',
+            'kw' => 'Menghafal Pemula',
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'delay' => 10,
+            'cat' => 'pemula',
+        ],
+        [
+            'name' => 'Menghafal Lanjutan (Tombol LP)',
+            'kw' => 'Kak, saya ingin daftar Kelas Menghafal Lanjutan',
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'delay' => 10,
+            'cat' => 'lanjutan',
+        ],
+        [
+            'name' => 'Menghafal Lanjutan (Keyword)',
+            'kw' => 'Menghafal Lanjutan',
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'delay' => 10,
+            'cat' => 'lanjutan',
+        ],
+        [
+            'name' => 'Penguatan Hafalan (Tombol LP)',
+            'kw' => 'Kak, saya ingin daftar Kelas Penguatan Hafalan',
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'delay' => 10,
+            'cat' => 'lanjutan',
+        ],
+        [
+            'name' => 'Penguatan Hafalan (Keyword)',
+            'kw' => 'Penguatan Hafalan',
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'delay' => 10,
+            'cat' => 'lanjutan',
+        ],
+        [
+            'name' => 'Tanya Detail Hero (LP Utama)',
+            'kw' => 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada',
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'delay' => 10,
+            'cat' => 'general',
+        ],
+        [
+            'name' => 'Form Nama LP (Bismillah)',
             'kw' => 'Bismillah, perkenalkan nama saya',
             'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 30,
+            'delay' => 10,
+            'cat' => 'form_lead',
+        ],
+        [
+            'name' => 'Pendaftaran Kelas Umum (CTA)',
+            'kw' => 'Kak, saya ingin daftar Kelas',
+            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
+            'delay' => 10,
+            'cat' => 'cta',
         ],
     ];
 
@@ -286,17 +333,17 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
             $checkVar->close();
 
             if (!$existsVar) {
-                $insVar = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, 0)");
+                $insVar = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, category, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, ?, 1)");
                 if ($insVar) {
-                    $insVar->bind_param('ssii', $var['name'], $var['kw'], $targetTplId, $var['delay']);
+                    $insVar->bind_param('sssii', $var['name'], $var['kw'], $var['cat'], $targetTplId, $var['delay']);
                     $insVar->execute();
                     $insVar->close();
                 }
             } else {
-                $updVar = $conn->prepare("UPDATE crm_automation_rules SET template_id = ?, name = ? WHERE id = ?");
+                $updVar = $conn->prepare("UPDATE crm_automation_rules SET category = ?, name = ? WHERE id = ?");
                 if ($updVar) {
                     $rId = (int)$existsVar['id'];
-                    $updVar->bind_param('isi', $targetTplId, $var['name'], $rId);
+                    $updVar->bind_param('ssi', $var['cat'], $var['name'], $rId);
                     $updVar->execute();
                     $updVar->close();
                 }
@@ -326,6 +373,7 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         name VARCHAR(150) NOT NULL,
         trigger_keyword VARCHAR(255) NOT NULL,
         trigger_condition VARCHAR(30) NOT NULL DEFAULT 'contains',
+        category VARCHAR(50) NOT NULL DEFAULT 'general',
         template_id INT UNSIGNED NOT NULL,
         delay_minutes INT UNSIGNED NOT NULL DEFAULT 120,
         is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -340,6 +388,7 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         template_id INT UNSIGNED NOT NULL,
         nowa VARCHAR(50) NOT NULL,
         nama VARCHAR(150) NULL,
+        trigger_source VARCHAR(30) NOT NULL DEFAULT 'manual',
         status VARCHAR(30) NOT NULL DEFAULT 'pending',
         scheduled_at DATETIME NOT NULL,
         sent_at DATETIME NULL,
@@ -348,6 +397,18 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         INDEX idx_auto_queue_status_sched (status, scheduled_at),
         INDEX idx_auto_queue_nowa (nowa)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Pastikan kolom category ada di crm_automation_rules jika tabel sudah ada sebelumnya
+    $colRuleCheck = $conn->query("SHOW COLUMNS FROM crm_automation_rules LIKE 'category'");
+    if ($colRuleCheck && $colRuleCheck->num_rows === 0) {
+        $conn->query("ALTER TABLE crm_automation_rules ADD COLUMN category VARCHAR(50) NOT NULL DEFAULT 'general' AFTER trigger_condition");
+    }
+
+    // Pastikan kolom trigger_source ada di crm_automation_queue jika tabel sudah ada sebelumnya
+    $colQueueCheck = $conn->query("SHOW COLUMNS FROM crm_automation_queue LIKE 'trigger_source'");
+    if ($colQueueCheck && $colQueueCheck->num_rows === 0) {
+        $conn->query("ALTER TABLE crm_automation_queue ADD COLUMN trigger_source VARCHAR(30) NOT NULL DEFAULT 'manual' AFTER nama");
+    }
 
     crmAutomationSeedDefaultTemplates($conn);
 
@@ -410,6 +471,64 @@ function crmAutomationEnsureTables(mysqli $conn): bool
 
     $ensured = true;
     return true;
+}
+
+/**
+ * Mengambil seluruh pola aturan pemicu aktif dari basis data.
+ *
+ * @return array<int, array{id: int, name: string, trigger_keyword: string, category: string, is_active: int}>
+ */
+function crmAutomationGetActiveTriggers(mysqli $conn): array
+{
+    crmAutomationEnsureTables($conn);
+    $triggers = [];
+    $res = $conn->query("
+        SELECT id, name, trigger_keyword, COALESCE(category, 'general') AS category, is_active
+        FROM crm_automation_rules
+        WHERE is_active = 1
+        ORDER BY id ASC
+    ");
+    if ($res instanceof mysqli_result) {
+        while ($row = $res->fetch_assoc()) {
+            $triggers[] = [
+                'id' => (int)$row['id'],
+                'name' => (string)$row['name'],
+                'trigger_keyword' => (string)$row['trigger_keyword'],
+                'category' => (string)$row['category'],
+                'is_active' => (int)$row['is_active'],
+            ];
+        }
+    }
+    return $triggers;
+}
+
+/**
+ * Mencocokkan isi pesan chat masuk dengan daftar aturan pemicu aktif.
+ *
+ * @return array{id: int, name: string, trigger_keyword: string, category: string}|null
+ */
+function crmAutomationFindMatchingTrigger(mysqli $conn, string $message): ?array
+{
+    $cleanMsg = trim($message);
+    if ($cleanMsg === '') {
+        return null;
+    }
+    $lowerMsg = strtolower($cleanMsg);
+    $activeTriggers = crmAutomationGetActiveTriggers($conn);
+
+    // Prioritaskan kata kunci pemicu yang lebih spesifik/panjang terlebih dahulu
+    usort($activeTriggers, function ($a, $b) {
+        return mb_strlen($b['trigger_keyword']) <=> mb_strlen($a['trigger_keyword']);
+    });
+
+    foreach ($activeTriggers as $trig) {
+        $kw = strtolower(trim($trig['trigger_keyword']));
+        if ($kw !== '' && str_contains($lowerMsg, $kw)) {
+            return $trig;
+        }
+    }
+
+    return null;
 }
 
 function crmAutomationIsBlocked(mysqli $conn, string $nowa): bool
@@ -602,7 +721,8 @@ function crmAutomationRegisterQueue(
     int $ruleId,
     int $delayMinutes,
     bool $allowInactiveRule = false,
-    int $templateIdOverride = 0
+    int $templateIdOverride = 0,
+    string $triggerSource = 'manual'
 ): int {
     crmAutomationEnsureTables($conn);
 
@@ -643,9 +763,9 @@ function crmAutomationRegisterQueue(
 
         if ($existing) {
             $existingId = (int)$existing['id'];
-            $updateStmt = $conn->prepare("UPDATE crm_automation_queue SET scheduled_at = DATE_ADD(NOW(), INTERVAL ? MINUTE), nama = COALESCE(?, nama), template_id = ?, rule_id = ? WHERE id = ?");
+            $updateStmt = $conn->prepare("UPDATE crm_automation_queue SET scheduled_at = DATE_ADD(NOW(), INTERVAL ? MINUTE), nama = COALESCE(?, nama), template_id = ?, rule_id = ?, trigger_source = ? WHERE id = ?");
             if ($updateStmt) {
-                $updateStmt->bind_param('isiii', $delayMinutes, $nama, $templateId, $ruleId, $existingId);
+                $updateStmt->bind_param('isissi', $delayMinutes, $nama, $templateId, $ruleId, $triggerSource, $existingId);
                 $updateStmt->execute();
                 $updateStmt->close();
             }
@@ -654,12 +774,12 @@ function crmAutomationRegisterQueue(
     }
 
     // Buat antrean baru
-    $insertStmt = $conn->prepare("INSERT INTO crm_automation_queue (rule_id, template_id, nowa, nama, status, scheduled_at, created_at) VALUES (?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())");
+    $insertStmt = $conn->prepare("INSERT INTO crm_automation_queue (rule_id, template_id, nowa, nama, trigger_source, status, scheduled_at, created_at) VALUES (?, ?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())");
     if (!$insertStmt) {
         return 0;
     }
 
-    $insertStmt->bind_param('iissi', $ruleId, $templateId, $normalized, $nama, $delayMinutes);
+    $insertStmt->bind_param('iisssi', $ruleId, $templateId, $normalized, $nama, $triggerSource, $delayMinutes);
     $insertStmt->execute();
     $queueId = (int)$insertStmt->insert_id;
     $insertStmt->close();
@@ -677,7 +797,8 @@ function crmAutomationScheduleSequence(
     string $nowa,
     ?string $nama,
     int $startTemplateId = 0,
-    string $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada'
+    string $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada',
+    string $triggerSource = 'manual'
 ): array {
     crmAutomationEnsureTables($conn);
 
@@ -811,7 +932,8 @@ function crmAutomationScheduleSequence(
             $stepData['rule_id'],
             $relDelay,
             true,
-            $stepData['template_id']
+            $stepData['template_id'],
+            $triggerSource
         );
         if ($res > 0) {
             $count++;
@@ -839,8 +961,11 @@ function crmAutomationRegisterSequence(
     mysqli $conn,
     string $nowa,
     ?string $nama,
-    string $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada'
+    string $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada',
+    string $triggerSource = 'manual'
 ): int {
-    $res = crmAutomationScheduleSequence($conn, $nowa, $nama, 0, $keyword);
+    $res = crmAutomationScheduleSequence($conn, $nowa, $nama, 0, $keyword, $triggerSource);
+    return (int)($res['count'] ?? 0);
+}
     return (int)($res['count'] ?? 0);
 }

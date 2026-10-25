@@ -16,6 +16,8 @@ $requiredFunctions = [
     'crmAutomationRegisterQueue',
     'crmAutomationHasUserReplied',
     'crmAutomationIsBlocked',
+    'crmAutomationGetActiveTriggers',
+    'crmAutomationFindMatchingTrigger',
 ];
 
 foreach ($requiredFunctions as $func) {
@@ -41,6 +43,12 @@ foreach ([
     'cancelled_replied',
     'crmProspectNormalizeNumber',
     'bind_param',
+    'category',
+    'trigger_source',
+    'Kak, saya ingin daftar Tahfidz Cilik',
+    'Kak, saya ingin daftar Kelas Menghafal Pemula',
+    'Kak, saya ingin daftar Kelas Menghafal Lanjutan',
+    'Kak, saya ingin daftar Kelas Penguatan Hafalan',
 ] as $token) {
     if (!str_contains($content, $token)) {
         throw new RuntimeException("Missing expected schema/logic token: {$token}");
