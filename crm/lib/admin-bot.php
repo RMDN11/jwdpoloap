@@ -276,9 +276,7 @@ function crmAdminBotGetHelpMessage(): string
     $msg .= "• `!queue` : Cek 5 antrean follow-up berikutnya\n\n";
     $msg .= "💡 *Tanya-Jawab AI (Gemini):*\n";
     $msg .= "• `!ai <pertanyaan>` : Tanya langsung ke AI\n";
-    $msg .= "• Atau ketik chat pertanyaan biasa tanpa awalan `!`, asisten AI akan otomatis membalas.\n\n";
-    $msg .= "⚡ *Antigravity Agent (MacBook Coding & Terminal):*\n";
-    $msg .= "• `!agy <perintah>` : Perintahkan agent di Mac (misal: `!agy periksa git status`)\n";
+    $msg .= "• Atau ketik chat pertanyaan biasa tanpa awalan `!`, asisten AI akan otomatis membalas.\n";
     $msg .= "────────────────────";
 
     return $msg;
@@ -410,29 +408,8 @@ function crmAdminBotProcessMessage(
     $reply = "";
     $action = "unknown";
 
-    // 0. Perintah Antigravity AI Agent (MacBook Core)
-    if (str_starts_with($lowerMsg, '!agy')) {
-        $action = "antigravity";
-        $prompt = trim(substr($rawMsg, 4));
-
-        if ($prompt === '') {
-            $reply = "🤖 *Antigravity AI Agent*\nSertakan perintah coding atau task setelah `!agy`.\n\nContoh:\n• `!agy cek git status`\n• `!agy buatkan file test.txt di home folder`\n• `!agy periksa apakah ada error di webhook.log`";
-        } else {
-            $stmt = $conn->prepare("INSERT INTO crm_antigravity_tasks (nowa, prompt, status, created_at) VALUES (?, ?, 'pending', NOW())");
-            if ($stmt) {
-                $stmt->bind_param('ss', $senderPhone, $prompt);
-                $stmt->execute();
-                $taskId = $stmt->insert_id;
-                $stmt->close();
-
-                $reply = "⏳ *[Antigravity Agent]* Task #{$taskId} Diterima!\nPerintah sedang diproses oleh agent Antigravity di MacBook:\n\n📝 _\"{$prompt}\"_\n\n⏱️ Hasil pengerjaan akan segera dikirimkan ke chat ini begitu selesai.";
-            } else {
-                $reply = "❌ Gagal mendaftarkan task Antigravity: " . $conn->error;
-            }
-        }
-    }
     // 1. Perintah To-Do
-    elseif (str_starts_with($lowerMsg, '!todo')) {
+    if (str_starts_with($lowerMsg, '!todo')) {
         $action = "todo";
         $sub = trim(substr($rawMsg, 5));
         $lowerSub = strtolower($sub);
