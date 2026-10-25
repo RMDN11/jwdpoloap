@@ -122,9 +122,18 @@ if ($action === 'status') {
         }
     }
 
+    $rows = [];
+    $rawQ = $conn->query("SELECT id, nowa, prompt, status, HEX(status) as hex_status FROM crm_antigravity_tasks ORDER BY id DESC LIMIT 5");
+    if ($rawQ) {
+        while ($row = $rawQ->fetch_assoc()) {
+            $rows[] = $row;
+        }
+    }
+
     echo json_encode([
         'status' => 'ok',
-        'counts' => $counts
+        'counts' => $counts,
+        'recent' => $rows
     ]);
     exit;
 }
