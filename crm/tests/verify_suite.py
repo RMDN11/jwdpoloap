@@ -486,6 +486,56 @@ def run_admin_bot_test(base_dir):
 
     print("admin-bot-test: OK")
 
+def run_antigravity_bridge_test(base_dir):
+    config_path = os.path.join(base_dir, "crm/config/admin-bot.php")
+    lib_path = os.path.join(base_dir, "crm/lib/admin-bot.php")
+    api_path = os.path.join(base_dir, "api_antigravity.php")
+
+    for p in [config_path, lib_path, api_path]:
+        if not os.path.exists(p):
+            raise AssertionError(f"Missing file: {p}")
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        config_content = f.read()
+    with open(lib_path, "r", encoding="utf-8") as f:
+        lib_content = f.read()
+    with open(api_path, "r", encoding="utf-8") as f:
+        api_content = f.read()
+
+    required_config_tokens = [
+        'ANTIGRAVITY_BRIDGE_TOKEN',
+        'crm_antigravity_tasks',
+        'status ENUM(\'pending\', \'processing\', \'completed\', \'failed\')'
+    ]
+    for token in required_config_tokens:
+        if token not in config_content:
+            raise AssertionError(f"crm/config/admin-bot.php missing token: {token}")
+
+    required_lib_tokens = [
+        '!agy',
+        'crm_antigravity_tasks',
+        'Antigravity AI Agent',
+        'Task #'
+    ]
+    for token in required_lib_tokens:
+        if token not in lib_content:
+            raise AssertionError(f"crm/lib/admin-bot.php missing token: {token}")
+
+    required_api_tokens = [
+        'ANTIGRAVITY_BRIDGE_TOKEN',
+        'crmAdminBotEnsureTables',
+        'hash_equals',
+        'action === \'poll\'',
+        'action === \'complete\'',
+        'action === \'status\'',
+        'crm_antigravity_tasks'
+    ]
+    for token in required_api_tokens:
+        if token not in api_content:
+            raise AssertionError(f"api_antigravity.php missing token: {token}")
+
+    print("antigravity-bridge-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -520,6 +570,8 @@ def main():
         run_finance_scheduling_test(base_dir)
     if test_name in ["admin-bot-test", "admin-bot", "all"]:
         run_admin_bot_test(base_dir)
+    if test_name in ["antigravity-bridge-test", "agy-bridge", "all"]:
+        run_antigravity_bridge_test(base_dir)
 
 if __name__ == "__main__":
     try:

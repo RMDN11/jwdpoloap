@@ -34,6 +34,10 @@ if (!defined('ADMIN_BOT_ENABLED')) {
     define('ADMIN_BOT_ENABLED', true);
 }
 
+if (!defined('ANTIGRAVITY_BRIDGE_TOKEN')) {
+    define('ANTIGRAVITY_BRIDGE_TOKEN', 'agy_bridge_sec_9941a5b82c0f47e3a61');
+}
+
 /**
  * Normalisasi nomor WhatsApp ke format standar 62...
  */
@@ -92,4 +96,19 @@ function crmAdminBotEnsureTables(mysqli $conn): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
     $conn->query($sql);
+
+    $sqlAgy = "CREATE TABLE IF NOT EXISTS crm_antigravity_tasks (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        nowa VARCHAR(50) NOT NULL,
+        prompt TEXT NOT NULL,
+        status ENUM('pending', 'processing', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+        result LONGTEXT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NULL,
+        completed_at DATETIME NULL,
+        INDEX idx_agy_status (status),
+        INDEX idx_agy_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+
+    $conn->query($sqlAgy);
 }
