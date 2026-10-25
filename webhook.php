@@ -62,60 +62,13 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     exit;
 }
 
-$subData = (isset($data['data']) && is_array($data['data'])) ? $data['data'] : [];
+$senderPhone = $data['sender_phone'] ?? $data['phone'] ?? $data['from'] ?? '';
+$messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';
+$externalMessageId = trim((string)($data['message_id'] ?? $data['messageId'] ?? $data['id'] ?? ''));
 
-$senderPhone = $data['sender_phone'] 
-    ?? $data['phone'] 
-    ?? $data['from'] 
-    ?? $subData['sender_phone'] 
-    ?? $subData['phone'] 
-    ?? $subData['from'] 
-    ?? $subData['sender'] 
-    ?? ($data['messages'][0]['from'] ?? '')
-    ?? ($data['entry'][0]['changes'][0]['value']['messages'][0]['from'] ?? '')
-    ?? '';
-
-$messageText = '';
-if (isset($data['message_text']) && is_string($data['message_text'])) {
-    $messageText = $data['message_text'];
-} elseif (isset($data['message']) && is_string($data['message'])) {
-    $messageText = $data['message'];
-} elseif (isset($data['text']) && is_string($data['text'])) {
-    $messageText = $data['text'];
-} elseif (isset($subData['message_text']) && is_string($subData['message_text'])) {
-    $messageText = $subData['message_text'];
-} elseif (isset($subData['message']) && is_string($subData['message'])) {
-    $messageText = $subData['message'];
-} elseif (isset($subData['text']) && is_string($subData['text'])) {
-    $messageText = $subData['text'];
-} elseif (isset($data['messages'][0]['text']['body'])) {
-    $messageText = $data['messages'][0]['text']['body'];
-} elseif (isset($data['entry'][0]['changes'][0]['value']['messages'][0]['text']['body'])) {
-    $messageText = $data['entry'][0]['changes'][0]['value']['messages'][0]['text']['body'];
-}
-
-$externalMessageId = trim((string)(
-    $data['message_id'] 
-    ?? $data['messageId'] 
-    ?? $data['id'] 
-    ?? $subData['message_id'] 
-    ?? $subData['id'] 
-    ?? ($data['messages'][0]['id'] ?? '')
-    ?? ($data['entry'][0]['changes'][0]['value']['messages'][0]['id'] ?? '')
-    ?? ''
-));
-
-$senderPhone = trim((string)$senderPhone);
-$messageText = trim((string)$messageText);
-$senderName  = $data['from_name'] 
-    ?? $data['pushName'] 
-    ?? $data['name'] 
-    ?? $subData['from_name'] 
-    ?? $subData['pushName'] 
-    ?? $subData['name'] 
-    ?? ($data['contacts'][0]['profile']['name'] ?? '')
-    ?? ($data['entry'][0]['changes'][0]['value']['contacts'][0]['profile']['name'] ?? '')
-    ?? '';
+$senderPhone = trim($senderPhone);
+$messageText = trim($messageText);
+$senderName  = $data['from_name'] ?? $data['pushName'] ?? $data['name'] ?? '';
 
 if (preg_match('/(?:nama saya|nama sy|perkenalkan nama saya)\s+([A-Za-z0-9]+)/i', $messageText, $matches)) {
     $extractedName = trim($matches[1]);
