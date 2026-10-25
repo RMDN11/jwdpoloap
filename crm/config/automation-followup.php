@@ -205,18 +205,6 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
                     $ins->execute();
                     $tplId = (int)$ins->insert_id;
                     $ins->close();
-
-                    // Hanya buat aturan sequence otomatis untuk template umum Follow Up 1 s/d 6
-                    if ($tplId > 0 && str_starts_with($tpl['name'], 'Follow Up ')) {
-                        $ruleName = 'Tahfidz Private - ' . $tpl['name'];
-                        $kw = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
-                        $insRule = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, 0)");
-                        if ($insRule) {
-                            $insRule->bind_param('ssii', $ruleName, $kw, $tplId, $tpl['delay']);
-                            $insRule->execute();
-                            $insRule->close();
-                        }
-                    }
                 }
             } else {
                 // Update template agar otomatis ringkas & persuasif
@@ -371,6 +359,13 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         meta_value VARCHAR(255) NOT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Migration: Hapus baris aturan legacy (Tahfidz Private - Follow Up 1..6) yang tidak lagi relevan
+    $cleanedCheck = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'legacy_fu_rules_cleaned_v1' LIMIT 1");
+    if (!$cleanedCheck || $cleanedCheck->num_rows === 0) {
+        $conn->query("DELETE FROM crm_automation_rules WHERE name LIKE 'Tahfidz Private - Follow Up %'");
+        $conn->query("INSERT IGNORE INTO crm_automation_meta (meta_key, meta_value) VALUES ('legacy_fu_rules_cleaned_v1', '1')");
+    }
 
     // Fast path: jika skema dan seed sudah lengkap, hindari DDL dan query berulang pada webhook
     $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v1_ensured' LIMIT 1");
