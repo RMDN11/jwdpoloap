@@ -144,6 +144,72 @@ def run_ui_test(base_dir):
 
     print("automation-followup-ui-test: OK")
 
+def run_e2e_test(base_dir):
+    webhook_file = os.path.join(base_dir, "webhook.php")
+    config_file  = os.path.join(base_dir, "crm/config/automation-followup.php")
+    actions_file = os.path.join(base_dir, "crm/actions/automation-followup.php")
+    page_file    = os.path.join(base_dir, "crm/pages/automation-followup.php")
+
+    for fpath in [webhook_file, config_file, actions_file, page_file]:
+        if not os.path.exists(fpath):
+            raise AssertionError(f"Missing file for E2E test: {fpath}")
+
+    with open(webhook_file, "r", encoding="utf-8") as f:
+        webhook = f.read()
+    with open(config_file, "r", encoding="utf-8") as f:
+        config = f.read()
+    with open(actions_file, "r", encoding="utf-8") as f:
+        actions = f.read()
+    with open(page_file, "r", encoding="utf-8") as f:
+        page = f.read()
+
+    # 1. Webhook wiring
+    assert 'crmAutomationHandleIncomingWebhook' in webhook, 'webhook.php must call crmAutomationHandleIncomingWebhook'
+    assert 'crm/config/automation-followup.php' in webhook, 'webhook.php must require automation-followup.php'
+
+    # 2. Config helper & schema
+    assert 'function crmAutomationHandleIncomingWebhook' in config, 'config must implement crmAutomationHandleIncomingWebhook'
+    assert 'function crmAutomationGetActiveTriggers' in config, 'config must implement crmAutomationGetActiveTriggers'
+    assert 'function crmAutomationFindMatchingTrigger' in config, 'config must implement crmAutomationFindMatchingTrigger'
+    assert 'category VARCHAR(50)' in config, 'config must define category column in rules table'
+    assert 'trigger_source VARCHAR(30)' in config, 'config must define trigger_source column in queue table'
+
+    # 3. LP Button triggers check
+    lp_triggers = [
+        'Kak, saya ingin daftar Tahfidz Cilik',
+        'Tahfidz Cilik',
+        'Kak, saya ingin daftar Kelas Menghafal Pemula',
+        'Menghafal Pemula',
+        'Kak, saya ingin daftar Kelas Menghafal Lanjutan',
+        'Menghafal Lanjutan',
+        'Kak, saya ingin daftar Kelas Penguatan Hafalan',
+        'Penguatan Hafalan',
+        'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada',
+        'Bismillah, perkenalkan nama saya',
+    ]
+    for trig in lp_triggers:
+        assert trig in config, f"config must seed default LP trigger: {trig}"
+
+    # 4. Guardrails verification
+    assert 'crmAutomationIsOperationalNumber' in config, 'config must check operational CS numbers'
+    assert 'crmChatIsTeacherNumber' in config, 'config must exclude teacher contacts'
+    assert 'crmAutomationIsBlocked' in config, 'config must exclude blocked contacts'
+    assert 'crmAutomationHasReceivedPayment' in config, 'config must exclude contacts who already paid/finance'
+
+    # 5. Actions CRUD
+    assert 'save_rule' in actions, 'actions must handle save_rule'
+    assert 'delete_rule' in actions, 'actions must handle delete_rule'
+    assert 'toggle_rule' in actions, 'actions must handle toggle_rule'
+    assert 'category' in actions, 'actions must save category in save_rule'
+
+    # 6. UI & Prospects distinction
+    assert 'Terjadwal (Otomatis)' in page, 'page must render Terjadwal (Otomatis) badge'
+    assert 'Jadwalkan Alur (6 Tahap)' in page, 'page must maintain manual Jadwalkan Alur button for legacy prospects'
+    assert 'Pola Pemicu (Rules)' in page, 'page must display Pola Pemicu in tab title'
+    assert 'editRule' in page, 'page must provide editRule javascript function'
+
+    print("automation-followup-webhook-e2e-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -156,6 +222,8 @@ def main():
         run_actions_test(base_dir)
     if test_name in ["automation-followup-ui-test", "ui", "all"]:
         run_ui_test(base_dir)
+    if test_name in ["automation-followup-webhook-e2e-test", "e2e", "all"]:
+        run_e2e_test(base_dir)
 
 if __name__ == "__main__":
     try:
