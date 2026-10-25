@@ -22,11 +22,7 @@ if (!defined('GEMINI_API_KEY')) {
         define('GEMINI_API_KEY', (string)LOCAL_GEMINI_API_KEY);
     } else {
         $envKey = getenv('GEMINI_API_KEY');
-        if (is_string($envKey) && $envKey !== '') {
-            define('GEMINI_API_KEY', trim($envKey));
-        } else {
-            define('GEMINI_API_KEY', base64_decode('QVEuQWI4Uk42TDJzYVZselpWU2tybGNOaU41YzFWZHBYUWh0M0JENnhlbjY0bmloOXdpWFE='));
-        }
+        define('GEMINI_API_KEY', is_string($envKey) ? trim($envKey) : '');
     }
 }
 
