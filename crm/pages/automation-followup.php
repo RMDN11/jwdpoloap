@@ -14,6 +14,7 @@ if (!in_array($tab, ['prospects', 'rules', 'templates', 'queue'], true)) {
 }
 
 $csrfToken = crmCsrfToken();
+$currentUrl = htmlspecialchars($_SERVER['REQUEST_URI'] ?? ('index.php?' . http_build_query($_GET)));
 
 // Hitung statistik antrean
 $statPending = crmCount($conn, "SELECT COUNT(*) AS total FROM crm_automation_queue WHERE status = 'pending'");
@@ -495,7 +496,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                             </tr>
                         <?php else: ?>
                             <?php foreach ($pagedProspects as $item): ?>
-                                <tr>
+                                <tr id="row-p-<?= preg_replace('/\D/', '', $item['nowa']) ?>">
                                     <td>
                                         <div class="crm-contact-cell">
                                             <div class="crm-avatar">
@@ -583,6 +584,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                                                 <!-- Primary: Jadwalkan Alur (6 Tahap) -->
                                                 <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: flex; align-items: center; gap: 0.35rem;">
                                                     <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                    <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                                                     <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
                                                     <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
                                                     <input type="hidden" name="action" value="schedule_sequence">
@@ -601,6 +603,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                                                 <!-- Secondary: Kirim / Antre 1 Template Tertentu -->
                                                 <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: flex; gap: 0.25rem; align-items: center;">
                                                     <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                    <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                                                     <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
                                                     <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
                                                     <input type="hidden" name="rule_id" value="<?= $activeRuleId ?>">
@@ -640,6 +643,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
             </p>
             <form action="index.php?page=automation-followup" method="POST">
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                 <input type="hidden" name="action" value="save_rule">
                 <input type="hidden" name="tab" value="rules">
                 <input type="hidden" name="rule_id" id="ruleId" value="0">
@@ -719,10 +723,11 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                                     default => ['label' => 'Tanya Detail (Hero)', 'bg' => '#f1f5f9', 'color' => '#334155', 'icon' => 'fa-comment-dots'],
                                 };
                                 ?>
-                                <tr>
+                                <tr id="row-rule-<?= (int)$r['id'] ?>">
                                     <td>
                                         <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
                                             <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                            <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                                             <input type="hidden" name="action" value="toggle_rule">
                                             <input type="hidden" name="tab" value="rules">
                                             <input type="hidden" name="rule_id" value="<?= (int)$r['id'] ?>">
@@ -755,6 +760,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                                             </button>
                                             <form action="index.php?page=automation-followup" method="POST" style="margin: 0;" onsubmit="return confirm('Hapus pola pemicu ini?');">
                                                 <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                                                 <input type="hidden" name="action" value="delete_rule">
                                                 <input type="hidden" name="tab" value="rules">
                                                 <input type="hidden" name="rule_id" value="<?= (int)$r['id'] ?>">
@@ -782,6 +788,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
             </div>
             <form action="index.php?page=automation-followup" method="POST">
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                 <input type="hidden" name="action" value="save_template">
                 <input type="hidden" name="tab" value="templates">
                 <input type="hidden" name="template_id" id="tplId" value="0">
@@ -835,7 +842,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                     <p style="color: #64748b; font-size: 0.875rem;">Belum ada template tersimpan.</p>
                 <?php else: ?>
                     <?php foreach ($templates as $t): ?>
-                        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.1rem; display: flex; flex-direction: column; gap: 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                        <div id="row-tpl-<?= (int)$t['id'] ?>" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.1rem; display: flex; flex-direction: column; gap: 0.75rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                                 <div>
                                     <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
@@ -863,6 +870,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                                     </button>
                                     <form action="index.php?page=automation-followup" method="POST" onsubmit="return confirm('Hapus template ini?');" style="margin: 0;">
                                         <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                        <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                                         <input type="hidden" name="action" value="delete_template">
                                         <input type="hidden" name="tab" value="templates">
                                         <input type="hidden" name="template_id" value="<?= (int)$t['id'] ?>">
@@ -895,6 +903,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                 <div style="display: flex; gap: 0.35rem; align-items: center; flex-wrap: wrap;">
                     <form action="index.php?page=automation-followup" method="POST" style="margin: 0;" onsubmit="return confirm('Bersihkan semua antrean bentrok yang terjadwal di jam bersamaan?');">
                         <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                        <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                         <input type="hidden" name="action" value="clean_duplicate_queues">
                         <input type="hidden" name="tab" value="queue">
                         <button type="submit" class="btn-secondary" style="color: #dc2626; border-color: #fca5a5; background: #fff5f5; font-size: 0.75rem;" title="Batalkan antrean spesifik duplikat yang bentrok di jam yang sama">
@@ -926,7 +935,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                             </tr>
                         <?php else: ?>
                             <?php foreach ($pagedQueue as $q): ?>
-                                <tr>
+                                <tr id="row-queue-<?= (int)$q['id'] ?>">
                                     <td>
                                         <div style="font-weight: 700; color: #0f172a; font-size: 0.85rem;"><?= htmlspecialchars($q['nama'] ?: 'Calon Peserta') ?></div>
                                         <div class="crm-contact-wa-wrap">
@@ -990,6 +999,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                                             <div style="display: flex; gap: 0.35rem; align-items: center;">
                                                 <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
                                                     <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                    <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                                                     <input type="hidden" name="action" value="send_now">
                                                     <input type="hidden" name="tab" value="queue">
                                                     <input type="hidden" name="queue_id" value="<?= (int)$q['id'] ?>">
@@ -999,6 +1009,7 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
                                                 </form>
                                                 <form action="index.php?page=automation-followup" method="POST" style="margin: 0;" onsubmit="return confirm('Batalkan pengiriman pesan ini?');">
                                                     <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                    <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                                                     <input type="hidden" name="action" value="cancel_queue">
                                                     <input type="hidden" name="tab" value="queue">
                                                     <input type="hidden" name="queue_id" value="<?= (int)$q['id'] ?>">
@@ -1185,8 +1196,36 @@ $pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
         document.body.removeChild(ta);
     }
 
+    // Preserve & Restore Scroll Position on Form Submit
+    document.addEventListener('submit', function(e) {
+        if (e.target && e.target.closest('.crm-auto-workspace')) {
+            try {
+                sessionStorage.setItem('crm_scroll_y', window.scrollY.toString());
+            } catch (err) {}
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', function() {
         updateTplCharCount();
+
+        // Restore scroll position or smooth scroll to targeted anchor
+        if (window.location.hash) {
+            try {
+                var targetEl = document.querySelector(window.location.hash);
+                if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                sessionStorage.removeItem('crm_scroll_y');
+            } catch (err) {}
+        } else {
+            try {
+                var savedY = sessionStorage.getItem('crm_scroll_y');
+                if (savedY !== null) {
+                    window.scrollTo({ top: parseInt(savedY, 10), behavior: 'instant' });
+                    sessionStorage.removeItem('crm_scroll_y');
+                }
+            } catch (err) {}
+        }
     });
     </script>
 </div>
