@@ -246,6 +246,86 @@ if ($tab === 'queue') {
         $queueItems = $resQueue->fetch_all(MYSQLI_ASSOC);
     }
 }
+
+// Setup pagination
+$perPage = 15;
+$currentPage = max(1, (int)($_GET['p'] ?? 1));
+
+function crmRenderPagination(int $currentPage, int $totalPages, int $totalItems, int $perPage, array $baseParams): string
+{
+    if ($totalItems <= 0) {
+        return '';
+    }
+
+    $startItem = ($currentPage - 1) * $perPage + 1;
+    $endItem = min($totalItems, $currentPage * $perPage);
+
+    $html = '<div class="crm-pagination">';
+    $html .= '<div class="crm-pagination-info">Menampilkan <strong>' . $startItem . '-' . $endItem . '</strong> dari <strong>' . $totalItems . '</strong> data</div>';
+
+    if ($totalPages > 1) {
+        $html .= '<div class="crm-pagination-links">';
+
+        // Prev
+        $prevParams = array_merge($baseParams, ['p' => max(1, $currentPage - 1)]);
+        $prevUrl = 'index.php?' . http_build_query($prevParams);
+        $prevDisabled = ($currentPage <= 1) ? ' disabled' : '';
+        $html .= '<a href="' . ($currentPage <= 1 ? '#' : htmlspecialchars($prevUrl)) . '" class="crm-page-btn' . $prevDisabled . '"><i class="fa-solid fa-chevron-left"></i> Prev</a>';
+
+        // Page numbers
+        $startPage = max(1, $currentPage - 2);
+        $endPage = min($totalPages, $currentPage + 2);
+
+        if ($startPage > 1) {
+            $p1Params = array_merge($baseParams, ['p' => 1]);
+            $html .= '<a href="index.php?' . htmlspecialchars(http_build_query($p1Params)) . '" class="crm-page-btn">1</a>';
+            if ($startPage > 2) {
+                $html .= '<span class="crm-page-dots">...</span>';
+            }
+        }
+
+        for ($p = $startPage; $p <= $endPage; $p++) {
+            $pParams = array_merge($baseParams, ['p' => $p]);
+            $activeClass = ($p === $currentPage) ? ' active' : '';
+            $html .= '<a href="index.php?' . htmlspecialchars(http_build_query($pParams)) . '" class="crm-page-btn' . $activeClass . '">' . $p . '</a>';
+        }
+
+        if ($endPage < $totalPages) {
+            if ($endPage < $totalPages - 1) {
+                $html .= '<span class="crm-page-dots">...</span>';
+            }
+            $pEndParams = array_merge($baseParams, ['p' => $totalPages]);
+            $html .= '<a href="index.php?' . htmlspecialchars(http_build_query($pEndParams)) . '" class="crm-page-btn">' . $totalPages . '</a>';
+        }
+
+        // Next
+        $nextParams = array_merge($baseParams, ['p' => min($totalPages, $currentPage + 1)]);
+        $nextUrl = 'index.php?' . http_build_query($nextParams);
+        $nextDisabled = ($currentPage >= $totalPages) ? ' disabled' : '';
+        $html .= '<a href="' . ($currentPage >= $totalPages ? '#' : htmlspecialchars($nextUrl)) . '" class="crm-page-btn' . $nextDisabled . '">Next <i class="fa-solid fa-chevron-right"></i></a>';
+
+        $html .= '</div>';
+    }
+
+    $html .= '</div>';
+    return $html;
+}
+
+// Hitung data pagination per tab
+$totalProspects = count($prospects);
+$totalPagesProspects = max(1, (int)ceil($totalProspects / $perPage));
+$pageProspects = min($currentPage, $totalPagesProspects);
+$pagedProspects = array_slice($prospects, ($pageProspects - 1) * $perPage, $perPage);
+
+$totalRules = count($rules);
+$totalPagesRules = max(1, (int)ceil($totalRules / $perPage));
+$pageRules = min($currentPage, $totalPagesRules);
+$pagedRules = array_slice($rules, ($pageRules - 1) * $perPage, $perPage);
+
+$totalQueue = count($queueItems);
+$totalPagesQueue = max(1, (int)ceil($totalQueue / $perPage));
+$pageQueue = min($currentPage, $totalPagesQueue);
+$pagedQueue = array_slice($queueItems, ($pageQueue - 1) * $perPage, $perPage);
 ?>
 
 <div class="crm-auto-workspace">
@@ -417,7 +497,7 @@ if ($tab === 'queue') {
                                 </td>
                             </tr>
                         <?php else: ?>
-                            <?php foreach ($prospects as $item): ?>
+                            <?php foreach ($pagedProspects as $item): ?>
                                 <tr>
                                     <td>
                                         <div class="crm-contact-cell">
@@ -426,10 +506,15 @@ if ($tab === 'queue') {
                                             </div>
                                             <div class="crm-contact-info">
                                                 <span class="crm-contact-name"><?= htmlspecialchars($item['nama']) ?></span>
-                                                <a href="https://wa.me/<?= htmlspecialchars(preg_replace('/\D+/', '', $item['nowa'])) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa" title="Buka obrolan di WhatsApp">
-                                                    <i class="fa-brands fa-whatsapp"></i>
-                                                    <span><?= htmlspecialchars($item['nowa']) ?></span>
-                                                </a>
+                                                <div class="crm-contact-wa-wrap">
+                                                    <a href="https://wa.me/<?= htmlspecialchars(preg_replace('/\D+/', '', $item['nowa'])) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa" title="Buka obrolan di WhatsApp">
+                                                        <i class="fa-brands fa-whatsapp"></i>
+                                                        <span><?= htmlspecialchars($item['nowa']) ?></span>
+                                                    </a>
+                                                    <button type="button" class="btn-copy-wa" onclick="crmCopyWaNumber('<?= htmlspecialchars(preg_replace('/\D+/', '', $item['nowa'])) ?>', this)" title="Salin nomor WhatsApp">
+                                                        <i class="fa-regular fa-copy"></i>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -543,6 +628,7 @@ if ($tab === 'queue') {
                     </tbody>
                 </table>
             </div>
+            <?= crmRenderPagination($pageProspects, $totalPagesProspects, $totalProspects, $perPage, ['page' => 'automation-followup', 'tab' => 'prospects', 'cat' => $cfilter, 'pfilter' => $pfilter]) ?>
         </div>
     <?php endif; ?>
 
@@ -624,7 +710,7 @@ if ($tab === 'queue') {
                                 <td colspan="5" style="text-align: center; color: #64748b; padding: 1.5rem;">Belum ada pola pemicu. Silakan tambahkan pada form di atas.</td>
                             </tr>
                         <?php else: ?>
-                            <?php foreach ($rules as $r): ?>
+                            <?php foreach ($pagedRules as $r): ?>
                                 <?php
                                 $rCat = (string)($r['category'] ?? 'general');
                                 $catBadge = match($rCat) {
@@ -687,6 +773,7 @@ if ($tab === 'queue') {
                     </tbody>
                 </table>
             </div>
+            <?= crmRenderPagination($pageRules, $totalPagesRules, $totalRules, $perPage, ['page' => 'automation-followup', 'tab' => 'rules']) ?>
         </div>
     <?php endif; ?>
 
@@ -841,13 +928,18 @@ if ($tab === 'queue') {
                                 <td colspan="5" style="text-align: center; color: #64748b; padding: 2rem;">Tidak ada antrean dalam filter ini.</td>
                             </tr>
                         <?php else: ?>
-                            <?php foreach ($queueItems as $q): ?>
+                            <?php foreach ($pagedQueue as $q): ?>
                                 <tr>
                                     <td>
                                         <div style="font-weight: 700; color: #0f172a; font-size: 0.85rem;"><?= htmlspecialchars($q['nama'] ?: 'Calon Peserta') ?></div>
-                                        <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', (string)$q['nowa']) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa">
-                                            <i class="fa-brands fa-whatsapp"></i> <?= htmlspecialchars($q['nowa']) ?>
-                                        </a>
+                                        <div class="crm-contact-wa-wrap">
+                                            <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', (string)$q['nowa']) ?>" target="_blank" rel="noopener noreferrer" class="crm-contact-wa" title="Buka obrolan di WhatsApp">
+                                                <i class="fa-brands fa-whatsapp"></i> <span><?= htmlspecialchars($q['nowa']) ?></span>
+                                            </a>
+                                            <button type="button" class="btn-copy-wa" onclick="crmCopyWaNumber('<?= preg_replace('/[^0-9]/', '', (string)$q['nowa']) ?>', this)" title="Salin nomor WhatsApp">
+                                                <i class="fa-regular fa-copy"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                     <td>
                                         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
@@ -928,6 +1020,7 @@ if ($tab === 'queue') {
                     </tbody>
                 </table>
             </div>
+            <?= crmRenderPagination($pageQueue, $totalPagesQueue, $totalQueue, $perPage, ['page' => 'automation-followup', 'tab' => 'queue', 'qstatus' => $filterStatus]) ?>
         </div>
     <?php endif; ?>
 
@@ -1058,6 +1151,41 @@ if ($tab === 'queue') {
         if (cancelBtn) cancelBtn.style.display = 'none';
 
         updateTplCharCount();
+    }
+
+    function crmCopyWaNumber(nowa, btn) {
+        if (!nowa) return;
+        var origHtml = btn.innerHTML;
+        var feedback = function() {
+            btn.innerHTML = '<i class="fa-solid fa-check" style="color: #10b981;"></i>';
+            btn.classList.add('copied');
+            setTimeout(function() {
+                btn.innerHTML = origHtml;
+                btn.classList.remove('copied');
+            }, 1500);
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(nowa).then(feedback).catch(function() {
+                fallbackCopy(nowa, feedback);
+            });
+        } else {
+            fallbackCopy(nowa, feedback);
+        }
+    }
+
+    function fallbackCopy(text, callback) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand('copy');
+            if (callback) callback();
+        } catch (e) {}
+        document.body.removeChild(ta);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
