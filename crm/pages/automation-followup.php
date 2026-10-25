@@ -154,24 +154,37 @@ if ($tab === 'prospects') {
                 }
             }
 
-            // Klasifikasikan kategori berdasarkan pesan pemicu awal & riwayat
-            $combinedText = $firstTriggerMsg . ' ' . $historyText . ' ' . $lastMsg;
-            if (stripos($combinedText, 'tahfidz cilik') !== false) {
-                $category = crmAutomationClassifyLpLead('tahfidz cilik');
-            } elseif (stripos($combinedText, 'menghafal pemula') !== false) {
-                $category = crmAutomationClassifyLpLead('menghafal pemula');
-            } elseif (stripos($combinedText, 'menghafal lanjutan') !== false || stripos($combinedText, 'penguatan hafalan') !== false) {
-                $category = crmAutomationClassifyLpLead('menghafal lanjutan');
-            } elseif (stripos($combinedText, 'daftar program') !== false || stripos($combinedText, 'daftar sekarang') !== false) {
-                $category = crmAutomationClassifyLpLead('daftar program');
-            } elseif (stripos($combinedText, 'perkenalkan nama saya') !== false || stripos($combinedText, 'nama saya') !== false) {
-                $category = [
-                    'key' => 'form_lead',
-                    'label' => 'Bismillah Nama LP',
-                    'color' => '#0284c7',
-                    'bg' => '#e0f2fe',
-                    'icon' => 'fa-user-pen',
-                ];
+            // Validasi apakah pesan prospek cocok dengan pola pemicu aturan aktif
+            $matchedRule = crmAutomationFindMatchingTrigger($conn, $firstTriggerMsg ?: $lastMsg);
+            if (!$matchedRule && !empty($lastMsg)) {
+                $matchedRule = crmAutomationFindMatchingTrigger($conn, $lastMsg);
+            }
+            if (!$matchedRule && !empty($firstTriggerMsg)) {
+                $matchedRule = crmAutomationFindMatchingTrigger($conn, $firstTriggerMsg);
+            }
+
+            $qData = $existingQueue[$normalized] ?? null;
+
+            // Jika tidak ada antrean follow-up dan tidak cocok dengan rules pemicu aktif, jangan tampilkan di prospek
+            if (!$qData && !$matchedRule) {
+                continue;
+            }
+
+            // Klasifikasikan kategori berdasarkan rule yang cocok
+            if ($matchedRule) {
+                $catKey = (string)($matchedRule['category'] ?? 'general');
+                $category = crmAutomationClassifyLpLead($matchedRule['trigger_keyword'] ?: $catKey);
+                if ($catKey === 'form_lead') {
+                    $category = [
+                        'key' => 'form_lead',
+                        'label' => 'Bismillah Nama LP',
+                        'color' => '#0284c7',
+                        'bg' => '#e0f2fe',
+                        'icon' => 'fa-user-pen',
+                    ];
+                } elseif (!empty($matchedRule['name']) && $category['key'] === 'general') {
+                    $category['label'] = $matchedRule['name'];
+                }
             } else {
                 $category = crmAutomationClassifyLpLead($firstTriggerMsg ?: $lastMsg);
             }
@@ -180,8 +193,6 @@ if ($tab === 'prospects') {
             if ($cfilter !== 'all' && $category['key'] !== $cfilter) {
                 continue;
             }
-
-            $qData = $existingQueue[$normalized] ?? null;
 
             $prospects[] = [
                 'nowa' => $nowa,
