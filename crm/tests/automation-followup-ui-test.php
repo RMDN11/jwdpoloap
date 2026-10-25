@@ -36,6 +36,10 @@ $requiredPageTokens = [
     'crm_automation_templates',
     'crm_automation_queue',
     'crmCsrfToken',
+    'Pola Pemicu (Rules)',
+    'Terjadwal (Otomatis)',
+    'trigger_source',
+    'Jadwalkan Alur (6 Tahap)',
 ];
 
 foreach ($requiredPageTokens as $token) {

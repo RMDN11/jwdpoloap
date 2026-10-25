@@ -113,7 +113,7 @@ if ($tab === 'prospects') {
         $rawProspects = $resP->fetch_all(MYSQLI_ASSOC);
         
         $existingQueue = [];
-        $resQ = $conn->query("SELECT nowa, id, status, scheduled_at FROM crm_automation_queue ORDER BY (status = 'pending') DESC, id DESC");
+        $resQ = $conn->query("SELECT nowa, id, status, scheduled_at, trigger_source FROM crm_automation_queue ORDER BY (status = 'pending') DESC, id DESC");
         if ($resQ instanceof mysqli_result) {
             while ($qRow = $resQ->fetch_assoc()) {
                 $normQ = crmProspectNormalizeNumber((string)$qRow['nowa']);
@@ -460,9 +460,19 @@ if ($tab === 'queue') {
                                         <?php if ($item['queue']): ?>
                                             <?php $qs = (string)$item['queue']['status']; ?>
                                             <?php if ($qs === 'pending'): ?>
-                                                <span class="badge-status badge-pending">
-                                                    <i class="fa-solid fa-calendar-check"></i> Terjadwal (<?= date('d/m H:i', strtotime($item['queue']['scheduled_at'])) ?>)
-                                                </span>
+                                                <?php $isAuto = (($item['queue']['trigger_source'] ?? '') === 'auto_webhook'); ?>
+                                                <?php if ($isAuto): ?>
+                                                    <span class="badge-status badge-sent" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;" title="Terjadwal otomatis via Webhook WhatsApp saat chat baru masuk">
+                                                        <i class="fa-solid fa-bolt"></i> Terjadwal (Otomatis)
+                                                    </span>
+                                                    <div style="font-size: 0.68rem; color: #64748b; margin-top: 2px;">
+                                                        <i class="fa-regular fa-clock"></i> <?= date('d/m H:i', strtotime($item['queue']['scheduled_at'])) ?>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <span class="badge-status badge-pending">
+                                                        <i class="fa-solid fa-calendar-check"></i> Terjadwal (<?= date('d/m H:i', strtotime($item['queue']['scheduled_at'])) ?>)
+                                                    </span>
+                                                <?php endif; ?>
                                             <?php elseif ($qs === 'sent'): ?>
                                                 <span class="badge-status badge-sent"><i class="fa-solid fa-check-double"></i> Terkirim</span>
                                             <?php else: ?>
@@ -855,7 +865,11 @@ if ($tab === 'queue') {
                                     </td>
                                     <td>
                                         <?php if ($q['status'] === 'pending'): ?>
-                                            <span class="badge-status badge-pending"><i class="fa-solid fa-clock"></i> Terjadwal</span>
+                                            <?php if (($q['trigger_source'] ?? '') === 'auto_webhook'): ?>
+                                                <span class="badge-status badge-sent" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;"><i class="fa-solid fa-bolt"></i> Terjadwal (Otomatis)</span>
+                                            <?php else: ?>
+                                                <span class="badge-status badge-pending"><i class="fa-solid fa-clock"></i> Terjadwal (Manual)</span>
+                                            <?php endif; ?>
                                         <?php elseif ($q['status'] === 'sent'): ?>
                                             <span class="badge-status badge-sent"><i class="fa-solid fa-circle-check"></i> Terkirim</span>
                                         <?php elseif (str_starts_with((string)$q['status'], 'cancelled')): ?>

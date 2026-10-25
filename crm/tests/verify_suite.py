@@ -112,6 +112,38 @@ def run_actions_test(base_dir):
 
     print("automation-followup-actions-test: OK")
 
+def run_ui_test(base_dir):
+    page_path = os.path.join(base_dir, "crm/pages/automation-followup.php")
+    css_path = os.path.join(base_dir, "crm/assets/css/automation-followup.css")
+
+    if not os.path.exists(page_path) or not os.path.exists(css_path):
+        raise AssertionError("Missing UI page or CSS file.")
+
+    with open(page_path, "r", encoding="utf-8") as f:
+        page_content = f.read()
+
+    required_tokens = [
+        'Automation Follow Up',
+        'tab=prospects',
+        'tab=rules',
+        'tab=templates',
+        'tab=queue',
+        'crm_automation_rules',
+        'crm_automation_templates',
+        'crm_automation_queue',
+        'crmCsrfToken',
+        'Pola Pemicu (Rules)',
+        'Terjadwal (Otomatis)',
+        'trigger_source',
+        'Jadwalkan Alur (6 Tahap)',
+    ]
+
+    for token in required_tokens:
+        if token not in page_content:
+            raise AssertionError(f"automation-followup.php missing required token: {token}")
+
+    print("automation-followup-ui-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -122,6 +154,8 @@ def main():
         run_trigger_test(base_dir)
     if test_name in ["automation-followup-actions-test", "actions", "all"]:
         run_actions_test(base_dir)
+    if test_name in ["automation-followup-ui-test", "ui", "all"]:
+        run_ui_test(base_dir)
 
 if __name__ == "__main__":
     try:
