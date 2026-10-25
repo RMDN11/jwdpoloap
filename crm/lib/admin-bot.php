@@ -353,27 +353,38 @@ function crmAdminBotSendMessage(string $to, string $message, string $apiUrl, str
     }
 
     $cleanPhone = crmAdminBotNormalizeNumber($to);
-    $payload = [
-        'recipient' => $cleanPhone,
-        'type' => 'text',
-        'content' => [
-            'text' => $message
+    $payload = json_encode([
+        'recipient_type' => 'individual',
+        'to'             => $cleanPhone,
+        'type'           => 'text',
+        'text'           => [
+            'body' => $message
         ]
-    ];
+    ], JSON_UNESCAPED_UNICODE);
 
     $ch = curl_init($apiUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $apiToken,
-        'Content-Type: application/json'
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiToken
+        ],
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_SSL_VERIFYPEER => false,
     ]);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
 
     $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+
+    if ($result) {
+        $resJson = json_decode($result, true);
+        if (isset($resJson['code']) && (int)$resJson['code'] === 200) {
+            return true;
+        }
+    }
 
     return ($httpCode >= 200 && $httpCode < 300);
 }
