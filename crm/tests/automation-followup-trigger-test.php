@@ -1,25 +1,39 @@
 <?php
 declare(strict_types=1);
 
-$enginePath = __DIR__ . '/../../auto_reply_engine.php';
-if (!file_exists($enginePath)) {
-    throw new RuntimeException("Missing auto_reply_engine.php at: {$enginePath}");
+$configPath = __DIR__ . '/../config/automation-followup.php';
+$webhookPath = __DIR__ . '/../../webhook.php';
+
+if (!file_exists($configPath) || !file_exists($webhookPath)) {
+    throw new RuntimeException("Missing config or webhook file.");
 }
 
-$content = file_get_contents($enginePath);
-if ($content === false) {
-    throw new RuntimeException("Cannot read {$enginePath}");
+$configContent = file_get_contents($configPath);
+$webhookContent = file_get_contents($webhookPath);
+
+if ($configContent === false || $webhookContent === false) {
+    throw new RuntimeException("Cannot read config or webhook files.");
 }
 
-$requiredTokens = [
-    'crmAutomationRegisterQueue',
-    'crm_automation_rules',
-    'trigger_keyword',
+// 1. Verifikasi webhook.php terhubung dengan crmAutomationHandleIncomingWebhook
+if (!str_contains($webhookContent, 'crmAutomationHandleIncomingWebhook')) {
+    throw new RuntimeException("webhook.php missing crmAutomationHandleIncomingWebhook call.");
+}
+
+// 2. Verifikasi crm/config/automation-followup.php memiliki deklarasi fungsi dan pengaman
+$requiredConfigTokens = [
+    'function crmAutomationHandleIncomingWebhook',
+    'crmAutomationIsOperationalNumber',
+    'crmAutomationIsBlocked',
+    'crmAutomationHasReceivedPayment',
+    'crmAutomationFindMatchingTrigger',
+    'crmAutomationScheduleSequence',
+    'auto_webhook',
 ];
 
-foreach ($requiredTokens as $token) {
-    if (!str_contains($content, $token)) {
-        throw new RuntimeException("Missing auto_reply trigger integration token: {$token}");
+foreach ($requiredConfigTokens as $token) {
+    if (!str_contains($configContent, $token)) {
+        throw new RuntimeException("automation-followup.php missing required webhook trigger token: {$token}");
     }
 }
 

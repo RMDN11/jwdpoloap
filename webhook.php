@@ -99,6 +99,7 @@ require_once $baseDir . '/crm/config/chat.php';
 require_once $baseDir . '/crm/config/chat-directory.php';
 require_once $baseDir . '/crm/config/prospect.php';
 require_once $baseDir . '/crm/config/chat-routing.php';
+require_once $baseDir . '/crm/config/automation-followup.php';
 
 $dbConnected = isset($conn) && $conn instanceof mysqli && !$conn->connect_error;
 logx("DB CONNECTED: " . ($dbConnected ? 'YES' : 'NO'));
@@ -178,25 +179,41 @@ if ($isTeacherContact) {
     // Keep raw inbound message in log_wa/crm_messages, but never run prospect/auto-reply triggers for teachers.
     $autoReplyStatus = 'skipped_teacher';
     logx("AUTO REPLY/TRIGGER SKIPPED: known teacher contact");
-} elseif (!file_exists($engineFile)) {
-    logx("AUTO REPLY ENGINE FILE NOT FOUND");
 } else {
-    $apiUrl   = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : ($ONESENDER_API_URL ?? null);
-    $apiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : ($ONESENDER_API_TOKEN ?? null);
-
-    if (empty($apiUrl) || empty($apiToken)) {
-        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN tidak disetting di config.php");
-    } else {
-        logx("Menjalankan Auto Reply ke URL: " . $apiUrl);
+    // 1. Eksekusi Automasi Follow-Up Real-Time jika pesan cocok dengan pola pemicu pendaftaran
+    $autoFollowupStatus = 'skipped';
+    if ($dbConnected && function_exists('crmAutomationHandleIncomingWebhook')) {
         try {
-            require_once $engineFile;
-            $autoReply = new AutoReplyEngine($conn, $apiUrl, $apiToken, $baseDir . '/auto_reply_log.txt');
-            $sent = $autoReply->processIncomingMessage($senderPhone, $messageText, $senderName);
-            $autoReplyStatus = $sent ? 'sent' : 'failed';
-            logx("AUTO REPLY STATUS: {$autoReplyStatus}");
+            $followupResult = crmAutomationHandleIncomingWebhook($conn, $senderPhone, $messageText, $senderName);
+            $autoFollowupStatus = (string)($followupResult['status'] ?? 'skipped');
+            logx("AUTO FOLLOWUP REALTIME: {$autoFollowupStatus} (Reason: " . ($followupResult['reason'] ?? '') . ", Count: " . ($followupResult['count'] ?? 0) . ")");
         } catch (Throwable $e) {
-            logx("AUTO REPLY ERROR: " . $e->getMessage());
-            $autoReplyStatus = 'error';
+            logx("AUTO FOLLOWUP REALTIME ERROR: " . $e->getMessage());
+            $autoFollowupStatus = 'error';
+        }
+    }
+
+    // 2. Eksekusi Auto Reply Pesan Instan
+    if (!file_exists($engineFile)) {
+        logx("AUTO REPLY ENGINE FILE NOT FOUND");
+    } else {
+        $apiUrl   = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : ($ONESENDER_API_URL ?? null);
+        $apiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : ($ONESENDER_API_TOKEN ?? null);
+
+        if (empty($apiUrl) || empty($apiToken)) {
+            logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN tidak disetting di config.php");
+        } else {
+            logx("Menjalankan Auto Reply ke URL: " . $apiUrl);
+            try {
+                require_once $engineFile;
+                $autoReply = new AutoReplyEngine($conn, $apiUrl, $apiToken, $baseDir . '/auto_reply_log.txt');
+                $sent = $autoReply->processIncomingMessage($senderPhone, $messageText, $senderName);
+                $autoReplyStatus = $sent ? 'sent' : 'failed';
+                logx("AUTO REPLY STATUS: {$autoReplyStatus}");
+            } catch (Throwable $e) {
+                logx("AUTO REPLY ERROR: " . $e->getMessage());
+                $autoReplyStatus = 'error';
+            }
         }
     }
 }
@@ -209,8 +226,9 @@ echo json_encode([
         'msg_length' => strlen($messageText),
         'saved_db'   => $savedToDB,
         'chat_saved' => $chatMessageId !== null && $chatMessageId !== 0,
-        'room'       => $routingRoom,
-        'auto_reply' => $autoReplyStatus
+        'room'          => $routingRoom,
+        'auto_reply'    => $autoReplyStatus,
+        'auto_followup' => $autoFollowupStatus ?? 'skipped'
     ]
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
 

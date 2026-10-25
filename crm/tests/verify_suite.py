@@ -53,12 +53,45 @@ def run_db_test(base_dir):
 
     print("automation-followup-db-test: OK")
 
+def run_trigger_test(base_dir):
+    config_path = os.path.join(base_dir, "crm/config/automation-followup.php")
+    webhook_path = os.path.join(base_dir, "webhook.php")
+
+    if not os.path.exists(config_path) or not os.path.exists(webhook_path):
+        raise AssertionError("Missing config or webhook file.")
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        config_content = f.read()
+    with open(webhook_path, "r", encoding="utf-8") as f:
+        webhook_content = f.read()
+
+    if "crmAutomationHandleIncomingWebhook" not in webhook_content:
+        raise AssertionError("webhook.php missing crmAutomationHandleIncomingWebhook call.")
+
+    required_config_tokens = [
+        'function crmAutomationHandleIncomingWebhook',
+        'crmAutomationIsOperationalNumber',
+        'crmAutomationIsBlocked',
+        'crmAutomationHasReceivedPayment',
+        'crmAutomationFindMatchingTrigger',
+        'crmAutomationScheduleSequence',
+        'auto_webhook',
+    ]
+
+    for token in required_config_tokens:
+        if token not in config_content:
+            raise AssertionError(f"automation-followup.php missing required webhook trigger token: {token}")
+
+    print("automation-followup-trigger-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
 
     if test_name in ["automation-followup-db-test", "db", "all"]:
         run_db_test(base_dir)
+    if test_name in ["automation-followup-trigger-test", "trigger", "all"]:
+        run_trigger_test(base_dir)
 
 if __name__ == "__main__":
     try:

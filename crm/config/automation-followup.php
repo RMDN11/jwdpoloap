@@ -967,5 +967,106 @@ function crmAutomationRegisterSequence(
     $res = crmAutomationScheduleSequence($conn, $nowa, $nama, 0, $keyword, $triggerSource);
     return (int)($res['count'] ?? 0);
 }
-    return (int)($res['count'] ?? 0);
+
+/**
+ * Menangani chat masuk real-time dari webhook untuk secara otomatis menjadwalkan
+ * urutan alur follow-up 6 tahap jika pesan cocok dengan pola pemicu pendaftaran aktif.
+ *
+ * @return array{handled: bool, status: string, reason: string, count: int, trigger?: array}
+ */
+function crmAutomationHandleIncomingWebhook(
+    mysqli $conn,
+    string $nowa,
+    string $message,
+    ?string $nama = null
+): array {
+    crmAutomationEnsureTables($conn);
+
+    if (crmAutomationIsOperationalNumber($nowa)) {
+        return [
+            'handled' => false,
+            'status' => 'skipped',
+            'reason' => 'operational_number',
+            'count' => 0,
+        ];
+    }
+
+    $normalized = crmProspectNormalizeNumber($nowa);
+    if ($normalized === '' || crmAutomationIsOperationalNumber($normalized)) {
+        return [
+            'handled' => false,
+            'status' => 'skipped',
+            'reason' => 'invalid_number',
+            'count' => 0,
+        ];
+    }
+
+    // Periksa apakah kontak adalah nomor guru/pengajar
+    if (function_exists('crmChatIsTeacherNumber') && crmChatIsTeacherNumber($conn, $normalized)) {
+        return [
+            'handled' => false,
+            'status' => 'skipped',
+            'reason' => 'teacher_contact',
+            'count' => 0,
+        ];
+    }
+
+    // Periksa apakah nomor diblokir
+    if (crmAutomationIsBlocked($conn, $normalized)) {
+        return [
+            'handled' => false,
+            'status' => 'skipped',
+            'reason' => 'blocked',
+            'count' => 0,
+        ];
+    }
+
+    // Periksa apakah kontak sudah pernah isi form payment finance / jadi peserta aktif
+    if (crmAutomationHasReceivedPayment($conn, $normalized)) {
+        return [
+            'handled' => false,
+            'status' => 'skipped',
+            'reason' => 'already_paid',
+            'count' => 0,
+        ];
+    }
+
+    // Periksa apakah isi pesan cocok dengan salah satu pola pemicu pendaftaran aktif
+    $matchedTrigger = crmAutomationFindMatchingTrigger($conn, $message);
+    if (!$matchedTrigger) {
+        return [
+            'handled' => false,
+            'status' => 'skipped',
+            'reason' => 'no_matching_trigger',
+            'count' => 0,
+        ];
+    }
+
+    // Ekstrak nama calon peserta jika nama kosong atau default "Kak"
+    $cleanName = trim((string)$nama);
+    if ($cleanName === '' || $cleanName === 'Kak' || $cleanName === 'Tanpa Nama' || $cleanName === 'Unknown') {
+        if (preg_match('/(?:perkenalkan nama saya|nama saya|nama sy)\s+([A-Za-z]+)/i', $message, $mName)) {
+            $cleanName = ucfirst(strtolower(trim($mName[1])));
+        } else {
+            $cleanName = 'Kak';
+        }
+    }
+
+    // Jadwalkan 6 tahap alur follow-up standar dengan penanda 'auto_webhook'
+    $res = crmAutomationScheduleSequence(
+        $conn,
+        $normalized,
+        $cleanName,
+        0,
+        $message,
+        'auto_webhook'
+    );
+
+    return [
+        'handled' => !empty($res['success']),
+        'status' => !empty($res['success']) ? 'scheduled' : 'failed',
+        'reason' => (string)($res['reason'] ?? ''),
+        'count' => (int)($res['count'] ?? 0),
+        'trigger' => $matchedTrigger,
+    ];
 }
