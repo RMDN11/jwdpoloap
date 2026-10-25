@@ -46,8 +46,8 @@ class AutoReplyEngine
                 '62248232064090227@s.whatsapp.net'
             ];
             
-            if (in_array($phone, $ignoredNumbers) || in_array($contactId, $ignoredRawIds) || (function_exists('crmAdminBotIsAdmin') && crmAdminBotIsAdmin($phone))) {
-                $this->logToFile("Auto-reply skipped & dropped: Contact is in ignore list / Admin Bot ({$contactId})");
+            if (in_array($phone, $ignoredNumbers) || in_array($contactId, $ignoredRawIds)) {
+                $this->logToFile("Auto-reply skipped & dropped: Contact is in ignore list ({$contactId})");
                 // Menghentikan eksekusi secara total agar tidak masuk ke pesan.php
                 return false; 
             }

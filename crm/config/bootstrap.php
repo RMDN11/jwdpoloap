@@ -83,9 +83,6 @@ function crmNormalizeNumber(string $number): string {
     return $number;
 }
 
-require_once __DIR__ . '/admin-bot.php';
-crmAdminBotEnsureTables($conn);
-
 if (empty($_SESSION['crm_csrf'])) {
     $_SESSION['crm_csrf'] = bin2hex(random_bytes(32));
 }

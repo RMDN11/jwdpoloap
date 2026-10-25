@@ -100,8 +100,6 @@ require_once $baseDir . '/crm/config/chat-directory.php';
 require_once $baseDir . '/crm/config/prospect.php';
 require_once $baseDir . '/crm/config/chat-routing.php';
 require_once $baseDir . '/crm/config/automation-followup.php';
-require_once $baseDir . '/crm/config/admin-bot.php';
-require_once $baseDir . '/crm/lib/admin-bot.php';
 
 $dbConnected = isset($conn) && $conn instanceof mysqli && !$conn->connect_error;
 logx("DB CONNECTED: " . ($dbConnected ? 'YES' : 'NO'));
@@ -177,32 +175,7 @@ if ($dbConnected) {
     }
 }
 
-if ($dbConnected && function_exists('crmAdminBotEnsureTables')) {
-    crmAdminBotEnsureTables($conn);
-}
-
-$isAdminContact = function_exists('crmAdminBotIsAdmin') && crmAdminBotIsAdmin($senderPhone);
-$adminBotStatus = 'skipped';
-
-if ($isAdminContact) {
-    logx("ADMIN CONTACT DETECTED: routing to Admin Bot Engine ({$senderPhone})");
-    $apiUrl   = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : ($ONESENDER_API_URL ?? null);
-    $apiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : ($ONESENDER_API_TOKEN ?? null);
-
-    if (empty($apiUrl) || empty($apiToken)) {
-        logx("ERROR: ONESENDER_API_URL atau ONESENDER_API_TOKEN belum disetting untuk Admin Bot");
-        $adminBotStatus = 'error_missing_credentials';
-    } else {
-        try {
-            $botResult = crmAdminBotProcessMessage($conn, $senderPhone, $messageText, $senderName, (string)$apiUrl, (string)$apiToken, $baseDir);
-            $adminBotStatus = !empty($botResult['sent']) ? 'sent' : 'processed';
-            logx("ADMIN BOT EXECUTED: action=" . ($botResult['action'] ?? 'none') . ", status={$adminBotStatus}");
-        } catch (Throwable $e) {
-            logx("ADMIN BOT ERROR: " . $e->getMessage());
-            $adminBotStatus = 'error';
-        }
-    }
-} elseif ($isTeacherContact) {
+if ($isTeacherContact) {
     // Keep raw inbound message in log_wa/crm_messages, but never run prospect/auto-reply triggers for teachers.
     $autoReplyStatus = 'skipped_teacher';
     logx("AUTO REPLY/TRIGGER SKIPPED: known teacher contact");
@@ -254,7 +227,6 @@ echo json_encode([
         'saved_db'   => $savedToDB,
         'chat_saved' => $chatMessageId !== null && $chatMessageId !== 0,
         'room'          => $routingRoom,
-        'admin_bot'     => $adminBotStatus,
         'auto_reply'    => $autoReplyStatus,
         'auto_followup' => $autoFollowupStatus ?? 'skipped'
     ]
