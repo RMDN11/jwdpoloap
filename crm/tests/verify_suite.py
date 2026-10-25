@@ -220,6 +220,53 @@ def run_e2e_test(base_dir):
 
     print("automation-followup-webhook-e2e-test: OK")
 
+def run_cleanup_test(base_dir):
+    config_path = os.path.join(base_dir, "crm/config/automation-followup.php")
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = f.read()
+
+    assert "$ruleName = 'Tahfidz Private - ' . $tpl['name']" not in cfg, 'Config still seeds legacy Tahfidz Private - Follow Up rules!'
+    assert "DELETE FROM crm_automation_rules WHERE name LIKE 'Tahfidz Private - Follow Up %'" in cfg, 'Missing DELETE query'
+    assert 'legacy_fu_rules_cleaned_v1' in cfg, 'Missing migration flag'
+    print("automation-followup-cleanup-test: OK")
+
+def run_prospect_filter_test(base_dir):
+    page_path = os.path.join(base_dir, "crm/pages/automation-followup.php")
+    with open(page_path, "r", encoding="utf-8") as f:
+        page = f.read()
+
+    assert 'crmAutomationFindMatchingTrigger($conn' in page, 'Page does not validate prospects using crmAutomationFindMatchingTrigger'
+    assert ('!$qData && !$matchedRule' in page or '!$matchedRule && !$qData' in page), 'Page does not skip prospects with no matching rule and no queue'
+    print("automation-followup-prospect-filter-test: OK")
+
+def run_pagination_test(base_dir):
+    page_path = os.path.join(base_dir, "crm/pages/automation-followup.php")
+    css_path = os.path.join(base_dir, "crm/assets/css/automation-followup.css")
+    with open(page_path, "r", encoding="utf-8") as f:
+        page = f.read()
+    with open(css_path, "r", encoding="utf-8") as f:
+        css = f.read()
+
+    assert '$perPage = 15' in page, 'Page does not define $perPage = 15'
+    assert 'crmRenderPagination' in page, 'Page does not define crmRenderPagination helper'
+    assert 'crm-pagination' in page, 'Page does not include crm-pagination class'
+    assert '.crm-pagination' in css, 'CSS missing .crm-pagination styling'
+    print("automation-followup-pagination-test: OK")
+
+def run_copy_wa_test(base_dir):
+    page_path = os.path.join(base_dir, "crm/pages/automation-followup.php")
+    css_path = os.path.join(base_dir, "crm/assets/css/automation-followup.css")
+    with open(page_path, "r", encoding="utf-8") as f:
+        page = f.read()
+    with open(css_path, "r", encoding="utf-8") as f:
+        css = f.read()
+
+    assert 'class="btn-copy-wa"' in page, 'Page missing btn-copy-wa'
+    assert 'https://wa.me/' in page, 'Page missing wa.me link'
+    assert 'function crmCopyWaNumber(' in page, 'Page missing crmCopyWaNumber'
+    assert '.btn-copy-wa' in css, 'CSS missing .btn-copy-wa styling'
+    print("automation-followup-copy-wa-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -234,6 +281,14 @@ def main():
         run_ui_test(base_dir)
     if test_name in ["automation-followup-webhook-e2e-test", "e2e", "all"]:
         run_e2e_test(base_dir)
+    if test_name in ["automation-followup-cleanup-test", "cleanup", "all"]:
+        run_cleanup_test(base_dir)
+    if test_name in ["automation-followup-prospect-filter-test", "prospect-filter", "all"]:
+        run_prospect_filter_test(base_dir)
+    if test_name in ["automation-followup-pagination-test", "pagination", "all"]:
+        run_pagination_test(base_dir)
+    if test_name in ["automation-followup-copy-wa-test", "copy-wa", "all"]:
+        run_copy_wa_test(base_dir)
 
 if __name__ == "__main__":
     try:
