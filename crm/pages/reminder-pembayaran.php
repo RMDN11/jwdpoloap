@@ -264,10 +264,6 @@ if ($hasFilter) {
     unset($participant);
 }
 
-$pendingRequests = [];
-$r = $conn->query("SELECT id, halaqoh, peserta_nama, peserta_nowa, pesan_pengajar, status, created_at FROM reminder_requests ORDER BY created_at DESC LIMIT 12");
-if ($r) $pendingRequests = $r->fetch_all(MYSQLI_ASSOC);
-
 $formatReminderHistory = static function (int $count, ?string $lastAt): string {
     if ($count < 1 || !$lastAt) return 'Belum pernah dihubungi';
     $timestamp = strtotime($lastAt);
@@ -534,52 +530,6 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                     <span>Kirim ke <b id="reminderSendCount">0</b> peserta</span>
                 </button>
             </form>
-
-            <div class="reminder-card">
-                <div class="reminder-card-head compact">
-                    <div><span class="reminder-kicker">Masuk dari pengajar</span><h2>Permintaan reminder</h2></div>
-                    <span class="reminder-count"><?= count($pendingRequests) ?></span>
-                </div>
-
-                <div class="reminder-request-list">
-                    <?php if (!$pendingRequests): ?>
-                        <div class="reminder-empty compact"><i class="fa-regular fa-inbox"></i><span>Belum ada permintaan.</span></div>
-                    <?php else: ?>
-                        <?php foreach ($pendingRequests as $req):
-                            $isPending = ($req['status'] ?? '') !== 'terkirim';
-                        ?>
-                            <div class="reminder-request">
-                                <div style="flex:1;min-width:0">
-                                    <strong><?= htmlspecialchars($req['peserta_nama']) ?></strong>
-                                    <small><?= htmlspecialchars($req['halaqoh'] ?: '-') ?> · <?= htmlspecialchars(mb_strimwidth($req['pesan_pengajar'], 0, 75, '…')) ?></small>
-                                </div>
-                                <div style="display:flex;align-items:center;gap:6px">
-                                    <span class="reminder-request-status <?= $isPending ? 'pending' : 'sent' ?>">
-                                        <?= $isPending ? 'Menunggu' : 'Terkirim' ?>
-                                    </span>
-                                    <?php if ($isPending): ?>
-                                        <form method="post" action="actions/reminder-send.php" style="margin:0" onsubmit="return confirm('Kirim reminder ke <?= htmlspecialchars(addslashes($req['peserta_nama'])) ?> sekarang?')">
-                                            <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
-                                            <input type="hidden" name="mode" value="request">
-                                            <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
-                                            <input type="hidden" name="template_id" class="request-template-id" value="<?= (int)($templates[0]['id'] ?? 0) ?>">
-                                            <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
-                                            <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
-                                            <button type="submit" class="reminder-request-send-btn" title="Kirim reminder ke peserta ini">
-                                                <i class="fa-solid fa-paper-plane"></i> Kirim
-                                            </button>
-                                        </form>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-
-                <a class="reminder-secondary-link" href="?page=reminder-peserta">
-                    Buka semua di Pengingat Peserta <i class="fa-solid fa-arrow-right"></i>
-                </a>
-            </div>
         </aside>
     </div>
 </div>
@@ -673,13 +623,6 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
         if (preview) preview.value = content;
     }
 
-    function syncRequestTemplates() {
-        const tplId = template?.value || '';
-        document.querySelectorAll('.request-template-id').forEach(el => {
-            el.value = tplId;
-        });
-    }
-
     function refresh() {
         const items = selected();
         count.textContent = items.length + ' dipilih';
@@ -719,7 +662,6 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
     });
 
     template?.addEventListener('change', () => {
-        syncRequestTemplates();
         updatePersonalizedPreview();
     });
 
@@ -797,7 +739,6 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
         }
     });
 
-    syncRequestTemplates();
     refresh();
 })();
 </script>

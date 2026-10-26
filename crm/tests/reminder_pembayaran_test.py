@@ -135,23 +135,20 @@ def test_kelola_reminder_removed(base_dir):
     if "kelola_reminder.php" in page:
         raise AssertionError("reminder-pembayaran.php still links to kelola_reminder.php")
 
-    if "page=reminder-peserta" not in page:
-        raise AssertionError("reminder-pembayaran.php should link to CRM reminder-peserta workspace")
-
     print("test_kelola_reminder_removed: OK")
 
-def test_teacher_request_action(base_dir):
+def test_teacher_requests_removed(base_dir):
     page_path = os.path.join(base_dir, "crm/pages/reminder-pembayaran.php")
     with open(page_path, "r", encoding="utf-8") as f:
         page = f.read()
 
-    if 'name="mode" value="request"' not in page and "mode=request" not in page:
-        raise AssertionError("reminder-pembayaran.php must provide direct action to execute teacher reminder requests (mode=request)")
+    if "Masuk dari pengajar" in page:
+        raise AssertionError("Section 'Masuk dari pengajar' should be removed from reminder-pembayaran.php")
 
-    if 'name="request_id"' not in page and "request_id" not in page:
-        raise AssertionError("reminder-pembayaran.php must bind request_id for 1-click execution")
+    if "$pendingRequests" in page:
+        raise AssertionError("$pendingRequests query should be removed from reminder-pembayaran.php")
 
-    print("test_teacher_request_action: OK")
+    print("test_teacher_requests_removed: OK")
 
 def test_live_preview_and_selection_ux(base_dir):
     page_path = os.path.join(base_dir, "crm/pages/reminder-pembayaran.php")
@@ -176,7 +173,7 @@ def main():
     test_send_action_safety(base_dir)
     test_layout_and_ux(base_dir)
     test_kelola_reminder_removed(base_dir)
-    test_teacher_request_action(base_dir)
+    test_teacher_requests_removed(base_dir)
     test_live_preview_and_selection_ux(base_dir)
     print("\nALL REMINDER PEMBAYARAN TESTS PASSED!")
 

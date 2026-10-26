@@ -425,7 +425,7 @@ def run_reminder_pembayaran_suite(base_dir: str):
     reminder_pembayaran_test.test_send_action_safety(base_dir)
     reminder_pembayaran_test.test_layout_and_ux(base_dir)
     reminder_pembayaran_test.test_kelola_reminder_removed(base_dir)
-    reminder_pembayaran_test.test_teacher_request_action(base_dir)
+    reminder_pembayaran_test.test_teacher_requests_removed(base_dir)
     reminder_pembayaran_test.test_live_preview_and_selection_ux(base_dir)
     print("reminder-pembayaran-suite: OK")
 
