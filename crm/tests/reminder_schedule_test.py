@@ -87,9 +87,12 @@ def test_css_styles(base_dir):
     with open(css_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    for selector in [".reminder-quick-filters", ".reminder-campaign-card"]:
+    for selector in [".reminder-quick-filters", ".reminder-campaign-card", ".reminder-badge-halaqoh", ".reminder-filters.reminder-filter-box"]:
         if selector not in content:
             raise AssertionError(f"Missing CSS selector: {selector} in reminder-v2.css")
+
+    if "max-width:100%" not in content and "max-width: 100%" not in content:
+        raise AssertionError("reminder-v2.css must enforce max-width containment on filter controls")
 
     print("test_css_styles: OK")
 

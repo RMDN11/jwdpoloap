@@ -406,7 +406,12 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                         <span class="reminder-kicker">Target peserta</span>
                         <h2>Peserta reminder</h2>
                     </div>
-                    <span class="reminder-count" id="reminderSelectedCount">0 dipilih</span>
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <a class="reminder-secondary-link" href="?page=reminder-csv" style="margin:0;padding:5px 10px;border:1px solid #dbe5df;border-radius:8px;background:#f8fafc;font-size:11px">
+                            <i class="fa-solid fa-file-csv"></i> Kelola CSV
+                        </a>
+                        <span class="reminder-count" id="reminderSelectedCount">0 dipilih</span>
+                    </div>
                 </div>
 
                 <div class="reminder-quick-filters">
@@ -430,9 +435,8 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
 
                 <form class="reminder-filters reminder-filter-box" method="get">
                     <input type="hidden" name="page" value="reminder-pembayaran">
-                    <a class="reminder-secondary-link" href="?page=reminder-csv" style="align-self:center;justify-content:center">Kelola CSV</a>
 
-                    <label>
+                    <label class="reminder-filter-span-2">
                         <span>Cari peserta</span>
                         <div class="reminder-input-icon">
                             <i class="fa-solid fa-magnifying-glass"></i>
@@ -449,6 +453,10 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                             <?php endforeach; ?>
                         </select>
                     </label>
+
+                    <button class="reminder-filter-btn" type="submit">
+                        <i class="fa-solid fa-filter"></i> Terapkan
+                    </button>
 
                     <label>
                         <span>Periode pembayaran</span>
@@ -487,10 +495,6 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                             <option value="semua" <?= $statusBayar === 'semua' ? 'selected' : '' ?>>Semua</option>
                         </select>
                     </label>
-
-                    <button class="reminder-filter-btn" type="submit">
-                        <i class="fa-solid fa-filter"></i> Terapkan
-                    </button>
                 </form>
 
                 <?php if (!$hasFilter): ?>
@@ -533,8 +537,13 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                                     >
                                     <span class="reminder-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr((string)$p['nama_lengkap'], 0, 1))) ?></span>
                                     <span class="reminder-person-body">
-                                        <strong><?= htmlspecialchars($p['nama_lengkap']) ?></strong>
-                                        <small><?= htmlspecialchars($csvFile !== '' ? (($csvTargetByPesertaId[(int)$p['id']] ?? '') ?: $p['nowa']) : $p['nowa']) ?> · <?= htmlspecialchars($p['halaqoh'] ?: '-') ?></small>
+                                        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+                                            <strong><?= htmlspecialchars($p['nama_lengkap']) ?></strong>
+                                            <span class="reminder-badge-halaqoh" title="Halaqoh: <?= htmlspecialchars($p['halaqoh'] ?: '-') ?>">
+                                                <i class="fa-solid fa-graduation-cap"></i> <?= htmlspecialchars($p['halaqoh'] ?: '-') ?>
+                                            </span>
+                                        </div>
+                                        <small><?= htmlspecialchars($csvFile !== '' ? (($csvTargetByPesertaId[(int)$p['id']] ?? '') ?: $p['nowa']) : $p['nowa']) ?></small>
                                         <em class="reminder-history">
                                             <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
                                             <?= htmlspecialchars($formatReminderHistory((int)$p['reminder_count'], $p['reminder_last_at'])) ?>
