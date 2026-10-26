@@ -429,6 +429,14 @@ def run_reminder_pembayaran_suite(base_dir: str):
     reminder_pembayaran_test.test_live_preview_and_selection_ux(base_dir)
     print("reminder-pembayaran-suite: OK")
 
+def run_reminder_schedule_suite(base_dir: str):
+    import reminder_schedule_test
+    reminder_schedule_test.test_schema_and_library_functions(base_dir)
+    reminder_schedule_test.test_schedule_actions_and_cron(base_dir)
+    reminder_schedule_test.test_ui_schedule_modal_and_filters(base_dir)
+    reminder_schedule_test.test_css_styles(base_dir)
+    print("reminder-schedule-suite: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -463,6 +471,8 @@ def main():
         run_finance_scheduling_test(base_dir)
     if test_name in ["reminder-pembayaran-suite", "reminder-pembayaran", "all"]:
         run_reminder_pembayaran_suite(base_dir)
+    if test_name in ["reminder-schedule-suite", "reminder-schedule", "all"]:
+        run_reminder_schedule_suite(base_dir)
 
 if __name__ == "__main__":
     try:

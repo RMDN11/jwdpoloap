@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../lib/reminder-csv.php';
+require_once __DIR__ . '/../lib/reminder-schedule.php';
+
+crmEnsureReminderScheduleTables($conn);
+$activeCampaigns = crmGetActiveCampaigns($conn, 3);
 
 $crmTitle = 'Reminder Pembayaran';
 $search = trim((string)($_GET['q'] ?? ''));
@@ -306,6 +310,96 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                 </div>
             </section>
 
+            <?php if (!empty($activeCampaigns)): ?>
+                <div class="reminder-campaigns" style="margin-bottom:16px">
+                    <?php foreach ($activeCampaigns as $camp): 
+                        $cId = (int)$camp['id'];
+                        $totalTgt = max(1, (int)$camp['total_targets']);
+                        $sentCnt = (int)$camp['sent_count'];
+                        $failCnt = (int)$camp['failed_count'];
+                        $pct = min(100, (int)round(($sentCnt + $failCnt) / $totalTgt * 100));
+                        $cStatus = (string)$camp['status'];
+                        $nextAt = !empty($camp['next_scheduled_at']) ? date('d/m/Y H:i', strtotime($camp['next_scheduled_at'])) : '-';
+                        $curHal = !empty($camp['current_halaqoh']) ? $camp['current_halaqoh'] : '-';
+                    ?>
+                        <div class="reminder-card reminder-campaign-card">
+                            <div class="reminder-campaign-header">
+                                <div>
+                                    <span class="reminder-kicker">Otomasi Berjalan</span>
+                                    <h2 style="font-size:16px;margin:2px 0 0"><?= htmlspecialchars($camp['title']) ?></h2>
+                                </div>
+                                <span class="reminder-campaign-badge <?= $cStatus === 'running' ? 'running' : 'paused' ?>">
+                                    <i class="fa-solid <?= $cStatus === 'running' ? 'fa-circle-play' : 'fa-circle-pause' ?>"></i>
+                                    <?= $cStatus === 'running' ? 'Berjalan' : 'Dijeda' ?>
+                                </span>
+                            </div>
+
+                            <div class="reminder-campaign-progress">
+                                <div class="reminder-campaign-progress-bar" style="width:<?= $pct ?>%"></div>
+                            </div>
+
+                            <div class="reminder-campaign-meta">
+                                <span>Terkirim: <strong><?= $sentCnt ?> / <?= $totalTgt ?></strong> (<?= $pct ?>%)</span>
+                                <span>Halaqoh aktif: <strong><?= htmlspecialchars($curHal) ?></strong></span>
+                                <span>Jadwal berikutnya: <strong><?= htmlspecialchars($nextAt) ?></strong></span>
+                            </div>
+
+                            <div class="reminder-campaign-actions">
+                                <?php if ($cStatus === 'running'): ?>
+                                    <form method="post" action="actions/reminder-schedule.php" style="display:inline">
+                                        <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                                        <input type="hidden" name="action" value="pause">
+                                        <input type="hidden" name="campaign_id" value="<?= $cId ?>">
+                                        <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="csv_file" value="<?= htmlspecialchars($csvFile, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="status_peserta" value="<?= htmlspecialchars($statusPeserta, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="status_bayar" value="<?= htmlspecialchars($statusBayar, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="p" value="<?= (int)$pageNumber ?>">
+                                        <button type="submit" class="reminder-campaign-btn pause">
+                                            <i class="fa-solid fa-pause"></i> Jeda
+                                        </button>
+                                    </form>
+                                <?php else: ?>
+                                    <form method="post" action="actions/reminder-schedule.php" style="display:inline">
+                                        <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                                        <input type="hidden" name="action" value="resume">
+                                        <input type="hidden" name="campaign_id" value="<?= $cId ?>">
+                                        <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="csv_file" value="<?= htmlspecialchars($csvFile, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="status_peserta" value="<?= htmlspecialchars($statusPeserta, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="status_bayar" value="<?= htmlspecialchars($statusBayar, ENT_QUOTES) ?>">
+                                        <input type="hidden" name="p" value="<?= (int)$pageNumber ?>">
+                                        <button type="submit" class="reminder-campaign-btn resume">
+                                            <i class="fa-solid fa-play"></i> Lanjutkan
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+
+                                <form method="post" action="actions/reminder-schedule.php" style="display:inline" onsubmit="return confirm('Yakin ingin membatalkan jadwal otomasi ini?')">
+                                    <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                                    <input type="hidden" name="action" value="cancel">
+                                    <input type="hidden" name="campaign_id" value="<?= $cId ?>">
+                                    <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
+                                    <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
+                                    <input type="hidden" name="csv_file" value="<?= htmlspecialchars($csvFile, ENT_QUOTES) ?>">
+                                    <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
+                                    <input type="hidden" name="status_peserta" value="<?= htmlspecialchars($statusPeserta, ENT_QUOTES) ?>">
+                                    <input type="hidden" name="status_bayar" value="<?= htmlspecialchars($statusBayar, ENT_QUOTES) ?>">
+                                    <input type="hidden" name="p" value="<?= (int)$pageNumber ?>">
+                                    <button type="submit" class="reminder-campaign-btn cancel">
+                                        <i class="fa-solid fa-stop"></i> Batalkan
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
             <section class="reminder-card reminder-target-card">
                 <div class="reminder-card-head">
                     <div>
@@ -313,6 +407,25 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                         <h2>Peserta reminder</h2>
                     </div>
                     <span class="reminder-count" id="reminderSelectedCount">0 dipilih</span>
+                </div>
+
+                <div class="reminder-quick-filters">
+                    <span style="font-size:11px;font-weight:700;color:#65756d;margin-right:2px">
+                        <i class="fa-solid fa-bolt" style="color:#d97706"></i> Filter cepat:
+                    </span>
+                    <a href="?page=reminder-pembayaran&status_peserta=proses&status_bayar=belum_lunas<?= $bulanList ? '&bulan=' . urlencode($bulanList[0]) : '' ?>" 
+                       class="reminder-quick-chip <?= ($statusBayar === 'belum_lunas' && $statusPeserta === 'proses' && ($bulan !== '' || empty($bulanList))) ? 'active' : '' ?>">
+                        <i class="fa-solid fa-clock"></i> Belum bayar bulan ini
+                    </a>
+                    <a href="?page=reminder-pembayaran&status_peserta=proses&status_bayar=semua" 
+                       class="reminder-quick-chip <?= ($statusPeserta === 'proses' && $statusBayar === 'semua' && $bulan === '') ? 'active' : '' ?>">
+                        <i class="fa-solid fa-users"></i> Semua aktif
+                    </a>
+                    <?php if ($hasFilter): ?>
+                        <a href="?page=reminder-pembayaran" class="reminder-quick-chip reset">
+                            <i class="fa-solid fa-rotate-left"></i> Reset filter
+                        </a>
+                    <?php endif; ?>
                 </div>
 
                 <form class="reminder-filters reminder-filter-box" method="get">
@@ -529,8 +642,108 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                     <i class="fa-solid fa-paper-plane"></i>
                     <span>Kirim ke <b id="reminderSendCount">0</b> peserta</span>
                 </button>
+
+                <button type="button" class="reminder-schedule-btn" id="openScheduleModalBtn" <?= !$templates ? 'disabled' : '' ?>>
+                    <i class="fa-solid fa-clock"></i>
+                    <span>Atur Jadwal Otomasi (<b class="scheduleSelectedCount">0</b>)</span>
+                </button>
             </form>
         </aside>
+    </div>
+</div>
+
+<div id="reminderScheduleModal" hidden style="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.42);padding:20px;align-items:center;justify-content:center">
+    <div style="width:min(640px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;padding:22px;box-shadow:0 20px 60px rgba(15,23,42,.2)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px">
+            <div>
+                <span class="reminder-kicker">Otomasi Pengiriman</span>
+                <h2 style="margin:3px 0 0">Jadwal Reminder Bertahap</h2>
+            </div>
+            <button type="button" id="closeReminderScheduleModal" aria-label="Tutup" style="border:0;background:#f1f5f9;border-radius:10px;width:36px;height:36px;cursor:pointer">×</button>
+        </div>
+
+        <form method="post" action="actions/reminder-schedule.php" id="reminderScheduleForm">
+            <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+            <input type="hidden" name="action" value="create">
+            <input type="hidden" name="selected" id="reminderScheduleSelectedInput" value="[]">
+            <input type="hidden" name="p" value="<?= (int)$pageNumber ?>">
+            <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
+            <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
+            <input type="hidden" name="csv_file" value="<?= htmlspecialchars($csvFile, ENT_QUOTES) ?>">
+            <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
+            <input type="hidden" name="status_peserta" value="<?= htmlspecialchars($statusPeserta, ENT_QUOTES) ?>">
+            <input type="hidden" name="status_bayar" value="<?= htmlspecialchars($statusBayar, ENT_QUOTES) ?>">
+
+            <div style="display:grid;gap:14px">
+                <label class="reminder-field">
+                    <span>Nama Jadwal / Kampanye</span>
+                    <input type="text" name="title" id="scheduleCampaignTitle" maxlength="150" value="Reminder Tagihan <?= date('d M Y H:i') ?>" required>
+                </label>
+
+                <div class="reminder-field">
+                    <span>Template Pesan</span>
+                    <select name="template_id" id="scheduleTemplateSelect" required>
+                        <option value="">Pilih template...</option>
+                        <?php foreach ($templates as $tpl): ?>
+                            <option value="<?= (int)$tpl['id'] ?>">
+                                <?= htmlspecialchars($tpl['title']) ?><?= $tpl['category'] ? ' · ' . htmlspecialchars($tpl['category']) : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div style="background:#f8fbf9;border:1px solid #dcebe1;border-radius:14px;padding:14px">
+                    <span style="display:block;font-size:11px;font-weight:800;color:#166534;margin-bottom:10px">
+                        <i class="fa-solid fa-sliders"></i> Pengaturan Jeda & Waktu Otomasi
+                    </span>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                        <label class="reminder-field" style="margin-top:0">
+                            <span>Jeda Antar Pesan (menit)</span>
+                            <input type="number" name="delay_message" id="scheduleDelayMessage" min="1" max="60" value="2" required>
+                            <small style="color:#64748b;font-size:10px">Jarak waktu antar nomor dalam 1 halaqoh</small>
+                        </label>
+                        <label class="reminder-field" style="margin-top:0">
+                            <span>Jeda Antar Halaqoh (menit)</span>
+                            <input type="number" name="delay_halaqoh" id="scheduleDelayHalaqoh" min="1" max="300" value="15" required>
+                            <small style="color:#64748b;font-size:10px">Cooldown sebelum lanjut ke halaqoh berikutnya</small>
+                        </label>
+                    </div>
+
+                    <div class="reminder-field" style="margin-top:0">
+                        <span>Waktu Mulai Pengiriman</span>
+                        <div style="display:flex;gap:16px;align-items:center;margin:6px 0">
+                            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700">
+                                <input type="radio" name="start_type" value="now" checked style="width:auto;height:auto;accent-color:#168044">
+                                Langsung Mulai Sekarang
+                            </label>
+                            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700">
+                                <input type="radio" name="start_type" value="custom" style="width:auto;height:auto;accent-color:#168044">
+                                Tentukan Waktu Tertentu
+                            </label>
+                        </div>
+                        <input type="datetime-local" name="start_datetime" id="scheduleStartDatetime" style="display:none;margin-top:4px" value="<?= date('Y-m-d\TH:i') ?>">
+                    </div>
+                </div>
+
+                <div style="background:#f1f5f9;border-radius:12px;padding:12px 14px;font-size:11px;line-height:1.55;color:#334155" id="scheduleEstimateBox">
+                    <div style="display:flex;justify-content:space-between;gap:8px">
+                        <span>Target Terpilih: <strong id="scheduleEstimateTargets">0 orang</strong></span>
+                        <span>Jumlah Halaqoh: <strong id="scheduleEstimateHalaqoh">0 grup</strong></span>
+                    </div>
+                    <div style="margin-top:6px;padding-top:6px;border-top:1px dashed #cbd5e1;color:#0f172a">
+                        Estimasi selesai: <strong id="scheduleEstimateDuration">-</strong> (Selesai sekitar <b id="scheduleEstimateEndTime">-</b>)
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+                <button type="button" id="cancelScheduleModal" class="reminder-clear-btn" style="padding:10px 16px;font-size:11px;border-radius:10px">Tutup</button>
+                <button type="submit" class="reminder-send-btn" style="width:auto;padding:10px 18px;margin-top:0">
+                    <i class="fa-solid fa-clock"></i> Simpan & Jadwalkan Otomasi
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -591,6 +804,19 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
     const template = document.getElementById('reminderTemplate');
     const preview = document.getElementById('reminderPreview');
 
+    const scheduleBtn = document.getElementById('openScheduleModalBtn');
+    const scheduleModal = document.getElementById('reminderScheduleModal');
+    const closeScheduleModal = document.getElementById('closeReminderScheduleModal');
+    const cancelScheduleModal = document.getElementById('cancelScheduleModal');
+    const scheduleForm = document.getElementById('reminderScheduleForm');
+    const scheduleSelectedInput = document.getElementById('reminderScheduleSelectedInput');
+    const scheduleTemplateSelect = document.getElementById('scheduleTemplateSelect');
+    const scheduleDelayMessage = document.getElementById('scheduleDelayMessage');
+    const scheduleDelayHalaqoh = document.getElementById('scheduleDelayHalaqoh');
+    const scheduleStartDatetime = document.getElementById('scheduleStartDatetime');
+    const scheduleCounts = [...document.querySelectorAll('.scheduleSelectedCount')];
+    const startTypeRadios = [...document.querySelectorAll('input[name="start_type"]')];
+
     let activePreviewTarget = null;
 
     function selected() {
@@ -600,6 +826,58 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
             nowa: x.dataset.wa || '',
             halaqoh: x.dataset.halaqoh || ''
         }));
+    }
+
+    function updateScheduleEstimation() {
+        const items = selected();
+        const countVal = items.length;
+        scheduleCounts.forEach(el => el.textContent = countVal);
+
+        const groups = {};
+        items.forEach(it => {
+            const h = it.halaqoh || 'Umum';
+            groups[h] = (groups[h] || 0) + 1;
+        });
+        const numGroups = Object.keys(groups).length;
+
+        const elTargets = document.getElementById('scheduleEstimateTargets');
+        const elHalaqoh = document.getElementById('scheduleEstimateHalaqoh');
+        const elDuration = document.getElementById('scheduleEstimateDuration');
+        const elEndTime = document.getElementById('scheduleEstimateEndTime');
+
+        if (elTargets) elTargets.textContent = countVal + ' orang';
+        if (elHalaqoh) elHalaqoh.textContent = numGroups + ' grup halaqoh';
+
+        if (countVal === 0) {
+            if (elDuration) elDuration.textContent = '0 menit';
+            if (elEndTime) elEndTime.textContent = '-';
+            return;
+        }
+
+        const msgDelay = Math.max(1, parseInt(scheduleDelayMessage?.value || 2, 10));
+        const halDelay = Math.max(1, parseInt(scheduleDelayHalaqoh?.value || 15, 10));
+
+        const totalMinutes = Math.max(0, (countVal - numGroups) * msgDelay + (numGroups > 0 ? (numGroups - 1) * halDelay : 0));
+
+        let durationText = totalMinutes + ' menit';
+        if (totalMinutes >= 60) {
+            const hours = Math.floor(totalMinutes / 60);
+            const mins = totalMinutes % 60;
+            durationText = hours + ' jam ' + (mins > 0 ? mins + ' menit' : '');
+        }
+        if (elDuration) elDuration.textContent = '~' + durationText;
+
+        const isCustom = document.querySelector('input[name="start_type"]:checked')?.value === 'custom';
+        let baseDate = new Date();
+        if (isCustom && scheduleStartDatetime?.value) {
+            const customDate = new Date(scheduleStartDatetime.value);
+            if (!isNaN(customDate.getTime())) baseDate = customDate;
+        }
+        const endDate = new Date(baseDate.getTime() + totalMinutes * 60 * 1000);
+        const timeFormatter = new Intl.DateTimeFormat('id-ID', {
+            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false
+        });
+        if (elEndTime) elEndTime.textContent = timeFormatter.format(endDate);
     }
 
     function updatePersonalizedPreview() {
@@ -631,6 +909,7 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
         if (all) all.checked = checks.length > 0 && items.length === checks.length;
         if (clearBtn) clearBtn.style.display = items.length > 0 ? 'inline-flex' : 'none';
         updatePersonalizedPreview();
+        updateScheduleEstimation();
     }
 
     checks.forEach(x => x.addEventListener('change', () => {
@@ -736,6 +1015,86 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
         if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengirim reminder...</span>';
+        }
+    });
+
+    function openScheduleManager() {
+        const items = selected();
+        if (!items.length) {
+            alert('Pilih minimal satu peserta terlebih dahulu.');
+            return;
+        }
+
+        if (scheduleTemplateSelect && template?.value) {
+            scheduleTemplateSelect.value = template.value;
+        }
+
+        if (scheduleSelectedInput) {
+            scheduleSelectedInput.value = JSON.stringify(items);
+        }
+
+        updateScheduleEstimation();
+
+        if (scheduleModal) {
+            scheduleModal.hidden = false;
+            scheduleModal.style.display = 'flex';
+        }
+    }
+
+    function closeScheduleManager() {
+        if (scheduleModal) {
+            scheduleModal.style.display = 'none';
+            scheduleModal.hidden = true;
+        }
+    }
+
+    scheduleBtn?.addEventListener('click', openScheduleManager);
+    closeScheduleModal?.addEventListener('click', closeScheduleManager);
+    cancelScheduleModal?.addEventListener('click', closeScheduleManager);
+    scheduleModal?.addEventListener('click', event => {
+        if (event.target === scheduleModal) closeScheduleManager();
+    });
+
+    startTypeRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (scheduleStartDatetime) {
+                scheduleStartDatetime.style.display = radio.value === 'custom' && radio.checked ? 'block' : 'none';
+            }
+            updateScheduleEstimation();
+        });
+    });
+
+    scheduleDelayMessage?.addEventListener('input', updateScheduleEstimation);
+    scheduleDelayHalaqoh?.addEventListener('input', updateScheduleEstimation);
+    scheduleStartDatetime?.addEventListener('input', updateScheduleEstimation);
+
+    scheduleForm?.addEventListener('submit', event => {
+        const items = selected();
+        if (!items.length) {
+            event.preventDefault();
+            alert('Pilih minimal satu peserta terlebih dahulu.');
+            return;
+        }
+
+        if (!scheduleTemplateSelect?.value) {
+            event.preventDefault();
+            alert('Pilih template reminder terlebih dahulu.');
+            return;
+        }
+
+        if (scheduleSelectedInput) {
+            scheduleSelectedInput.value = JSON.stringify(items);
+        }
+
+        if (!confirm('Jadwalkan pengiriman reminder bertahap untuk ' + items.length + ' peserta?')) {
+            event.preventDefault();
+            return;
+        }
+
+        const submitBtn = scheduleForm.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan Jadwal...';
         }
     });
 

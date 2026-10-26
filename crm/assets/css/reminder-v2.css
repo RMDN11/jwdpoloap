@@ -52,8 +52,37 @@ body:has(.reminder-payment-page) .content{max-width:1280px}
 .reminder-field textarea{min-height:110px;resize:vertical}
 .reminder-field input:focus,.reminder-field select:focus,.reminder-field textarea:focus{border-color:#168044;box-shadow:0 0 0 3px rgba(22,128,68,.08)}
 .reminder-helper{font-size:10px;line-height:1.5;color:#829089}
-.reminder-send-btn{width:100%;height:40px;margin-top:12px;border:0;border-radius:10px;background:#168044;color:#fff;font-size:12px;font-weight:800;cursor:pointer}
+.reminder-send-btn{width:100%;height:40px;margin-top:12px;border:0;border-radius:10px;background:#168044;color:#fff;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .reminder-send-btn:hover{background:#146c3b}
+.reminder-schedule-btn{width:100%;height:38px;margin-top:8px;border:1px solid #168044;border-radius:10px;background:#edf8f1;color:#166534;font-size:12px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.15s}
+.reminder-schedule-btn:hover{background:#e0f3e7;color:#14532d}
+
+/* Quick Filters */
+.reminder-quick-filters{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;padding:4px 0}
+.reminder-quick-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #dbe5df;border-radius:999px;background:#fff;color:#166534;font-size:11px;font-weight:700;text-decoration:none;transition:all .15s ease}
+.reminder-quick-chip:hover{background:#edf8f1;border-color:#168044;color:#168044}
+.reminder-quick-chip.active{background:#168044;color:#fff;border-color:#168044}
+.reminder-quick-chip.reset{border-color:#e2e8f0;background:#f8fafc;color:#64748b}
+.reminder-quick-chip.reset:hover{background:#f1f5f9;color:#0f172a}
+
+/* Active Campaigns Monitor */
+.reminder-campaign-card{margin-bottom:16px;border-left:4px solid #168044;background:#fcfdfd}
+.reminder-campaign-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.reminder-campaign-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:800}
+.reminder-campaign-badge.running{background:#e8f7ed;color:#168044}
+.reminder-campaign-badge.paused{background:#fff5dc;color:#a16207}
+.reminder-campaign-progress{height:7px;border-radius:999px;background:#e9f0ec;overflow:hidden;margin:10px 0 8px}
+.reminder-campaign-progress-bar{height:100%;border-radius:999px;background:#168044;transition:width .3s ease}
+.reminder-campaign-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:11px;color:#65756d}
+.reminder-campaign-meta strong{color:#18352a}
+.reminder-campaign-actions{display:flex;align-items:center;gap:6px;margin-top:10px}
+.reminder-campaign-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;border:1px solid #dbe5df;background:#fff;font-size:10px;font-weight:700;cursor:pointer;transition:.15s}
+.reminder-campaign-btn.pause{color:#a16207;border-color:#fcd34d}
+.reminder-campaign-btn.pause:hover{background:#fef3c7}
+.reminder-campaign-btn.resume{color:#166534;border-color:#86efac}
+.reminder-campaign-btn.resume:hover{background:#dcfce7}
+.reminder-campaign-btn.cancel{color:#b42318;border-color:#fca5a5}
+.reminder-campaign-btn.cancel:hover{background:#fee2e2}
 .reminder-request-list{display:grid;gap:8px}
 .reminder-request{padding:11px;border:1px solid #edf2ef;border-radius:12px;background:#fbfdfc}
 .reminder-request-status{display:inline-flex;padding:4px 7px;border-radius:999px;font-size:9px;font-weight:800}
