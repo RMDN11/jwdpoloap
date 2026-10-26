@@ -415,6 +415,17 @@ def run_finance_scheduling_test(base_dir: str):
 
     print("automation-followup-finance-scheduling-test: OK")
 
+def run_reminder_pembayaran_suite(base_dir: str):
+    import reminder_pembayaran_test
+    reminder_pembayaran_test.test_bulan_pembayaran_query(base_dir)
+    reminder_pembayaran_test.test_status_peserta_filter_with_csv(base_dir)
+    reminder_pembayaran_test.test_pagination(base_dir)
+    reminder_pembayaran_test.test_send_action_db_verification(base_dir)
+    reminder_pembayaran_test.test_send_action_placeholders(base_dir)
+    reminder_pembayaran_test.test_send_action_safety(base_dir)
+    reminder_pembayaran_test.test_layout_and_ux(base_dir)
+    print("reminder-pembayaran-suite: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -447,6 +458,8 @@ def main():
         run_sequence_name_test(base_dir)
     if test_name in ["automation-followup-finance-scheduling-test", "finance-scheduling", "all"]:
         run_finance_scheduling_test(base_dir)
+    if test_name in ["reminder-pembayaran-suite", "reminder-pembayaran", "all"]:
+        run_reminder_pembayaran_suite(base_dir)
 
 if __name__ == "__main__":
     try:

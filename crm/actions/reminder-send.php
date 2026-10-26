@@ -2,6 +2,8 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../config/bootstrap.php';
 
+@set_time_limit(300);
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? null)) { http_response_code(403); exit('Permintaan tidak valid.'); }
 
 $mode=(string)($_POST['mode'] ?? 'participants');
@@ -12,7 +14,7 @@ $statusBayar=(string)($_POST['status_bayar'] ?? 'belum_lunas');
 $statusPeserta=(string)($_POST['status_peserta'] ?? 'proses');
 
 $redirectParams = ['page' => 'reminder-pembayaran'];
-foreach (['q', 'bulan', 'csv_file', 'halaqoh', 'status_peserta', 'status_bayar'] as $filterKey) {
+foreach (['q', 'bulan', 'csv_file', 'halaqoh', 'status_peserta', 'status_bayar', 'p'] as $filterKey) {
     if (isset($_POST[$filterKey]) && trim((string)$_POST[$filterKey]) !== '') {
         $redirectParams[$filterKey] = trim((string)$_POST[$filterKey]);
     }
@@ -36,9 +38,9 @@ if(!$template){
 $targets=[];
 if($mode==='request'){
     $requestId=(int)($_POST['request_id']??0);
-    $stmt=$conn->prepare("SELECT peserta_nama,peserta_nowa FROM reminder_requests WHERE id=? AND status<>'terkirim' LIMIT 1");
+    $stmt=$conn->prepare("SELECT peserta_nama,peserta_nowa,halaqoh FROM reminder_requests WHERE id=? AND status<>'terkirim' LIMIT 1");
     $stmt->bind_param('i',$requestId);$stmt->execute();$row=$stmt->get_result()->fetch_assoc();$stmt->close();
-    if($row)$targets[]=['name'=>(string)$row['peserta_nama'],'nowa'=>(string)$row['peserta_nowa'],'request_id'=>$requestId];
+    if($row)$targets[]=['name'=>(string)$row['peserta_nama'],'nowa'=>(string)$row['peserta_nowa'],'halaqoh'=>(string)($row['halaqoh']??''),'request_id'=>$requestId];
 }else{
     $raw=json_decode((string)($_POST['selected']??'[]'),true);
     if(is_array($raw)){
@@ -66,11 +68,14 @@ if($mode==='request'){
                     if(crmReminderCsvNormalizeStatus((string)$csvRow['status_siswa'])!=='ON')continue;
                     $normalized=(string)$csvRow['normalized_wa'];
                     if($normalized===''||!array_key_exists($normalized,$waMap)||$waMap[$normalized]===0)continue;
-                    $csvTargetByPesertaId[(int)$waMap[$normalized]]=(string)$csvRow['whatsapp_wali'];
+                    $csvTargetByPesertaId[(int)$waMap[$normalized]]=[
+                        'wa'=>(string)$csvRow['whatsapp_wali'],
+                        'halaqoh'=>(string)($csvRow['kelas_grup'] ?? $csvRow['program'] ?? '')
+                    ];
                 }
 
                 foreach(array_keys($selectedIds) as $id){
-                    if(!isset($csvTargetByPesertaId[$id])||trim((string)$csvTargetByPesertaId[$id])==='')continue;
+                    if(!isset($csvTargetByPesertaId[$id])||trim((string)$csvTargetByPesertaId[$id]['wa'])==='')continue;
 
                     $conditions=["p.id=?"];
                     $params=[$id];
@@ -90,7 +95,7 @@ if($mode==='request'){
                         $conditions[]="NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id=p.id)";
                     }
 
-                    $sql="SELECT p.id,p.nama_lengkap FROM peserta p WHERE ".implode(' AND ',$conditions)." LIMIT 1";
+                    $sql="SELECT p.id,p.nama_lengkap,p.halaqoh FROM peserta p WHERE ".implode(' AND ',$conditions)." LIMIT 1";
                     $valid=$conn->prepare($sql);
                     if(!$valid)continue;
 
@@ -104,7 +109,8 @@ if($mode==='request'){
                     if($row){
                         $targets[]=[
                             'name'=>(string)$row['nama_lengkap'],
-                            'nowa'=>(string)$csvTargetByPesertaId[$id],
+                            'nowa'=>(string)$csvTargetByPesertaId[$id]['wa'],
+                            'halaqoh'=>(string)($row['halaqoh'] ?: ($csvTargetByPesertaId[$id]['halaqoh'] ?? '')),
                             'request_id'=>null
                         ];
                     }
@@ -112,12 +118,30 @@ if($mode==='request'){
             } catch(Throwable $e) {
                 error_log('CRM CSV send validation failed: '.$e->getMessage());
             }
-        }else{
-            foreach($raw as $item){
-                $nowa=preg_replace('/\D+/','',(string)($item['nowa']??''));
-                if($nowa==='')continue;
-                if(str_starts_with($nowa,'0'))$nowa='62'.substr($nowa,1);
-                $targets[]=['name'=>trim((string)($item['name']??'Kak'))?:'Kak','nowa'=>$nowa,'request_id'=>null];
+        }elseif($selectedIds){
+            $ids = array_map('intval', array_keys($selectedIds));
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $idTypes = str_repeat('i', count($ids));
+            $sql = "SELECT id, nama_lengkap, nowa, halaqoh FROM peserta WHERE id IN ({$placeholders})";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $refs = [];
+                foreach ($ids as $k => $v) $refs[$k] = &$ids[$k];
+                call_user_func_array([$stmt, 'bind_param'], array_merge([$idTypes], $refs));
+                $stmt->execute();
+                $res = $stmt->get_result();
+                while ($pRow = $res->fetch_assoc()) {
+                    $nowa = preg_replace('/\D+/', '', (string)$pRow['nowa']);
+                    if ($nowa === '') continue;
+                    if (str_starts_with($nowa, '0')) $nowa = '62' . substr($nowa, 1);
+                    $targets[] = [
+                        'name' => trim((string)$pRow['nama_lengkap']) ?: 'Kak',
+                        'nowa' => $nowa,
+                        'halaqoh' => (string)($pRow['halaqoh'] ?? ''),
+                        'request_id' => null
+                    ];
+                }
+                $stmt->close();
             }
         }
     }
@@ -132,9 +156,22 @@ $success=0;$failed=0;$errors=[];
 $logStmt=$conn->prepare("INSERT INTO log_wa (nowa,nama,message,created_at) VALUES (?,?,?,NOW())");
 $requestStmt=$conn->prepare("UPDATE reminder_requests SET status='terkirim' WHERE id=?");
 
+$crmHistoryStmt = null;
+$chk = $conn->query("SHOW TABLES LIKE 'crm_message_history'");
+if ($chk && $chk->num_rows > 0) {
+    $crmHistoryStmt = $conn->prepare("INSERT INTO crm_message_history (nowa, nama, template_id, template_name, message, sent_at, status) VALUES (?, ?, ?, ?, ?, NOW(), ?)");
+}
+
 foreach($targets as $target){
     $name=$target['name'];$number=$target['nowa'];
-    $message=str_ireplace(['{nama}','{NAMA}','[nama]','[NAMA]'],$name,(string)$template['content']);
+    $targetHalaqoh = !empty($target['halaqoh']) ? (string)$target['halaqoh'] : '-';
+    $targetBulan = $bulan !== '' ? $bulan : 'periode ini';
+
+    $message = str_ireplace(
+        ['{nama}', '{NAMA}', '[nama]', '[NAMA]', '{bulan}', '{BULAN}', '[bulan]', '[BULAN]', '{halaqoh}', '{HALAQOH}', '[halaqoh]', '[HALAQOH]'],
+        [$name, $name, $name, $name, $targetBulan, $targetBulan, $targetBulan, $targetBulan, $targetHalaqoh, $targetHalaqoh, $targetHalaqoh, $targetHalaqoh],
+        (string)$template['content']
+    );
     $message=preg_replace('/ {2,}/',' ',$message);
     $payload=json_encode(['recipient_type'=>'individual','to'=>$number,'type'=>'text','text'=>['body'=>$message]],JSON_UNESCAPED_UNICODE);
     $ch=curl_init();
@@ -144,13 +181,29 @@ foreach($targets as $target){
         $success++;$logged='[REMINDER] [TERKIRIM] '.$message;
         if($logStmt){$logStmt->bind_param('sss',$number,$name,$logged);$logStmt->execute();}
         if($requestStmt&&$target['request_id']){$requestStmt->bind_param('i',$target['request_id']);$requestStmt->execute();}
+        if($crmHistoryStmt){
+            $statusVal = 'sent';
+            $tplTitle = (string)$template['title'];
+            $crmHistoryStmt->bind_param('ssisss', $number, $name, $templateId, $tplTitle, $message, $statusVal);
+            $crmHistoryStmt->execute();
+        }
     }else{
         $failed++;$errors[]=$name;$logged='[REMINDER] [GAGAL] '.$message;
         if($logStmt){$logStmt->bind_param('sss',$number,$name,$logged);$logStmt->execute();}
+        if($crmHistoryStmt){
+            $statusVal = 'failed';
+            $tplTitle = (string)$template['title'];
+            $crmHistoryStmt->bind_param('ssisss', $number, $name, $templateId, $tplTitle, $message, $statusVal);
+            $crmHistoryStmt->execute();
+        }
     }
+    usleep(100000);
 }
-if($logStmt)$logStmt->close();if($requestStmt)$requestStmt->close();
+if($logStmt)$logStmt->close();
+if($requestStmt)$requestStmt->close();
+if($crmHistoryStmt)$crmHistoryStmt->close();
 $message=$success.' reminder berhasil dikirim.';
 if($failed)$message.=' '.$failed.' gagal'.($errors?': '.implode(', ',array_slice($errors,0,5)):'').'.';
 $_SESSION['crm_flash']=['type'=>$failed&&!$success?'error':'success','message'=>$message];
 header('Location: '.$redirectUrl);exit;
+

@@ -16,7 +16,7 @@ $r = $conn->query("SELECT DISTINCT halaqoh FROM peserta WHERE halaqoh IS NOT NUL
 if ($r) while ($row = $r->fetch_assoc()) $halaqohList[] = (string)$row['halaqoh'];
 
 $bulanList = [];
-$r = $conn->query("SELECT DISTINCT bulan_pembayaran FROM pembayaran WHERE bulan_pembayaran IS NOT NULL AND bulan_pembayaran <> '' ORDER BY id DESC");
+$r = $conn->query("SELECT bulan_pembayaran FROM pembayaran WHERE bulan_pembayaran IS NOT NULL AND bulan_pembayaran <> '' GROUP BY bulan_pembayaran ORDER BY MAX(id) DESC");
 if ($r) while ($row = $r->fetch_assoc()) $bulanList[] = (string)$row['bulan_pembayaran'];
 
 $csvImports = crmReminderCsvList();
@@ -99,7 +99,7 @@ if ($halaqoh !== '') {
     $types .= 's';
 }
 
-if ($csvFile === '' && $statusPeserta !== '' && $statusPeserta !== 'semua') {
+if ($statusPeserta !== '' && $statusPeserta !== 'semua') {
     $where[] = "p.status = ?";
     $params[] = $statusPeserta;
     $types .= 's';
@@ -126,6 +126,11 @@ $paymentStatusSql = $bulan !== ''
     ? "CASE WHEN bp.peserta_id IS NOT NULL THEN 1 ELSE 0 END"
     : "CASE WHEN EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id) THEN 1 ELSE 0 END";
 
+$pageNumber = max(1, (int)($_GET['p'] ?? 1));
+$perPage = 50;
+$offset = ($pageNumber - 1) * $perPage;
+$totalPages = 1;
+
 if ($hasFilter) {
     $summarySql = "SELECT COUNT(*) AS total,
         COALESCE(SUM(CASE WHEN {$paymentStatusSql} = 0 THEN 1 ELSE 0 END), 0) AS belum_bayar
@@ -145,19 +150,28 @@ if ($hasFilter) {
         $belumBayar = (int)($summary['belum_bayar'] ?? 0);
     }
 
+    $totalPages = max(1, (int)ceil($totalPeserta / $perPage));
+    if ($pageNumber > $totalPages && $totalPeserta > 0) {
+        $pageNumber = $totalPages;
+        $offset = ($pageNumber - 1) * $perPage;
+    }
+
     $sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh, p.status,
             {$paymentStatusSql} AS is_lunas
             FROM peserta p {$paymentJoin}
             WHERE " . implode(' AND ', $where) . "
             ORDER BY p.halaqoh, p.nama_lengkap
-            LIMIT 100";
+            LIMIT ? OFFSET ?";
 
     $stmt = $conn->prepare($sql);
     if ($stmt) {
         $displayParams = $params;
+        $displayParams[] = $perPage;
+        $displayParams[] = $offset;
+        $displayTypes = $types . 'ii';
         $displayRefs = [];
         foreach ($displayParams as $k => $v) $displayRefs[$k] = &$displayParams[$k];
-        if ($displayParams) call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $displayRefs));
+        call_user_func_array([$stmt, 'bind_param'], array_merge([$displayTypes], $displayRefs));
         $stmt->execute();
         $participants = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         $stmt->close();
@@ -261,6 +275,20 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
     $date = date('Y-m-d', $timestamp) === date('Y-m-d') ? 'Hari ini ' . date('H:i', $timestamp) : date('d/m/Y H:i', $timestamp);
     return $count . 'x · ' . $date;
 };
+
+$buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, $bulan, $csvFile, $statusBayar, $statusPeserta): string {
+    $queryArgs = [
+        'page' => 'reminder-pembayaran',
+        'p' => $targetPage,
+    ];
+    if ($search !== '') $queryArgs['q'] = $search;
+    if ($halaqoh !== '') $queryArgs['halaqoh'] = $halaqoh;
+    if ($bulan !== '') $queryArgs['bulan'] = $bulan;
+    if ($csvFile !== '') $queryArgs['csv_file'] = $csvFile;
+    if ($statusBayar !== '') $queryArgs['status_bayar'] = $statusBayar;
+    if ($statusPeserta !== '') $queryArgs['status_peserta'] = $statusPeserta;
+    return '?' . http_build_query($queryArgs);
+};
 ?>
 <div class="reminder-payment-page">
     <div class="reminder-payment-topbar">
@@ -269,215 +297,269 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
         </a>
     </div>
 
-    <section class="reminder-stats reminder-stats-compact">
-        <div class="reminder-stat">
-            <span class="reminder-stat-icon warning"><i class="fa-solid fa-wallet"></i></span>
-            <div><strong><?= $belumBayar ?></strong><small>Belum bayar</small></div>
-        </div>
-        <div class="reminder-stat">
-            <span class="reminder-stat-icon green"><i class="fa-solid fa-paper-plane"></i></span>
-            <div><strong><?= $todaySent ?></strong><small>Reminder hari ini</small></div>
-        </div>
-    </section>
-
-    <section class="reminder-card reminder-target-card">
-        <div class="reminder-card-head">
-            <div>
-                <span class="reminder-kicker">Target peserta</span>
-                <h2>Peserta reminder</h2>
-            </div>
-            <span class="reminder-count" id="reminderSelectedCount">0 dipilih</span>
-        </div>
-
-        <form class="reminder-filters reminder-filter-box" method="get">
-            <input type="hidden" name="page" value="reminder-pembayaran">
-            <a class="reminder-secondary-link" href="?page=reminder-csv" style="align-self:center;justify-content:center">Kelola CSV</a>
-
-            <label>
-                <span>Cari peserta</span>
-                <div class="reminder-input-icon">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Nama / nomor WA">
+    <div class="reminder-payment-grid">
+        <div class="reminder-payment-main">
+            <section class="reminder-stats reminder-stats-compact">
+                <div class="reminder-stat">
+                    <span class="reminder-stat-icon warning"><i class="fa-solid fa-wallet"></i></span>
+                    <div><strong><?= $belumBayar ?></strong><small>Belum bayar</small></div>
                 </div>
-            </label>
+                <div class="reminder-stat">
+                    <span class="reminder-stat-icon green"><i class="fa-solid fa-paper-plane"></i></span>
+                    <div><strong><?= $todaySent ?></strong><small>Reminder hari ini</small></div>
+                </div>
+            </section>
 
-            <label>
-                <span>Sumber peserta</span>
-                <select name="csv_file">
-                    <option value="">Master peserta CRM</option>
-                    <?php foreach ($csvImports as $item): ?>
-                        <option value="<?= htmlspecialchars((string)$item['file'], ENT_QUOTES) ?>" <?= $csvFile === (string)$item['file'] ? 'selected' : '' ?>>CSV · <?= htmlspecialchars((string)$item['label']) ?> · <?= (int)$item['matched_count'] ?> cocok</option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
+            <section class="reminder-card reminder-target-card">
+                <div class="reminder-card-head">
+                    <div>
+                        <span class="reminder-kicker">Target peserta</span>
+                        <h2>Peserta reminder</h2>
+                    </div>
+                    <span class="reminder-count" id="reminderSelectedCount">0 dipilih</span>
+                </div>
 
-            <label>
-                <span>Periode pembayaran</span>
-                <select name="bulan">
-                    <option value="">Semua bulan</option>
-                    <?php foreach ($bulanList as $item): ?>
-                        <option value="<?= htmlspecialchars($item) ?>" <?= $bulan === $item ? 'selected' : '' ?>><?= htmlspecialchars($item) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
+                <form class="reminder-filters reminder-filter-box" method="get">
+                    <input type="hidden" name="page" value="reminder-pembayaran">
+                    <a class="reminder-secondary-link" href="?page=reminder-csv" style="align-self:center;justify-content:center">Kelola CSV</a>
 
-            <label>
-                <span>Halaqoh</span>
-                <select name="halaqoh">
-                    <option value="">Semua halaqoh</option>
-                    <?php foreach ($halaqohList as $item): ?>
-                        <option value="<?= htmlspecialchars($item) ?>" <?= $halaqoh === $item ? 'selected' : '' ?>><?= htmlspecialchars($item) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
+                    <label>
+                        <span>Cari peserta</span>
+                        <div class="reminder-input-icon">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Nama / nomor WA">
+                        </div>
+                    </label>
 
-            <label>
-                <span>Status peserta</span>
-                <select name="status_peserta">
-                    <option value="proses" <?= $statusPeserta === 'proses' ? 'selected' : '' ?>>Proses</option>
-                    <option value="selesai" <?= $statusPeserta === 'selesai' ? 'selected' : '' ?>>Selesai</option>
-                    <option value="semua" <?= $statusPeserta === 'semua' ? 'selected' : '' ?>>Semua status</option>
-                </select>
-            </label>
+                    <label>
+                        <span>Sumber peserta</span>
+                        <select name="csv_file">
+                            <option value="">Master peserta CRM</option>
+                            <?php foreach ($csvImports as $item): ?>
+                                <option value="<?= htmlspecialchars((string)$item['file'], ENT_QUOTES) ?>" <?= $csvFile === (string)$item['file'] ? 'selected' : '' ?>>CSV · <?= htmlspecialchars((string)$item['label']) ?> · <?= (int)$item['matched_count'] ?> cocok</option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
 
-            <label>
-                <span>Status pembayaran</span>
-                <select name="status_bayar">
-                    <option value="belum_lunas" <?= $statusBayar === 'belum_lunas' ? 'selected' : '' ?>>Belum bayar</option>
-                    <option value="lunas" <?= $statusBayar === 'lunas' ? 'selected' : '' ?>>Sudah bayar</option>
-                    <option value="semua" <?= $statusBayar === 'semua' ? 'selected' : '' ?>>Semua</option>
-                </select>
-            </label>
+                    <label>
+                        <span>Periode pembayaran</span>
+                        <select name="bulan">
+                            <option value="">Semua bulan</option>
+                            <?php foreach ($bulanList as $item): ?>
+                                <option value="<?= htmlspecialchars($item) ?>" <?= $bulan === $item ? 'selected' : '' ?>><?= htmlspecialchars($item) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
 
-            <button class="reminder-filter-btn" type="submit">
-                <i class="fa-solid fa-filter"></i> Terapkan
-            </button>
-        </form>
+                    <label>
+                        <span>Halaqoh</span>
+                        <select name="halaqoh">
+                            <option value="">Semua halaqoh</option>
+                            <?php foreach ($halaqohList as $item): ?>
+                                <option value="<?= htmlspecialchars($item) ?>" <?= $halaqoh === $item ? 'selected' : '' ?>><?= htmlspecialchars($item) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
 
-        <?php if (!$hasFilter): ?>
-            <div class="reminder-empty">
-                <i class="fa-solid fa-filter"></i>
-                <strong>Gunakan filter untuk menampilkan peserta</strong>
-                <span>Daftar peserta dan ringkasan akan dimuat setelah filter dijalankan.</span>
-            </div>
-        <?php else: ?>
-            <div class="reminder-selectbar">
-                <label>
-                    <input type="checkbox" id="reminderSelectAll">
-                    <span>Pilih semua yang tampil</span>
-                </label>
-                <span><?= $totalPeserta > 100 ? '100 dari ' . $totalPeserta : $totalPeserta ?> peserta</span>
-            </div>
+                    <label>
+                        <span>Status peserta</span>
+                        <select name="status_peserta">
+                            <option value="proses" <?= $statusPeserta === 'proses' ? 'selected' : '' ?>>Proses</option>
+                            <option value="selesai" <?= $statusPeserta === 'selesai' ? 'selected' : '' ?>>Selesai</option>
+                            <option value="semua" <?= $statusPeserta === 'semua' ? 'selected' : '' ?>>Semua status</option>
+                        </select>
+                    </label>
 
-            <div class="reminder-list">
-                <?php if (!$participants): ?>
+                    <label>
+                        <span>Status pembayaran</span>
+                        <select name="status_bayar">
+                            <option value="belum_lunas" <?= $statusBayar === 'belum_lunas' ? 'selected' : '' ?>>Belum bayar</option>
+                            <option value="lunas" <?= $statusBayar === 'lunas' ? 'selected' : '' ?>>Sudah bayar</option>
+                            <option value="semua" <?= $statusBayar === 'semua' ? 'selected' : '' ?>>Semua</option>
+                        </select>
+                    </label>
+
+                    <button class="reminder-filter-btn" type="submit">
+                        <i class="fa-solid fa-filter"></i> Terapkan
+                    </button>
+                </form>
+
+                <?php if (!$hasFilter): ?>
                     <div class="reminder-empty">
-                        <i class="fa-regular fa-face-frown"></i>
-                        <strong>Target tidak ditemukan</strong>
-                        <span>Coba ubah filter status peserta, pembayaran, bulan, halaqoh, atau pencarian.</span>
+                        <i class="fa-solid fa-filter"></i>
+                        <strong>Gunakan filter untuk menampilkan peserta</strong>
+                        <span>Daftar peserta dan ringkasan akan dimuat setelah filter dijalankan.</span>
                     </div>
                 <?php else: ?>
-                    <?php foreach ($participants as $p): ?>
-                        <label class="reminder-person">
-                            <input
-                                type="checkbox"
-                                class="reminder-target"
-                                value="<?= (int)$p['id'] ?>"
-                                data-name="<?= htmlspecialchars($p['nama_lengkap'], ENT_QUOTES) ?>"
-                                data-wa="<?= htmlspecialchars(($csvFile !== '' ? ($csvTargetByPesertaId[(int)$p['id']] ?? '') : $p['nowa']), ENT_QUOTES) ?>"
-                            >
-                            <span class="reminder-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr((string)$p['nama_lengkap'], 0, 1))) ?></span>
-                            <span class="reminder-person-body">
-                                <strong><?= htmlspecialchars($p['nama_lengkap']) ?></strong>
-                                <small><?= htmlspecialchars($csvFile !== '' ? (($csvTargetByPesertaId[(int)$p['id']] ?? '') ?: $p['nowa']) : $p['nowa']) ?> · <?= htmlspecialchars($p['halaqoh'] ?: '-') ?></small>
-                                <em class="reminder-history">
-                                    <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
-                                    <?= htmlspecialchars($formatReminderHistory((int)$p['reminder_count'], $p['reminder_last_at'])) ?>
-                                </em>
-                            </span>
-                            <span class="reminder-person-status <?= (int)$p['is_lunas'] ? 'paid' : 'unpaid' ?>">
-                                <?= (int)$p['is_lunas'] ? 'Lunas' : 'Belum bayar' ?>
-                            </span>
+                    <div class="reminder-selectbar">
+                        <label>
+                            <input type="checkbox" id="reminderSelectAll">
+                            <span>Pilih semua yang tampil</span>
                         </label>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-        <?php endif; ?>
-    </section>
+                        <span>Halaman <?= $pageNumber ?> dari <?= $totalPages ?> (<?= count($participants) ?> dari <?= $totalPeserta ?> peserta)</span>
+                    </div>
 
-    <aside class="reminder-side">
-        <form class="reminder-card reminder-compose-card" id="reminderSendForm" method="post" action="actions/reminder-send.php">
-            <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
-            <input type="hidden" name="mode" value="participants">
-            <input type="hidden" name="selected" id="reminderSelectedInput" value="[]">
-            <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
-            <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
-            <input type="hidden" name="csv_file" value="<?= htmlspecialchars($csvFile, ENT_QUOTES) ?>">
-            <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
-            <input type="hidden" name="status_peserta" value="<?= htmlspecialchars($statusPeserta, ENT_QUOTES) ?>">
-            <input type="hidden" name="status_bayar" value="<?= htmlspecialchars($statusBayar, ENT_QUOTES) ?>">
-
-            <div class="reminder-card-head">
-                <div><span class="reminder-kicker">Pesan</span><h2>Kirim reminder</h2></div>
-                <span class="reminder-wa-icon"><i class="fa-brands fa-whatsapp"></i></span>
-            </div>
-
-            <div class="reminder-field">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-                    <span>Template</span>
-                    <button type="button" class="reminder-secondary-link" id="manageReminderTemplates" style="border:0;background:transparent;padding:0;cursor:pointer">
-                        Kelola template
-                    </button>
-                </div>
-                <select name="template_id" id="reminderTemplate" <?= !$templates ? 'disabled' : '' ?>>
-                    <option value="">Pilih template...</option>
-                    <?php foreach ($templates as $tpl): ?>
-                        <option value="<?= (int)$tpl['id'] ?>" data-content="<?= htmlspecialchars($tpl['content'], ENT_QUOTES) ?>">
-                            <?= htmlspecialchars($tpl['title']) ?><?= $tpl['category'] ? ' · ' . htmlspecialchars($tpl['category']) : '' ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <label class="reminder-field">
-                <span>Preview pesan</span>
-                <textarea id="reminderPreview" rows="9" readonly placeholder="Pilih template untuk melihat preview."></textarea>
-            </label>
-
-            <div class="reminder-helper">
-                <i class="fa-solid fa-circle-info"></i>
-                <span><code>{nama}</code> akan otomatis diganti dengan nama peserta.</span>
-            </div>
-
-            <button class="reminder-send-btn" type="submit" <?= !$templates ? 'disabled' : '' ?>>
-                <i class="fa-solid fa-paper-plane"></i>
-                <span>Kirim ke <b id="reminderSendCount">0</b> peserta</span>
-            </button>
-        </form>
-
-        <div class="reminder-card">
-            <div class="reminder-card-head compact">
-                <div><span class="reminder-kicker">Masuk dari pengajar</span><h2>Permintaan reminder</h2></div>
-                <span class="reminder-count"><?= count($pendingRequests) ?></span>
-            </div>
-
-            <div class="reminder-request-list">
-                <?php if (!$pendingRequests): ?>
-                    <div class="reminder-empty compact"><i class="fa-regular fa-inbox"></i><span>Belum ada permintaan.</span></div>
-                <?php else: ?>
-                    <?php foreach ($pendingRequests as $req): ?>
-                        <div class="reminder-request">
-                            <div>
-                                <strong><?= htmlspecialchars($req['peserta_nama']) ?></strong>
-                                <small><?= htmlspecialchars($req['halaqoh'] ?: '-') ?> · <?= htmlspecialchars(mb_strimwidth($req['pesan_pengajar'], 0, 80, '…')) ?></small>
+                    <div class="reminder-list">
+                        <?php if (!$participants): ?>
+                            <div class="reminder-empty">
+                                <i class="fa-regular fa-face-frown"></i>
+                                <strong>Target tidak ditemukan</strong>
+                                <span>Coba ubah filter status peserta, pembayaran, bulan, halaqoh, atau pencarian.</span>
                             </div>
-                            <span class="reminder-request-status <?= ($req['status'] ?? '') === 'terkirim' ? 'sent' : 'pending' ?>">
-                                <?= ($req['status'] ?? '') === 'terkirim' ? 'Terkirim' : 'Menunggu' ?>
-                            </span>
+                        <?php else: ?>
+                            <?php foreach ($participants as $p): ?>
+                                <label class="reminder-person">
+                                    <input
+                                        type="checkbox"
+                                        class="reminder-target"
+                                        value="<?= (int)$p['id'] ?>"
+                                        data-name="<?= htmlspecialchars($p['nama_lengkap'], ENT_QUOTES) ?>"
+                                        data-wa="<?= htmlspecialchars(($csvFile !== '' ? ($csvTargetByPesertaId[(int)$p['id']] ?? '') : $p['nowa']), ENT_QUOTES) ?>"
+                                    >
+                                    <span class="reminder-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr((string)$p['nama_lengkap'], 0, 1))) ?></span>
+                                    <span class="reminder-person-body">
+                                        <strong><?= htmlspecialchars($p['nama_lengkap']) ?></strong>
+                                        <small><?= htmlspecialchars($csvFile !== '' ? (($csvTargetByPesertaId[(int)$p['id']] ?? '') ?: $p['nowa']) : $p['nowa']) ?> · <?= htmlspecialchars($p['halaqoh'] ?: '-') ?></small>
+                                        <em class="reminder-history">
+                                            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+                                            <?= htmlspecialchars($formatReminderHistory((int)$p['reminder_count'], $p['reminder_last_at'])) ?>
+                                        </em>
+                                    </span>
+                                    <span class="reminder-person-status <?= (int)$p['is_lunas'] ? 'paid' : 'unpaid' ?>">
+                                        <?= (int)$p['is_lunas'] ? 'Lunas' : 'Belum bayar' ?>
+                                    </span>
+                                </label>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php if ($totalPages > 1): ?>
+                        <div class="reminder-pagination">
+                            <span>Menampilkan <?= count($participants) ?> dari <?= $totalPeserta ?> peserta</span>
+                            <div class="reminder-pagination-pages">
+                                <?php if ($pageNumber > 1): ?>
+                                    <a class="reminder-page-link" href="<?= htmlspecialchars($buildPaginationUrl($pageNumber - 1)) ?>" title="Halaman Sebelumnya">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </a>
+                                <?php else: ?>
+                                    <span class="reminder-page-link disabled"><i class="fa-solid fa-chevron-left"></i></span>
+                                <?php endif; ?>
+
+                                <?php
+                                $startPage = max(1, $pageNumber - 2);
+                                $endPage = min($totalPages, $pageNumber + 2);
+                                if ($startPage > 1): ?>
+                                    <a class="reminder-page-link" href="<?= htmlspecialchars($buildPaginationUrl(1)) ?>">1</a>
+                                    <?php if ($startPage > 2): ?><span style="padding:0 3px;color:#94a3b8">…</span><?php endif; ?>
+                                <?php endif; ?>
+
+                                <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                                    <a class="reminder-page-link <?= $i === $pageNumber ? 'active' : '' ?>" href="<?= htmlspecialchars($buildPaginationUrl($i)) ?>">
+                                        <?= $i ?>
+                                    </a>
+                                <?php endfor; ?>
+
+                                <?php if ($endPage < $totalPages): ?>
+                                    <?php if ($endPage < $totalPages - 1): ?><span style="padding:0 3px;color:#94a3b8">…</span><?php endif; ?>
+                                    <a class="reminder-page-link" href="<?= htmlspecialchars($buildPaginationUrl($totalPages)) ?>"><?= $totalPages ?></a>
+                                <?php endif; ?>
+
+                                <?php if ($pageNumber < $totalPages): ?>
+                                    <a class="reminder-page-link" href="<?= htmlspecialchars($buildPaginationUrl($pageNumber + 1)) ?>" title="Halaman Berikutnya">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </a>
+                                <?php else: ?>
+                                    <span class="reminder-page-link disabled"><i class="fa-solid fa-chevron-right"></i></span>
+                                <?php endif; ?>
+                            </div>
                         </div>
-                    <?php endforeach; ?>
+                    <?php endif; ?>
                 <?php endif; ?>
+            </section>
+        </div>
+
+        <aside class="reminder-payment-side reminder-side">
+            <form class="reminder-card reminder-compose-card" id="reminderSendForm" method="post" action="actions/reminder-send.php">
+                <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                <input type="hidden" name="mode" value="participants">
+                <input type="hidden" name="selected" id="reminderSelectedInput" value="[]">
+                <input type="hidden" name="p" value="<?= (int)$pageNumber ?>">
+                <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
+                <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
+                <input type="hidden" name="csv_file" value="<?= htmlspecialchars($csvFile, ENT_QUOTES) ?>">
+                <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
+                <input type="hidden" name="status_peserta" value="<?= htmlspecialchars($statusPeserta, ENT_QUOTES) ?>">
+                <input type="hidden" name="status_bayar" value="<?= htmlspecialchars($statusBayar, ENT_QUOTES) ?>">
+
+                <div class="reminder-card-head">
+                    <div><span class="reminder-kicker">Pesan</span><h2>Kirim reminder</h2></div>
+                    <span class="reminder-wa-icon"><i class="fa-brands fa-whatsapp"></i></span>
+                </div>
+
+                <div class="reminder-field">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                        <span>Template</span>
+                        <button type="button" class="reminder-secondary-link" id="manageReminderTemplates" style="border:0;background:transparent;padding:0;cursor:pointer">
+                            Kelola template
+                        </button>
+                    </div>
+                    <select name="template_id" id="reminderTemplate" <?= !$templates ? 'disabled' : '' ?>>
+                        <option value="">Pilih template...</option>
+                        <?php foreach ($templates as $tpl): ?>
+                            <option value="<?= (int)$tpl['id'] ?>" data-content="<?= htmlspecialchars($tpl['content'], ENT_QUOTES) ?>">
+                                <?= htmlspecialchars($tpl['title']) ?><?= $tpl['category'] ? ' · ' . htmlspecialchars($tpl['category']) : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <label class="reminder-field">
+                    <span>Preview pesan</span>
+                    <textarea id="reminderPreview" rows="9" readonly placeholder="Pilih template untuk melihat preview."></textarea>
+                </label>
+
+                <div class="reminder-helper">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>Variabel <code>{nama}</code>, <code>{bulan}</code>, dan <code>{halaqoh}</code> akan otomatis diganti.</span>
+                </div>
+
+                <button class="reminder-send-btn" type="submit" <?= !$templates ? 'disabled' : '' ?>>
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>Kirim ke <b id="reminderSendCount">0</b> peserta</span>
+                </button>
+            </form>
+
+            <div class="reminder-card">
+                <div class="reminder-card-head compact">
+                    <div><span class="reminder-kicker">Masuk dari pengajar</span><h2>Permintaan reminder</h2></div>
+                    <span class="reminder-count"><?= count($pendingRequests) ?></span>
+                </div>
+
+                <div class="reminder-request-list">
+                    <?php if (!$pendingRequests): ?>
+                        <div class="reminder-empty compact"><i class="fa-regular fa-inbox"></i><span>Belum ada permintaan.</span></div>
+                    <?php else: ?>
+                        <?php foreach ($pendingRequests as $req): ?>
+                            <div class="reminder-request">
+                                <div>
+                                    <strong><?= htmlspecialchars($req['peserta_nama']) ?></strong>
+                                    <small><?= htmlspecialchars($req['halaqoh'] ?: '-') ?> · <?= htmlspecialchars(mb_strimwidth($req['pesan_pengajar'], 0, 80, '…')) ?></small>
+                                </div>
+                                <span class="reminder-request-status <?= ($req['status'] ?? '') === 'terkirim' ? 'sent' : 'pending' ?>">
+                                    <?= ($req['status'] ?? '') === 'terkirim' ? 'Terkirim' : 'Menunggu' ?>
+                                </span>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+                <a class="reminder-secondary-link" href="../kelola_reminder.php">
+                    Buka semua permintaan <i class="fa-solid fa-arrow-right"></i>
+                </a>
             </div>
+        </aside>
+    </div>
+</div>
 
             <a class="reminder-secondary-link" href="../kelola_reminder.php">
                 Buka semua permintaan <i class="fa-solid fa-arrow-right"></i>
@@ -633,6 +715,13 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
 
         if (!confirm('Kirim reminder ke ' + items.length + ' peserta sekarang?')) {
             event.preventDefault();
+            return;
+        }
+
+        const submitBtn = form.querySelector('.reminder-send-btn');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengirim reminder...</span>';
         }
     });
 
