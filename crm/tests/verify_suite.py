@@ -437,6 +437,14 @@ def run_reminder_schedule_suite(base_dir: str):
     reminder_schedule_test.test_css_styles(base_dir)
     print("reminder-schedule-suite: OK")
 
+def run_reminder_peserta_schedule_suite(base_dir: str):
+    import reminder_peserta_schedule_test
+    reminder_peserta_schedule_test.test_lib_enhancements(base_dir)
+    reminder_peserta_schedule_test.test_action_enhancements(base_dir)
+    reminder_peserta_schedule_test.test_peserta_page_ui(base_dir)
+    reminder_peserta_schedule_test.test_css_rules(base_dir)
+    print("reminder-peserta-schedule-suite: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -473,6 +481,8 @@ def main():
         run_reminder_pembayaran_suite(base_dir)
     if test_name in ["reminder-schedule-suite", "reminder-schedule", "all"]:
         run_reminder_schedule_suite(base_dir)
+    if test_name in ["reminder-peserta-schedule-suite", "reminder-peserta-schedule", "all"]:
+        run_reminder_peserta_schedule_suite(base_dir)
 
 if __name__ == "__main__":
     try:
