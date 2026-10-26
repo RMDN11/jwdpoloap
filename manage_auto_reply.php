@@ -573,7 +573,7 @@ if ($res) {
                     <a href="promosi.php" class="text-xs sm:text-sm font-medium text-gray-300 hover:text-white px-2 py-1 rounded bg-gray-700 bg-opacity-50">
                         <i class="fas fa-bullhorn mr-1"></i> Promosi
                     </a>
-                    <a href="kelola_reminder.php" class="text-xs sm:text-sm font-medium text-gray-300 hover:text-white px-2 py-1 rounded bg-gray-700 bg-opacity-50">
+                    <a href="crm/index.php?page=reminder-peserta" class="text-xs sm:text-sm font-medium text-gray-300 hover:text-white px-2 py-1 rounded bg-gray-700 bg-opacity-50">
                         <i class="fas fa-message mr-1"></i> Reminder Peserta
                     </a>
                     <a href="kirimgrup.php" class="text-xs sm:text-sm font-medium text-gray-300 hover:text-white px-2 py-1 rounded bg-gray-700 bg-opacity-50">

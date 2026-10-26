@@ -192,7 +192,7 @@ require_once 'auth_checkwa.php';
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Tagihan Pembayaran</span>
                 <span class="nav-tooltip">Tagihan Pembayaran</span>
             </a>
-            <a href="kelola_reminder.php" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Sistem Reminder Otomatis" data-subtitle="Robot pengingat peserta" data-icon="fa-clock" data-bg="#ffedd5" data-text="#ea580c" data-iconcolor="#f97316" data-hover="#fff7ed">
+            <a href="crm/index.php?page=reminder-peserta" class="nav-link flex items-center gap-3 px-3 py-2.5" data-title="Sistem Reminder Otomatis" data-subtitle="Robot pengingat peserta" data-icon="fa-clock" data-bg="#ffedd5" data-text="#ea580c" data-iconcolor="#f97316" data-hover="#fff7ed">
                 <div class="icon-wrapper w-6 text-center shrink-0"><i class="fas fa-clock text-lg"></i></div>
                 <span class="menu-text text-[13px] font-semibold tracking-wide">Robot Reminder</span>
                 <span class="nav-tooltip">Robot Reminder</span>

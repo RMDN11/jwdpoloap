@@ -396,7 +396,12 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                             <input type="checkbox" id="reminderSelectAll">
                             <span>Pilih semua yang tampil</span>
                         </label>
-                        <span>Halaman <?= $pageNumber ?> dari <?= $totalPages ?> (<?= count($participants) ?> dari <?= $totalPeserta ?> peserta)</span>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <button type="button" id="reminderClearSelection" class="reminder-clear-btn" style="display:none">
+                                <i class="fa-solid fa-xmark"></i> Batal pilih
+                            </button>
+                            <span>Halaman <?= $pageNumber ?> dari <?= $totalPages ?> (<?= count($participants) ?> dari <?= $totalPeserta ?> peserta)</span>
+                        </div>
                     </div>
 
                     <div class="reminder-list">
@@ -415,6 +420,7 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                                         value="<?= (int)$p['id'] ?>"
                                         data-name="<?= htmlspecialchars($p['nama_lengkap'], ENT_QUOTES) ?>"
                                         data-wa="<?= htmlspecialchars(($csvFile !== '' ? ($csvTargetByPesertaId[(int)$p['id']] ?? '') : $p['nowa']), ENT_QUOTES) ?>"
+                                        data-halaqoh="<?= htmlspecialchars($p['halaqoh'] ?: '-', ENT_QUOTES) ?>"
                                     >
                                     <span class="reminder-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr((string)$p['nama_lengkap'], 0, 1))) ?></span>
                                     <span class="reminder-person-body">
@@ -539,33 +545,43 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                     <?php if (!$pendingRequests): ?>
                         <div class="reminder-empty compact"><i class="fa-regular fa-inbox"></i><span>Belum ada permintaan.</span></div>
                     <?php else: ?>
-                        <?php foreach ($pendingRequests as $req): ?>
+                        <?php foreach ($pendingRequests as $req):
+                            $isPending = ($req['status'] ?? '') !== 'terkirim';
+                        ?>
                             <div class="reminder-request">
-                                <div>
+                                <div style="flex:1;min-width:0">
                                     <strong><?= htmlspecialchars($req['peserta_nama']) ?></strong>
-                                    <small><?= htmlspecialchars($req['halaqoh'] ?: '-') ?> · <?= htmlspecialchars(mb_strimwidth($req['pesan_pengajar'], 0, 80, '…')) ?></small>
+                                    <small><?= htmlspecialchars($req['halaqoh'] ?: '-') ?> · <?= htmlspecialchars(mb_strimwidth($req['pesan_pengajar'], 0, 75, '…')) ?></small>
                                 </div>
-                                <span class="reminder-request-status <?= ($req['status'] ?? '') === 'terkirim' ? 'sent' : 'pending' ?>">
-                                    <?= ($req['status'] ?? '') === 'terkirim' ? 'Terkirim' : 'Menunggu' ?>
-                                </span>
+                                <div style="display:flex;align-items:center;gap:6px">
+                                    <span class="reminder-request-status <?= $isPending ? 'pending' : 'sent' ?>">
+                                        <?= $isPending ? 'Menunggu' : 'Terkirim' ?>
+                                    </span>
+                                    <?php if ($isPending): ?>
+                                        <form method="post" action="actions/reminder-send.php" style="margin:0" onsubmit="return confirm('Kirim reminder ke <?= htmlspecialchars(addslashes($req['peserta_nama'])) ?> sekarang?')">
+                                            <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                                            <input type="hidden" name="mode" value="request">
+                                            <input type="hidden" name="request_id" value="<?= (int)$req['id'] ?>">
+                                            <input type="hidden" name="template_id" class="request-template-id" value="<?= (int)($templates[0]['id'] ?? 0) ?>">
+                                            <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
+                                            <input type="hidden" name="halaqoh" value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>">
+                                            <button type="submit" class="reminder-request-send-btn" title="Kirim reminder ke peserta ini">
+                                                <i class="fa-solid fa-paper-plane"></i> Kirim
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
 
-                <a class="reminder-secondary-link" href="../kelola_reminder.php">
-                    Buka semua permintaan <i class="fa-solid fa-arrow-right"></i>
+                <a class="reminder-secondary-link" href="?page=reminder-peserta">
+                    Buka semua di Pengingat Peserta <i class="fa-solid fa-arrow-right"></i>
                 </a>
             </div>
         </aside>
     </div>
-</div>
-
-            <a class="reminder-secondary-link" href="../kelola_reminder.php">
-                Buka semua permintaan <i class="fa-solid fa-arrow-right"></i>
-            </a>
-        </div>
-    </aside>
 </div>
 
 <div id="reminderTemplateModal" hidden style="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.42);padding:20px;align-items:center;justify-content:center">
@@ -617,6 +633,7 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
 (() => {
     const checks = [...document.querySelectorAll('.reminder-target')];
     const all = document.getElementById('reminderSelectAll');
+    const clearBtn = document.getElementById('reminderClearSelection');
     const count = document.getElementById('reminderSelectedCount');
     const sendCount = document.getElementById('reminderSendCount');
     const input = document.getElementById('reminderSelectedInput');
@@ -624,12 +641,43 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
     const template = document.getElementById('reminderTemplate');
     const preview = document.getElementById('reminderPreview');
 
+    let activePreviewTarget = null;
+
     function selected() {
         return checks.filter(x => x.checked).map(x => ({
             id: x.value,
             name: x.dataset.name || '',
-            nowa: x.dataset.wa || ''
+            nowa: x.dataset.wa || '',
+            halaqoh: x.dataset.halaqoh || ''
         }));
+    }
+
+    function updatePersonalizedPreview() {
+        const option = template?.options[template.selectedIndex];
+        let content = option?.dataset.content || '';
+        if (!content) {
+            if (preview) preview.value = '';
+            return;
+        }
+
+        const target = activePreviewTarget || checks.find(x => x.checked);
+        if (target) {
+            const name = target.dataset.name || 'Kak';
+            const hal = target.dataset.halaqoh || '-';
+            const bul = <?= json_encode($bulan !== '' ? $bulan : 'periode ini', JSON_UNESCAPED_UNICODE) ?>;
+            content = content
+                .replace(/{nama}|{NAMA}|\[nama\]|\[NAMA\]/g, name)
+                .replace(/{bulan}|{BULAN}|\[bulan\]|\[BULAN\]/g, bul)
+                .replace(/{halaqoh}|{HALAQOH}|\[halaqoh\]|\[HALAQOH\]/g, hal);
+        }
+        if (preview) preview.value = content;
+    }
+
+    function syncRequestTemplates() {
+        const tplId = template?.value || '';
+        document.querySelectorAll('.request-template-id').forEach(el => {
+            el.value = tplId;
+        });
     }
 
     function refresh() {
@@ -638,17 +686,41 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
         sendCount.textContent = items.length;
         input.value = JSON.stringify(items);
         if (all) all.checked = checks.length > 0 && items.length === checks.length;
+        if (clearBtn) clearBtn.style.display = items.length > 0 ? 'inline-flex' : 'none';
+        updatePersonalizedPreview();
     }
 
-    checks.forEach(x => x.addEventListener('change', refresh));
+    checks.forEach(x => x.addEventListener('change', () => {
+        if (x.checked) activePreviewTarget = x;
+        refresh();
+    }));
+
     all?.addEventListener('change', () => {
         checks.forEach(x => x.checked = all.checked);
+        if (all.checked && checks.length > 0) activePreviewTarget = checks[0];
         refresh();
     });
 
+    clearBtn?.addEventListener('click', () => {
+        checks.forEach(x => x.checked = false);
+        if (all) all.checked = false;
+        activePreviewTarget = null;
+        refresh();
+    });
+
+    document.querySelectorAll('.reminder-person').forEach(row => {
+        row.addEventListener('click', event => {
+            const chk = row.querySelector('.reminder-target');
+            if (chk) {
+                activePreviewTarget = chk;
+                updatePersonalizedPreview();
+            }
+        });
+    });
+
     template?.addEventListener('change', () => {
-        const option = template.options[template.selectedIndex];
-        preview.value = option?.dataset.content || '';
+        syncRequestTemplates();
+        updatePersonalizedPreview();
     });
 
     const templateModal = document.getElementById('reminderTemplateModal');
@@ -725,6 +797,7 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
         }
     });
 
+    syncRequestTemplates();
     refresh();
 })();
 </script>

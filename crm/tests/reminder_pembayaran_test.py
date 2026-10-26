@@ -123,6 +123,49 @@ def test_layout_and_ux(base_dir):
 
     print("test_layout_and_ux: OK")
 
+def test_kelola_reminder_removed(base_dir):
+    legacy_file = os.path.join(base_dir, "kelola_reminder.php")
+    if os.path.exists(legacy_file):
+        raise AssertionError("kelola_reminder.php still exists and must be deleted")
+
+    page_path = os.path.join(base_dir, "crm/pages/reminder-pembayaran.php")
+    with open(page_path, "r", encoding="utf-8") as f:
+        page = f.read()
+
+    if "kelola_reminder.php" in page:
+        raise AssertionError("reminder-pembayaran.php still links to kelola_reminder.php")
+
+    if "page=reminder-peserta" not in page:
+        raise AssertionError("reminder-pembayaran.php should link to CRM reminder-peserta workspace")
+
+    print("test_kelola_reminder_removed: OK")
+
+def test_teacher_request_action(base_dir):
+    page_path = os.path.join(base_dir, "crm/pages/reminder-pembayaran.php")
+    with open(page_path, "r", encoding="utf-8") as f:
+        page = f.read()
+
+    if 'name="mode" value="request"' not in page and "mode=request" not in page:
+        raise AssertionError("reminder-pembayaran.php must provide direct action to execute teacher reminder requests (mode=request)")
+
+    if 'name="request_id"' not in page and "request_id" not in page:
+        raise AssertionError("reminder-pembayaran.php must bind request_id for 1-click execution")
+
+    print("test_teacher_request_action: OK")
+
+def test_live_preview_and_selection_ux(base_dir):
+    page_path = os.path.join(base_dir, "crm/pages/reminder-pembayaran.php")
+    with open(page_path, "r", encoding="utf-8") as f:
+        page = f.read()
+
+    if "updatePersonalizedPreview" not in page and "renderPreview" not in page and "data-halaqoh" not in page:
+        raise AssertionError("reminder-pembayaran.php must provide live personalized preview data")
+
+    if "reminderClearSelection" not in page and "btn-clear-selection" not in page:
+        raise AssertionError("reminder-pembayaran.php must provide clear selection button in selectbar")
+
+    print("test_live_preview_and_selection_ux: OK")
+
 def main():
     base_dir = get_base_dir()
     test_bulan_pembayaran_query(base_dir)
@@ -132,6 +175,9 @@ def main():
     test_send_action_placeholders(base_dir)
     test_send_action_safety(base_dir)
     test_layout_and_ux(base_dir)
+    test_kelola_reminder_removed(base_dir)
+    test_teacher_request_action(base_dir)
+    test_live_preview_and_selection_ux(base_dir)
     print("\nALL REMINDER PEMBAYARAN TESTS PASSED!")
 
 if __name__ == "__main__":

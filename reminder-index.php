@@ -68,7 +68,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
           <p class="text-xs md:text-sm text-slate-500">Promosi dengan gambar & filter.</p>
         </a>
 
-        <a href="kelola_reminder.php" class="card bg-white p-5 md:p-6 rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+        <a href="crm/index.php?page=reminder-peserta" class="card bg-white p-5 md:p-6 rounded-2xl shadow-lg border border-slate-200 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
           <div class="card-icon-container w-12 h-12 flex items-center justify-center rounded-xl mb-3 gradient-background-3 text-white shadow-md">
             <i class="ph-clock-counter-clockwise text-2xl md:text-3xl"></i>
           </div>

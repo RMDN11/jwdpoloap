@@ -327,7 +327,7 @@ $stmtPromoList->close();
                     </div>
                     <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
                         <a href="reminder.php" class="text-xs sm:text-sm font-medium text-gray-300 hover:text-white px-2 py-1 rounded bg-gray-700 bg-opacity-50"><i class="fas fa-bell mr-1"></i> Pembayaran</a>
-                        <a href="kelola_reminder.php" class="text-xs sm:text-sm font-medium text-gray-300 hover:text-white px-2 py-1 rounded bg-gray-700 bg-opacity-50"><i class="fas fa-message mr-1"></i> Reminder Peserta</a>
+                        <a href="crm/index.php?page=reminder-peserta" class="text-xs sm:text-sm font-medium text-gray-300 hover:text-white px-2 py-1 rounded bg-gray-700 bg-opacity-50"><i class="fas fa-message mr-1"></i> Reminder Peserta</a>
                         <a href="kirimgrup.php" class="text-xs sm:text-sm font-medium text-gray-300 hover:text-white px-2 py-1 rounded bg-gray-700 bg-opacity-50"><i class="fas fa-users mr-1"></i> Grup</a>
                         <a href="logoutwa.php" class="text-xs sm:text-sm font-medium text-gray-300 hover:text-white px-2 py-1 rounded bg-gray-700 bg-opacity-50"><i class="fas fa-right-from-bracket"></i> Keluar</a>
                     </div>

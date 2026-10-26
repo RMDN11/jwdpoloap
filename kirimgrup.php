@@ -434,7 +434,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; 
                 <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
                     <a href="reminder.php" class="text-xs font-semibold text-gray-600 hover:text-blue-600 px-3 py-2 rounded-lg bg-gray-100 hover:bg-blue-50 transition"><i class="fas fa-bell mr-1.5"></i> Pembayaran</a>
                     <a href="promosi.php" class="text-xs font-semibold text-gray-600 hover:text-blue-600 px-3 py-2 rounded-lg bg-gray-100 hover:bg-blue-50 transition"><i class="fas fa-bullhorn mr-1.5"></i> Promosi</a>
-                    <a href="kelola_reminder.php" class="text-xs font-semibold text-gray-600 hover:text-blue-600 px-3 py-2 rounded-lg bg-gray-100 hover:bg-blue-50 transition"><i class="fas fa-message mr-1.5"></i> Reminder</a>
+                    <a href="crm/index.php?page=reminder-peserta" class="text-xs font-semibold text-gray-600 hover:text-blue-600 px-3 py-2 rounded-lg bg-gray-100 hover:bg-blue-50 transition"><i class="fas fa-message mr-1.5"></i> Reminder</a>
                     <a href="kelola_grup.php" class="text-xs font-semibold text-gray-600 hover:text-blue-600 px-3 py-2 rounded-lg bg-gray-100 hover:bg-blue-50 transition"><i class="fas fa-plus-circle mr-1.5"></i> Grup</a>
                     <a href="logoutwa.php" class="text-xs font-semibold text-red-600 hover:text-white px-3 py-2 rounded-lg bg-red-50 hover:bg-red-500 transition"><i class="fas fa-right-from-bracket mr-1.5"></i> Keluar</a>
                 </div>

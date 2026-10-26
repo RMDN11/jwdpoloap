@@ -59,6 +59,10 @@ body:has(.reminder-payment-page) .content{max-width:1280px}
 .reminder-request-status{display:inline-flex;padding:4px 7px;border-radius:999px;font-size:9px;font-weight:800}
 .reminder-request-status.sent{background:#e8f7ed;color:#168044}
 .reminder-request-status.pending{background:#fff5dc;color:#a16207}
+.reminder-request-send-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid #168044;border-radius:8px;background:#edf8f1;color:#166534;font-size:10px;font-weight:700;cursor:pointer;transition:.15s}
+.reminder-request-send-btn:hover{background:#168044;color:#fff}
+.reminder-clear-btn{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:10px;font-weight:700;cursor:pointer;transition:.15s}
+.reminder-clear-btn:hover{background:#e2e8f0;color:#0f172a}
 .reminder-secondary-link{display:inline-flex;align-items:center;gap:5px;margin-top:10px;color:#166534;font-size:11px;font-weight:700;text-decoration:none}
 
 .reminder-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0 4px;margin-top:12px;border-top:1px solid #edf2ef;font-size:11px;color:#65756d}
