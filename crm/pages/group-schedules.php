@@ -115,6 +115,55 @@ foreach ($rows as $row) {
     ];
 }
 
+/* History messages for "Gunakan Lagi" column */
+$historyMessages = [];
+$histRes = $conn->query("
+    SELECT SUBSTRING_INDEX(message, ' :: ', -1) AS content,
+           MAX(created_at) AS latest_at,
+           COUNT(*) AS usage_count
+    FROM log_wa
+    WHERE message LIKE '%[GRUP]%'
+      AND message LIKE '% :: %'
+      AND TRIM(SUBSTRING_INDEX(message, ' :: ', -1)) <> ''
+    GROUP BY content
+    ORDER BY latest_at DESC
+    LIMIT 20
+");
+if ($histRes) {
+    while ($hRow = $histRes->fetch_assoc()) {
+        $c = trim((string)$hRow['content']);
+        if ($c !== '') {
+            $historyMessages[$c] = [
+                'content' => $c,
+                'latest_at' => (string)$hRow['latest_at'],
+                'usage_count' => (int)$hRow['usage_count']
+            ];
+        }
+    }
+}
+$schedHistRes = $conn->query("
+    SELECT pesan AS content,
+           MAX(terakhir_dikirim) AS latest_at,
+           COUNT(*) AS usage_count
+    FROM jadwal_pesan_grup
+    WHERE status = 'terkirim' AND TRIM(pesan) <> ''
+    GROUP BY pesan
+    ORDER BY latest_at DESC
+    LIMIT 20
+");
+if ($schedHistRes) {
+    while ($sRow = $schedHistRes->fetch_assoc()) {
+        $c = trim((string)$sRow['content']);
+        if ($c !== '' && !isset($historyMessages[$c])) {
+            $historyMessages[$c] = [
+                'content' => $c,
+                'latest_at' => $sRow['latest_at'] . ' 12:00:00',
+                'usage_count' => (int)$sRow['usage_count']
+            ];
+        }
+    }
+}
+
 $h = static function ($value): string {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 };
@@ -143,7 +192,7 @@ $displayStatus = static function (array $row): array {
   <div>
     <span class="eyebrow">Broadcast · Pengelolaan</span>
     <h1>Kelola Jadwal Grup</h1>
-    <p>Kelola jadwal berdasarkan isi pesan dan total halaqoh penerima, batalkan sekaligus, atau edit pesan jadwal.</p>
+    <p>Kelola jadwal berdasarkan isi pesan dan total halaqoh penerima, edit pesan dan waktu jadwal, atau gunakan kembali riwayat pesan siaran.</p>
   </div>
   <a class="group-manage-link" href="?page=group"><i class="fa-solid fa-arrow-left"></i> Kembali ke Broadcast</a>
 </section>
@@ -204,201 +253,309 @@ $displayStatus = static function (array $row): array {
   </div>
 </section>
 
-<section class="group-card group-schedule-management">
-  <div class="group-schedule-toolbar">
-    <div>
-      <span class="group-kicker">Daftar jadwal</span>
-      <h2><?= $h(['kategori'=>'Jadwal berdasarkan pesan & kategori','rutin'=>'Jadwal rutin','sekali'=>'Jadwal sekali kirim'][$jenis]) ?></h2>
-      <p class="group-schedule-caption">Dikelompokkan berdasarkan isi pesan dan total halaqoh penerima.</p>
-      <a class="group-schedule-create" href="index.php?page=group"><i class="fa-solid fa-plus"></i><span>Buat jadwal baru</span></a>
-    </div>
-    <form method="get" class="group-schedule-filter">
-      <input type="hidden" name="page" value="group-schedules">
-      <input type="hidden" name="jenis" value="<?= $h($jenis) ?>">
-      <label for="groupScheduleStatus">Status</label>
-      <select id="groupScheduleStatus" name="status" onchange="this.form.submit()">
-        <?php foreach (['aktif'=>'Aktif','terkirim'=>'Terkirim','gagal'=>'Gagal','semua'=>'Semua status'] as $value => $label): ?>
-          <option value="<?= $h($value) ?>" <?= $status === $value ? 'selected' : '' ?>><?= $h($label) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </form>
+<!-- Layout Grid: Main Schedule Column + History "Gunakan Lagi" Column -->
+<div class="group-schedules-layout-grid">
+  <div class="group-schedules-main-column">
+    <section class="group-card group-schedule-management">
+      <div class="group-schedule-toolbar">
+        <div>
+          <span class="group-kicker">Daftar jadwal</span>
+          <h2><?= $h(['kategori'=>'Jadwal berdasarkan pesan & kategori','rutin'=>'Jadwal rutin','sekali'=>'Jadwal sekali kirim'][$jenis]) ?></h2>
+          <p class="group-schedule-caption">Dikelompokkan berdasarkan isi pesan dan total halaqoh penerima.</p>
+          <a class="group-schedule-create" href="index.php?page=group"><i class="fa-solid fa-plus"></i><span>Buat jadwal baru</span></a>
+        </div>
+        <form method="get" class="group-schedule-filter">
+          <input type="hidden" name="page" value="group-schedules">
+          <input type="hidden" name="jenis" value="<?= $h($jenis) ?>">
+          <label for="groupScheduleStatus">Status</label>
+          <select id="groupScheduleStatus" name="status" onchange="this.form.submit()">
+            <?php foreach (['aktif'=>'Aktif','terkirim'=>'Terkirim','gagal'=>'Gagal','semua'=>'Semua status'] as $value => $label): ?>
+              <option value="<?= $h($value) ?>" <?= $status === $value ? 'selected' : '' ?>><?= $h($label) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </form>
+      </div>
+
+      <nav class="group-schedule-tabs" aria-label="Jenis jadwal">
+        <a class="<?= $jenis === 'kategori' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=kategori&amp;status=<?= $h($status) ?>">
+          <i class="fa-solid fa-layer-group"></i><span>Semua Pesan</span>
+        </a>
+        <a class="<?= $jenis === 'rutin' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=rutin&amp;status=<?= $h($status) ?>">
+          <i class="fa-solid fa-arrows-rotate"></i><span>Rutin</span>
+        </a>
+        <a class="<?= $jenis === 'sekali' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=sekali&amp;status=<?= $h($status) ?>">
+          <i class="fa-regular fa-calendar"></i><span>Sekali</span>
+        </a>
+      </nav>
+
+      <?php if (!$campaigns): ?>
+        <div class="group-empty">
+          <i class="fa-regular fa-calendar-xmark"></i>
+          <strong>Tidak ada jadwal</strong>
+          <span>Tidak ada data pada pilihan filter ini.</span>
+        </div>
+      <?php else: ?>
+        <div class="group-schedule-scrollbox" tabindex="0" aria-label="Daftar jadwal grup yang dapat digulir">
+          <?php foreach ($campaigns as $c): ?>
+            <article class="group-schedule-campaign-card" id="card-<?= $c['key'] ?>">
+              <div class="group-schedule-campaign-header">
+                <div class="group-schedule-header-left">
+                  <span class="group-schedule-halaqoh-chip">
+                    <i class="fa-solid fa-users"></i> <strong><?= count($c['groups']) ?></strong> Halaqoh
+                  </span>
+                  <?php if (!empty($c['categories'])): ?>
+                    <span class="group-schedule-categories-chip" title="<?= $h(implode(', ', array_keys($c['categories']))) ?>">
+                      <i class="fa-solid fa-folder-tree"></i> <?= $h(implode(', ', array_slice(array_keys($c['categories']), 0, 2))) ?><?= count($c['categories']) > 2 ? ' +'.(count($c['categories']) - 2) : '' ?>
+                    </span>
+                  <?php endif; ?>
+                  <span class="group-schedule-type <?= $c['tipe_jadwal'] === 'harian' ? 'routine' : 'once' ?>">
+                    <i class="fa-solid <?= $c['tipe_jadwal'] === 'harian' ? 'fa-repeat' : 'fa-calendar' ?>"></i>
+                    <?= $c['tipe_jadwal'] === 'harian' ? 'Rutin' : 'Sekali' ?>
+                  </span>
+                  <span class="group-schedule-time-text">
+                    <i class="fa-regular fa-clock"></i>
+                    <?= $formatSchedule(['tipe_jadwal'=>$c['tipe_jadwal'],'jadwal_kirim'=>$c['jadwal_kirim'],'jam_harian'=>$c['jam_harian'],'hari_rutin'=>$c['hari_rutin']]) ?>
+                  </span>
+                </div>
+                <div class="group-schedule-header-right">
+                  <?php if ($c['pending_count'] > 0): ?>
+                    <span class="group-schedule-status status-aktif">
+                      <i class="fa-solid fa-circle-dot"></i> Aktif (<?= $c['pending_count'] ?> pending)
+                    </span>
+                  <?php elseif ($c['failed_count'] > 0): ?>
+                    <span class="group-schedule-status status-gagal">
+                      <i class="fa-solid fa-triangle-exclamation"></i> <?= $c['failed_count'] ?> Gagal
+                    </span>
+                  <?php else: ?>
+                    <span class="group-schedule-status status-terkirim">
+                      <i class="fa-solid fa-check-double"></i> Selesai Terkirim
+                    </span>
+                  <?php endif; ?>
+                </div>
+              </div>
+
+              <div class="group-schedule-message-box">
+                <div class="group-schedule-message-label">
+                  <span><i class="fa-regular fa-message"></i> Isi Pesan WhatsApp</span>
+                  <?php if (!empty($c['media_path'])): ?>
+                    <span class="group-schedule-media-pill"><i class="fa-solid fa-image"></i> Ada Gambar</span>
+                  <?php endif; ?>
+                </div>
+                <div class="group-schedule-message-text"><?= nl2br($h($c['pesan'])) ?></div>
+              </div>
+
+              <div class="group-schedule-footer-bar">
+                <div class="group-schedule-btn-group">
+                  <button type="button" class="group-schedule-action-btn btn-detail" onclick="toggleScheduleDetail('<?= $c['key'] ?>')">
+                    <i class="fa-solid fa-list-ul"></i> Detail Halaqoh (<?= count($c['groups']) ?>)
+                    <i class="fa-solid fa-chevron-down detail-arrow" id="arrow-<?= $c['key'] ?>"></i>
+                  </button>
+
+                  <?php if ($c['pending_count'] > 0): ?>
+                    <button type="button" class="group-schedule-action-btn btn-edit"
+                            data-key="<?= $c['key'] ?>"
+                            data-ids="<?= implode(',', $c['pending_ids']) ?>"
+                            data-type="<?= $c['tipe_jadwal'] ?>"
+                            data-time-once="<?= $c['jadwal_kirim'] ? date('Y-m-d\TH:i', strtotime($c['jadwal_kirim'])) : '' ?>"
+                            data-time-daily="<?= $c['jam_harian'] ? substr($c['jam_harian'], 0, 5) : '' ?>"
+                            data-days="<?= $c['hari_rutin'] ?? '' ?>"
+                            onclick="openEditScheduleModal(this)">
+                      <i class="fa-solid fa-pen-to-square"></i> Edit Pesan & Jadwal
+                    </button>
+                  <?php endif; ?>
+
+                  <a href="?page=group&reuse=<?= urlencode($c['pesan']) ?>" class="group-schedule-action-btn btn-reuse" title="Gunakan lagi pesan ini untuk broadcast baru">
+                    <i class="fa-solid fa-rotate-right"></i> Gunakan Lagi
+                  </a>
+                </div>
+
+                <div class="group-schedule-cancel-wrap">
+                  <?php if ($c['pending_count'] > 0): ?>
+                    <form method="post" action="actions/group-schedules.php" onsubmit="return confirm('Batalkan jadwal untuk SEMUA <?= $c['pending_count'] ?> halaqoh dengan pesan ini?');" style="display:inline">
+                      <input type="hidden" name="csrf" value="<?= $h(crmCsrfToken()) ?>">
+                      <input type="hidden" name="action" value="cancel_batch">
+                      <input type="hidden" name="return_page" value="group-schedules">
+                      <input type="hidden" name="id_list" value="<?= implode(',', $c['pending_ids']) ?>">
+                      <input type="hidden" name="status" value="<?= $h($status) ?>">
+                      <input type="hidden" name="jenis" value="<?= $h($jenis) ?>">
+                      <button type="submit" class="group-schedule-cancel-batch">
+                        <i class="fa-solid fa-ban"></i> Batalkan Semua (<?= $c['pending_count'] ?>)
+                      </button>
+                    </form>
+                  <?php endif; ?>
+                </div>
+              </div>
+
+              <!-- Expandable Detail Panel -->
+              <div class="group-schedule-detail-panel" id="detail-<?= $c['key'] ?>" hidden>
+                <div class="group-schedule-detail-head">
+                  <div>
+                    <strong>Daftar Halaqoh Penerima</strong>
+                    <small>Total <?= count($c['groups']) ?> halaqoh terdaftar dalam jadwal ini</small>
+                  </div>
+                  <input type="search" placeholder="Cari halaqoh..." class="group-schedule-detail-search" oninput="filterDetailList('<?= $c['key'] ?>', this.value)">
+                </div>
+                <div class="group-schedule-detail-list">
+                  <?php foreach ($c['groups'] as $g): ?>
+                    <div class="group-schedule-detail-row" data-name="<?= strtolower($h($g['nama_grup'])) ?>">
+                      <div class="group-schedule-detail-info">
+                        <span class="group-detail-chip"><?= $h($g['nama_grup']) ?></span>
+                        <small class="group-detail-cat"><i class="fa-regular fa-folder"></i> <?= $h($g['kategori']) ?></small>
+                        <span class="group-detail-id">#<?= (int)$g['id'] ?></span>
+                      </div>
+                      <div class="group-schedule-detail-status">
+                        <?php [$subLabel, $subClass] = $displayStatus($g); ?>
+                        <span class="group-schedule-status status-<?= $h($subClass) ?>"><?= $h($subLabel) ?></span>
+                        <?php if (!empty($g['terakhir_dikirim'])): ?>
+                          <small class="group-detail-date">Kirim: <?= $h(date('d/m/Y', strtotime((string)$g['terakhir_dikirim']))) ?></small>
+                        <?php endif; ?>
+                      </div>
+                      <div class="group-schedule-detail-action">
+                        <?php if ($g['status'] === 'pending'): ?>
+                          <form method="post" action="actions/group-schedules.php" onsubmit="return confirm('Batalkan jadwal untuk halaqoh <?= $h($g['nama_grup']) ?>?');">
+                            <input type="hidden" name="csrf" value="<?= $h(crmCsrfToken()) ?>">
+                            <input type="hidden" name="action" value="cancel">
+                            <input type="hidden" name="id" value="<?= (int)$g['id'] ?>">
+                            <input type="hidden" name="return_page" value="group-schedules">
+                            <input type="hidden" name="status" value="<?= $h($status) ?>">
+                            <input type="hidden" name="jenis" value="<?= $h($jenis) ?>">
+                            <button type="submit" class="group-detail-cancel-btn" title="Batalkan satu halaqoh ini">
+                              <i class="fa-solid fa-xmark"></i> Batalkan
+                            </button>
+                          </form>
+                        <?php endif; ?>
+                      </div>
+                    </div>
+                  <?php endforeach; ?>
+                </div>
+              </div>
+            </article>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </section>
   </div>
 
-  <nav class="group-schedule-tabs" aria-label="Jenis jadwal">
-    <a class="<?= $jenis === 'kategori' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=kategori&amp;status=<?= $h($status) ?>">
-      <i class="fa-solid fa-layer-group"></i><span>Semua Pesan</span>
-    </a>
-    <a class="<?= $jenis === 'rutin' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=rutin&amp;status=<?= $h($status) ?>">
-      <i class="fa-solid fa-arrows-rotate"></i><span>Rutin</span>
-    </a>
-    <a class="<?= $jenis === 'sekali' ? 'active' : '' ?>" href="?page=group-schedules&amp;jenis=sekali&amp;status=<?= $h($status) ?>">
-      <i class="fa-regular fa-calendar"></i><span>Sekali</span>
-    </a>
-  </nav>
+  <!-- History Column: Gunakan Lagi -->
+  <aside class="group-schedules-side-column">
+    <section class="group-card group-schedules-history-card">
+      <div class="group-card-head compact">
+        <div>
+          <span class="group-kicker">Riwayat Broadcast</span>
+          <h2>Gunakan Lagi</h2>
+        </div>
+        <span class="group-count-pill" id="historyCountPill"><?= count($historyMessages) ?></span>
+      </div>
+      <p class="group-schedules-history-desc">Pesan siaran grup terdahulu yang siap digunakan kembali untuk broadcast atau jadwal baru.</p>
 
-  <?php if (!$campaigns): ?>
-    <div class="group-empty">
-      <i class="fa-regular fa-calendar-xmark"></i>
-      <strong>Tidak ada jadwal</strong>
-      <span>Tidak ada data pada pilihan filter ini.</span>
-    </div>
-  <?php else: ?>
-    <div class="group-schedule-scrollbox" tabindex="0" aria-label="Daftar jadwal grup yang dapat digulir">
-      <?php foreach ($campaigns as $c): ?>
-        <article class="group-schedule-campaign-card" id="card-<?= $c['key'] ?>">
-          <div class="group-schedule-campaign-header">
-            <div class="group-schedule-header-left">
-              <span class="group-schedule-halaqoh-chip">
-                <i class="fa-solid fa-users"></i> <strong><?= count($c['groups']) ?></strong> Halaqoh
-              </span>
-              <?php if (!empty($c['categories'])): ?>
-                <span class="group-schedule-categories-chip" title="<?= $h(implode(', ', array_keys($c['categories']))) ?>">
-                  <i class="fa-solid fa-folder-tree"></i> <?= $h(implode(', ', array_slice(array_keys($c['categories']), 0, 2))) ?><?= count($c['categories']) > 2 ? ' +'.(count($c['categories']) - 2) : '' ?>
-                </span>
-              <?php endif; ?>
-              <span class="group-schedule-type <?= $c['tipe_jadwal'] === 'harian' ? 'routine' : 'once' ?>">
-                <i class="fa-solid <?= $c['tipe_jadwal'] === 'harian' ? 'fa-repeat' : 'fa-calendar' ?>"></i>
-                <?= $c['tipe_jadwal'] === 'harian' ? 'Rutin' : 'Sekali' ?>
-              </span>
-              <span class="group-schedule-time-text">
-                <i class="fa-regular fa-clock"></i>
-                <?= $formatSchedule(['tipe_jadwal'=>$c['tipe_jadwal'],'jadwal_kirim'=>$c['jadwal_kirim'],'jam_harian'=>$c['jam_harian'],'hari_rutin'=>$c['hari_rutin']]) ?>
-              </span>
-            </div>
-            <div class="group-schedule-header-right">
-              <?php if ($c['pending_count'] > 0): ?>
-                <span class="group-schedule-status status-aktif">
-                  <i class="fa-solid fa-circle-dot"></i> Aktif (<?= $c['pending_count'] ?> pending)
-                </span>
-              <?php elseif ($c['failed_count'] > 0): ?>
-                <span class="group-schedule-status status-gagal">
-                  <i class="fa-solid fa-triangle-exclamation"></i> <?= $c['failed_count'] ?> Gagal
-                </span>
-              <?php else: ?>
-                <span class="group-schedule-status status-terkirim">
-                  <i class="fa-solid fa-check-double"></i> Selesai Terkirim
-                </span>
-              <?php endif; ?>
-            </div>
+      <div class="group-history-search-wrap">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="search" class="group-history-search" placeholder="Cari pesan riwayat..." oninput="filterHistoryList(this.value)">
+      </div>
+
+      <div class="group-schedules-history-list">
+        <?php if (!$historyMessages): ?>
+          <div class="group-empty compact">
+            <i class="fa-regular fa-clock"></i>
+            <span>Belum ada riwayat pesan.</span>
           </div>
-
-          <div class="group-schedule-message-box">
-            <div class="group-schedule-message-label">
-              <span><i class="fa-regular fa-message"></i> Isi Pesan WhatsApp</span>
-              <?php if (!empty($c['media_path'])): ?>
-                <span class="group-schedule-media-pill"><i class="fa-solid fa-image"></i> Ada Gambar</span>
-              <?php endif; ?>
-            </div>
-            <div class="group-schedule-message-text"><?= nl2br($h($c['pesan'])) ?></div>
-          </div>
-
-          <div class="group-schedule-footer-bar">
-            <div class="group-schedule-btn-group">
-              <button type="button" class="group-schedule-action-btn btn-detail" onclick="toggleScheduleDetail('<?= $c['key'] ?>')">
-                <i class="fa-solid fa-list-ul"></i> Detail Halaqoh (<?= count($c['groups']) ?>)
-                <i class="fa-solid fa-chevron-down detail-arrow" id="arrow-<?= $c['key'] ?>"></i>
-              </button>
-
-              <?php if ($c['pending_count'] > 0): ?>
-                <button type="button" class="group-schedule-action-btn btn-edit" data-key="<?= $c['key'] ?>" data-ids="<?= implode(',', $c['pending_ids']) ?>" onclick="openEditScheduleModal(this)">
-                  <i class="fa-solid fa-pen-to-square"></i> Edit Pesan
-                </button>
-              <?php endif; ?>
-            </div>
-
-            <div class="group-schedule-cancel-wrap">
-              <?php if ($c['pending_count'] > 0): ?>
-                <form method="post" action="actions/group-schedules.php" onsubmit="return confirm('Batalkan jadwal untuk SEMUA <?= $c['pending_count'] ?> halaqoh dengan pesan ini?');" style="display:inline">
-                  <input type="hidden" name="csrf" value="<?= $h(crmCsrfToken()) ?>">
-                  <input type="hidden" name="action" value="cancel_batch">
-                  <input type="hidden" name="return_page" value="group-schedules">
-                  <input type="hidden" name="id_list" value="<?= implode(',', $c['pending_ids']) ?>">
-                  <input type="hidden" name="status" value="<?= $h($status) ?>">
-                  <input type="hidden" name="jenis" value="<?= $h($jenis) ?>">
-                  <button type="submit" class="group-schedule-cancel-batch">
-                    <i class="fa-solid fa-ban"></i> Batalkan Semua (<?= $c['pending_count'] ?>)
-                  </button>
-                </form>
-              <?php endif; ?>
-            </div>
-          </div>
-
-          <!-- Expandable Detail Panel -->
-          <div class="group-schedule-detail-panel" id="detail-<?= $c['key'] ?>" hidden>
-            <div class="group-schedule-detail-head">
-              <div>
-                <strong>Daftar Halaqoh Penerima</strong>
-                <small>Total <?= count($c['groups']) ?> halaqoh terdaftar dalam jadwal ini</small>
+        <?php else: foreach ($historyMessages as $item): ?>
+          <div class="group-history-reuse-item" data-text="<?= strtolower($h($item['content'])) ?>">
+            <div class="group-history-reuse-body">
+              <p><?= $h(mb_strimwidth($item['content'], 0, 140, '…')) ?></p>
+              <div class="group-history-reuse-meta">
+                <span><i class="fa-solid fa-repeat"></i> <?= (int)$item['usage_count'] ?>x dikirim</span>
+                <span><i class="fa-regular fa-clock"></i> <?= date('d M Y', strtotime($item['latest_at'])) ?></span>
               </div>
-              <input type="search" placeholder="Cari halaqoh..." class="group-schedule-detail-search" oninput="filterDetailList('<?= $c['key'] ?>', this.value)">
             </div>
-            <div class="group-schedule-detail-list">
-              <?php foreach ($c['groups'] as $g): ?>
-                <div class="group-schedule-detail-row" data-name="<?= strtolower($h($g['nama_grup'])) ?>">
-                  <div class="group-schedule-detail-info">
-                    <span class="group-detail-chip"><?= $h($g['nama_grup']) ?></span>
-                    <small class="group-detail-cat"><i class="fa-regular fa-folder"></i> <?= $h($g['kategori']) ?></small>
-                    <span class="group-detail-id">#<?= (int)$g['id'] ?></span>
-                  </div>
-                  <div class="group-schedule-detail-status">
-                    <?php [$subLabel, $subClass] = $displayStatus($g); ?>
-                    <span class="group-schedule-status status-<?= $h($subClass) ?>"><?= $h($subLabel) ?></span>
-                    <?php if (!empty($g['terakhir_dikirim'])): ?>
-                      <small class="group-detail-date">Kirim: <?= $h(date('d/m/Y', strtotime((string)$g['terakhir_dikirim']))) ?></small>
-                    <?php endif; ?>
-                  </div>
-                  <div class="group-schedule-detail-action">
-                    <?php if ($g['status'] === 'pending'): ?>
-                      <form method="post" action="actions/group-schedules.php" onsubmit="return confirm('Batalkan jadwal untuk halaqoh <?= $h($g['nama_grup']) ?>?');">
-                        <input type="hidden" name="csrf" value="<?= $h(crmCsrfToken()) ?>">
-                        <input type="hidden" name="action" value="cancel">
-                        <input type="hidden" name="id" value="<?= (int)$g['id'] ?>">
-                        <input type="hidden" name="return_page" value="group-schedules">
-                        <input type="hidden" name="status" value="<?= $h($status) ?>">
-                        <input type="hidden" name="jenis" value="<?= $h($jenis) ?>">
-                        <button type="submit" class="group-detail-cancel-btn" title="Batalkan satu halaqoh ini">
-                          <i class="fa-solid fa-xmark"></i> Batalkan
-                        </button>
-                      </form>
-                    <?php endif; ?>
-                  </div>
-                </div>
-              <?php endforeach; ?>
-            </div>
+            <a href="?page=group&reuse=<?= urlencode($item['content']) ?>" class="group-history-use-btn" title="Gunakan lagi pesan ini">
+              <i class="fa-solid fa-paper-plane"></i> Gunakan Lagi
+            </a>
           </div>
-        </article>
-      <?php endforeach; ?>
-    </div>
-  <?php endif; ?>
-</section>
+        <?php endforeach; endif; ?>
+      </div>
+    </section>
+  </aside>
+</div>
 
-<!-- Edit Message Modal -->
+<!-- Edit Message & Schedule Modal -->
 <div id="groupEditScheduleModal" hidden style="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.45);padding:18px;align-items:center;justify-content:center">
   <div class="group-edit-modal-card">
     <div class="group-edit-modal-header">
       <div>
-        <span class="group-kicker">Edit Pesan</span>
-        <h3>Ubah Isi Pesan Jadwal</h3>
-        <p id="groupEditModalSubtitle">Memperbarui pesan untuk seluruh halaqoh pending dalam jadwal ini</p>
+        <span class="group-kicker">Edit Pesan & Jadwal</span>
+        <h3>Ubah Pesan & Waktu Pengiriman</h3>
+        <p id="groupEditModalSubtitle">Memperbarui pesan dan jadwal untuk seluruh halaqoh pending dalam kelompok ini</p>
       </div>
       <button type="button" class="group-edit-modal-close" onclick="closeEditScheduleModal()" aria-label="Tutup">×</button>
     </div>
     <form method="post" action="actions/group-schedules.php" id="groupEditScheduleForm">
       <input type="hidden" name="csrf" value="<?= $h(crmCsrfToken()) ?>">
-      <input type="hidden" name="action" value="edit_message">
+      <input type="hidden" name="action" value="edit_schedule">
       <input type="hidden" name="return_page" value="group-schedules">
       <input type="hidden" name="status" value="<?= $h($status) ?>">
       <input type="hidden" name="jenis" value="<?= $h($jenis) ?>">
       <input type="hidden" name="id_list" id="groupEditIdList">
 
       <label class="group-edit-field">
-        <span>Isi Pesan Baru</span>
-        <textarea name="pesan" id="groupEditMessageText" rows="6" required placeholder="Tulis isi pesan baru..."></textarea>
+        <span>Isi Pesan WhatsApp</span>
+        <textarea name="pesan" id="groupEditMessageText" rows="5" required placeholder="Tulis isi pesan baru..."></textarea>
       </label>
+
+      <div class="group-edit-section">
+        <span class="group-edit-section-title"><i class="fa-solid fa-clock"></i> Pengaturan Waktu Jadwal</span>
+
+        <div class="group-edit-modes">
+          <label class="group-edit-mode-label" id="labelModeSekali">
+            <input type="radio" name="tipe_jadwal" value="sekali" id="editModeSekali" onchange="toggleEditScheduleFields()">
+            <span><i class="fa-regular fa-calendar"></i> Sekali Kirim</span>
+          </label>
+          <label class="group-edit-mode-label" id="labelModeHarian">
+            <input type="radio" name="tipe_jadwal" value="harian" id="editModeHarian" onchange="toggleEditScheduleFields()">
+            <span><i class="fa-solid fa-repeat"></i> Rutin Harian</span>
+          </label>
+        </div>
+
+        <!-- Once field -->
+        <div id="editOnceFields" class="group-edit-extra-field" style="display:none">
+          <label class="group-edit-field">
+            <span>Tanggal & Waktu Kirim</span>
+            <input type="datetime-local" name="waktu_jadwal" id="groupEditOnceTime">
+            <small style="color:#64748b;font-size:10px">Pilih kapan pesan sekali kirim ini akan dikirimkan.</small>
+          </label>
+        </div>
+
+        <!-- Daily field -->
+        <div id="editDailyFields" class="group-edit-extra-field" style="display:none">
+          <label class="group-edit-field">
+            <span>Jam Kirim Rutin</span>
+            <input type="time" name="jam_harian" id="groupEditDailyTime">
+          </label>
+
+          <div class="group-edit-field">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <span>Hari Pengiriman Rutin</span>
+              <div style="display:flex;gap:4px">
+                <button type="button" class="group-edit-quick-day-btn" onclick="selectEditDays('all')">Semua</button>
+                <button type="button" class="group-edit-quick-day-btn" onclick="selectEditDays('work')">Sen-Jum</button>
+                <button type="button" class="group-edit-quick-day-btn" onclick="selectEditDays('weekend')">Sab-Min</button>
+              </div>
+            </div>
+            <div class="group-edit-days-picker" id="groupEditDaysPicker">
+              <?php foreach ([1=>'Sen', 2=>'Sel', 3=>'Rab', 4=>'Kam', 5=>'Jum', 6=>'Sab', 7=>'Min'] as $val => $lbl): ?>
+                <label class="group-edit-day-chip">
+                  <input type="checkbox" name="edit_hari_rutin[]" value="<?= $val ?>" class="edit-day-cb">
+                  <span><?= $lbl ?></span>
+                </label>
+              <?php endforeach; ?>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="group-edit-modal-footer">
         <button type="button" class="group-edit-btn-cancel" onclick="closeEditScheduleModal()">Batal</button>
-        <button type="submit" class="group-edit-btn-save"><i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan</button>
+        <button type="submit" class="group-edit-btn-save"><i class="fa-solid fa-floppy-disk"></i> Simpan Pesan & Jadwal</button>
       </div>
     </form>
   </div>
@@ -427,6 +584,40 @@ function filterDetailList(key, query) {
   });
 }
 
+function filterHistoryList(query) {
+  const q = String(query || '').toLowerCase().trim();
+  const items = document.querySelectorAll('.group-history-reuse-item');
+  items.forEach(it => {
+    const txt = it.dataset.text || '';
+    it.style.display = (q === '' || txt.includes(q)) ? '' : 'none';
+  });
+}
+
+function toggleEditScheduleFields() {
+  const isOnce = document.getElementById('editModeSekali')?.checked;
+  const isDaily = document.getElementById('editModeHarian')?.checked;
+  const onceBox = document.getElementById('editOnceFields');
+  const dailyBox = document.getElementById('editDailyFields');
+  const labelOnce = document.getElementById('labelModeSekali');
+  const labelDaily = document.getElementById('labelModeHarian');
+
+  if (onceBox) onceBox.style.display = isOnce ? 'block' : 'none';
+  if (dailyBox) dailyBox.style.display = isDaily ? 'block' : 'none';
+
+  if (labelOnce) labelOnce.classList.toggle('active', !!isOnce);
+  if (labelDaily) labelDaily.classList.toggle('active', !!isDaily);
+}
+
+function selectEditDays(mode) {
+  const cbs = document.querySelectorAll('.edit-day-cb');
+  cbs.forEach(cb => {
+    const val = Number(cb.value);
+    if (mode === 'all') cb.checked = true;
+    else if (mode === 'work') cb.checked = (val >= 1 && val <= 5);
+    else if (mode === 'weekend') cb.checked = (val === 6 || val === 7);
+  });
+}
+
 function openEditScheduleModal(btn) {
   const modal = document.getElementById('groupEditScheduleModal');
   const card = btn.closest('.group-schedule-campaign-card');
@@ -438,6 +629,10 @@ function openEditScheduleModal(btn) {
   const ids = btn.dataset.ids || '';
   const idCount = ids ? ids.split(',').length : 0;
   const currentMsg = card.querySelector('.group-schedule-message-text')?.innerText || '';
+  const type = btn.dataset.type || 'sekali';
+  const timeOnce = btn.dataset.timeOnce || '';
+  const timeDaily = btn.dataset.timeDaily || '';
+  const days = (btn.dataset.days || '').split(',').map(s => s.trim()).filter(Boolean);
 
   if (idListInput) idListInput.value = ids;
   if (textInput) {
@@ -447,6 +642,27 @@ function openEditScheduleModal(btn) {
   if (subtitle) {
     subtitle.textContent = 'Akan diterapkan untuk ' + idCount + ' halaqoh pending dalam jadwal ini';
   }
+
+  // Pre-fill schedule mode & inputs
+  const rOnce = document.getElementById('editModeSekali');
+  const rDaily = document.getElementById('editModeHarian');
+  if (type === 'harian') {
+    if (rDaily) rDaily.checked = true;
+  } else {
+    if (rOnce) rOnce.checked = true;
+  }
+
+  const onceInput = document.getElementById('groupEditOnceTime');
+  if (onceInput) onceInput.value = timeOnce;
+
+  const dailyInput = document.getElementById('groupEditDailyTime');
+  if (dailyInput) dailyInput.value = timeDaily;
+
+  document.querySelectorAll('.edit-day-cb').forEach(cb => {
+    cb.checked = days.includes(cb.value);
+  });
+
+  toggleEditScheduleFields();
 
   modal.hidden = false;
   modal.style.display = 'flex';

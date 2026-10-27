@@ -84,7 +84,7 @@ function crmGroupDays(string $value): string {
 
         <label class="group-field">
             <span>Isi pesan</span>
-            <textarea id="crmGroupMessage" rows="7" placeholder="Tulis pesan untuk grup..."></textarea>
+            <textarea id="crmGroupMessage" rows="7" placeholder="Tulis pesan untuk grup..."><?= htmlspecialchars(trim((string)($_GET['reuse'] ?? ''))) ?></textarea>
         </label>
 
         <label class="group-upload" for="crmGroupImage">
@@ -455,5 +455,14 @@ function crmGroupDays(string $value): string {
     updateMode();
     updateSummary();
     updatePreview();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const reuseText = urlParams.get('reuse');
+    if (reuseText) {
+        message.value = reuseText;
+        message.dispatchEvent(new Event('input', { bubbles: true }));
+        updatePreview();
+        message.focus();
+    }
 })();
 </script>

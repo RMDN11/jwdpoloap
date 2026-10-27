@@ -515,3 +515,263 @@
     width: 100%;
   }
 }
+
+/* Layout 2-kolom: Main Schedules + History Kolom Riwayat */
+.group-schedules-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.group-schedules-main-column,
+.group-schedules-side-column {
+  min-width: 0;
+}
+.group-schedules-side-column {
+  position: sticky;
+  top: 16px;
+}
+@media(max-width: 1040px) {
+  .group-schedules-layout-grid {
+    grid-template-columns: 1fr;
+  }
+  .group-schedules-side-column {
+    position: static;
+  }
+}
+
+/* History Column: Gunakan Lagi */
+.group-schedules-history-card {
+  padding: 18px 20px;
+  border: 1px solid #e2ebe5;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 5px 22px rgba(18, 38, 28, 0.035);
+}
+.group-schedules-history-desc {
+  margin: 0 0 14px;
+  font-size: 11px;
+  color: #728479;
+  line-height: 1.5;
+}
+.group-history-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 38px;
+  border: 1px solid #dce6e0;
+  border-radius: 11px;
+  background: #fbfdfc;
+  margin-bottom: 14px;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.group-history-search-wrap:focus-within {
+  border-color: #168044;
+  box-shadow: 0 0 0 3px rgba(22, 128, 68, 0.08);
+  background: #fff;
+}
+.group-history-search-wrap i {
+  color: #8b9991;
+  font-size: 11px;
+}
+.group-history-search {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 11px;
+  color: #1e3025;
+}
+.group-schedules-history-list {
+  display: grid;
+  gap: 10px;
+  max-height: 580px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+.group-history-reuse-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: #f9fbf9;
+  border: 1px solid #e5eee8;
+  border-radius: 14px;
+  transition: border-color .15s ease, background-color .15s ease, transform .15s ease;
+}
+.group-history-reuse-item:hover {
+  background: #fff;
+  border-color: #c2ded0;
+  box-shadow: 0 4px 14px rgba(22, 128, 68, 0.06);
+  transform: translateY(-1px);
+}
+.group-history-reuse-body p {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #273e31;
+  word-break: break-word;
+}
+.group-history-reuse-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 10px;
+  color: #7b8d82;
+}
+.group-history-reuse-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.group-history-reuse-meta i {
+  font-size: 9px;
+  color: #168044;
+}
+.group-history-use-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 7px 12px;
+  border-radius: 9px;
+  background: #eef7f2;
+  color: #15733e;
+  border: 1px solid #d0ebd8;
+  font-size: 11px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: all .15s ease;
+}
+.group-history-use-btn:hover {
+  background: #168044;
+  border-color: #168044;
+  color: #fff;
+}
+
+/* Gunakan Lagi button on schedule card */
+.group-schedule-action-btn.btn-reuse {
+  border: 1px solid #cfe5d7;
+  background: #f0faf3;
+  color: #176d3d;
+  text-decoration: none;
+}
+.group-schedule-action-btn.btn-reuse:hover {
+  background: #e1f4e7;
+  border-color: #a4d8b7;
+  color: #115730;
+}
+
+/* Modal Schedule Timing Styles */
+.group-edit-section {
+  margin: 14px 0 16px;
+  padding: 14px;
+  border: 1px solid #e3eae5;
+  border-radius: 14px;
+  background: #fbfdfc;
+}
+.group-edit-section-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #2e4537;
+  margin-bottom: 10px;
+}
+.group-edit-section-title i {
+  color: #168044;
+  margin-right: 4px;
+}
+.group-edit-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.group-edit-mode-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #dfe7e2;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4b5d52;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.group-edit-mode-label input[type="radio"] {
+  accent-color: #168044;
+}
+.group-edit-mode-label.active {
+  border-color: #168044;
+  background: #f0f9f3;
+  color: #167a41;
+}
+.group-edit-extra-field {
+  padding-top: 10px;
+  border-top: 1px dashed #e3eae5;
+}
+.group-edit-extra-field input[type="datetime-local"],
+.group-edit-extra-field input[type="time"] {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 11px;
+  outline: none;
+  box-sizing: border-box;
+}
+.group-edit-extra-field input[type="datetime-local"]:focus,
+.group-edit-extra-field input[type="time"]:focus {
+  border-color: #168044;
+  box-shadow: 0 0 0 3px rgba(22, 128, 68, 0.08);
+}
+.group-edit-quick-day-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 6px;
+  font-size: 9.5px;
+  font-weight: 650;
+  color: #4b5563;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: all .12s ease;
+}
+.group-edit-quick-day-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+.group-edit-days-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.group-edit-day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 1px solid #dfe7e2;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 10.5px;
+  font-weight: 650;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+.group-edit-day-chip input[type="checkbox"] {
+  accent-color: #168044;
+}
+.group-edit-day-chip:has(input:checked) {
+  border-color: #168044;
+  background: #edf8f1;
+  color: #15733e;
+}
+}

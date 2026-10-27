@@ -31,11 +31,13 @@ def test_action_handlers(base_dir):
     if "DELETE FROM jadwal_pesan_grup WHERE id IN" not in content:
         raise AssertionError("cancel_batch must perform batch DELETE with IN (?, ?, ...)")
 
-    # edit_message
-    if "edit_message" not in content:
-        raise AssertionError("Missing edit_message action in actions/group-schedules.php")
-    if "UPDATE jadwal_pesan_grup SET pesan = ? WHERE id IN" not in content:
-        raise AssertionError("edit_message must perform batch UPDATE with IN (?, ?, ...)")
+    # edit_message / edit_schedule
+    if "edit_message" not in content and "edit_schedule" not in content:
+        raise AssertionError("Missing edit_message/edit_schedule action in actions/group-schedules.php")
+    if "UPDATE jadwal_pesan_grup SET pesan = ?" not in content:
+        raise AssertionError("edit_message/edit_schedule must perform batch UPDATE with IN (?, ?, ...)")
+    if "tipe_jadwal = 'sekali'" not in content or "tipe_jadwal = 'harian'" not in content:
+        raise AssertionError("actions/group-schedules.php must support updating schedule timing (sekali/harian)")
 
     # return_page routing
     if "return_page" not in content or "page=group" not in content:
@@ -60,6 +62,10 @@ def test_group_page_active_schedules(base_dir):
 
     if "group-schedule-row-cancel" not in content:
         raise AssertionError("crm/pages/group.php must render cancel button .group-schedule-row-cancel")
+
+    # reuse query param handling
+    if "reuse" not in content or "crmGroupMessage" not in content:
+        raise AssertionError("crm/pages/group.php must support pre-filling crmGroupMessage from reuse parameter")
 
     print("test_group_page_active_schedules: OK")
 
@@ -86,11 +92,21 @@ def test_group_schedules_page_features(base_dir):
     if "toggleScheduleDetail" not in content:
         raise AssertionError("crm/pages/group-schedules.php must provide toggleScheduleDetail() function")
 
-    # Edit message modal
+    # Edit message & schedule modal
     if "groupEditScheduleModal" not in content:
-        raise AssertionError("crm/pages/group-schedules.php must render edit message modal (#groupEditScheduleModal)")
-    if 'value="edit_message"' not in content:
-        raise AssertionError("crm/pages/group-schedules.php edit modal form must submit action='edit_message'")
+        raise AssertionError("crm/pages/group-schedules.php must render edit modal (#groupEditScheduleModal)")
+    if 'value="edit_schedule"' not in content and 'value="edit_message"' not in content:
+        raise AssertionError("crm/pages/group-schedules.php edit modal form must submit edit action")
+    if 'name="tipe_jadwal"' not in content or 'name="waktu_jadwal"' not in content or 'name="jam_harian"' not in content:
+        raise AssertionError("crm/pages/group-schedules.php edit modal must include schedule timing inputs")
+
+    # History column: Gunakan Lagi
+    if "group-schedules-history-card" not in content:
+        raise AssertionError("crm/pages/group-schedules.php must render history column .group-schedules-history-card")
+    if "Gunakan Lagi" not in content:
+        raise AssertionError("crm/pages/group-schedules.php must provide 'Gunakan Lagi' buttons")
+    if "?page=group&reuse=" not in content:
+        raise AssertionError("crm/pages/group-schedules.php Gunakan Lagi must link to ?page=group&reuse=")
 
     # Critical audit tokens preservation
     audit_tokens = [
@@ -115,7 +131,11 @@ def test_css_styles(base_dir):
         ".group-schedule-halaqoh-chip",
         ".group-schedule-cancel-batch",
         ".group-schedule-detail-panel",
-        ".group-edit-modal-card"
+        ".group-edit-modal-card",
+        ".group-schedules-layout-grid",
+        ".group-schedules-history-card",
+        ".group-history-use-btn",
+        ".btn-reuse"
     ]
     for sel in selectors:
         if sel not in content:
