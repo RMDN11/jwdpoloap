@@ -445,6 +445,15 @@ def run_reminder_peserta_schedule_suite(base_dir: str):
     reminder_peserta_schedule_test.test_css_rules(base_dir)
     print("reminder-peserta-schedule-suite: OK")
 
+def run_group_schedules_workflow_suite(base_dir: str):
+    import group_schedules_workflow_test
+    group_schedules_workflow_test.test_action_handlers(base_dir)
+    group_schedules_workflow_test.test_group_page_active_schedules(base_dir)
+    group_schedules_workflow_test.test_group_schedules_page_features(base_dir)
+    group_schedules_workflow_test.test_css_styles(base_dir)
+    group_schedules_workflow_test.test_legacy_audit_checks(base_dir)
+    print("group-schedules-workflow-suite: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -483,6 +492,8 @@ def main():
         run_reminder_schedule_suite(base_dir)
     if test_name in ["reminder-peserta-schedule-suite", "reminder-peserta-schedule", "all"]:
         run_reminder_peserta_schedule_suite(base_dir)
+    if test_name in ["group-schedules-workflow-suite", "group-schedules", "group", "all"]:
+        run_group_schedules_workflow_suite(base_dir)
 
 if __name__ == "__main__":
     try:

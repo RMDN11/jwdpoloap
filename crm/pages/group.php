@@ -36,6 +36,7 @@ $jadwalBerjalan = [];
 $jadwalQuery = "
 SELECT j.pesan, j.tipe_jadwal, j.jadwal_kirim, j.jam_harian, j.hari_rutin, j.media_path,
 GROUP_CONCAT(DISTINCT COALESCE(w.nama_grup, j.id_grup) ORDER BY COALESCE(w.nama_grup, j.id_grup) SEPARATOR ', ') AS daftar_grup,
+GROUP_CONCAT(DISTINCT j.id ORDER BY j.id ASC SEPARATOR ',') AS id_jadwal_list,
 COUNT(DISTINCT j.id_grup) AS total_grup
 FROM jadwal_pesan_grup j
 LEFT JOIN wa_grup w ON j.id_grup = w.id_grup
@@ -221,6 +222,15 @@ function crmGroupDays(string $value): string {
                     <span class="group-schedule-icon"><i class="fa-regular fa-calendar-check"></i></span>
                     <div><strong><?= (int)$schedule['total_grup'] ?> grup</strong><p><?= htmlspecialchars(mb_strimwidth($schedule['pesan'],0,70,'…')) ?></p></div>
                     <small><?= $schedule['tipe_jadwal'] === 'sekali' ? htmlspecialchars(date('d M · H:i', strtotime($schedule['jadwal_kirim']))) : htmlspecialchars($schedule['jam_harian'].' · '.crmGroupDays($schedule['hari_rutin'])) ?></small>
+                    <form method="post" action="actions/group-schedules.php" onsubmit="return confirm('Hapus / batalkan jadwal untuk SEMUA <?= (int)$schedule['total_grup'] ?> grup ini?');" class="group-schedule-cancel-form">
+                        <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+                        <input type="hidden" name="action" value="cancel_batch">
+                        <input type="hidden" name="return_page" value="group">
+                        <input type="hidden" name="id_list" value="<?= htmlspecialchars((string)($schedule['id_jadwal_list'] ?? '')) ?>">
+                        <button type="submit" class="group-schedule-row-cancel" title="Hapus jadwal untuk semua grup ini" aria-label="Hapus jadwal">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </form>
                 </div>
             <?php endforeach; endif; ?>
         </div>
