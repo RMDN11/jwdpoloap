@@ -1,9 +1,19 @@
 <?php
 declare(strict_types=1);
-if (session_status() === PHP_SESSION_NONE) session_start();
+
+require_once __DIR__ . '/config/session.php';
+crmSessionInit();
+
 require_once __DIR__ . '/../config.php';
 
-if (!empty($_SESSION['logged_in'])) { header('Location: index.php?page=home'); exit; }
+if (empty($_SESSION['logged_in']) && isset($conn) && $conn instanceof mysqli) {
+    crmRememberSessionCheck($conn);
+}
+
+if (!empty($_SESSION['logged_in'])) {
+    header('Location: index.php?page=home');
+    exit;
+}
 
 $error = '';
 $savedUsername = $_COOKIE['remembered_username'] ?? '';
@@ -29,6 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['username'] = (string)$user['username'];
                 $_SESSION['logged_in'] = true;
                 $_SESSION['role'] = 'user';
+
+                // Simpan token autentikasi device aktif selama 1 pekan (7 hari)
+                crmRememberSessionSet((int)$user['id'], (string)$user['username'], (string)$user['password']);
 
                 setcookie('remembered_username', $remember ? $username : '', [
                     'expires' => $remember ? time() + 2592000 : time() - 3600,

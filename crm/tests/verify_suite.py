@@ -454,6 +454,40 @@ def run_group_schedules_workflow_suite(base_dir: str):
     group_schedules_workflow_test.test_legacy_audit_checks(base_dir)
     print("group-schedules-workflow-suite: OK")
 
+def run_session_persistence_test(base_dir: str):
+    session_file = os.path.join(base_dir, "crm/config/session.php")
+    bootstrap_file = os.path.join(base_dir, "crm/config/bootstrap.php")
+    login_file = os.path.join(base_dir, "crm/login.php")
+    logout_file = os.path.join(base_dir, "crm/logout.php")
+
+    if not os.path.exists(session_file):
+        raise AssertionError("Missing crm/config/session.php")
+
+    with open(session_file, "r", encoding="utf-8") as f:
+        sess = f.read()
+    if "604800" not in sess or "CRM_SESSION_LIFETIME" not in sess:
+        raise AssertionError("session.php must define 7-day lifetime (604800)")
+    for fn in ["crmSessionInit", "crmRememberSessionSet", "crmRememberSessionCheck", "crmRememberSessionClear"]:
+        if f"function {fn}" not in sess:
+            raise AssertionError(f"session.php missing function {fn}")
+
+    with open(bootstrap_file, "r", encoding="utf-8") as f:
+        boot = f.read()
+    if "session.php" not in boot or "crmRememberSessionCheck" not in boot:
+        raise AssertionError("bootstrap.php must wire session.php and crmRememberSessionCheck")
+
+    with open(login_file, "r", encoding="utf-8") as f:
+        log_content = f.read()
+    if "crmRememberSessionSet" not in log_content or "crmRememberSessionCheck" not in log_content:
+        raise AssertionError("login.php must set and check remember session token")
+
+    with open(logout_file, "r", encoding="utf-8") as f:
+        logo_content = f.read()
+    if "crmRememberSessionClear" not in logo_content:
+        raise AssertionError("logout.php must clear remember session token")
+
+    print("crm-session-persistence-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -494,6 +528,8 @@ def main():
         run_reminder_peserta_schedule_suite(base_dir)
     if test_name in ["group-schedules-workflow-suite", "group-schedules", "group", "all"]:
         run_group_schedules_workflow_suite(base_dir)
+    if test_name in ["crm-session-persistence-test", "session", "persistence", "all"]:
+        run_session_persistence_test(base_dir)
 
 if __name__ == "__main__":
     try:

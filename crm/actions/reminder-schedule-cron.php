@@ -15,8 +15,11 @@ $cronToken = (string)($_GET['cron_token'] ?? $_GET['token'] ?? '');
 $expectedToken = defined('CRM_CRON_TOKEN') ? CRM_CRON_TOKEN : 'jwd_auto_cron';
 
 if (!$isCli && $cronToken !== $expectedToken) {
-    if (session_status() === PHP_SESSION_NONE) {
-        @session_start();
+    require_once __DIR__ . '/../config/session.php';
+    crmSessionInit();
+    require_once __DIR__ . '/../../config.php';
+    if (empty($_SESSION['username']) && isset($conn) && $conn instanceof mysqli) {
+        crmRememberSessionCheck($conn);
     }
     if (empty($_SESSION['username'])) {
         http_response_code(403);

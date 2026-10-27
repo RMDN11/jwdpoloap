@@ -3,6 +3,8 @@
 *.log.*
 cron_health.txt
 test_log.txt
+storage/sessions/*
+!storage/sessions/.gitkeep
 
 # Local environment / secrets
 .env
