@@ -23,6 +23,13 @@ if (!isset($conn) || !($conn instanceof mysqli)) {
 
 crmEnsureReminderScheduleTables($conn);
 
+// Cegah duplikasi jika sudah ada kampanye peserta yang sedang berjalan
+$chkActive = $conn->query("SELECT id, title FROM crm_reminder_campaigns WHERE campaign_type = 'peserta' AND status = 'running' LIMIT 1");
+if ($chkActive && ($actRow = $chkActive->fetch_assoc())) {
+    header('Content-Type: text/plain; charset=utf-8');
+    exit("Kampanye peserta sudah ada yang berjalan: #{$actRow['id']} - {$actRow['title']}.\nTidak membuat kampanye ganda.\n");
+}
+
 // 1. Ambil semua reminder requests yang masih pending
 $res = $conn->query("SELECT id, peserta_id, peserta_nama, peserta_nowa, halaqoh FROM reminder_requests WHERE status = 'menunggu' ORDER BY id ASC");
 if (!$res) {
