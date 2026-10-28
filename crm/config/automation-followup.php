@@ -302,6 +302,14 @@ if (!function_exists('crmAutomationRenderMessage')) {
 
         $rendered = str_replace(['{sapaan}', '{program}'], [$sapaan, $program], $rendered);
 
+        // Anti-ban spintax resolver: {pilihan1|pilihan2|pilihan3}
+        while (preg_match('/\{([^{}]+\|[^{}]+)\}/u', $rendered)) {
+            $rendered = preg_replace_callback('/\{([^{}]+\|[^{}]+)\}/u', function ($m) {
+                $parts = explode('|', $m[1]);
+                return $parts[array_rand($parts)];
+            }, $rendered);
+        }
+
         return trim($rendered);
     }
 }
@@ -312,55 +320,55 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
         [
             'name' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
             'desc' => 'Sapaan ramah 2 menit pertama, hangat dan santai menanyakan kebutuhan belajar',
-            'content' => "Bismillah, ahlan kak! 😊\n\nTerima kasih ya sudah mampir ke Tahfidz Private Jawwada.\n\nBiar kami bantu infokan detail kelasnya, rencananya program ini untuk kakak sendiri atau ananda nih kak? 🙏",
+            'content' => "{Bismillah, ahlan kak! 😊|Assalamu'alaikum kak! 😊|Halo kak, salam kenal ya! 😊|Bismillah, halo kak! 😊}\n\nTerima kasih ya sudah mampir ke Tahfidz Private Jawwada.\n\n{Biar kami bantu infokan detail kelasnya|Biar kami bantu siapkan info yang paling pas}, rencananya program ini untuk kakak sendiri atau ananda nih kak? 🙏",
             'delay' => 2,
         ],
         [
             'name' => 'Follow Up 2 (45 Menit - Fleksibilitas & Biaya Terjangkau)',
             'desc' => 'Edukasi privat 1-on-1 via telepon WA 10 menit & biaya mulai Rp135rb/bln',
-            'content' => "Sekadar info kak, di Jawwada belajarnya privat 1-on-1 via telepon WA cuma 10 menit per hari, biaya sangat terjangkau mulai 135rb per bulan.\n\nKakak biasanya lebih luang di waktu pagi, sore, atau malam kak? ✨",
+            'content' => "{Sekadar info kak|Izin menginfokan kak|Sebagai gambaran ya kak}, di Jawwada belajarnya privat 1-on-1 via telepon WA cuma 10 menit per hari, biaya sangat terjangkau mulai 135rb per bulan.\n\nKakak biasanya lebih luang di waktu {pagi, sore, atau malam|pagi, siang, sore, atau malam hari} kak? ✨",
             'delay' => 45,
         ],
         [
             'name' => 'Follow Up 3 (4 Jam - Reservasi Slot Terbatas)',
             'desc' => 'Soft urgency kuota guru hafidz 30 juz pekan ini terbatas',
-            'content' => "Assalamu'alaikum kak. 🙏\n\nIzin mengabarkan, kuota pembimbing Hafidz/Hafidzoh 30 Juz untuk pekan ini tersisa sedikit karena jadwal privat yang terbatas.\n\nJika kakak berminat, mau kami bantu simpankan slot belajarnya terlebih dahulu? 😊",
+            'content' => "{Assalamu'alaikum kak. 🙏|Bismillah kak. 🙏}\n\nIzin mengabarkan, kuota pembimbing Hafidz/Hafidzoh 30 Juz untuk pekan ini tersisa sedikit karena jadwal privat yang terbatas.\n\nJika kakak berminat, mau kami bantu simpankan slot belajarnya {terlebih dahulu|dulu ya} kak? 😊",
             'delay' => 240,
         ],
         [
             'name' => 'Follow Up 4 (H+1 / 24 Jam - Solusi Ragu & Pengalaman Peserta)',
             'desc' => 'Menghilangkan rasa minder jika bacaan belum lancar, bimbingan santai dari nol',
-            'content' => "Assalamu'alaikum kak ✨\n\nTidak perlu khawatir jika bacaan belum lancar ya kak. Di kelas privat ini ustadz/ustadzah akan membimbing santai dari nol tanpa beban hafalan.\n\nKira-kira apa target belajar yang paling ingin kakak capai saat ini? 🙏",
+            'content' => "{Assalamu'alaikum kak ✨|Bismillah kak ✨|Ahlan kak ✨}\n\nTidak perlu khawatir jika bacaan belum lancar ya kak. Di kelas privat ini ustadz/ustadzah akan membimbing santai dari nol tanpa beban hafalan.\n\nKira-kira apa target belajar yang paling ingin kakak capai {saat ini|ke depan} kak? 🙏",
             'delay' => 1440,
         ],
         [
             'name' => 'Follow Up 5 (H+3 / 3 Hari - Bantuan Penyesuaian Jadwal)',
             'desc' => 'Menyapa ramah prospek yang sibuk dengan menawarkan fleksibilitas penyesuaian jadwal santai',
-            'content' => "Bismillah kak, sekadar menyapa kembali. 🙏\n\nBarangkali kemarin masih sibuk atau ragu soal kecocokan jam, jadwal belajarnya fleksibel banget kok bisa disesuaikan dengan waktu senggang kakak.\n\nKira-kira ada yang masih ingin ditanyakan dulu kak? 😊",
+            'content' => "{Bismillah kak, sekadar menyapa kembali. 🙏|Assalamu'alaikum kak, izin menyapa kembali ya. 🙏}\n\nBarangkali kemarin masih sibuk atau ragu soal kecocokan jam, jadwal belajarnya fleksibel banget kok bisa disesuaikan dengan waktu senggang kakak.\n\nKira-kira ada yang masih ingin ditanyakan dulu kak? 😊",
             'delay' => 4320,
         ],
         [
             'name' => 'Follow Up 6 (H+7 / 7 Hari - Konfirmasi Penutupan Data & Doa)',
             'desc' => 'Penutupan sopan (breakup sequence) dan doa kebaikan tanpa terkesan memaksa',
-            'content' => "Bismillah kak. 🙏\n\nIzin kami arsipkan data konsultasinya sementara waktu ya kak, agar tidak mengganggu kesibukan kakak.\n\nJika sewaktu-waktu ingin memulai kembali, nomor ini selalu terbuka untuk kakak. Semoga Allah Ta'ala mudahkan niat mulianya. Barakallahu fiik. 🤲✨",
+            'content' => "{Bismillah kak. 🙏|Assalamu'alaikum kak. 🙏}\n\nIzin kami arsipkan data konsultasinya sementara waktu ya kak, agar tidak mengganggu kesibukan kakak.\n\nJika sewaktu-waktu ingin memulai kembali, nomor ini selalu terbuka untuk kakak. Semoga Allah Ta'ala mudahkan niat mulianya. Barakallahu fiik. 🤲✨",
             'delay' => 10080,
         ],
         [
             'name' => 'Menghafal Pemula - Follow Up 1 (Tahsin dari Nol)',
             'desc' => 'Follow-up calon peserta baru yang ingin belajar dari nol',
-            'content' => "Bismillah, ahlan kak! 😊\n\nTerima kasih sudah memilih Kelas Menghafal Pemula Jawwada. Tidak perlu khawatir jika bacaan belum lancar ya kak, karena di kelas privat ini kita akan benahi tahsin & makhrajnya secara santai (10 menit/hari via Telepon WA).\n\nKakak rencananya ingin ambil Paket Normal (135rb/bln) atau Paket Intensif (245rb/bln) kak? 🙏",
+            'content' => "{Bismillah, ahlan kak! 😊|Assalamu'alaikum kak! 😊}\n\nTerima kasih sudah memilih Kelas Menghafal Pemula Jawwada. Tidak perlu khawatir jika bacaan belum lancar ya kak, karena di kelas privat ini kita akan benahi tahsin & makhrajnya secara santai (10 menit/hari via Telepon WA).\n\nKakak rencananya ingin ambil Paket Normal (135rb/bln) atau Paket Intensif (245rb/bln) kak? 🙏",
             'delay' => 30,
         ],
         [
             'name' => 'Lanjutan & Muroja\'ah - Follow Up 1 (Mutqin & Target Juz)',
             'desc' => 'Follow-up peserta yang sudah punya tabungan hafalan',
-            'content' => "Bismillah, ahlan kak! ✨\n\nAlhamdulillah atas ikhtiar menjaga hafalan Al-Qur'annya. Di kelas ini kakak akan disimak langsung oleh Hafidz/Hafidzoh 30 Juz bersanad agar hafalan lama semakin mutqin dan hafalan baru bertambah lancar.\n\nSaat ini kakak sudah ada tabungan juz berapa saja dan target selanjutnya ingin fokus di juz berapa kak? 🙏",
+            'content' => "{Bismillah, ahlan kak! ✨|Assalamu'alaikum kak! ✨}\n\nAlhamdulillah atas ikhtiar menjaga hafalan Al-Qur'annya. Di kelas ini kakak akan disimak langsung oleh Hafidz/Hafidzoh 30 Juz bersanad agar hafalan lama semakin mutqin dan hafalan baru bertambah lancar.\n\nSaat ini kakak sudah ada tabungan juz berapa saja dan target selanjutnya ingin fokus di juz berapa kak? 🙏",
             'delay' => 30,
         ],
         [
             'name' => 'Tahfidz Cilik - Follow Up 1 (Pendekatan Bunda/Ayah)',
             'desc' => 'Follow-up ramah untuk orang tua yang mendaftarkan anak',
-            'content' => "Bismillah, ahlan Bunda/Ayah! 😊\n\nSenang sekali Bunda/Ayah berniat membimbing ananda dekat dengan Al-Qur'an sejak dini. Di Tahfidz Cilik, belajarnya privat 1-on-1 via Video Call WA dengan metode yang sabar & menyenangkan.\n\nBoleh tahu ananda saat ini usia berapa tahun dan apakah sudah mulai iqro atau juz 'amma? 🙏",
+            'content' => "{Bismillah, ahlan Bunda/Ayah! 😊|Assalamu'alaikum Bunda/Ayah! 😊}\n\nSenang sekali Bunda/Ayah berniat membimbing ananda dekat dengan Al-Qur'an sejak dini. Di Tahfidz Cilik, belajarnya privat 1-on-1 via Video Call WA dengan metode yang sabar & menyenangkan.\n\nBoleh tahu ananda saat ini usia berapa tahun dan apakah sudah mulai iqro atau juz 'amma? 🙏",
             'delay' => 30,
         ],
     ];
@@ -639,8 +647,32 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         $conn->query("INSERT INTO crm_automation_meta (meta_key, meta_value) VALUES ('schema_v3_concise_templates_no_nama', '1') ON DUPLICATE KEY UPDATE meta_value = '1'");
     }
 
+    // Migration v4: Anti-ban Spintax & Staggering
+    $metaV4 = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v4_antiban_spintax_staggering' LIMIT 1");
+    if (!$metaV4 || $metaV4->num_rows === 0) {
+        $spintaxTemplates = [
+            'Follow Up 1%' => "{Bismillah, ahlan kak! 😊|Assalamu'alaikum kak! 😊|Halo kak, salam kenal ya! 😊|Bismillah, halo kak! 😊}\n\nTerima kasih ya sudah mampir ke Tahfidz Private Jawwada.\n\n{Biar kami bantu infokan detail kelasnya|Biar kami bantu siapkan info yang paling pas}, rencananya program ini untuk kakak sendiri atau ananda nih kak? 🙏",
+            'Follow Up 2%' => "{Sekadar info kak|Izin menginfokan kak|Sebagai gambaran ya kak}, di Jawwada belajarnya privat 1-on-1 via telepon WA cuma 10 menit per hari, biaya sangat terjangkau mulai 135rb per bulan.\n\nKakak biasanya lebih luang di waktu {pagi, sore, atau malam|pagi, siang, sore, atau malam hari} kak? ✨",
+            'Follow Up 3%' => "{Assalamu'alaikum kak. 🙏|Bismillah kak. 🙏}\n\nIzin mengabarkan, kuota pembimbing Hafidz/Hafidzoh 30 Juz untuk pekan ini tersisa sedikit karena jadwal privat yang terbatas.\n\nJika kakak berminat, mau kami bantu simpankan slot belajarnya {terlebih dahulu|dulu ya} kak? 😊",
+            'Follow Up 4%' => "{Assalamu'alaikum kak ✨|Bismillah kak ✨|Ahlan kak ✨}\n\nTidak perlu khawatir jika bacaan belum lancar ya kak. Di kelas privat ini ustadz/ustadzah akan membimbing santai dari nol tanpa beban hafalan.\n\nKira-kira apa target belajar yang paling ingin kakak capai {saat ini|ke depan} kak? 🙏",
+            'Follow Up 5%' => "{Bismillah kak, sekadar menyapa kembali. 🙏|Assalamu'alaikum kak, izin menyapa kembali ya. 🙏}\n\nBarangkali kemarin masih sibuk atau ragu soal kecocokan jam, jadwal belajarnya fleksibel banget kok bisa disesuaikan dengan waktu senggang kakak.\n\nKira-kira ada yang masih ingin ditanyakan dulu kak? 😊",
+            'Follow Up 6%' => "{Bismillah kak. 🙏|Assalamu'alaikum kak. 🙏}\n\nIzin kami arsipkan data konsultasinya sementara waktu ya kak, agar tidak mengganggu kesibukan kakak.\n\nJika sewaktu-waktu ingin memulai kembali, nomor ini selalu terbuka untuk kakak. Semoga Allah Ta'ala mudahkan niat mulianya. Barakallahu fiik. 🤲✨",
+        ];
+
+        foreach ($spintaxTemplates as $pattern => $content) {
+            $uStmt = $conn->prepare("UPDATE crm_automation_templates SET content = ? WHERE name LIKE ?");
+            if ($uStmt) {
+                $uStmt->bind_param('ss', $content, $pattern);
+                $uStmt->execute();
+                $uStmt->close();
+            }
+        }
+
+        $conn->query("INSERT INTO crm_automation_meta (meta_key, meta_value) VALUES ('schema_v4_antiban_spintax_staggering', '1') ON DUPLICATE KEY UPDATE meta_value = '1'");
+    }
+
     // Fast path: jika skema dan seed sudah lengkap, hindari DDL dan query berulang pada webhook
-    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v3_concise_templates_no_nama' LIMIT 1");
+    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v4_antiban_spintax_staggering' LIMIT 1");
     if ($metaEnsured && $metaEnsured->num_rows > 0) {
         $ensured = true;
         return true;
@@ -1110,6 +1142,23 @@ function crmAutomationRegisterQueue(
     // Hitung waktu jadwal dengan memperhitungkan jam tidur malam (sleep hours)
     date_default_timezone_set('Asia/Jakarta');
     $scheduledTs = time() + ($delayMinutes * 60);
+
+    // Anti-clash: Jika ada antrean pending lain yang dijadwalkan tepat di menit yang sama (selisih < 2 menit)
+    $schedCheck = date('Y-m-d H:i:s', $scheduledTs);
+    $resClash = $conn->query("
+        SELECT COUNT(*) AS clash_count
+        FROM crm_automation_queue
+        WHERE status = 'pending'
+          AND scheduled_at BETWEEN DATE_SUB('{$schedCheck}', INTERVAL 1 MINUTE) AND DATE_ADD('{$schedCheck}', INTERVAL 1 MINUTE)
+    ");
+    if ($resClash && ($rowC = $resClash->fetch_assoc())) {
+        $clashCount = (int)($rowC['clash_count'] ?? 0);
+        if ($clashCount > 0) {
+            // Geser sedikit dengan jeda acak 2-4 menit
+            $scheduledTs += rand(120, 240);
+        }
+    }
+
     $scheduledTs = crmAutomationAdjustForSleep($conn, $scheduledTs);
     $scheduledAtStr = date('Y-m-d H:i:s', $scheduledTs);
 
@@ -1320,17 +1369,46 @@ function crmAutomationScheduleSequence(
 
     $baseOffset = $resolvedSteps[$startStepNum]['base_delay'] ?? 2;
 
+    // Anti-clash sequence staggering:
+    // Cek apakah sudah ada antrean pending untuk template tahap awal yang dijadwalkan dalam rentang waktu dekat
+    $firstTplId = (int)$resolvedSteps[$startStepNum]['template_id'];
+    $staggerMinutes = 0;
+    $resLatest = $conn->query("
+        SELECT MAX(scheduled_at) AS latest_sched
+        FROM crm_automation_queue
+        WHERE template_id = {$firstTplId}
+          AND status = 'pending'
+          AND scheduled_at >= NOW()
+          AND scheduled_at <= DATE_ADD(NOW(), INTERVAL 45 MINUTE)
+    ");
+    if ($resLatest && ($rowL = $resLatest->fetch_assoc())) {
+        if (!empty($rowL['latest_sched'])) {
+            $latestTs = strtotime((string)$rowL['latest_sched']);
+            $minSchedTs = time() + (2 * 60);
+            if ($latestTs >= $minSchedTs) {
+                // Beri jeda acak 3 sampai 6 menit dari jadwal kontak yang sudah ada
+                $gapSec = rand(180, 360);
+                $staggerMinutes = (int)ceil(($latestTs + $gapSec - time()) / 60) - 2;
+                if ($staggerMinutes < 0) {
+                    $staggerMinutes = 0;
+                }
+            }
+        }
+    }
+
     $count = 0;
     foreach ($resolvedSteps as $num => $stepData) {
         if ($num < $startStepNum) {
             continue; // Lewati tahap sebelum tahap mulai yang dipilih
         }
 
-        // Hitung jeda relatif: tahap pertama selalu mulai dalam 2 menit (Instant Welcome)
+        // Hitung jeda relatif: tahap pertama mulai dalam 2 menit + stagger antar kontak
         if ($num === $startStepNum) {
-            $relDelay = 2;
+            $relDelay = 2 + $staggerMinutes;
         } else {
-            $relDelay = ($stepData['base_delay'] - $baseOffset) + 2;
+            // Tahap lanjutan diberi jeda proporsional + jitter acak 1-3 menit agar tidak serempak
+            $stepJitter = rand(1, 3);
+            $relDelay = ($stepData['base_delay'] - $baseOffset) + 2 + $staggerMinutes + $stepJitter;
         }
 
         $res = crmAutomationRegisterQueue(

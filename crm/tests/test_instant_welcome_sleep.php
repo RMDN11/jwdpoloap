@@ -93,12 +93,13 @@ assertTest(
     $tpl ? "Nama: {$tpl['name']}" : 'Template tidak ditemukan'
 );
 
-// TEST 5: Render Pesan Follow Up 1 Tanpa Variabel Nama Aneh
+// TEST 5: Render Pesan Follow Up 1 Tanpa Variabel Nama Aneh & Spintax Berfungsi
 if ($tpl) {
     $rendered = crmAutomationRenderMessage($tpl['content'], ['nama' => '-']);
+    $isSpintaxClean = !str_contains($rendered, '{') && !str_contains($rendered, '}') && !str_contains($rendered, '|');
     assertTest(
-        'Render Pesan Ramah Alami Tanpa Nama Aneh/Strip',
-        !str_contains($rendered, 'kak -') && str_contains($rendered, 'ahlan kak!') && str_contains($rendered, 'sendiri atau ananda'),
+        'Render Pesan Ramah Alami & Spintax Terselesaikan',
+        !str_contains($rendered, 'kak -') && $isSpintaxClean && str_contains($rendered, 'sendiri atau ananda'),
         substr(str_replace("\n", " ", $rendered), 0, 75) . '...'
     );
 

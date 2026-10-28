@@ -69,6 +69,14 @@ if (!function_exists('crmAutomationRenderMessage')) {
 
         $rendered = str_replace(['{sapaan}', '{program}'], [$sapaan, $program], $rendered);
 
+        // Anti-ban spintax resolver: {pilihan1|pilihan2|pilihan3}
+        while (preg_match('/\{([^{}]+\|[^{}]+)\}/u', $rendered)) {
+            $rendered = preg_replace_callback('/\{([^{}]+\|[^{}]+)\}/u', function ($m) {
+                $parts = explode('|', $m[1]);
+                return $parts[array_rand($parts)];
+            }, $rendered);
+        }
+
         return trim($rendered);
     }
 }
@@ -242,14 +250,22 @@ function crmAutomationProcessPendingQueue(mysqli $conn, string $apiUrl = '', str
     }
 
     $summary = ['processed' => 0, 'sent' => 0, 'cancelled' => 0, 'failed' => 0];
+    $countSent = 0;
 
     while ($row = $result->fetch_assoc()) {
         $queueId = (int)$row['id'];
         $summary['processed']++;
 
+        // Anti-burst delay: jeda alami 8 - 15 detik sebelum kirim pesan berikutnya
+        if ($countSent > 0) {
+            $sleepSec = rand(8, 15);
+            sleep($sleepSec);
+        }
+
         $res = crmAutomationDispatchSingle($conn, $queueId, $apiUrl, $apiToken);
         if ($res['status'] === 'sent') {
             $summary['sent']++;
+            $countSent++;
         } elseif ($res['status'] === 'cancelled') {
             $summary['cancelled']++;
         } else {
