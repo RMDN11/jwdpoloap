@@ -27,28 +27,15 @@ while ($row = $res->fetch_assoc()) {
 // 2. Konten baru 2 bubble chat dengan penanda [SPLIT]
 $newReply = "{Bismillah, ahlan kak! 😊|Assalamu'alaikum kak! 😊|Halo kak, terima kasih ya sudah menghubungi Jawwada 😊}\n\nDi Jawwada pembelajarannya privat 1-on-1 dibimbing langsung oleh Asatidz hafidz 30 juz. Bimbingannya intensif dan fokus personal, jadi bacaan disimak serta dibimbing langsung dari nol sampai fasih.\n[SPLIT]\n{Biar kami bantu siapkan info kelas yang paling pas|Biar kami bantu carikan info yang paling cocok}, rencananya program tahfidz privat ini untuk kakak sendiri atau ananda nih kak? 🙏\n\n(Rincian silabus lengkap juga bisa diintip santai di sini ya: https://reqra.my.id/jawwada/tahfidz)";
 
-// 3. Update aturan yang relevan dengan pendaftaran/LP Tahfidz
+// 3. Update aturan yang relevan dengan pendaftaran/LP Tahfidz (ID 25, 27, 28)
 $updatedIds = [];
-$targetKeywords = [
-    'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada',
-    'Bismillah kak admin saya ingin bertanya tentang program Tahfidz Privat',
-    'Halo! Bisakah saya mendapatkan info selengkapnya tentang ini?'
-];
+$targetIds = [25, 27, 28];
 
 $stmt = $conn->prepare("UPDATE auto_reply_rules SET reply = ? WHERE id = ?");
-foreach ($rules as $r) {
-    $shouldUpdate = false;
-    foreach ($targetKeywords as $tk) {
-        if (stripos($r['keyword'], $tk) !== false || stripos($tk, $r['keyword']) !== false) {
-            $shouldUpdate = true;
-            break;
-        }
-    }
-    if ($shouldUpdate) {
-        $stmt->bind_param('si', $newReply, $r['id']);
-        $stmt->execute();
-        $updatedIds[] = $r['id'];
-    }
+foreach ($targetIds as $tid) {
+    $stmt->bind_param('si', $newReply, $tid);
+    $stmt->execute();
+    $updatedIds[] = $tid;
 }
 $stmt->close();
 
