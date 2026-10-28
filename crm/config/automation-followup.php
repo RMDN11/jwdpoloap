@@ -562,8 +562,21 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         INDEX idx_auto_fin_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+    // Migration v2: Instant Welcome & Jam Tidur Malam
+    $metaV2 = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v2_instant_welcome' LIMIT 1");
+    if (!$metaV2 || $metaV2->num_rows === 0) {
+        $conn->query("UPDATE crm_automation_templates 
+                      SET name = 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+                          description = 'Sapaan ramah 2 menit pertama, hangat dan santai menanyakan kebutuhan belajar',
+                          content = 'Bismillah, ahlan kak {nama}! 😊\\n\\nTerima kasih ya sudah mampir ke Tahfidz Private Jawwada.\\n\\nBiar kami bantu infokan detail kelas dan waktu yang paling pas, rencananya program ini untuk kakak sendiri atau ananda nih kak? 🙏'
+                      WHERE name LIKE 'Follow Up 1%'");
+
+        $conn->query("UPDATE crm_automation_rules SET delay_minutes = 2 WHERE delay_minutes IN (10, 30) AND (name LIKE '%LP%' OR name LIKE '%Hero%' OR name LIKE '%CTA%' OR name LIKE '%Follow Up 1%')");
+        $conn->query("INSERT INTO crm_automation_meta (meta_key, meta_value) VALUES ('schema_v2_instant_welcome', '1') ON DUPLICATE KEY UPDATE meta_value = '1'");
+    }
+
     // Fast path: jika skema dan seed sudah lengkap, hindari DDL dan query berulang pada webhook
-    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v1_ensured' LIMIT 1");
+    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v2_instant_welcome' LIMIT 1");
     if ($metaEnsured && $metaEnsured->num_rows > 0) {
         $ensured = true;
         return true;
