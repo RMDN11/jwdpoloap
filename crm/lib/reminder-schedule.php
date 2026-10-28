@@ -196,8 +196,10 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
     // Prepare queue insert
     $queueStmt = $conn->prepare("INSERT INTO crm_reminder_campaign_queue
         (campaign_id, peserta_id, request_id, nama, nowa, halaqoh, group_order, message, scheduled_at, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
-    if (!$queueStmt) throw new RuntimeException('Gagal menyiapkan antrean.');
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
+    if (!$queueStmt) {
+        throw new RuntimeException('Gagal menyiapkan antrean: ' . $conn->error);
+    }
 
     $groupOrder = 1;
     $scheduleTime = $currentTs;
@@ -431,6 +433,12 @@ function crmUpdateCampaignStatus(mysqli $conn, int $campaignId, string $newStatu
 function crmGetActiveCampaigns(mysqli $conn, int $limit = 5, ?string $campaignType = null): array
 {
     crmEnsureReminderScheduleTables($conn);
+
+    // Otomatis batalkan kampanye hantu tanpa antrean akibat bug prepared statement sebelumnya
+    @$conn->query("UPDATE crm_reminder_campaigns c 
+                  SET c.status = 'cancelled' 
+                  WHERE c.status IN ('running', 'paused') 
+                    AND (SELECT COUNT(*) FROM crm_reminder_campaign_queue q WHERE q.campaign_id = c.id) = 0");
 
     $whereExtra = '';
     if ($campaignType !== null && $campaignType !== '') {
