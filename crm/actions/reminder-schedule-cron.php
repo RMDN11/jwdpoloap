@@ -59,6 +59,27 @@ $output = sprintf(
 );
 
 if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+    $tRes = $conn->query("SELECT id, name, SUBSTRING(content, 1, 80) as snippet FROM reminder_templates ORDER BY id ASC");
+    $output .= "\n=== REMINDER TEMPLATES ===\n";
+    if ($tRes) {
+        while ($t = $tRes->fetch_assoc()) {
+            $output .= sprintf("TPL ID: %d | Name: %s | Snippet: %s\n", $t['id'], $t['name'], str_replace("\n", " ", $t['snippet']));
+        }
+    }
+
+    $rRes = $conn->query("SELECT id, peserta_id, peserta_nama, peserta_nowa, halaqoh, status FROM reminder_requests WHERE status = 'menunggu' ORDER BY id ASC");
+    $output .= "\n=== PENDING REQUESTS (status=menunggu) ===\n";
+    if ($rRes) {
+        $count = 0;
+        while ($r = $rRes->fetch_assoc()) {
+            $count++;
+            $output .= sprintf("#%d | ReqID: %d | PesertaID: %s | Nama: %s | WA: %s | Halaqoh: %s\n",
+                $count, $r['id'], $r['peserta_id'] ?? '-', $r['peserta_nama'], $r['peserta_nowa'], $r['halaqoh']
+            );
+        }
+        $output .= "Total pending requests: {$count}\n";
+    }
+
     $cRes = $conn->query("SELECT id, title, campaign_type, status, total_targets, sent_count, failed_count, started_at FROM crm_reminder_campaigns ORDER BY id DESC LIMIT 5");
     $output .= "\n=== RECENT CAMPAIGNS ===\n";
     if ($cRes) {
