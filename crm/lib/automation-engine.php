@@ -12,7 +12,8 @@ if (!function_exists('crmAutomationRenderMessage')) {
 
         $isGeneric = (
             $rawNama === '' ||
-            in_array(strtolower($rawNama), ['kak', 'unknown', 'tanpa nama', 'null', 'calon peserta', 'peserta'], true)
+            preg_match('/^[\.\-_~,?!:;@#$\d\s]+$/u', $rawNama) ||
+            in_array(strtolower($rawNama), ['kak', 'unknown', 'tanpa nama', 'null', 'calon peserta', 'peserta', '-', '.', '~'], true)
         );
 
         if (!$isGeneric) {

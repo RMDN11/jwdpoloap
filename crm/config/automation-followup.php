@@ -242,7 +242,8 @@ if (!function_exists('crmAutomationRenderMessage')) {
 
         $isGeneric = (
             $rawNama === '' ||
-            in_array(strtolower($rawNama), ['kak', 'unknown', 'tanpa nama', 'null', 'calon peserta', 'peserta'], true)
+            preg_match('/^[\.\-_~,?!:;@#$\d\s]+$/u', $rawNama) ||
+            in_array(strtolower($rawNama), ['kak', 'unknown', 'tanpa nama', 'null', 'calon peserta', 'peserta', '-', '.', '~'], true)
         );
 
         if (!$isGeneric) {
@@ -311,55 +312,55 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
         [
             'name' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
             'desc' => 'Sapaan ramah 2 menit pertama, hangat dan santai menanyakan kebutuhan belajar',
-            'content' => "Bismillah, ahlan kak {nama}! 😊\n\nTerima kasih ya sudah mampir ke Tahfidz Private Jawwada.\n\nBiar kami bantu infokan detail kelas dan waktu yang paling pas, rencananya program ini untuk kakak sendiri atau ananda nih kak? 🙏",
+            'content' => "Bismillah, ahlan kak! 😊\n\nTerima kasih ya sudah mampir ke Tahfidz Private Jawwada.\n\nBiar kami bantu infokan detail kelasnya, rencananya program ini untuk kakak sendiri atau ananda nih kak? 🙏",
             'delay' => 2,
         ],
         [
             'name' => 'Follow Up 2 (45 Menit - Fleksibilitas & Biaya Terjangkau)',
             'desc' => 'Edukasi privat 1-on-1 via telepon WA 10 menit & biaya mulai Rp135rb/bln',
-            'content' => "Sekadar info kak {nama}, di Jawwada belajarnya private 1-on-1 via Telepon WA (10 menit/hari) jadi tidak menyita waktu. Biayanya sangat terjangkau mulai Rp135rb/bulan.\n\nKakak rencananya ingin belajar di waktu luang pagi, sore, atau malam kak? ✨",
+            'content' => "Sekadar info kak, di Jawwada belajarnya privat 1-on-1 via telepon WA cuma 10 menit per hari, biaya sangat terjangkau mulai 135rb per bulan.\n\nKakak biasanya lebih luang di waktu pagi, sore, atau malam kak? ✨",
             'delay' => 45,
         ],
         [
             'name' => 'Follow Up 3 (4 Jam - Reservasi Slot Terbatas)',
             'desc' => 'Soft urgency kuota guru hafidz 30 juz pekan ini terbatas',
-            'content' => "Assalamu'alaikum kak {nama}. 🙏\n\nIzin mengabarkan, kuota pembimbing Hafidz/Hafidzoh 30 Juz untuk pekan ini tersisa sedikit karena jadwal privat yang terbatas.\n\nJika kakak berminat, mau kami bantu simpankan slot belajarnya terlebih dahulu? 😊",
+            'content' => "Assalamu'alaikum kak. 🙏\n\nIzin mengabarkan, kuota pembimbing Hafidz/Hafidzoh 30 Juz untuk pekan ini tersisa sedikit karena jadwal privat yang terbatas.\n\nJika kakak berminat, mau kami bantu simpankan slot belajarnya terlebih dahulu? 😊",
             'delay' => 240,
         ],
         [
             'name' => 'Follow Up 4 (H+1 / 24 Jam - Solusi Ragu & Pengalaman Peserta)',
-            'desc' => 'Menghilangkan rasa minder jika bacaan belum lancar, bimbingan dari nol',
-            'content' => "Assalamu'alaikum kak {nama} ✨\n\nTidak perlu khawatir jika bacaan belum lancar ya kak. Di kelas privat ini ustadz/ustadzah akan membimbing dari nol (tahsin santai) tanpa beban minimal setoran.\n\nKira-kira apa target Al-Qur'an yang paling ingin kak {nama} capai saat ini? 🙏",
+            'desc' => 'Menghilangkan rasa minder jika bacaan belum lancar, bimbingan santai dari nol',
+            'content' => "Assalamu'alaikum kak ✨\n\nTidak perlu khawatir jika bacaan belum lancar ya kak. Di kelas privat ini ustadz/ustadzah akan membimbing santai dari nol tanpa beban hafalan.\n\nKira-kira apa target belajar yang paling ingin kakak capai saat ini? 🙏",
             'delay' => 1440,
         ],
         [
-            'name' => 'Follow Up 5 (H+3 / 3 Hari - Konsultasi & Free Placement Test)',
-            'desc' => 'Tawaran gratis tes penempatan & pemetaan target hafalan via VN/chat santai',
-            'content' => "Ahlan kak {nama} 🙏\n\nAgar ada gambaran, tim kurikulum kami menyediakan sesi tes penempatan level bacaan & pemetaan target hafalan secara gratis via voice note / chat santai.\n\nApakah berkenan jika kami bantu jadwalkan pekan ini kak? 😊",
+            'name' => 'Follow Up 5 (H+3 / 3 Hari - Bantuan Penyesuaian Jadwal)',
+            'desc' => 'Menyapa ramah prospek yang sibuk dengan menawarkan fleksibilitas penyesuaian jadwal santai',
+            'content' => "Bismillah kak, sekadar menyapa kembali. 🙏\n\nBarangkali kemarin masih sibuk atau ragu soal kecocokan jam, jadwal belajarnya fleksibel banget kok bisa disesuaikan dengan waktu senggang kakak.\n\nKira-kira ada yang masih ingin ditanyakan dulu kak? 😊",
             'delay' => 4320,
         ],
         [
             'name' => 'Follow Up 6 (H+7 / 7 Hari - Konfirmasi Penutupan Data & Doa)',
             'desc' => 'Penutupan sopan (breakup sequence) dan doa kebaikan tanpa terkesan memaksa',
-            'content' => "Bismillah, kak {nama}. 🙏\n\nIzin kami arsipkan data konsultasinya sementara waktu ya kak, agar tidak mengganggu kesibukan kakak.\n\nJika sewaktu-waktu ingin memulai kembali, nomor ini selalu terbuka untuk kak {nama}. Semoga Allah Ta'ala mudahkan niat mulianya. Barakallahu fiik. 🤲✨",
+            'content' => "Bismillah kak. 🙏\n\nIzin kami arsipkan data konsultasinya sementara waktu ya kak, agar tidak mengganggu kesibukan kakak.\n\nJika sewaktu-waktu ingin memulai kembali, nomor ini selalu terbuka untuk kakak. Semoga Allah Ta'ala mudahkan niat mulianya. Barakallahu fiik. 🤲✨",
             'delay' => 10080,
         ],
         [
             'name' => 'Menghafal Pemula - Follow Up 1 (Tahsin dari Nol)',
             'desc' => 'Follow-up calon peserta baru yang ingin belajar dari nol',
-            'content' => "Bismillah, ahlan kak {nama}! 😊\n\nTerima kasih sudah memilih Kelas Menghafal Pemula Jawwada. Tidak perlu khawatir jika bacaan belum lancar ya kak, karena di kelas privat ini kita akan benahi tahsin & makhrajnya terlebih dahulu secara santai (10 menit/hari via Telepon WA).\n\nKak {nama} rencananya ingin ambil Paket Normal (Rp135rb/bln) atau Paket Intensif (Rp245rb/bln) kak? 🙏",
+            'content' => "Bismillah, ahlan kak! 😊\n\nTerima kasih sudah memilih Kelas Menghafal Pemula Jawwada. Tidak perlu khawatir jika bacaan belum lancar ya kak, karena di kelas privat ini kita akan benahi tahsin & makhrajnya secara santai (10 menit/hari via Telepon WA).\n\nKakak rencananya ingin ambil Paket Normal (135rb/bln) atau Paket Intensif (245rb/bln) kak? 🙏",
             'delay' => 30,
         ],
         [
             'name' => 'Lanjutan & Muroja\'ah - Follow Up 1 (Mutqin & Target Juz)',
             'desc' => 'Follow-up peserta yang sudah punya tabungan hafalan',
-            'content' => "Bismillah, ahlan kak {nama}! ✨\n\nAlhamdulillah atas ikhtiar menjaga hafalan Al-Qur'annya. Di kelas ini kak {nama} akan disimak langsung oleh Hafidz/Hafidzoh 30 Juz bersanad agar hafalan lama semakin mutqin dan hafalan baru bertambah lancar.\n\nSaat ini kak {nama} sudah ada tabungan juz berapa saja dan target selanjutnya ingin fokus di juz berapa kak? 🙏",
+            'content' => "Bismillah, ahlan kak! ✨\n\nAlhamdulillah atas ikhtiar menjaga hafalan Al-Qur'annya. Di kelas ini kakak akan disimak langsung oleh Hafidz/Hafidzoh 30 Juz bersanad agar hafalan lama semakin mutqin dan hafalan baru bertambah lancar.\n\nSaat ini kakak sudah ada tabungan juz berapa saja dan target selanjutnya ingin fokus di juz berapa kak? 🙏",
             'delay' => 30,
         ],
         [
             'name' => 'Tahfidz Cilik - Follow Up 1 (Pendekatan Bunda/Ayah)',
             'desc' => 'Follow-up ramah untuk orang tua yang mendaftarkan anak',
-            'content' => "Bismillah, ahlan Bunda/Ayah {nama}! 😊\n\nSenang sekali Bunda/Ayah berniat membimbing ananda dekat dengan Al-Qur'an sejak dini. Di Tahfidz Cilik, belajarnya 1-on-1 via Private Video Call WA (Rp155rb/bln) dengan metode sabar & menyenangkan.\n\nBoleh tahu ananda saat ini usia berapa tahun dan apakah sudah mulai iqro atau juz 'amma?",
+            'content' => "Bismillah, ahlan Bunda/Ayah! 😊\n\nSenang sekali Bunda/Ayah berniat membimbing ananda dekat dengan Al-Qur'an sejak dini. Di Tahfidz Cilik, belajarnya privat 1-on-1 via Video Call WA dengan metode yang sabar & menyenangkan.\n\nBoleh tahu ananda saat ini usia berapa tahun dan apakah sudah mulai iqro atau juz 'amma? 🙏",
             'delay' => 30,
         ],
     ];
@@ -575,8 +576,71 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         $conn->query("INSERT INTO crm_automation_meta (meta_key, meta_value) VALUES ('schema_v2_instant_welcome', '1') ON DUPLICATE KEY UPDATE meta_value = '1'");
     }
 
+    // Migration v3: Template Ringkas Tanpa {nama} (Humanis & Opsi 1 untuk FU 5)
+    $metaV3 = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v3_concise_templates_no_nama' LIMIT 1");
+    if (!$metaV3 || $metaV3->num_rows === 0) {
+        $cleanTemplates = [
+            'Follow Up 1%' => [
+                'name' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+                'desc' => 'Sapaan ramah 2 menit pertama, hangat dan santai menanyakan kebutuhan belajar',
+                'content' => "Bismillah, ahlan kak! 😊\n\nTerima kasih ya sudah mampir ke Tahfidz Private Jawwada.\n\nBiar kami bantu infokan detail kelasnya, rencananya program ini untuk kakak sendiri atau ananda nih kak? 🙏",
+            ],
+            'Follow Up 2%' => [
+                'name' => 'Follow Up 2 (45 Menit - Fleksibilitas & Biaya Terjangkau)',
+                'desc' => 'Edukasi privat 1-on-1 via telepon WA 10 menit & biaya mulai Rp135rb/bln',
+                'content' => "Sekadar info kak, di Jawwada belajarnya privat 1-on-1 via telepon WA cuma 10 menit per hari, biaya sangat terjangkau mulai 135rb per bulan.\n\nKakak biasanya lebih luang di waktu pagi, sore, atau malam kak? ✨",
+            ],
+            'Follow Up 3%' => [
+                'name' => 'Follow Up 3 (4 Jam - Reservasi Slot Terbatas)',
+                'desc' => 'Soft urgency kuota guru hafidz 30 juz pekan ini terbatas',
+                'content' => "Assalamu'alaikum kak. 🙏\n\nIzin mengabarkan, kuota pembimbing Hafidz/Hafidzoh 30 Juz untuk pekan ini tersisa sedikit karena jadwal privat yang terbatas.\n\nJika kakak berminat, mau kami bantu simpankan slot belajarnya terlebih dahulu? 😊",
+            ],
+            'Follow Up 4%' => [
+                'name' => 'Follow Up 4 (H+1 / 24 Jam - Solusi Ragu & Pengalaman Peserta)',
+                'desc' => 'Menghilangkan rasa minder jika bacaan belum lancar, bimbingan santai dari nol',
+                'content' => "Assalamu'alaikum kak ✨\n\nTidak perlu khawatir jika bacaan belum lancar ya kak. Di kelas privat ini ustadz/ustadzah akan membimbing santai dari nol tanpa beban hafalan.\n\nKira-kira apa target belajar yang paling ingin kakak capai saat ini? 🙏",
+            ],
+            'Follow Up 5%' => [
+                'name' => 'Follow Up 5 (H+3 / 3 Hari - Bantuan Penyesuaian Jadwal)',
+                'desc' => 'Menyapa ramah prospek yang sibuk dengan menawarkan fleksibilitas penyesuaian jadwal santai',
+                'content' => "Bismillah kak, sekadar menyapa kembali. 🙏\n\nBarangkali kemarin masih sibuk atau ragu soal kecocokan jam, jadwal belajarnya fleksibel banget kok bisa disesuaikan dengan waktu senggang kakak.\n\nKira-kira ada yang masih ingin ditanyakan dulu kak? 😊",
+            ],
+            'Follow Up 6%' => [
+                'name' => 'Follow Up 6 (H+7 / 7 Hari - Konfirmasi Penutupan Data & Doa)',
+                'desc' => 'Penutupan sopan (breakup sequence) dan doa kebaikan tanpa terkesan memaksa',
+                'content' => "Bismillah kak. 🙏\n\nIzin kami arsipkan data konsultasinya sementara waktu ya kak, agar tidak mengganggu kesibukan kakak.\n\nJika sewaktu-waktu ingin memulai kembali, nomor ini selalu terbuka untuk kakak. Semoga Allah Ta'ala mudahkan niat mulianya. Barakallahu fiik. 🤲✨",
+            ],
+            'Menghafal Pemula%' => [
+                'name' => 'Menghafal Pemula - Follow Up 1 (Tahsin dari Nol)',
+                'desc' => 'Follow-up calon peserta baru yang ingin belajar dari nol',
+                'content' => "Bismillah, ahlan kak! 😊\n\nTerima kasih sudah memilih Kelas Menghafal Pemula Jawwada. Tidak perlu khawatir jika bacaan belum lancar ya kak, karena di kelas privat ini kita akan benahi tahsin & makhrajnya secara santai (10 menit/hari via Telepon WA).\n\nKakak rencananya ingin ambil Paket Normal (135rb/bln) atau Paket Intensif (245rb/bln) kak? 🙏",
+            ],
+            'Lanjutan & Muroja\'ah%' => [
+                'name' => 'Lanjutan & Muroja\'ah - Follow Up 1 (Mutqin & Target Juz)',
+                'desc' => 'Follow-up peserta yang sudah punya tabungan hafalan',
+                'content' => "Bismillah, ahlan kak! ✨\n\nAlhamdulillah atas ikhtiar menjaga hafalan Al-Qur'annya. Di kelas ini kakak akan disimak langsung oleh Hafidz/Hafidzoh 30 Juz bersanad agar hafalan lama semakin mutqin dan hafalan baru bertambah lancar.\n\nSaat ini kakak sudah ada tabungan juz berapa saja dan target selanjutnya ingin fokus di juz berapa kak? 🙏",
+            ],
+            'Tahfidz Cilik%' => [
+                'name' => 'Tahfidz Cilik - Follow Up 1 (Pendekatan Bunda/Ayah)',
+                'desc' => 'Follow-up ramah untuk orang tua yang mendaftarkan anak',
+                'content' => "Bismillah, ahlan Bunda/Ayah! 😊\n\nSenang sekali Bunda/Ayah berniat membimbing ananda dekat dengan Al-Qur'an sejak dini. Di Tahfidz Cilik, belajarnya privat 1-on-1 via Video Call WA dengan metode yang sabar & menyenangkan.\n\nBoleh tahu ananda saat ini usia berapa tahun dan apakah sudah mulai iqro atau juz 'amma? 🙏",
+            ],
+        ];
+
+        foreach ($cleanTemplates as $pattern => $tData) {
+            $uStmt = $conn->prepare("UPDATE crm_automation_templates SET name = ?, description = ?, content = ? WHERE name LIKE ?");
+            if ($uStmt) {
+                $uStmt->bind_param('ssss', $tData['name'], $tData['desc'], $tData['content'], $pattern);
+                $uStmt->execute();
+                $uStmt->close();
+            }
+        }
+
+        $conn->query("INSERT INTO crm_automation_meta (meta_key, meta_value) VALUES ('schema_v3_concise_templates_no_nama', '1') ON DUPLICATE KEY UPDATE meta_value = '1'");
+    }
+
     // Fast path: jika skema dan seed sudah lengkap, hindari DDL dan query berulang pada webhook
-    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v2_instant_welcome' LIMIT 1");
+    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v3_concise_templates_no_nama' LIMIT 1");
     if ($metaEnsured && $metaEnsured->num_rows > 0) {
         $ensured = true;
         return true;

@@ -93,13 +93,23 @@ assertTest(
     $tpl ? "Nama: {$tpl['name']}" : 'Template tidak ditemukan'
 );
 
-// TEST 5: Render Pesan Follow Up 1 dengan Placeholder
+// TEST 5: Render Pesan Follow Up 1 Tanpa Variabel Nama Aneh
 if ($tpl) {
-    $rendered = crmAutomationRenderMessage($tpl['content'], ['nama' => 'Budi Santoso']);
+    $rendered = crmAutomationRenderMessage($tpl['content'], ['nama' => '-']);
     assertTest(
-        'Render Pesan Menyapa Nama Prospek & Pertanyaan Mudah',
-        str_contains($rendered, 'kak Budi Santoso') && str_contains($rendered, 'sendiri atau ananda'),
+        'Render Pesan Ramah Alami Tanpa Nama Aneh/Strip',
+        !str_contains($rendered, 'kak -') && str_contains($rendered, 'ahlan kak!') && str_contains($rendered, 'sendiri atau ananda'),
         substr(str_replace("\n", " ", $rendered), 0, 75) . '...'
+    );
+
+    // Cek Follow Up 5 (Opsi 1)
+    $fu5Res = $conn->query("SELECT content FROM crm_automation_templates WHERE name LIKE 'Follow Up 5%' LIMIT 1");
+    $fu5 = $fu5Res ? $fu5Res->fetch_assoc() : null;
+    $hasFu5Opsi1 = $fu5 && str_contains($fu5['content'], 'fleksibel') && str_contains($fu5['content'], 'waktu senggang');
+    assertTest(
+        'Template Follow Up 5 Opsi 1 Terpasang',
+        $hasFu5Opsi1,
+        $fu5 ? substr(str_replace("\n", " ", $fu5['content']), 0, 75) . '...' : 'Tidak ditemukan'
     );
 }
 
