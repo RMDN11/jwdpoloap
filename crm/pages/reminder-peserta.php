@@ -527,6 +527,17 @@ $previewMessage = ($selectedRequest && $defaultTemplate)
                         </small>
                     </div>
 
+                    <div class="reminder-field" style="margin-top:0;margin-bottom:12px">
+                        <span>Siklus Penjadwalan Rotasi</span>
+                        <select name="schedule_days" id="pesertaScheduleDays" style="font-weight:600;background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:12px;width:100%">
+                            <option value="5" selected>📅 5 Hari Kerja (Senin s/d Jumat Penuh - Otomatis Ganti Template Tiap Hari)</option>
+                            <option value="1">1 Hari Saja (Hanya Hari Ini / Tanggal Terpilih)</option>
+                        </select>
+                        <small style="color:#64748b;font-size:10px;margin-top:4px;display:block">
+                            Opsi 5 hari otomatis menjadwalkan 5 hari kerja beruntun (Senin s/d Jumat), di mana setiap hari peserta menerima template berikutnya secara berurutan.
+                        </small>
+                    </div>
+
                     <div class="reminder-field" style="margin-top:0">
                         <span>Waktu Mulai Pengiriman</span>
                         <div style="display:flex;gap:16px;align-items:center;margin:6px 0">
@@ -756,7 +767,10 @@ $previewMessage = ($selectedRequest && $defaultTemplate)
         });
 
         const halaqohCount = Object.keys(grouped).length;
-        if (estTargetsEl) estTargetsEl.textContent = targets.length + ' orang';
+        const scheduleDaysInput = document.getElementById('pesertaScheduleDays');
+        const numDays = Math.max(1, Number(scheduleDaysInput?.value || 1));
+        const totalMsgCount = targets.length * numDays;
+        if (estTargetsEl) estTargetsEl.textContent = targets.length + ' orang' + (numDays > 1 ? ' (' + numDays + ' hari = ' + totalMsgCount + ' pesan)' : '');
         if (estHalaqohEl) estHalaqohEl.textContent = halaqohCount + ' grup';
 
         const delayMsgSec = Math.max(1, Number(delayMsgInput?.value || 2)) * 60;
@@ -871,6 +885,7 @@ $previewMessage = ($selectedRequest && $defaultTemplate)
     startDatetimeInput?.addEventListener('input', updateEstimation);
     delayMsgInput?.addEventListener('input', updateEstimation);
     delayHalInput?.addEventListener('input', updateEstimation);
+    document.getElementById('pesertaScheduleDays')?.addEventListener('change', updateEstimation);
 
     /* Quick Day Buttons */
     document.getElementById('pesertaDayAllBtn')?.addEventListener('click', () => {

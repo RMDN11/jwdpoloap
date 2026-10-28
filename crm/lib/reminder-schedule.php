@@ -60,6 +60,10 @@ function crmEnsureReminderScheduleTables(mysqli $conn): void
     if ($chk && $chk->num_rows === 0) {
         $conn->query("ALTER TABLE crm_reminder_campaign_queue ADD COLUMN request_id INT UNSIGNED NULL AFTER peserta_id");
     }
+    $chk = $conn->query("SHOW COLUMNS FROM crm_reminder_campaign_queue LIKE 'template_num'");
+    if ($chk && $chk->num_rows === 0) {
+        $conn->query("ALTER TABLE crm_reminder_campaign_queue ADD COLUMN template_num INT UNSIGNED NULL AFTER group_order");
+    }
 
     // Pastikan kampanye peserta aktif di hari kerja Senin-Jumat
     $conn->query("UPDATE crm_reminder_campaigns SET allowed_days = '1,2,3,4,5' WHERE campaign_type = 'peserta' AND (allowed_days = '1,2,3,4,5,6,7' OR allowed_days IS NULL)");
@@ -83,6 +87,83 @@ function crmAdjustTimestampToAllowedDays(int $timestamp, array $allowedDays, int
         }
     }
     return $timestamp;
+}
+
+/**
+ * Memajukan waktu 1 hari ke hari aktif berikutnya pada jam dan menit awal yang sama.
+ */
+function crmAdvanceToNextAllowedDay(int $currentTs, array $allowedDays, int $targetHour, int $targetMinute): int
+{
+    $nextTs = strtotime('+1 day', $currentTs);
+    $nextTs = mktime($targetHour, $targetMinute, 0, (int)date('n', $nextTs), (int)date('j', $nextTs), (int)date('Y', $nextTs));
+    return crmAdjustTimestampToAllowedDays($nextTs, $allowedDays, $targetHour, $targetMinute);
+}
+
+/**
+ * Mengambil nomor template rotasi terakhir (1-6) yang pernah dikirim/dijadwalkan untuk peserta ini.
+ */
+function crmReminderGetLastTemplateNum(mysqli $conn, string $nowa, ?int $pesertaId = null): int
+{
+    $norm = preg_replace('/\D+/', '', $nowa);
+    if (str_starts_with($norm, '0')) {
+        $norm = '62' . substr($norm, 1);
+    }
+
+    $pId = $pesertaId ?: 0;
+
+    // 1. Cek kolom template_num terlebih dahulu
+    $hasCol = false;
+    $chk = $conn->query("SHOW COLUMNS FROM crm_reminder_campaign_queue LIKE 'template_num'");
+    if ($chk && $chk->num_rows > 0) {
+        $hasCol = true;
+    }
+
+    if ($hasCol) {
+        $stmt = $conn->prepare("
+            SELECT template_num 
+            FROM crm_reminder_campaign_queue 
+            WHERE (nowa = ? OR (peserta_id > 0 AND peserta_id = ?))
+              AND template_num IS NOT NULL 
+              AND template_num >= 1 AND template_num <= 6
+            ORDER BY scheduled_at DESC, id DESC 
+            LIMIT 1
+        ");
+        if ($stmt) {
+            $stmt->bind_param('si', $norm, $pId);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            if ($row && !empty($row['template_num'])) {
+                return (int)$row['template_num'];
+            }
+        }
+    }
+
+    // 2. Fallback deteksi dari isi pesan jika template_num belum terisi
+    $stmt2 = $conn->prepare("
+        SELECT message 
+        FROM crm_reminder_campaign_queue 
+        WHERE (nowa = ? OR (peserta_id > 0 AND peserta_id = ?))
+        ORDER BY scheduled_at DESC, id DESC 
+        LIMIT 1
+    ");
+    if ($stmt2) {
+        $stmt2->bind_param('si', $norm, $pId);
+        $stmt2->execute();
+        $row2 = $stmt2->get_result()->fetch_assoc();
+        $stmt2->close();
+        if ($row2 && !empty($row2['message'])) {
+            $msg = $row2['message'];
+            if (stripos($msg, 'tidak terlihat setorannya') !== false) return 1;
+            if (stripos($msg, 'tertinggal beberapa hari') !== false) return 2;
+            if (stripos($msg, 'absen halqoh') !== false) return 3;
+            if (stripos($msg, 'setorannya menumpuk') !== false) return 4;
+            if (stripos($msg, 'tidak ada kabar setoran') !== false) return 5;
+            if (stripos($msg, 'Ke mana saja beberapa hari ini') !== false) return 6;
+        }
+    }
+
+    return 0;
 }
 
 function crmCreateReminderCampaign(mysqli $conn, array $params): int
@@ -196,13 +277,16 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
         $currentTs = time();
     }
 
+    $scheduleDays = max(1, min(14, (int)($params['schedule_days'] ?? 1)));
+
     $startHour = (int)date('H', $currentTs);
     $startMinute = (int)date('i', $currentTs);
     $currentTs = crmAdjustTimestampToAllowedDays($currentTs, $allowedDays, $startHour, $startMinute);
     $startedAt = date('Y-m-d H:i:s', $currentTs);
 
-    $totalTargets = 0;
-    foreach ($grouped as $list) $totalTargets += count($list);
+    $baseTargets = 0;
+    foreach ($grouped as $list) $baseTargets += count($list);
+    $totalTargets = $baseTargets * $scheduleDays;
 
     // Insert campaign
     $stmt = $conn->prepare("INSERT INTO crm_reminder_campaigns 
@@ -214,57 +298,88 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
     $campaignId = (int)$stmt->insert_id;
     $stmt->close();
 
+    // Inisialisasi nomor template awal untuk tiap peserta
+    // Jika peserta sudah pernah dapat template X di hari sebelumnya, otomatis mulai dari X+1
+    // Jika belum pernah, beri template bergantian (1, 2, 3, 4, 5, 6, 1...) agar antar peserta beda pesan
+    $participantBaseTpl = [];
+    $pIdx = 0;
+    foreach ($grouped as $halName => $recipients) {
+        foreach ($recipients as $recipient) {
+            $key = $recipient['nowa'];
+            if (!isset($participantBaseTpl[$key])) {
+                $lastNum = crmReminderGetLastTemplateNum($conn, $recipient['nowa'], $recipient['id']);
+                if ($lastNum > 0 && !empty($rotationTemplates)) {
+                    $participantBaseTpl[$key] = ($lastNum % count($rotationTemplates)) + 1;
+                } else {
+                    $participantBaseTpl[$key] = (!empty($rotationTemplates)) ? (($pIdx % count($rotationTemplates)) + 1) : 1;
+                }
+                $pIdx++;
+            }
+        }
+    }
+
     // Prepare queue insert
     $queueStmt = $conn->prepare("INSERT INTO crm_reminder_campaign_queue
-        (campaign_id, peserta_id, request_id, nama, nowa, halaqoh, group_order, message, scheduled_at, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
+        (campaign_id, peserta_id, request_id, nama, nowa, halaqoh, group_order, template_num, message, scheduled_at, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')");
     if (!$queueStmt) {
         throw new RuntimeException('Gagal menyiapkan antrean: ' . $conn->error);
     }
 
     $groupOrder = 1;
-    $scheduleTime = $currentTs;
     $targetBulan = $bulan !== '' ? $bulan : 'periode ini';
-    $rotationIdx = 0;
+    $dayBaseTs = $currentTs;
 
-    foreach ($grouped as $halName => $recipients) {
-        $countInGroup = count($recipients);
-        $idx = 0;
-        foreach ($recipients as $recipient) {
-            $idx++;
-            $name = $recipient['name'];
-            $nowa = $recipient['nowa'];
-            $pesertaId = $recipient['id'] > 0 ? $recipient['id'] : null;
-            $requestId = $recipient['request_id'] > 0 ? $recipient['request_id'] : null;
-
-            $activeContent = $rawContent;
-            if ($isRotating && !empty($rotationTemplates)) {
-                $chosen = $rotationTemplates[$rotationIdx % count($rotationTemplates)];
-                $activeContent = (string)$chosen['content'];
-                $rotationIdx++;
-            }
-
-            $message = str_ireplace(
-                ['{peserta_nama}', '{peserta_nowa}', '{nama}', '{NAMA}', '[nama]', '[NAMA]', '{bulan}', '{BULAN}', '[bulan]', '[BULAN]', '{halaqoh}', '{HALAQOH}', '[halaqoh]', '[HALAQOH]'],
-                [$name, $nowa, $name, $name, $name, $name, $targetBulan, $targetBulan, $targetBulan, $targetBulan, $halName, $halName, $halName, $halName],
-                $activeContent
-            );
-            $message = preg_replace('/ {2,}/', ' ', $message);
-
-            $scheduleTime = crmAdjustTimestampToAllowedDays($scheduleTime, $allowedDays, $startHour, $startMinute);
-            $scheduledAt = date('Y-m-d H:i:s', $scheduleTime);
-            $queueStmt->bind_param('iiisssiss', $campaignId, $pesertaId, $requestId, $name, $nowa, $halName, $groupOrder, $message, $scheduledAt);
-            $queueStmt->execute();
-
-            // Next message in this halaqoh
-            if ($idx < $countInGroup) {
-                $scheduleTime += $interMessageDelay;
-            }
+    for ($dayIdx = 0; $dayIdx < $scheduleDays; $dayIdx++) {
+        if ($dayIdx > 0) {
+            $dayBaseTs = crmAdvanceToNextAllowedDay($dayBaseTs, $allowedDays, $startHour, $startMinute);
         }
 
-        // Delay between halaqohs
-        $scheduleTime += $interGroupDelay;
-        $groupOrder++;
+        $scheduleTime = $dayBaseTs;
+
+        foreach ($grouped as $halName => $recipients) {
+            $countInGroup = count($recipients);
+            $idx = 0;
+            foreach ($recipients as $recipient) {
+                $idx++;
+                $name = $recipient['name'];
+                $nowa = $recipient['nowa'];
+                $pesertaId = $recipient['id'] > 0 ? $recipient['id'] : null;
+                $requestId = $recipient['request_id'] > 0 ? $recipient['request_id'] : null;
+
+                $activeContent = $rawContent;
+                $assignedTplNum = null;
+
+                if ($isRotating && !empty($rotationTemplates)) {
+                    $baseTpl = $participantBaseTpl[$nowa] ?? 1;
+                    $assignedTplNum = (($baseTpl - 1 + $dayIdx) % count($rotationTemplates)) + 1;
+                    $chosen = $rotationTemplates[$assignedTplNum - 1];
+                    $activeContent = (string)$chosen['content'];
+                }
+
+                $message = str_ireplace(
+                    ['{peserta_nama}', '{peserta_nowa}', '{nama}', '{NAMA}', '[nama]', '[NAMA]', '{bulan}', '{BULAN}', '[bulan]', '[BULAN]', '{halaqoh}', '{HALAQOH}', '[halaqoh]', '[HALAQOH]'],
+                    [$name, $nowa, $name, $name, $name, $name, $targetBulan, $targetBulan, $targetBulan, $targetBulan, $halName, $halName, $halName, $halName],
+                    $activeContent
+                );
+                $message = preg_replace('/ {2,}/', ' ', $message);
+
+                $itemScheduleTime = crmAdjustTimestampToAllowedDays($scheduleTime, $allowedDays, $startHour, $startMinute);
+                $scheduledAt = date('Y-m-d H:i:s', $itemScheduleTime);
+
+                $queueStmt->bind_param('iiisssiiss', $campaignId, $pesertaId, $requestId, $name, $nowa, $halName, $groupOrder, $assignedTplNum, $message, $scheduledAt);
+                $queueStmt->execute();
+
+                // Next message in this halaqoh
+                if ($idx < $countInGroup) {
+                    $scheduleTime += $interMessageDelay;
+                }
+            }
+
+            // Delay between halaqohs
+            $scheduleTime += $interGroupDelay;
+            $groupOrder++;
+        }
     }
     $queueStmt->close();
 
