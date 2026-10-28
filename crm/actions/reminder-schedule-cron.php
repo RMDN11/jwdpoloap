@@ -58,6 +58,30 @@ $output = sprintf(
     $summary['failed'] ?? 0
 );
 
+if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+    $cRes = $conn->query("SELECT id, title, campaign_type, status, total_targets, sent_count, failed_count, started_at FROM crm_reminder_campaigns ORDER BY id DESC LIMIT 5");
+    $output .= "\n=== RECENT CAMPAIGNS ===\n";
+    if ($cRes) {
+        while ($c = $cRes->fetch_assoc()) {
+            $output .= sprintf("ID: %d | Type: %s | Status: %s | Sent: %d/%d | Started: %s | Title: %s\n",
+                $c['id'], $c['campaign_type'], $c['status'], $c['sent_count'], $c['total_targets'], $c['started_at'], $c['title']
+            );
+        }
+    }
+    $qRes = $conn->query("SELECT status, count(*) as cnt, min(scheduled_at) as earliest, max(scheduled_at) as latest FROM crm_reminder_campaign_queue GROUP BY status");
+    $output .= "\n=== QUEUE STATS ===\n";
+    if ($qRes) {
+        while ($q = $qRes->fetch_assoc()) {
+            $output .= sprintf("Status: %s | Count: %d | Earliest: %s | Latest: %s\n",
+                $q['status'], $q['cnt'], $q['earliest'], $q['latest']
+            );
+        }
+    }
+    $tRes = $conn->query("SELECT NOW() as db_now, @@session.time_zone as tz");
+    $tRow = $tRes ? $tRes->fetch_assoc() : [];
+    $output .= sprintf("\n=== TIME CHECK ===\nPHP Time: %s\nDB Time: %s (tz: %s)\n", $now, $tRow['db_now'] ?? '-', $tRow['tz'] ?? '-');
+}
+
 if ($isCli) {
     echo $output;
 } else {
