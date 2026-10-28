@@ -70,7 +70,7 @@ try {
         'template_id' => 15,
         'inter_message_delay' => 180, // Jeda antar peserta: 3 menit
         'inter_group_delay' => 420,   // Jeda antar halaqoh: 7 menit
-        'allowed_days' => [1, 2, 3, 4, 5, 6, 7],
+        'allowed_days' => [1, 2, 3, 4, 5], // Hanya aktif Senin - Jumat
         'start_datetime' => $startDateTime,
         'targets' => $targets
     ]);

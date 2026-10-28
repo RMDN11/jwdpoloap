@@ -86,8 +86,8 @@ $interMessageDelay = $delayMsgMin * 60;
 $delayHalMin = max(1, (int)($_POST['delay_halaqoh'] ?? 15));
 $interGroupDelay = $delayHalMin * 60;
 
-// Allowed days of week (1=Mon ... 7=Sun)
-$allowedDays = $_POST['allowed_days'] ?? [1, 2, 3, 4, 5, 6, 7];
+// Allowed days of week (1=Mon ... 7=Sun, default: Senin - Jumat)
+$allowedDays = $_POST['allowed_days'] ?? [1, 2, 3, 4, 5];
 
 $startType = (string)($_POST['start_type'] ?? 'now');
 date_default_timezone_set('Asia/Jakarta');

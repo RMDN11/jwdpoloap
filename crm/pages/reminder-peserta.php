@@ -514,11 +514,11 @@ $previewMessage = ($selectedRequest && $defaultTemplate)
                                 <span>Jumat</span>
                             </label>
                             <label class="reminder-day-chip">
-                                <input type="checkbox" name="allowed_days[]" value="6" checked class="peserta-day-cb">
+                                <input type="checkbox" name="allowed_days[]" value="6" class="peserta-day-cb">
                                 <span>Sabtu</span>
                             </label>
                             <label class="reminder-day-chip">
-                                <input type="checkbox" name="allowed_days[]" value="7" checked class="peserta-day-cb">
+                                <input type="checkbox" name="allowed_days[]" value="7" class="peserta-day-cb">
                                 <span>Ahad</span>
                             </label>
                         </div>

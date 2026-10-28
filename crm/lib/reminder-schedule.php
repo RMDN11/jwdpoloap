@@ -60,6 +60,9 @@ function crmEnsureReminderScheduleTables(mysqli $conn): void
     if ($chk && $chk->num_rows === 0) {
         $conn->query("ALTER TABLE crm_reminder_campaign_queue ADD COLUMN request_id INT UNSIGNED NULL AFTER peserta_id");
     }
+
+    // Pastikan kampanye peserta aktif di hari kerja Senin-Jumat
+    $conn->query("UPDATE crm_reminder_campaigns SET allowed_days = '1,2,3,4,5' WHERE campaign_type = 'peserta' AND (allowed_days = '1,2,3,4,5,6,7' OR allowed_days IS NULL)");
 }
 
 function crmAdjustTimestampToAllowedDays(int $timestamp, array $allowedDays, int $hour = 8, int $minute = 0): int
@@ -275,7 +278,8 @@ function crmProcessPendingReminderQueue(mysqli $conn, string $apiUrl, string $ap
     @$conn->query("SET time_zone = '+07:00'");
 
     $nowStr = date('Y-m-d H:i:s');
-    $sql = "SELECT q.id, q.campaign_id, q.peserta_id, q.request_id, q.nama, q.nowa, q.halaqoh, q.message, c.template_id, c.campaign_type, c.title AS campaign_title
+    $sql = "SELECT q.id, q.campaign_id, q.peserta_id, q.request_id, q.nama, q.nowa, q.halaqoh, q.message, 
+                   c.template_id, c.campaign_type, c.title AS campaign_title, c.allowed_days
             FROM crm_reminder_campaign_queue q
             INNER JOIN crm_reminder_campaigns c ON c.id = q.campaign_id
             WHERE q.status = 'pending'
@@ -317,9 +321,26 @@ function crmProcessPendingReminderQueue(mysqli $conn, string $apiUrl, string $ap
     $affectedCampaigns = [];
 
     foreach ($items as $item) {
-        $processed++;
         $queueId = (int)$item['id'];
         $campaignId = (int)$item['campaign_id'];
+
+        $campAllowedStr = (string)($item['allowed_days'] ?? '1,2,3,4,5');
+        $campAllowedList = array_map('intval', explode(',', $campAllowedStr));
+        $todayN = (int)date('N'); // 1 = Senin ... 7 = Ahad
+        if ($campAllowedList && !in_array($todayN, $campAllowedList, true)) {
+            // Hari ini bukan hari aktif (misal Sabtu atau Ahad), tunda ke hari aktif berikutnya
+            $rescheduledTs = crmAdjustTimestampToAllowedDays(time(), $campAllowedList, 8, 15);
+            $newScheduledAt = date('Y-m-d H:i:s', $rescheduledTs);
+            $reschedStmt = $conn->prepare("UPDATE crm_reminder_campaign_queue SET scheduled_at = ? WHERE id = ?");
+            if ($reschedStmt) {
+                $reschedStmt->bind_param('si', $newScheduledAt, $queueId);
+                $reschedStmt->execute();
+                $reschedStmt->close();
+            }
+            continue;
+        }
+
+        $processed++;
         $affectedCampaigns[$campaignId] = true;
         $name = (string)$item['nama'];
         $number = (string)$item['nowa'];
