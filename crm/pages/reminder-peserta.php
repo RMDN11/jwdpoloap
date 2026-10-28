@@ -452,9 +452,10 @@ $previewMessage = ($selectedRequest && $defaultTemplate)
                     <span>Template Pesan</span>
                     <select name="template_id" id="pesertaScheduleTemplate" required>
                         <option value="">Pilih template...</option>
+                        <option value="rotate_1_6" style="font-weight:700;color:#166534">🔄 Rotasi Template 1 - 6 (Bergantian Otomatis)</option>
                         <?php foreach ($templates as $tpl): ?>
                             <option value="<?= (int)$tpl['id'] ?>">
-                                <?= htmlspecialchars($tpl['name']) ?>
+                                Template <?= htmlspecialchars($tpl['name']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

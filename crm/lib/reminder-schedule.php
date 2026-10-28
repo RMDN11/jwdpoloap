@@ -93,6 +93,7 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
     }
 
     $templateId = (int)($params['template_id'] ?? 0);
+    $isRotating = !empty($params['is_rotating']) || ((string)($params['template_id'] ?? '') === 'rotate_1_6') || ($templateId === -1);
     $bulan = trim((string)($params['bulan'] ?? ''));
     $interMessageDelay = max(10, (int)($params['inter_message_delay'] ?? 120)); // min 10s
     $interGroupDelay = max(30, (int)($params['inter_group_delay'] ?? 900));     // min 30s
@@ -111,7 +112,22 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
     if (!$allowedDays) $allowedDays = [1,2,3,4,5,6,7];
     $allowedDaysStr = implode(',', $allowedDays);
 
-    if ($templateId <= 0) {
+    $rotationTemplates = [];
+    if ($isRotating) {
+        $res = $conn->query("SELECT id, name, content FROM reminder_templates WHERE name IN ('1','2','3','4','5','6') ORDER BY CAST(name AS UNSIGNED) ASC");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) $rotationTemplates[] = $row;
+        }
+        if (!$rotationTemplates) {
+            $res = $conn->query("SELECT id, name, content FROM reminder_templates ORDER BY id ASC LIMIT 6");
+            if ($res) while ($row = $res->fetch_assoc()) $rotationTemplates[] = $row;
+        }
+        if ($rotationTemplates) {
+            $templateId = (int)$rotationTemplates[0]['id'];
+        }
+    }
+
+    if ($templateId <= 0 && !$isRotating) {
         throw new InvalidArgumentException('Template pesan wajib dipilih.');
     }
     if (!$targets) {
@@ -120,7 +136,9 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
 
     // Fetch template content from appropriate table
     $rawContent = '';
-    if ($campaignType === 'peserta') {
+    if ($isRotating && $rotationTemplates) {
+        $rawContent = (string)$rotationTemplates[0]['content'];
+    } elseif ($campaignType === 'peserta') {
         $stmt = $conn->prepare("SELECT id, name AS title, content FROM reminder_templates WHERE id = ? LIMIT 1");
         if ($stmt) {
             $stmt->bind_param('i', $templateId);
@@ -142,7 +160,7 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
         }
     }
 
-    if ($rawContent === '') {
+    if ($rawContent === '' && !$isRotating) {
         throw new RuntimeException('Template pesan tidak ditemukan.');
     }
 
@@ -204,6 +222,7 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
     $groupOrder = 1;
     $scheduleTime = $currentTs;
     $targetBulan = $bulan !== '' ? $bulan : 'periode ini';
+    $rotationIdx = 0;
 
     foreach ($grouped as $halName => $recipients) {
         $countInGroup = count($recipients);
@@ -215,10 +234,17 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
             $pesertaId = $recipient['id'] > 0 ? $recipient['id'] : null;
             $requestId = $recipient['request_id'] > 0 ? $recipient['request_id'] : null;
 
+            $activeContent = $rawContent;
+            if ($isRotating && !empty($rotationTemplates)) {
+                $chosen = $rotationTemplates[$rotationIdx % count($rotationTemplates)];
+                $activeContent = (string)$chosen['content'];
+                $rotationIdx++;
+            }
+
             $message = str_ireplace(
                 ['{peserta_nama}', '{peserta_nowa}', '{nama}', '{NAMA}', '[nama]', '[NAMA]', '{bulan}', '{BULAN}', '[bulan]', '[BULAN]', '{halaqoh}', '{HALAQOH}', '[halaqoh]', '[HALAQOH]'],
                 [$name, $nowa, $name, $name, $name, $name, $targetBulan, $targetBulan, $targetBulan, $targetBulan, $halName, $halName, $halName, $halName],
-                $rawContent
+                $activeContent
             );
             $message = preg_replace('/ {2,}/', ' ', $message);
 

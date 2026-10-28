@@ -65,8 +65,10 @@ if (!in_array($campaignType, ['pembayaran', 'peserta'], true)) {
     $campaignType = 'pembayaran';
 }
 
-$templateId = (int)($_POST['template_id'] ?? 0);
-if ($templateId <= 0) {
+$rawTemplateId = (string)($_POST['template_id'] ?? '');
+$isRotating = ($rawTemplateId === 'rotate_1_6');
+$templateId = $isRotating ? 15 : (int)$rawTemplateId;
+if ($templateId <= 0 && !$isRotating) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Template reminder belum dipilih.'];
     header('Location: ' . $redirectUrl);
     exit;
@@ -255,6 +257,7 @@ try {
         'title' => $title,
         'campaign_type' => $campaignType,
         'template_id' => $templateId,
+        'is_rotating' => $isRotating,
         'bulan' => $bulan,
         'inter_message_delay' => $interMessageDelay,
         'inter_group_delay' => $interGroupDelay,
