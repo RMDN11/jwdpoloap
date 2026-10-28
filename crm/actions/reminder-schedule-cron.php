@@ -80,12 +80,12 @@ if (isset($_GET['debug']) && $_GET['debug'] === '1') {
         $output .= "Total pending requests: {$count}\n";
     }
 
-    $cRes = $conn->query("SELECT id, title, campaign_type, status, total_targets, sent_count, failed_count, started_at FROM crm_reminder_campaigns ORDER BY id DESC LIMIT 5");
+    $cRes = $conn->query("SELECT id, title, campaign_type, allowed_days, status, total_targets, sent_count, failed_count, started_at FROM crm_reminder_campaigns ORDER BY id DESC LIMIT 5");
     $output .= "\n=== RECENT CAMPAIGNS ===\n";
     if ($cRes) {
         while ($c = $cRes->fetch_assoc()) {
-            $output .= sprintf("ID: %d | Type: %s | Status: %s | Sent: %d/%d | Started: %s | Title: %s\n",
-                $c['id'], $c['campaign_type'], $c['status'], $c['sent_count'], $c['total_targets'], $c['started_at'], $c['title']
+            $output .= sprintf("ID: %d | Type: %s | Days: %s | Status: %s | Sent: %d/%d | Started: %s | Title: %s\n",
+                $c['id'], $c['campaign_type'], $c['allowed_days'] ?? '-', $c['status'], $c['sent_count'], $c['total_targets'], $c['started_at'], $c['title']
             );
         }
     }
