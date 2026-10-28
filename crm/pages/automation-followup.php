@@ -422,7 +422,7 @@ if ($tab !== 'queue') {
         </a>
         <a href="?page=automation-followup&tab=rules" class="crm-tab-btn <?= $tab === 'rules' ? 'active' : '' ?>">
             <i class="fa-solid fa-list-check"></i>
-            <span>Pola Pemicu</span>
+            <span>Pola Pemicu (Rules)</span>
             <span class="crm-tab-pill"><?= number_format($statRulesActive) ?></span>
         </a>
         <a href="?page=automation-followup&tab=templates" class="crm-tab-btn <?= $tab === 'templates' ? 'active' : '' ?>">
@@ -593,7 +593,7 @@ if ($tab !== 'queue') {
                                                     <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
                                                     <input type="hidden" name="status" value="paid">
                                                     <button type="submit" class="btn-secondary" style="font-size: 0.68rem; padding: 0.15rem 0.5rem; height: 24px; display: inline-flex; align-items: center; gap: 0.3rem; background: #ecfdf5; border-color: #a7f3d0; color: #047857; font-weight: 600;" onclick="return confirm('Ubah status finance kontak ini menjadi Sudah? Antrean follow up pending akan dihentikan otomatis.');" title="Ubah status menjadi Sudah Diisi Finance">
-                                                        <i class="fa-solid fa-circle-check"></i> Ke Sudah
+                                                        <i class="fa-solid fa-circle-check"></i> Tandai Sudah
                                                     </button>
                                                 </form>
                                             <?php endif; ?>

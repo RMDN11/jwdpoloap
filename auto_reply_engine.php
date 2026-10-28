@@ -84,7 +84,12 @@ class AutoReplyEngine
                 return false;
             }
             
-            // Format tag nama: gunakan nama HANYA jika secara eksplisit disebut dalam pesan chat
+            // Pastikan dependensi helper automasi dimuat jika ada
+            if (file_exists(__DIR__ . '/crm/config/automation-followup.php')) {
+                require_once __DIR__ . '/crm/config/automation-followup.php';
+            }
+
+            // Format tag nama & spintax anti-ban
             $explicitName = null;
             if (function_exists('crmAutomationExtractExplicitName')) {
                 $explicitName = crmAutomationExtractExplicitName($message);
@@ -92,6 +97,12 @@ class AutoReplyEngine
             if (function_exists('crmAutomationRenderMessage')) {
                 $replyText = crmAutomationRenderMessage($replyText, ['nama' => $explicitName]);
             } else {
+                while (preg_match('/\{([^{}]+\|[^{}]+)\}/u', $replyText)) {
+                    $replyText = preg_replace_callback('/\{([^{}]+\|[^{}]+)\}/u', function ($m) {
+                        $parts = explode('|', $m[1]);
+                        return $parts[array_rand($parts)];
+                    }, $replyText);
+                }
                 $targetName = $explicitName ?: '';
                 if ($targetName !== '') {
                     $replyText = str_ireplace(['{nama}', '[nama]'], $targetName, $replyText);
@@ -101,55 +112,87 @@ class AutoReplyEngine
                     $replyText = preg_replace('/[ \t]{2,}/', ' ', $replyText);
                 }
             }
-            
-            // Kirim pesan ke API OneSender
-            $sent = $this->sendViaOneSender($phone, $replyText);
-            $status = $sent ? 'sent' : 'failed';
 
-            if ($sent) {
-                try {
-                    require_once __DIR__ . '/crm/config/chat.php';
-                    require_once __DIR__ . '/crm/config/chat-directory.php';
-                    require_once __DIR__ . '/crm/config/prospect.php';
-                    require_once __DIR__ . '/crm/config/chat-routing.php';
+            // Jeda mengetik manusiawi tahap 1 (4 - 6 detik) agar tidak terkesan bot instan
+            $initialDelay = rand(4, 6);
+            $this->logToFile("Simulating human initial typing delay ({$initialDelay}s) for {$phone}");
+            sleep($initialDelay);
 
-                    $chatMessageId = crmChatStoreMessage(
-                        $this->conn,
-                        $phone,
-                        $userName,
-                        $replyText,
-                        'out',
-                        'admin',
-                        'auto_reply',
-                        date('Y-m-d H:i:s')
-                    );
+            // Cek apakah balasan dipecah menjadi beberapa balon chat (penanda [SPLIT])
+            if (str_contains($replyText, '[SPLIT]')) {
+                $bubbles = array_values(array_filter(array_map('trim', explode('[SPLIT]', $replyText))));
+            } else {
+                $bubbles = [$replyText];
+            }
 
-                    if ($chatMessageId !== null && $chatMessageId > 0) {
-                        $conversationStmt = $this->conn->prepare(
-                            "SELECT id FROM crm_conversations WHERE nowa = ? LIMIT 1"
+            $sent = true;
+            $firstBubble = true;
+            foreach ($bubbles as $bubbleText) {
+                if ($bubbleText === '') {
+                    continue;
+                }
+
+                if (!$firstBubble) {
+                    // Jeda mengetik balon lanjutan (2 - 3 detik) sangat manusiawi
+                    $followupDelay = rand(2, 3);
+                    $this->logToFile("Simulating follow-up bubble typing delay ({$followupDelay}s) for {$phone}");
+                    sleep($followupDelay);
+                }
+
+                $bubbleSent = $this->sendViaOneSender($phone, $bubbleText);
+                if (!$bubbleSent) {
+                    $sent = false;
+                }
+
+                if ($bubbleSent) {
+                    try {
+                        require_once __DIR__ . '/crm/config/chat.php';
+                        require_once __DIR__ . '/crm/config/chat-directory.php';
+                        require_once __DIR__ . '/crm/config/prospect.php';
+                        require_once __DIR__ . '/crm/config/chat-routing.php';
+
+                        $chatMessageId = crmChatStoreMessage(
+                            $this->conn,
+                            $phone,
+                            $userName,
+                            $bubbleText,
+                            'out',
+                            'admin',
+                            'auto_reply',
+                            date('Y-m-d H:i:s')
                         );
-                        if ($conversationStmt) {
-                            $conversationStmt->bind_param('s', $phone);
-                            $conversationStmt->execute();
-                            $conversation = $conversationStmt->get_result()->fetch_assoc();
-                            $conversationStmt->close();
 
-                            if ($conversation) {
-                                // Auto-replies are outbound customer-touch events.
-                                // They may trigger payment-state detection, but manual routing always wins.
-                                crmChatRoutingRecordPaymentIfMatched(
-                                    $this->conn,
-                                    (int)$conversation['id'],
-                                    $replyText,
-                                    date('Y-m-d H:i:s')
-                                );
+                        if ($chatMessageId !== null && $chatMessageId > 0) {
+                            $conversationStmt = $this->conn->prepare(
+                                "SELECT id FROM crm_conversations WHERE nowa = ? LIMIT 1"
+                            );
+                            if ($conversationStmt) {
+                                $conversationStmt->bind_param('s', $phone);
+                                $conversationStmt->execute();
+                                $conversation = $conversationStmt->get_result()->fetch_assoc();
+                                $conversationStmt->close();
+
+                                if ($conversation) {
+                                    // Auto-replies are outbound customer-touch events.
+                                    // They may trigger payment-state detection, but manual routing always wins.
+                                    crmChatRoutingRecordPaymentIfMatched(
+                                        $this->conn,
+                                        (int)$conversation['id'],
+                                        $bubbleText,
+                                        date('Y-m-d H:i:s')
+                                    );
+                                }
                             }
                         }
+                    } catch (Throwable $e) {
+                        $this->logToFile("CHAT HISTORY ERROR: " . $e->getMessage());
                     }
-                } catch (Throwable $e) {
-                    $this->logToFile("CHAT HISTORY ERROR: " . $e->getMessage());
                 }
+
+                $firstBubble = false;
             }
+
+            $status = $sent ? 'sent' : 'failed';
 
             $this->logAutoReply($phone, $message, $replyText, $status, (int)($rule['id'] ?? 0));
             $this->logToFile("Auto-reply {$status} (rule ID {$rule['id']})");

@@ -1356,7 +1356,7 @@ function crmAutomationScheduleSequence(
         ];
     }
 
-    // Tentukan tahap mulai jika startTemplateId dipilih
+    // Tentukan tahap mulai jika startTemplateId dipilih atau jika dipanggil dari auto_webhook
     $startStepNum = 1;
     if ($startTemplateId > 0) {
         foreach ($resolvedSteps as $num => $stepData) {
@@ -1365,6 +1365,10 @@ function crmAutomationScheduleSequence(
                 break;
             }
         }
+    } elseif ($triggerSource === 'auto_webhook') {
+        // Karena auto-reply engine sudah membalas chat pertama secara instan (sapaan & kualifikasi),
+        // tahap 1 (Instant Welcome) tidak perlu diduplikasi. Alur webhook otomatis dimulai dari Follow Up 2 (45 menit).
+        $startStepNum = 2;
     }
 
     $baseOffset = $resolvedSteps[$startStepNum]['base_delay'] ?? 2;
@@ -1402,8 +1406,12 @@ function crmAutomationScheduleSequence(
             continue; // Lewati tahap sebelum tahap mulai yang dipilih
         }
 
-        // Hitung jeda relatif: tahap pertama mulai dalam 2 menit + stagger antar kontak
-        if ($num === $startStepNum) {
+        if ($triggerSource === 'auto_webhook' && $startStepNum === 2) {
+            // Untuk webhook otomatis, pertahankan delay alami sejak chat pertama masuk:
+            // Step 2: 45 mnt, Step 3: 240 mnt, dst. Ditambah jitter acak 1-3 mnt
+            $stepJitter = rand(1, 3);
+            $relDelay = $stepData['base_delay'] + $staggerMinutes + $stepJitter;
+        } elseif ($num === $startStepNum) {
             $relDelay = 2 + $staggerMinutes;
         } else {
             // Tahap lanjutan diberi jeda proporsional + jitter acak 1-3 menit agar tidak serempak
