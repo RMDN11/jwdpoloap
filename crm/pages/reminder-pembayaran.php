@@ -4,7 +4,16 @@ require_once __DIR__ . '/../lib/reminder-csv.php';
 require_once __DIR__ . '/../lib/reminder-schedule.php';
 
 crmEnsureReminderScheduleTables($conn);
+
+$cronApiUrl = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : (!empty($apiUrl) ? $apiUrl : '');
+$cronApiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : (!empty($apiToken) ? $apiToken : '');
 $activeCampaigns = crmGetActiveCampaigns($conn, 3);
+
+// Pemrosesan antrean yang jatuh tempo secara otomatis saat membuka halaman
+if (!empty($activeCampaigns) && !empty($cronApiUrl) && !empty($cronApiToken)) {
+    crmProcessPendingReminderQueue($conn, (string)$cronApiUrl, (string)$cronApiToken, 5);
+    $activeCampaigns = crmGetActiveCampaigns($conn, 3);
+}
 
 $crmTitle = 'Reminder Pembayaran';
 $search = trim((string)($_GET['q'] ?? ''));

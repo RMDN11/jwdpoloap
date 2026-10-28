@@ -244,12 +244,14 @@ function crmProcessPendingReminderQueue(mysqli $conn, string $apiUrl, string $ap
 {
     crmEnsureReminderScheduleTables($conn);
     date_default_timezone_set('Asia/Jakarta');
+    @$conn->query("SET time_zone = '+07:00'");
 
+    $nowStr = date('Y-m-d H:i:s');
     $sql = "SELECT q.id, q.campaign_id, q.peserta_id, q.request_id, q.nama, q.nowa, q.halaqoh, q.message, c.template_id, c.campaign_type, c.title AS campaign_title
             FROM crm_reminder_campaign_queue q
             INNER JOIN crm_reminder_campaigns c ON c.id = q.campaign_id
             WHERE q.status = 'pending'
-              AND q.scheduled_at <= NOW()
+              AND (q.scheduled_at <= ? OR q.scheduled_at <= NOW())
               AND c.status = 'running'
             ORDER BY q.scheduled_at ASC
             LIMIT ?";
@@ -258,7 +260,7 @@ function crmProcessPendingReminderQueue(mysqli $conn, string $apiUrl, string $ap
     if (!$stmt) {
         return ['processed' => 0, 'sent' => 0, 'failed' => 0];
     }
-    $stmt->bind_param('i', $limit);
+    $stmt->bind_param('si', $nowStr, $limit);
     $stmt->execute();
     $items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Runner Cron Otomasi Jadwal Reminder Pembayaran
+ * Runner Cron Otomasi Jadwal Reminder (Pembayaran & Peserta)
  * 
  * Dapat dijalankan melalui CLI Crontab cPanel:
  *   php /path/to/crm/actions/reminder-schedule-cron.php
@@ -14,21 +14,21 @@ $isCli = (php_sapi_name() === 'cli');
 $cronToken = (string)($_GET['cron_token'] ?? $_GET['token'] ?? '');
 $expectedToken = defined('CRM_CRON_TOKEN') ? CRM_CRON_TOKEN : 'jwd_auto_cron';
 
+// Jika via HTTP dan token tidak cocok, periksa session login admin
 if (!$isCli && $cronToken !== $expectedToken) {
     require_once __DIR__ . '/../config/session.php';
     crmSessionInit();
     require_once __DIR__ . '/../../config.php';
-    if (empty($_SESSION['username']) && isset($conn) && $conn instanceof mysqli) {
+    if (empty($_SESSION['logged_in']) && isset($conn) && $conn instanceof mysqli) {
         crmRememberSessionCheck($conn);
     }
-    if (empty($_SESSION['username'])) {
+    if (empty($_SESSION['logged_in'])) {
         http_response_code(403);
         exit('Akses cron ditolak. Token pengaman tidak valid.');
     }
 }
 
 require_once __DIR__ . '/../../config.php';
-require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../lib/reminder-schedule.php';
 
 if (!isset($conn) || !($conn instanceof mysqli)) {
@@ -38,13 +38,16 @@ if (!isset($conn) || !($conn instanceof mysqli)) {
 
 date_default_timezone_set('Asia/Jakarta');
 
-if (empty($apiUrl) || empty($apiToken)) {
+$url = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : (!empty($apiUrl) ? $apiUrl : 'https://wa51024.oneapi.my.id/api/v1/messages');
+$token = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : (!empty($apiToken) ? $apiToken : '');
+
+if (empty($url) || empty($token)) {
     http_response_code(500);
     exit('Konfigurasi API OneSender (apiUrl / apiToken) tidak ditemukan.');
 }
 
 $limit = max(1, min(50, (int)($_GET['limit'] ?? 10)));
-$summary = crmProcessPendingReminderQueue($conn, $apiUrl, $apiToken, $limit);
+$summary = crmProcessPendingReminderQueue($conn, (string)$url, (string)$token, $limit);
 
 $now = date('Y-m-d H:i:s');
 $output = sprintf(
