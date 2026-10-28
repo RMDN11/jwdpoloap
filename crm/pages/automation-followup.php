@@ -23,6 +23,7 @@ $statPending = crmCount($conn, "SELECT COUNT(*) AS total FROM crm_automation_que
 $statSentToday = crmCount($conn, "SELECT COUNT(*) AS total FROM crm_automation_queue WHERE status = 'sent' AND DATE(sent_at) = CURDATE()");
 $statCancelled = crmCount($conn, "SELECT COUNT(*) AS total FROM crm_automation_queue WHERE status LIKE 'cancelled_%'");
 $statRulesActive = crmCount($conn, "SELECT COUNT(*) AS total FROM crm_automation_rules WHERE is_active = 1");
+$sleepSettings = crmAutomationGetSleepSettings($conn);
 
 // Ambil rule aktif pertama untuk default form penjadwalan
 $activeRuleId = 1;
@@ -409,7 +410,7 @@ if ($tab !== 'queue') {
                 <div class="crm-step-badge" style="background: #dbeafe; color: #1e40af;">4</div>
                 <div class="crm-step-body">
                     <span class="crm-step-title">6 Tahap Drip FU</span>
-                    <span class="crm-step-desc">FU 1 (10m) &rarr; FU 2 (1j) &rarr; FU 3 (5j) &rarr; FU 4 (H+1) &rarr; FU 5 (H+3) &rarr; FU 6 (H+7).</span>
+                    <span class="crm-step-desc">FU 1 (2m - Welcome) &rarr; FU 2 (45m) &rarr; FU 3 (4j) &rarr; FU 4 (H+1) &rarr; FU 5 (H+3) &rarr; FU 6 (H+7).</span>
                 </div>
             </div>
             <div class="crm-step-card">
@@ -420,6 +421,30 @@ if ($tab !== 'queue') {
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Sleep Hours & Instant Welcome Control Banner -->
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:12px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:36px;height:36px;border-radius:10px;background:#e0f2fe;color:#0284c7;display:flex;align-items:center;justify-content:center;font-size:16px">
+                <i class="fa-solid fa-moon"></i>
+            </div>
+            <div>
+                <strong style="font-size:13px;color:#1e293b;display:flex;align-items:center;gap:8px">
+                    Jam Istirahat Malam: <?= htmlspecialchars($sleepSettings['start']) ?> &ndash; <?= htmlspecialchars($sleepSettings['end']) ?> WIB
+                    <span style="background:<?= $sleepSettings['enabled'] ? '#dcfce7' : '#fee2e2' ?>;color:<?= $sleepSettings['enabled'] ? '#166534' : '#991b1b' ?>;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px">
+                        <?= $sleepSettings['enabled'] ? 'Aktif' : 'Nonaktif' ?>
+                    </span>
+                    <span style="background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px">
+                        <i class="fa-solid fa-bolt"></i> Instant Welcome: 2 Menit
+                    </span>
+                </strong>
+                <small style="color:#64748b;font-size:11px">Pendaftar baru langsung disapa ramah dalam 2 menit. Jika masuk tengah malam, pesan otomatis ditahan dan dikirim esok pagi mulai pukul <?= htmlspecialchars($sleepSettings['end']) ?> WIB.</small>
+            </div>
+        </div>
+        <button type="button" id="btnOpenSleepModal" style="background:#fff;border:1px solid #cbd5e1;padding:7px 14px;border-radius:8px;font-size:11px;font-weight:700;color:#334155;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            <i class="fa-solid fa-gear"></i> Ubah Jam Istirahat
+        </button>
     </div>
 
     <!-- Stat Grid -->
@@ -1186,7 +1211,81 @@ if ($tab !== 'queue') {
         </div>
     <?php endif; ?>
 
+    <!-- Modal Pengaturan Jam Istirahat Malam -->
+    <div id="sleepSettingsModal" hidden style="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.45);padding:20px;align-items:center;justify-content:center">
+        <div style="width:min(480px,100%);background:#fff;border-radius:18px;padding:24px;box-shadow:0 20px 60px rgba(15,23,42,.2)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:34px;height:34px;border-radius:8px;background:#e0f2fe;color:#0284c7;display:flex;align-items:center;justify-content:center;font-size:16px">
+                        <i class="fa-solid fa-moon"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin:0;font-size:16px;color:#1e293b">Pengaturan Jam Istirahat Malam</h3>
+                        <small style="color:#64748b;font-size:11px">Pesan tidak akan dikirim saat jam istirahat</small>
+                    </div>
+                </div>
+                <button type="button" id="btnCloseSleepModal" style="border:0;background:#f1f5f9;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px">×</button>
+            </div>
+
+            <form action="actions/automation-followup.php" method="POST">
+                <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                <input type="hidden" name="action" value="save_sleep_settings">
+                <input type="hidden" name="tab" value="<?= htmlspecialchars($tab) ?>">
+                <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
+
+                <div style="margin-bottom:16px">
+                    <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#334155;cursor:pointer">
+                        <input type="checkbox" name="sleep_hours_enabled" value="1" <?= $sleepSettings['enabled'] ? 'checked' : '' ?> style="width:16px;height:16px;accent-color:#166534">
+                        Aktifkan Perlindungan Jam Istirahat Malam
+                    </label>
+                    <small style="display:block;color:#64748b;font-size:11px;margin-top:4px;padding-left:24px">
+                        Jika aktif, calon peserta yang mendaftar pada rentang jam ini tidak akan menerima pesan di malam hari, melainkan otomatis dialihkan ke pagi hari.
+                    </small>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+                    <div>
+                        <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Mulai Jam Istirahat</label>
+                        <input type="time" name="sleep_start" value="<?= htmlspecialchars($sleepSettings['start']) ?>" required style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">
+                        <small style="color:#94a3b8;font-size:10px">Default: 21:30 WIB</small>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">Selesai (Kirim Pagi)</label>
+                        <input type="time" name="sleep_end" value="<?= htmlspecialchars($sleepSettings['end']) ?>" required style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px">
+                        <small style="color:#94a3b8;font-size:10px">Default: 07:30 WIB</small>
+                    </div>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:8px">
+                    <button type="button" id="btnCancelSleepModal" style="background:#f1f5f9;border:0;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;color:#475569;cursor:pointer">Batal</button>
+                    <button type="submit" class="btn-primary" style="padding:8px 18px;font-size:12px;border-radius:8px">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+    var sleepModal = document.getElementById('sleepSettingsModal');
+    var btnOpenSleep = document.getElementById('btnOpenSleepModal');
+    var btnCloseSleep = document.getElementById('btnCloseSleepModal');
+    var btnCancelSleep = document.getElementById('btnCancelSleepModal');
+
+    if (btnOpenSleep && sleepModal) {
+        btnOpenSleep.addEventListener('click', function() {
+            sleepModal.style.display = 'flex';
+            sleepModal.removeAttribute('hidden');
+        });
+    }
+    function hideSleepModal() {
+        if (sleepModal) {
+            sleepModal.style.display = 'none';
+            sleepModal.setAttribute('hidden', '');
+        }
+    }
+    if (btnCloseSleep) btnCloseSleep.addEventListener('click', hideSleepModal);
+    if (btnCancelSleep) btnCancelSleep.addEventListener('click', hideSleepModal);
     function insertTplVar(variable) {
         var el = document.getElementById('tplContent');
         if (!el) return;

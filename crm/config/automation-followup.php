@@ -132,6 +132,75 @@ function crmAutomationGetStepNumber(string $tplName): string
 }
 
 /**
+ * Pengaturan Jam Istirahat Malam (Sleep / Quiet Hours)
+ * Pesan yang jatuh pada jam ini otomatis ditahan hingga pagi hari.
+ */
+function crmAutomationGetSleepSettings(mysqli $conn): array
+{
+    $settings = [
+        'enabled' => true,
+        'start' => '21:30',
+        'end' => '07:30',
+    ];
+
+    $res = $conn->query("SELECT meta_key, meta_value FROM crm_automation_meta WHERE meta_key IN ('sleep_hours_enabled', 'sleep_start', 'sleep_end')");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) {
+            if ($row['meta_key'] === 'sleep_hours_enabled') {
+                $settings['enabled'] = ($row['meta_value'] === '1');
+            } elseif ($row['meta_key'] === 'sleep_start') {
+                $settings['start'] = (string)$row['meta_value'];
+            } elseif ($row['meta_key'] === 'sleep_end') {
+                $settings['end'] = (string)$row['meta_value'];
+            }
+        }
+    }
+    return $settings;
+}
+
+function crmAutomationIsSleepTime(mysqli $conn, ?int $timestamp = null): bool
+{
+    date_default_timezone_set('Asia/Jakarta');
+    $ts = $timestamp ?? time();
+    $settings = crmAutomationGetSleepSettings($conn);
+    if (!$settings['enabled']) {
+        return false;
+    }
+
+    $timeStr = date('H:i', $ts);
+    $start = $settings['start'];
+    $end = $settings['end'];
+
+    if ($start > $end) {
+        return ($timeStr >= $start || $timeStr < $end);
+    }
+    return ($timeStr >= $start && $timeStr < $end);
+}
+
+function crmAutomationAdjustForSleep(mysqli $conn, int $timestamp): int
+{
+    date_default_timezone_set('Asia/Jakarta');
+    if (!crmAutomationIsSleepTime($conn, $timestamp)) {
+        return $timestamp;
+    }
+
+    $settings = crmAutomationGetSleepSettings($conn);
+    $parts = explode(':', (string)$settings['end']);
+    $endHour = isset($parts[0]) ? (int)$parts[0] : 7;
+    $endMin = isset($parts[1]) ? (int)$parts[1] : 30;
+
+    $dt = new DateTime(date('Y-m-d H:i:s', $timestamp), new DateTimeZone('Asia/Jakarta'));
+    $timeStr = $dt->format('H:i');
+
+    if ($timeStr >= $settings['start']) {
+        $dt->modify('+1 day');
+    }
+
+    $dt->setTime($endHour, $endMin, 0);
+    return $dt->getTimestamp();
+}
+
+/**
  * Ekstrak nama calon peserta HANYA jika secara eksplisit dituliskan dalam pesan chat masuk.
  * Jika calon peserta tidak menyebutkan namanya, kembalikan null agar tidak menggunakan pushName WA yang sering tidak sesuai.
  */
@@ -240,22 +309,22 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
 {
     $defaultTemplates = [
         [
-            'name' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'desc' => 'Check-in ramah apakah info program sudah berhasil dibuka',
-            'content' => "Bismillah, ahlan kak {nama}! 😊\n\nMau memastikan, apakah info program Tahfidz Private tadi sudah berhasil dibuka kak?\n\nJika ada pertanyaan soal pilihan waktu atau biaya belajarnya, silakan tanyakan ya kak, kami siap membantu. 🙏",
-            'delay' => 30,
+            'name' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'desc' => 'Sapaan ramah 2 menit pertama, hangat dan santai menanyakan kebutuhan belajar',
+            'content' => "Bismillah, ahlan kak {nama}! 😊\n\nTerima kasih ya sudah mampir ke Tahfidz Private Jawwada.\n\nBiar kami bantu infokan detail kelas dan waktu yang paling pas, rencananya program ini untuk kakak sendiri atau ananda nih kak? 🙏",
+            'delay' => 2,
         ],
         [
-            'name' => 'Follow Up 2 (1 Jam - Fleksibilitas & Biaya Terjangkau)',
+            'name' => 'Follow Up 2 (45 Menit - Fleksibilitas & Biaya Terjangkau)',
             'desc' => 'Edukasi privat 1-on-1 via telepon WA 10 menit & biaya mulai Rp135rb/bln',
-            'content' => "Sekadar info kak {nama}, di Jawwada belajarnya private 1-on-1 via Telepon WA (10 menit/hari) jadi tidak menyita waktu. Biayanya sangat terjangkau mulai Rp135rb/bulan.\n\nKak {nama} rencananya ingin belajar di waktu luang pagi, sore, atau malam kak? ✨",
-            'delay' => 60,
+            'content' => "Sekadar info kak {nama}, di Jawwada belajarnya private 1-on-1 via Telepon WA (10 menit/hari) jadi tidak menyita waktu. Biayanya sangat terjangkau mulai Rp135rb/bulan.\n\nKakak rencananya ingin belajar di waktu luang pagi, sore, atau malam kak? ✨",
+            'delay' => 45,
         ],
         [
-            'name' => 'Follow Up 3 (5 Jam - Reservasi Slot Terbatas)',
+            'name' => 'Follow Up 3 (4 Jam - Reservasi Slot Terbatas)',
             'desc' => 'Soft urgency kuota guru hafidz 30 juz pekan ini terbatas',
-            'content' => "Assalamu'alaikum kak {nama}. 🙏\n\nIzin mengabarkan, kuota pembimbing Hafidz/Hafidzoh 30 Juz untuk pekan ini tersisa sedikit karena jadwal privat yang terbatas.\n\nJika kak {nama} berminat, mau kami bantu simpankan slot belajarnya terlebih dahulu? 😊",
-            'delay' => 300,
+            'content' => "Assalamu'alaikum kak {nama}. 🙏\n\nIzin mengabarkan, kuota pembimbing Hafidz/Hafidzoh 30 Juz untuk pekan ini tersisa sedikit karena jadwal privat yang terbatas.\n\nJika kakak berminat, mau kami bantu simpankan slot belajarnya terlebih dahulu? 😊",
+            'delay' => 240,
         ],
         [
             'name' => 'Follow Up 4 (H+1 / 24 Jam - Solusi Ragu & Pengalaman Peserta)',
@@ -329,78 +398,78 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
         [
             'name' => 'Tahfidz Cilik (Tombol LP)',
             'kw' => 'Kak, saya ingin daftar Tahfidz Cilik',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'cilik',
         ],
         [
             'name' => 'Tahfidz Cilik (Keyword)',
             'kw' => 'Tahfidz Cilik',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'cilik',
         ],
         [
             'name' => 'Menghafal Pemula (Tombol LP)',
             'kw' => 'Kak, saya ingin daftar Kelas Menghafal Pemula',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'pemula',
         ],
         [
             'name' => 'Menghafal Pemula (Keyword)',
             'kw' => 'Menghafal Pemula',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'pemula',
         ],
         [
             'name' => 'Menghafal Lanjutan (Tombol LP)',
             'kw' => 'Kak, saya ingin daftar Kelas Menghafal Lanjutan',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'lanjutan',
         ],
         [
             'name' => 'Menghafal Lanjutan (Keyword)',
             'kw' => 'Menghafal Lanjutan',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'lanjutan',
         ],
         [
             'name' => 'Penguatan Hafalan (Tombol LP)',
             'kw' => 'Kak, saya ingin daftar Kelas Penguatan Hafalan',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'lanjutan',
         ],
         [
             'name' => 'Penguatan Hafalan (Keyword)',
             'kw' => 'Penguatan Hafalan',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'lanjutan',
         ],
         [
             'name' => 'Tanya Detail Hero (LP Utama)',
             'kw' => 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'general',
         ],
         [
             'name' => 'Form Nama LP (Bismillah)',
             'kw' => 'Bismillah, perkenalkan nama saya',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'form_lead',
         ],
         [
             'name' => 'Pendaftaran Kelas Umum (CTA)',
             'kw' => 'Kak, saya ingin daftar Kelas',
-            'tpl' => 'Follow Up 1 (30 Menit - Cek Akses & Pertanyaan)',
-            'delay' => 10,
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
             'cat' => 'cta',
         ],
     ];
@@ -563,20 +632,31 @@ function crmAutomationEnsureTables(mysqli $conn): bool
           AND r.trigger_keyword LIKE '%tanya detail%'
     ");
 
-    // Cleanup 2: Sinkronkan jeda menit pada aturan rules follow up 1 s/d 6
+    // Cleanup 2: Sinkronkan jeda menit pada aturan rules follow up 1 s/d 6 (Instant Welcome: 2 menit)
     $conn->query("
         UPDATE crm_automation_rules r
         JOIN crm_automation_templates t ON t.id = r.template_id
         SET r.delay_minutes = CASE
-            WHEN t.name LIKE 'Follow Up 1 (%' THEN 30
-            WHEN t.name LIKE 'Follow Up 2 (%' THEN 60
-            WHEN t.name LIKE 'Follow Up 3 (%' THEN 300
+            WHEN t.name LIKE 'Follow Up 1 (%' THEN 2
+            WHEN t.name LIKE 'Follow Up 2 (%' THEN 45
+            WHEN t.name LIKE 'Follow Up 3 (%' THEN 240
             WHEN t.name LIKE 'Follow Up 4 (%' THEN 1440
             WHEN t.name LIKE 'Follow Up 5 (%' THEN 4320
             WHEN t.name LIKE 'Follow Up 6 (%' THEN 10080
             ELSE r.delay_minutes
         END
-        WHERE t.name LIKE 'Follow Up %' AND r.name LIKE 'Tahfidz Private - %'
+        WHERE t.name LIKE 'Follow Up %'
+    ");
+
+    $conn->query("UPDATE crm_automation_rules SET delay_minutes = 2 WHERE delay_minutes IN (10, 30) AND (name LIKE '%LP%' OR name LIKE '%Hero%' OR name LIKE '%CTA%' OR name LIKE '%Follow Up 1%')");
+
+    // Migration template Follow Up 1 lama ke copy Instant Welcome baru yang interaktif
+    $conn->query("
+        UPDATE crm_automation_templates 
+        SET name = 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            description = 'Sapaan ramah 2 menit pertama, hangat dan santai menanyakan kebutuhan belajar',
+            content = 'Bismillah, ahlan kak {nama}! 😊\\n\\nTerima kasih ya sudah mampir ke Tahfidz Private Jawwada.\\n\\nBiar kami bantu infokan detail kelas dan waktu yang paling pas, rencananya program ini untuk kakak sendiri atau ananda nih kak? 🙏'
+        WHERE name LIKE 'Follow Up 1%'
     ");
 
     // Cleanup 3: Batalkan antrean pending duplikat untuk template minat spesifik lama
@@ -950,6 +1030,12 @@ function crmAutomationRegisterQueue(
         $templateId = (int)$ruleRow['template_id'];
     }
 
+    // Hitung waktu jadwal dengan memperhitungkan jam tidur malam (sleep hours)
+    date_default_timezone_set('Asia/Jakarta');
+    $scheduledTs = time() + ($delayMinutes * 60);
+    $scheduledTs = crmAutomationAdjustForSleep($conn, $scheduledTs);
+    $scheduledAtStr = date('Y-m-d H:i:s', $scheduledTs);
+
     // Deduplikasi: Jika masih ada antrean berstatus pending untuk nomor dan template ini, perbarui jadwalnya
     $checkStmt = $conn->prepare("SELECT id FROM crm_automation_queue WHERE nowa = ? AND template_id = ? AND status = 'pending' LIMIT 1");
     if ($checkStmt) {
@@ -960,9 +1046,9 @@ function crmAutomationRegisterQueue(
 
         if ($existing) {
             $existingId = (int)$existing['id'];
-            $updateStmt = $conn->prepare("UPDATE crm_automation_queue SET scheduled_at = DATE_ADD(NOW(), INTERVAL ? MINUTE), nama = COALESCE(?, nama), template_id = ?, rule_id = ?, trigger_source = ? WHERE id = ?");
+            $updateStmt = $conn->prepare("UPDATE crm_automation_queue SET scheduled_at = ?, nama = COALESCE(?, nama), template_id = ?, rule_id = ?, trigger_source = ? WHERE id = ?");
             if ($updateStmt) {
-                $updateStmt->bind_param('isissi', $delayMinutes, $nama, $templateId, $ruleId, $triggerSource, $existingId);
+                $updateStmt->bind_param('ssissi', $scheduledAtStr, $nama, $templateId, $ruleId, $triggerSource, $existingId);
                 $updateStmt->execute();
                 $updateStmt->close();
             }
@@ -971,12 +1057,12 @@ function crmAutomationRegisterQueue(
     }
 
     // Buat antrean baru
-    $insertStmt = $conn->prepare("INSERT INTO crm_automation_queue (rule_id, template_id, nowa, nama, trigger_source, status, scheduled_at, created_at) VALUES (?, ?, ?, ?, ?, 'pending', DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW())");
+    $insertStmt = $conn->prepare("INSERT INTO crm_automation_queue (rule_id, template_id, nowa, nama, trigger_source, status, scheduled_at, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?, NOW())");
     if (!$insertStmt) {
         return 0;
     }
 
-    $insertStmt->bind_param('iisssi', $ruleId, $templateId, $normalized, $nama, $triggerSource, $delayMinutes);
+    $insertStmt->bind_param('iissss', $ruleId, $templateId, $normalized, $nama, $triggerSource, $scheduledAtStr);
     $insertStmt->execute();
     $queueId = (int)$insertStmt->insert_id;
     $insertStmt->close();
@@ -1050,9 +1136,9 @@ function crmAutomationScheduleSequence(
 
     // 2. Definisi 6 tahap follow up standar general dengan jeda waktu pasti dan berurutan
     $sequenceSteps = [
-        1 => ['delay_from_now' => 10],     // 10 menit dari sekarang
-        2 => ['delay_from_now' => 60],     // 1 jam (60 mnt) dari sekarang
-        3 => ['delay_from_now' => 300],    // 5 jam (300 mnt) dari sekarang
+        1 => ['delay_from_now' => 2],      // 2 menit dari sekarang (Instant Welcome)
+        2 => ['delay_from_now' => 45],     // 45 menit dari sekarang
+        3 => ['delay_from_now' => 240],    // 4 jam (240 mnt) dari sekarang
         4 => ['delay_from_now' => 1440],   // 24 jam / H+1 dari sekarang
         5 => ['delay_from_now' => 4320],   // 3 hari / H+3 dari sekarang
         6 => ['delay_from_now' => 10080],  // 7 hari / H+7 dari sekarang
@@ -1155,7 +1241,7 @@ function crmAutomationScheduleSequence(
         }
     }
 
-    $baseOffset = $resolvedSteps[$startStepNum]['base_delay'] ?? 10;
+    $baseOffset = $resolvedSteps[$startStepNum]['base_delay'] ?? 2;
 
     $count = 0;
     foreach ($resolvedSteps as $num => $stepData) {
@@ -1163,11 +1249,11 @@ function crmAutomationScheduleSequence(
             continue; // Lewati tahap sebelum tahap mulai yang dipilih
         }
 
-        // Hitung jeda relatif: tahap pertama selalu mulai dalam 10 menit, tahap selanjutnya berjarak sesuai interval
+        // Hitung jeda relatif: tahap pertama selalu mulai dalam 2 menit (Instant Welcome)
         if ($num === $startStepNum) {
-            $relDelay = 10;
+            $relDelay = 2;
         } else {
-            $relDelay = ($stepData['base_delay'] - $baseOffset) + 10;
+            $relDelay = ($stepData['base_delay'] - $baseOffset) + 2;
         }
 
         $res = crmAutomationRegisterQueue(
@@ -1190,7 +1276,7 @@ function crmAutomationScheduleSequence(
             'success' => true,
             'count' => $count,
             'reason' => 'ok',
-            'message' => "Alur follow-up berhasil dijadwalkan secara berurutan untuk kontak {$nowa} ({$count} tahap pesan). Pesan pertama akan mulai dikirim dalam ±10 menit.",
+            'message' => "Alur follow-up berhasil dijadwalkan secara berurutan untuk kontak {$nowa} ({$count} tahap pesan). Pesan pertama (Instant Welcome) akan mulai dikirim dalam ±2 menit.",
         ];
     }
 

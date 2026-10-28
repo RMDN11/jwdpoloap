@@ -209,6 +209,26 @@ function crmAutomationProcessPendingQueue(mysqli $conn, string $apiUrl = '', str
         if ($apiToken === '') $apiToken = $defToken;
     }
 
+    date_default_timezone_set('Asia/Jakarta');
+    if (function_exists('crmAutomationIsSleepTime') && crmAutomationIsSleepTime($conn)) {
+        // Sedang jam istirahat malam (21.30 - 07.30 WIB): Tunda antrean yang jatuh tempo ke pagi hari
+        $resSleep = $conn->query("SELECT id FROM crm_automation_queue WHERE status = 'pending' AND scheduled_at <= NOW()");
+        if ($resSleep) {
+            $updStmt = $conn->prepare("UPDATE crm_automation_queue SET scheduled_at = ? WHERE id = ?");
+            if ($updStmt) {
+                while ($qItem = $resSleep->fetch_assoc()) {
+                    $qId = (int)$qItem['id'];
+                    $newTs = crmAutomationAdjustForSleep($conn, time());
+                    $newSched = date('Y-m-d H:i:s', $newTs);
+                    $updStmt->bind_param('si', $newSched, $qId);
+                    $updStmt->execute();
+                }
+                $updStmt->close();
+            }
+        }
+        return ['processed' => 0, 'sent' => 0, 'cancelled' => 0, 'failed' => 0];
+    }
+
     $sql = "SELECT id FROM crm_automation_queue 
             WHERE status = 'pending' 
               AND scheduled_at <= NOW() 

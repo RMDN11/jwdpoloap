@@ -400,6 +400,22 @@ switch ($action) {
         crmAutoRedirect('queue', $returnUrl);
         break;
 
+    case 'save_sleep_settings':
+        $enabled = isset($_POST['sleep_hours_enabled']) ? '1' : '0';
+        $start = trim((string)($_POST['sleep_start'] ?? '21:30'));
+        $end = trim((string)($_POST['sleep_end'] ?? '07:30'));
+
+        $stmtMeta = $conn->prepare("INSERT INTO crm_automation_meta (meta_key, meta_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE meta_value = VALUES(meta_value)");
+        if ($stmtMeta) {
+            $k1 = 'sleep_hours_enabled'; $stmtMeta->bind_param('ss', $k1, $enabled); $stmtMeta->execute();
+            $k2 = 'sleep_start'; $stmtMeta->bind_param('ss', $k2, $start); $stmtMeta->execute();
+            $k3 = 'sleep_end'; $stmtMeta->bind_param('ss', $k3, $end); $stmtMeta->execute();
+            $stmtMeta->close();
+        }
+        $_SESSION['crm_flash'] = ['type' => 'success', 'message' => 'Pengaturan jam istirahat malam berhasil disimpan.'];
+        crmAutoRedirect($tab, $returnUrl);
+        break;
+
     default:
         crmAutoRedirect('rules', $returnUrl);
         break;
