@@ -2,6 +2,9 @@
 $crmTitle = 'Home';
 
 require_once __DIR__ . '/../config/prospect.php';
+require_once __DIR__ . '/../lib/cron-health.php';
+
+$homeCronHealth = crmGetSystemHealthSummary($conn);
 
 $homeAnalytics = [
     'valid' => 0,
@@ -105,6 +108,38 @@ if ($result) {
             <span>Min</span><span>Sen</span><span>Sel</span><span>Rab</span><span>Kam</span><span>Jum</span><span>Sab</span>
         </div>
         <div class="home-calendar-grid" id="crmCalendarGrid"></div>
+    </div>
+</section>
+
+<section class="section home-health-section">
+    <div class="section-heading home-health-heading">
+        <div>
+            <span class="home-health-kicker"><i class="fa-solid fa-heart-pulse"></i> Status Otomasi & Mesin</span>
+            <h2>Health Check Cron</h2>
+        </div>
+        <span class="home-health-meta"><span class="pulse-dot"></span> 4 Scheduler Aktif</span>
+    </div>
+    <div class="home-health-grid">
+        <?php foreach ($homeCronHealth as $cronKey => $cron): ?>
+            <a href="<?= htmlspecialchars((string)$cron['link']) ?>" class="home-health-card <?= $cron['is_healthy'] ? 'is-healthy' : 'is-warning' ?>">
+                <div class="home-health-head">
+                    <span class="home-health-icon"><i class="fa-solid <?= htmlspecialchars((string)$cron['icon']) ?>"></i></span>
+                    <span class="home-health-badge <?= $cron['is_healthy'] ? 'badge-ok' : 'badge-warn' ?>">
+                        <span class="badge-dot"></span> <?= htmlspecialchars((string)$cron['interval']) ?>
+                    </span>
+                </div>
+                <div class="home-health-body">
+                    <strong><?= htmlspecialchars((string)$cron['name']) ?></strong>
+                    <div class="home-health-sub">
+                        <span class="health-pending"><i class="fa-regular fa-clock"></i> <?= htmlspecialchars((string)$cron['pending_label']) ?></span>
+                    </div>
+                </div>
+                <div class="home-health-foot">
+                    <span>Terakhir: <strong><?= htmlspecialchars((string)$cron['last_run_ago']) ?></strong></span>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </div>
+            </a>
+        <?php endforeach; ?>
     </div>
 </section>
 

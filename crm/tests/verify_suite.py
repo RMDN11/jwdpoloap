@@ -560,6 +560,30 @@ def run_db_retention_test(base_dir):
         raise AssertionError("db-retention-cron.php must call crmRunAllDbRetention")
     print("db-retention-test: OK")
 
+def run_home_health_cron_test(base_dir):
+    lib_path = os.path.join(base_dir, "crm/lib/cron-health.php")
+    home_path = os.path.join(base_dir, "crm/pages/home.php")
+    css_path = os.path.join(base_dir, "crm/assets/css/app.css")
+
+    if not os.path.exists(lib_path):
+        raise AssertionError("Missing crm/lib/cron-health.php")
+    with open(lib_path, "r", encoding="utf-8") as f:
+        lib_code = f.read()
+    if "function crmFormatAgo" not in lib_code or "function crmGetSystemHealthSummary" not in lib_code:
+        raise AssertionError("Missing core functions in cron-health.php")
+
+    with open(home_path, "r", encoding="utf-8") as f:
+        home_code = f.read()
+    if "cron-health.php" not in home_code or "home-health-section" not in home_code or "Health Check Cron" not in home_code:
+        raise AssertionError("home.php must require cron-health.php and render Health Check Cron section")
+
+    with open(css_path, "r", encoding="utf-8") as f:
+        css_code = f.read()
+    if ".home-health-section" not in css_code or ".home-health-card" not in css_code or ".pulse-dot" not in css_code:
+        raise AssertionError("app.css missing home-health styles")
+
+    print("home-health-cron-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -606,6 +630,8 @@ def main():
         run_log_rotator_test(base_dir)
     if test_name in ["db-retention-test", "db-retention", "retention-db", "all"]:
         run_db_retention_test(base_dir)
+    if test_name in ["home-health-cron-test", "health-cron", "health", "all"]:
+        run_home_health_cron_test(base_dir)
 
 if __name__ == "__main__":
     try:

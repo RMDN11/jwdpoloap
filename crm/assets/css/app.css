@@ -1045,3 +1045,31 @@ body{width:100%;min-width:0;overflow-x:hidden;padding-bottom:calc(92px + env(saf
 .home-analytics-tile{position:relative;display:flex;align-items:center;gap:10px;min-width:0;min-height:0;padding:14px;border:1px solid #e4ebe7;border-radius:18px;background:#fff;color:#18352a;text-decoration:none;box-shadow:0 5px 18px rgba(24,55,41,.04);transition:transform .16s ease,box-shadow .16s ease}.home-analytics-tile:hover,.home-analytics-feature:hover{transform:translateY(-2px)}.home-analytics-tile:hover{box-shadow:0 9px 24px rgba(24,55,41,.08)}.home-analytics-tile>div{min-width:0;flex:1}.home-analytics-tile strong,.home-analytics-tile small{display:block}.home-analytics-tile strong{font-size:11px;letter-spacing:-.015em}.home-analytics-tile small{margin-top:3px;color:#7f8e86;font-size:8px;line-height:1.35}.home-analytics-tile>i{font-size:8px;color:#a1aca6}.home-analytics-tile-icon{width:35px;height:35px;flex:0 0 35px;display:grid;place-items:center;border-radius:12px;font-size:12px}.tile-lead{background:linear-gradient(145deg,#fff,#f1fbf5);border-color:#d9eee0}.tile-lead .home-analytics-tile-icon{background:#dff7e8;color:#15803d}.tile-lead>i{color:#22a35a}.tile-quality{background:linear-gradient(145deg,#fff,#f5f1ff);border-color:#e5dcfa}.tile-quality .home-analytics-tile-icon{background:#eee7ff;color:#7956c5}.tile-quality>i{color:#8b6bd2}.tile-interest{background:linear-gradient(145deg,#fff,#fff7e9);border-color:#f2e3c5}.tile-interest .home-analytics-tile-icon{background:#fff0cc;color:#c47a0b}.tile-interest>i{color:#d39124}.tile-trend{background:linear-gradient(145deg,#fff,#eef7ff);border-color:#dbe9f7}.tile-trend .home-analytics-tile-icon{background:#e2f0ff;color:#3478ba}.tile-trend>i{color:#4f8fc9}
 @media(max-width:850px){.home-analytics-bento{grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto}.home-analytics-feature{grid-column:1 / -1;grid-row:auto;min-height:258px}.home-analytics-tile{min-height:84px}}
 @media(max-width:560px){.home-analytics-heading{align-items:flex-start;gap:8px}.home-analytics-heading>a{padding:6px 8px;font-size:8px}.home-analytics-kicker{font-size:8px}.home-analytics-heading h2{font-size:18px}.home-analytics-bento{gap:8px}.home-analytics-feature{min-height:245px;padding:14px;border-radius:19px}.home-analytics-feature-copy{margin-top:24px}.home-analytics-feature-copy strong{font-size:18px}.home-analytics-feature-copy p{font-size:9px;max-width:280px}.home-analytics-chart{left:14px;right:14px;bottom:46px;height:76px;gap:5px}.home-analytics-feature-foot{left:14px;right:14px;bottom:13px}.home-analytics-tile{padding:11px;gap:8px;border-radius:15px}.home-analytics-tile-icon{width:31px;height:31px;flex-basis:31px;font-size:10px}.home-analytics-tile strong{font-size:9.5px}.home-analytics-tile small{font-size:7.5px}.home-analytics-tile>i{font-size:7px}}
+
+/* Home Health Check Cron Section */
+.home-health-section{margin-top:24px}
+.home-health-heading{display:flex;align-items:flex-end;justify-content:space-between}
+.home-health-heading>div{min-width:0}
+.home-health-kicker{display:flex;align-items:center;gap:6px;margin-bottom:5px;color:#0d9488;font-size:9px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+.home-health-kicker i{font-size:9px}
+.home-health-heading h2{font-size:19px;letter-spacing:-.04em}
+.home-health-meta{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:9px;font-weight:800}
+.pulse-dot{width:6px;height:6px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.2);animation:cronPulse 2s infinite}
+@keyframes cronPulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.4)}70%{box-shadow:0 0 0 6px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+.home-health-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.home-health-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;padding:14px;border-radius:18px;border:1px solid #e2e8f0;background:#fff;text-decoration:none;color:#1e293b;box-shadow:0 4px 14px rgba(0,0,0,.03);transition:transform .15s ease,box-shadow .15s ease}
+.home-health-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.06)}
+.home-health-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.home-health-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:#f0fdf4;color:#0d9488;font-size:13px}
+.home-health-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:999px;font-size:8px;font-weight:750}
+.badge-ok{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+.badge-warn{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+.badge-dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.home-health-body strong{display:block;font-size:12px;font-weight:800;color:#0f172a;letter-spacing:-.02em}
+.home-health-sub{margin-top:3px;font-size:9px;color:#64748b;font-weight:600}
+.health-pending{display:inline-flex;align-items:center;gap:4px}
+.home-health-foot{margin-top:12px;padding-top:8px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;font-size:8.5px;color:#94a3b8}
+.home-health-foot strong{color:#334155;font-weight:700}
+.home-health-foot i{font-size:8px;color:#cbd5e1}
+@media(max-width:960px){.home-health-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.home-health-grid{grid-template-columns:1fr;gap:8px}.home-health-heading{align-items:flex-start}.home-health-heading h2{font-size:18px}}
