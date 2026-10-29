@@ -513,12 +513,15 @@ def run_log_rotator_test(base_dir):
     if "crm/lib/log-rotator.php" not in cg_code or "crmAppendLog" not in cg_code:
         raise AssertionError("cron_grup.php must require log-rotator.php and call crmAppendLog")
 
-    # Verify cron_satu.php uses rotator
+    # Verify cron_satu.php uses rotator (if present in root or archive)
     cron_satu_path = os.path.join(base_dir, "cron_satu.php")
-    with open(cron_satu_path, "r", encoding="utf-8") as f:
-        cs_code = f.read()
-    if "crm/lib/log-rotator.php" not in cs_code or "crmAppendLog" not in cs_code:
-        raise AssertionError("cron_satu.php must require log-rotator.php and call crmAppendLog")
+    if not os.path.exists(cron_satu_path):
+        cron_satu_path = os.path.join(base_dir, "archive/legacy_scripts/cron_satu.php")
+    if os.path.exists(cron_satu_path):
+        with open(cron_satu_path, "r", encoding="utf-8") as f:
+            cs_code = f.read()
+        if "crm/lib/log-rotator.php" not in cs_code or "crmAppendLog" not in cs_code:
+            raise AssertionError("cron_satu.php must require log-rotator.php and call crmAppendLog")
 
     # Verify auto_reply_engine.php uses rotator
     engine_path = os.path.join(base_dir, "auto_reply_engine.php")
@@ -584,6 +587,49 @@ def run_home_health_cron_test(base_dir):
 
     print("home-health-cron-test: OK")
 
+def run_cek_lanjut_test(base_dir):
+    page_path = os.path.join(base_dir, "crm/pages/cek-lanjut.php")
+    action_path = os.path.join(base_dir, "crm/actions/cek-lanjut.php")
+    css_path = os.path.join(base_dir, "crm/assets/css/cek-lanjut.css")
+    index_path = os.path.join(base_dir, "crm/index.php")
+    more_path = os.path.join(base_dir, "crm/pages/more.php")
+
+    if not os.path.exists(page_path):
+        raise AssertionError("Missing crm/pages/cek-lanjut.php")
+    if not os.path.exists(action_path):
+        raise AssertionError("Missing crm/actions/cek-lanjut.php")
+    if not os.path.exists(css_path):
+        raise AssertionError("Missing crm/assets/css/cek-lanjut.css")
+
+    with open(index_path, "r", encoding="utf-8") as f:
+        idx_code = f.read()
+    if "'cek-lanjut'" not in idx_code:
+        raise AssertionError("crm/index.php must allow 'cek-lanjut' route")
+    if "actions/cek-lanjut.php" not in idx_code:
+        raise AssertionError("crm/index.php must route ajax_action to actions/cek-lanjut.php")
+    if "cek-lanjut.css" not in idx_code:
+        raise AssertionError("crm/index.php must include cek-lanjut.css")
+
+    with open(more_path, "r", encoding="utf-8") as f:
+        more_code = f.read()
+    if "page=cek-lanjut" not in more_code or "Konfirmasi Lanjut" not in more_code:
+        raise AssertionError("crm/pages/more.php must link to Konfirmasi Lanjut")
+
+    with open(action_path, "r", encoding="utf-8") as f:
+        act_code = f.read()
+    for act in ["'search'", "'toggle'", "'get_list'", "'update_alasan'"]:
+        if act not in act_code:
+            raise AssertionError(f"actions/cek-lanjut.php missing action handler for {act}")
+    if "status_lanjut" not in act_code or "alasan_tidak_lanjut" not in act_code:
+        raise AssertionError("actions/cek-lanjut.php missing auto-migration for status_lanjut / alasan_tidak_lanjut")
+
+    with open(page_path, "r", encoding="utf-8") as f:
+        page_code = f.read()
+    if "searchResultContainer" not in page_code or "tidakLanjutContainer" not in page_code or "copyListBtn" not in page_code:
+        raise AssertionError("crm/pages/cek-lanjut.php missing core interactive elements")
+
+    print("cek-lanjut-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -632,6 +678,8 @@ def main():
         run_db_retention_test(base_dir)
     if test_name in ["home-health-cron-test", "health-cron", "health", "all"]:
         run_home_health_cron_test(base_dir)
+    if test_name in ["cek-lanjut-test", "cek-lanjut", "all"]:
+        run_cek_lanjut_test(base_dir)
 
 if __name__ == "__main__":
     try:

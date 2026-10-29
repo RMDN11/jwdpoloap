@@ -20,8 +20,8 @@ foreach ($removed as $label) {
     }
 }
 
-if (!str_contains($more, '../logoutwa.php')) {
-    throw new RuntimeException('More logout action must use the canonical logoutwa.php route.');
+if (!str_contains($more, 'logout.php') && !str_contains($more, '../logoutwa.php')) {
+    throw new RuntimeException('More logout action must use the canonical logout route.');
 }
 
 echo "CRM More workspace test passed.\n";

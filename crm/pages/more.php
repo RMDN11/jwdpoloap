@@ -10,6 +10,7 @@ $items = [
     ['title' => 'Kelola Grup', 'description' => 'Daftar dan pengelolaan grup', 'icon' => 'fa-solid fa-users', 'href' => 'index.php?page=manage-groups'],
     ['title' => 'Analytics', 'description' => 'Baca data prospek & kualitas lead', 'icon' => 'fa-solid fa-chart-line', 'href' => 'index.php?page=analytics'],
     ['title' => 'Plotting', 'description' => 'Bandingkan CSV antar batch', 'icon' => 'fa-solid fa-code-compare', 'href' => 'index.php?page=plotting'],
+    ['title' => 'Konfirmasi Lanjut', 'description' => 'Tandai peserta lanjut atau tidak & alasan', 'icon' => 'fa-solid fa-user-xmark', 'href' => 'index.php?page=cek-lanjut'],
 ];
 ?>
 <section class="page-head">
@@ -30,7 +31,7 @@ $items = [
         </a>
     <?php endforeach; ?>
 
-    <a href="../logoutwa.php">
+    <a href="logout.php">
         <i class="fa-solid fa-right-from-bracket danger"></i>
         <div>
             <strong>Keluar</strong>

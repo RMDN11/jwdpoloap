@@ -4,8 +4,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/bootstrap.php';
 
 $page = $_GET['page'] ?? 'home';
-$allowedPages = ['home', 'chat', 'templates', 'auto-reply', 'manage-groups', 'analytics', 'reminder', 'reminder-pembayaran', 'reminder-csv', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'reminder-retention', 'plotting', 'more', 'activity', 'group', 'group-schedules', 'triggers', 'automation-followup'];
+$allowedPages = ['home', 'chat', 'templates', 'auto-reply', 'manage-groups', 'analytics', 'reminder', 'reminder-pembayaran', 'reminder-csv', 'reminder-pengajar', 'reminder-promosi', 'reminder-peserta', 'reminder-retention', 'plotting', 'more', 'activity', 'group', 'group-schedules', 'triggers', 'automation-followup', 'cek-lanjut'];
 if (!in_array($page, $allowedPages, true)) $page = 'home';
+
+// Handle AJAX actions for cek-lanjut before any HTML is emitted
+if ($page === 'cek-lanjut' && isset($_GET['ajax_action'])) {
+    require __DIR__ . '/actions/cek-lanjut.php';
+    exit;
+}
 
 // Process Auto Reply POST actions before any HTML is emitted so PRG redirects work.
 if ($page === 'auto-reply' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['auto_reply_action'])) {
@@ -66,6 +72,9 @@ if ($crmMaxLogResult && ($crmMaxLogRow = $crmMaxLogResult->fetch_assoc())) {
     <?php endif; ?>
     <?php if ($page === 'reminder-retention'): ?>
         <link rel="stylesheet" href="assets/css/reminder-retention.css?v=<?= filemtime(__DIR__ . '/assets/css/reminder-retention.css') ?>">
+    <?php endif; ?>
+    <?php if ($page === 'cek-lanjut'): ?>
+        <link rel="stylesheet" href="assets/css/cek-lanjut.css?v=<?= filemtime(__DIR__ . '/assets/css/cek-lanjut.css') ?>">
     <?php endif; ?>
     <link rel="stylesheet" href="assets/css/workspace-core.css?v=<?= filemtime(__DIR__ . '/assets/css/workspace-core.css') ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
