@@ -488,6 +488,54 @@ def run_session_persistence_test(base_dir: str):
 
     print("crm-session-persistence-test: OK")
 
+def run_log_rotator_test(base_dir):
+    rotator_path = os.path.join(base_dir, "crm/lib/log-rotator.php")
+    if not os.path.exists(rotator_path):
+        raise AssertionError("crm/lib/log-rotator.php does not exist")
+    with open(rotator_path, "r", encoding="utf-8") as f:
+        rot_code = f.read()
+    if "function crmRotateLogFile" not in rot_code or "function crmAppendLog" not in rot_code:
+        raise AssertionError("Missing core functions in log-rotator.php")
+    if "LOCK_EX" not in rot_code or "ftruncate" not in rot_code or "[LOG ROTATED" not in rot_code:
+        raise AssertionError("Missing file lock or rotation logic in log-rotator.php")
+
+    # Verify webhook.php uses rotator
+    webhook_path = os.path.join(base_dir, "webhook.php")
+    with open(webhook_path, "r", encoding="utf-8") as f:
+        wh_code = f.read()
+    if "crm/lib/log-rotator.php" not in wh_code or "crmAppendLog($allRequestLog" not in wh_code:
+        raise AssertionError("webhook.php must require log-rotator.php and call crmAppendLog")
+
+    # Verify cron_grup.php uses rotator
+    cron_grup_path = os.path.join(base_dir, "cron_grup.php")
+    with open(cron_grup_path, "r", encoding="utf-8") as f:
+        cg_code = f.read()
+    if "crm/lib/log-rotator.php" not in cg_code or "crmAppendLog" not in cg_code:
+        raise AssertionError("cron_grup.php must require log-rotator.php and call crmAppendLog")
+
+    # Verify cron_satu.php uses rotator
+    cron_satu_path = os.path.join(base_dir, "cron_satu.php")
+    with open(cron_satu_path, "r", encoding="utf-8") as f:
+        cs_code = f.read()
+    if "crm/lib/log-rotator.php" not in cs_code or "crmAppendLog" not in cs_code:
+        raise AssertionError("cron_satu.php must require log-rotator.php and call crmAppendLog")
+
+    # Verify auto_reply_engine.php uses rotator
+    engine_path = os.path.join(base_dir, "auto_reply_engine.php")
+    with open(engine_path, "r", encoding="utf-8") as f:
+        eng_code = f.read()
+    if "crm/lib/log-rotator.php" not in eng_code or "crmAppendLog" not in eng_code:
+        raise AssertionError("auto_reply_engine.php must require log-rotator.php and call crmAppendLog")
+
+    # Verify config.php uses rotator
+    config_path = os.path.join(base_dir, "config.php")
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg_code = f.read()
+    if "crm/lib/log-rotator.php" not in cfg_code or "crmAppendLog" not in cfg_code:
+        raise AssertionError("config.php must require log-rotator.php and call crmAppendLog")
+
+    print("log-rotator-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -530,6 +578,8 @@ def main():
         run_group_schedules_workflow_suite(base_dir)
     if test_name in ["crm-session-persistence-test", "session", "persistence", "all"]:
         run_session_persistence_test(base_dir)
+    if test_name in ["log-rotator-test", "log-rotator", "rotator", "all"]:
+        run_log_rotator_test(base_dir)
 
 if __name__ == "__main__":
     try:

@@ -3,6 +3,7 @@
 *.log.*
 cron_health.txt
 test_log.txt
+auto_reply_log.txt
 storage/sessions/*
 !storage/sessions/.gitkeep
 

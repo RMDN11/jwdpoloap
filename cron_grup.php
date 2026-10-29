@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+require_once __DIR__ . '/crm/lib/log-rotator.php';
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -11,7 +12,7 @@ function writeLog($message) {
     global $logFile;
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] $message\n";
-    file_put_contents($logFile, $logEntry, FILE_APPEND);
+    crmAppendLog($logFile, $logEntry);
 }
 
 writeLog("=== CRON DIMULAI ===");

@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+require_once __DIR__ . '/crm/lib/log-rotator.php';
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -13,13 +14,7 @@ function writeLog($message) {
     global $logFile;
     $timestamp = date('Y-m-d H:i:s');
     $logEntry = "[$timestamp] $message\n";
-    
-    // Pastikan direktori bisa ditulis
-    if (is_writable(dirname($logFile))) {
-        file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
-    } else {
-        echo "ERROR: Tidak bisa menulis ke log file: " . dirname($logFile) . "\n";
-    }
+    crmAppendLog($logFile, $logEntry);
 }
 
 // Catat health check

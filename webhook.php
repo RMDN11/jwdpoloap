@@ -4,34 +4,28 @@ date_default_timezone_set('Asia/Jakarta');
 header('Content-Type: application/json');
 
 $baseDir   = __DIR__;
+require_once $baseDir . '/crm/lib/log-rotator.php';
 $allRequestLog = $baseDir . '/all_requests.log';
 $logFile   = $baseDir . '/webhook.log';
 $pingFile  = $baseDir . '/ping.log';
 $debugFile = $baseDir . '/debug.log';
 $timestamp = date('Y-m-d H:i:s');
 
-$logEntry = "=== {$timestamp} ===
-";
-$logEntry .= "Method: " . $_SERVER['REQUEST_METHOD'] . "
-";
-$logEntry .= "IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown') . "
-";
-$logEntry .= "Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'none') . "
-";
-$logEntry .= "Raw Input: " . file_get_contents('php://input') . "
+$logEntry = "=== {$timestamp} ===\n";
+$logEntry .= "Method: " . $_SERVER['REQUEST_METHOD'] . "\n";
+$logEntry .= "IP: " . ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown') . "\n";
+$logEntry .= "Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'none') . "\n";
+$logEntry .= "Raw Input: " . file_get_contents('php://input') . "\n\n";
 
-";
-file_put_contents($allRequestLog, $logEntry, FILE_APPEND);
+crmAppendLog($allRequestLog, $logEntry);
 
 function logx($msg) {
     global $logFile;
-    file_put_contents($logFile, "[" . date('H:i:s') . "] " . $msg . "
-", FILE_APPEND);
+    crmAppendLog($logFile, "[" . date('H:i:s') . "] " . $msg . "\n");
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    file_put_contents($pingFile, "{$timestamp} HIT (" . $_SERVER['REQUEST_METHOD'] . ") - REJECTED
-", FILE_APPEND);
+    crmAppendLog($pingFile, "{$timestamp} HIT (" . $_SERVER['REQUEST_METHOD'] . ") - REJECTED\n");
     http_response_code(405);
     echo json_encode([
         'status' => 'error',
@@ -50,10 +44,7 @@ if (empty($rawInput)) {
     exit;
 }
 
-file_put_contents($debugFile, "[$timestamp]
-{$rawInput}
-
-", FILE_APPEND);
+crmAppendLog($debugFile, "[$timestamp]\n{$rawInput}\n\n");
 
 $data = json_decode($rawInput, true);
 if (json_last_error() !== JSON_ERROR_NONE) {

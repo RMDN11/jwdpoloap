@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/crm/lib/log-rotator.php';
+
 class AutoReplyEngine
 {
     private $conn;
@@ -435,6 +437,6 @@ class AutoReplyEngine
     {
         $timestamp = date('Y-m-d H:i:s');
         $logMsg = "[{$timestamp}] {$msg}" . PHP_EOL;
-        file_put_contents($this->logFile, $logMsg, FILE_APPEND);
+        crmAppendLog($this->logFile, $logMsg);
     }
 }
