@@ -536,6 +536,30 @@ def run_log_rotator_test(base_dir):
 
     print("log-rotator-test: OK")
 
+def run_db_retention_test(base_dir):
+    retention_lib = os.path.join(base_dir, "crm/lib/db-retention.php")
+    retention_cron = os.path.join(base_dir, "crm/actions/db-retention-cron.php")
+    if not os.path.exists(retention_lib):
+        raise AssertionError("Missing crm/lib/db-retention.php")
+    if not os.path.exists(retention_cron):
+        raise AssertionError("Missing crm/actions/db-retention-cron.php")
+    with open(retention_lib, "r", encoding="utf-8") as f:
+        content = f.read()
+    required_funcs = [
+        "function crmPruneAutoReplyLogs",
+        "function crmPruneLogWaGroupBroadcasts",
+        "function crmPruneLogWaLegacy",
+        "function crmRunAllDbRetention",
+    ]
+    for fn in required_funcs:
+        if fn not in content:
+            raise AssertionError(f"Missing {fn} in db-retention.php")
+    with open(retention_cron, "r", encoding="utf-8") as f:
+        cron_content = f.read()
+    if "crmRunAllDbRetention" not in cron_content:
+        raise AssertionError("db-retention-cron.php must call crmRunAllDbRetention")
+    print("db-retention-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -580,6 +604,8 @@ def main():
         run_session_persistence_test(base_dir)
     if test_name in ["log-rotator-test", "log-rotator", "rotator", "all"]:
         run_log_rotator_test(base_dir)
+    if test_name in ["db-retention-test", "db-retention", "retention-db", "all"]:
+        run_db_retention_test(base_dir)
 
 if __name__ == "__main__":
     try:
