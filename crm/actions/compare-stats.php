@@ -198,6 +198,7 @@ $oct  = analyzePeriodData($conn, '2026-10-01 00:00:00', '2026-10-29 23:59:59', $
 echo json_encode([
     'status' => 'success',
     'total_all_paid_numbers_in_system' => count($paidNumbers),
+    'all_paid_contacts' => $paidNumbers,
     'september' => $sept,
     'october' => $oct,
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
