@@ -630,6 +630,46 @@ def run_cek_lanjut_test(base_dir):
 
     print("cek-lanjut-test: OK")
 
+def run_group_broadcast_test(base_dir):
+    kirimgrup_path = os.path.join(base_dir, "kirimgrup.php")
+    cron_grup_path = os.path.join(base_dir, "cron_grup.php")
+    group_page_path = os.path.join(base_dir, "crm/pages/group.php")
+
+    for p in [kirimgrup_path, cron_grup_path, group_page_path]:
+        if not os.path.exists(p):
+            raise AssertionError(f"Missing file: {p}")
+
+    with open(kirimgrup_path, "r", encoding="utf-8") as f:
+        kg_code = f.read()
+    if "auth_checkwa.php" in kg_code:
+        raise AssertionError("kirimgrup.php must NOT reference obsolete auth_checkwa.php")
+    if "crmSessionInit" not in kg_code:
+        raise AssertionError("kirimgrup.php must use crmSessionInit() for unified CRM session")
+    if "uploadOneSenderMedia" not in kg_code:
+        raise AssertionError("kirimgrup.php must support uploadOneSenderMedia")
+    if "/api/v1/media" not in kg_code and "/media" not in kg_code:
+        raise AssertionError("kirimgrup.php must upload image to OneSender media endpoint")
+    if "'type' => 'image'" not in kg_code or "'recipient_type' => 'group'" not in kg_code:
+        raise AssertionError("kirimgrup.php must use OneSender v2 group image payload")
+
+    with open(cron_grup_path, "r", encoding="utf-8") as f:
+        cron_code = f.read()
+    if "'phone' => $row['id_grup']" in cron_code and "attachment" in cron_code:
+        raise AssertionError("cron_grup.php must NOT use obsolete multipart /message attachment")
+    if "uploadOneSenderMediaCron" not in cron_code:
+        raise AssertionError("cron_grup.php must include uploadOneSenderMediaCron helper")
+    if "'recipient_type' => 'group'" not in cron_code:
+        raise AssertionError("cron_grup.php must send group payload via v1 API")
+
+    with open(group_page_path, "r", encoding="utf-8") as f:
+        gp_code = f.read()
+    if "savedMediaId" not in gp_code:
+        raise AssertionError("crm/pages/group.php must retain and forward savedMediaId")
+    if "uploadRaw" not in gp_code or "uploadJson" not in gp_code:
+        raise AssertionError("crm/pages/group.php must safely parse upload response text")
+
+    print("group-broadcast-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -680,6 +720,8 @@ def main():
         run_home_health_cron_test(base_dir)
     if test_name in ["cek-lanjut-test", "cek-lanjut", "all"]:
         run_cek_lanjut_test(base_dir)
+    if test_name in ["group-broadcast-test", "group-broadcast", "kirimgrup", "all"]:
+        run_group_broadcast_test(base_dir)
 
 if __name__ == "__main__":
     try:

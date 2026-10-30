@@ -53,6 +53,42 @@ function updateScheduleDateRow(mysqli $conn, int $id, string $date, string $sql,
     return $ok;
 }
 
+function uploadOneSenderMediaCron(string $localFilePath, string $apiUrl, string $apiToken): ?string {
+    if (!file_exists($localFilePath)) return null;
+    $mediaApiUrl = (strpos($apiUrl, '/v1/messages') !== false) 
+        ? str_replace('/v1/messages', '/v1/media', $apiUrl) 
+        : rtrim($apiUrl, '/') . '/media';
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = (string)$finfo->file($localFilePath) ?: 'image/jpeg';
+    $fileBytes = file_get_contents($localFilePath);
+    if ($fileBytes === false || $fileBytes === '') return null;
+
+    $ch = curl_init($mediaApiUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $fileBytes,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $apiToken,
+            'Content-Type: ' . $mimeType,
+        ],
+        CURLOPT_TIMEOUT => 60,
+        CURLOPT_CONNECTTIMEOUT => 15,
+    ]);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode >= 200 && $httpCode < 300) {
+        $json = json_decode((string)$response, true);
+        if (isset($json['data']['id']) && !empty($json['data']['id'])) {
+            return (string)$json['data']['id'];
+        }
+    }
+    return null;
+}
+
 $secretToken = "jwd_secure_cron_2026";
 $isCli = (PHP_SAPI === 'cli');
 
@@ -91,6 +127,8 @@ $batasMaksimal = 5;
 
 writeLog("Waktu eksekusi: Hari=$hariIni, Jam=$jamIni, Tanggal=$tanggalIni"); 
 
+$mediaIdCache = [];
+
 if ($result->num_rows > 0) {
     while ($row = $result->fetch_assoc()) {
         if ($totalDiproses >= $batasMaksimal) break; 
@@ -114,24 +152,38 @@ if ($result->num_rows > 0) {
             $imagePathLocal = __DIR__ . '/' . ltrim($row['media_path'], '/');
             
             if (file_exists($imagePathLocal)) {
-                $mediaApiUrl = (strpos($apiUrl, '/v1/messages') !== false) ? str_replace('/v1/messages', '/message', $apiUrl) : rtrim($apiUrl, '/') . '/message';
-                $mimeType = mime_content_type($imagePathLocal);
-                $cfile = new CURLFile($imagePathLocal, $mimeType, basename($imagePathLocal));
+                if (!isset($mediaIdCache[$imagePathLocal])) {
+                    $mediaIdCache[$imagePathLocal] = uploadOneSenderMediaCron($imagePathLocal, $apiUrl, $apiToken);
+                }
+                $mediaId = $mediaIdCache[$imagePathLocal];
+
+                if (!$mediaId) {
+                    updateScheduleRow($conn, (int)$row['id'], "UPDATE jadwal_pesan_grup SET status = 'gagal' WHERE id = ?", 'Gagal upload media ke OneSender');
+                    writeLog("ERROR: Gagal upload media OneSender untuk ID " . $row['id'] . " | Path: " . $imagePathLocal);
+                    $totalDiproses++;
+                    continue;
+                }
                 
                 $postData = [
-                    'type' => 'image', 
-                    'phone' => $row['id_grup'], 
-                    'message' => $row['pesan'], 
-                    'attachment' => $cfile
+                    'recipient_type' => 'group',
+                    'to' => $row['id_grup'],
+                    'type' => 'image',
+                    'image' => [
+                        'id' => (string)$mediaId,
+                        'caption' => (string)$row['pesan']
+                    ]
                 ];
-                
+                $jsonData = json_encode($postData, JSON_UNESCAPED_UNICODE);
                 curl_setopt_array($curl, [
-                    CURLOPT_URL => $mediaApiUrl,
+                    CURLOPT_URL => $apiUrl,
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_POST => true,
-                    CURLOPT_POSTFIELDS => $postData,
-                    CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $apiToken],
-                    CURLOPT_TIMEOUT => 30,
+                    CURLOPT_POSTFIELDS => $jsonData,
+                    CURLOPT_HTTPHEADER => [
+                        'Authorization: Bearer ' . $apiToken,
+                        'Content-Type: application/json'
+                    ],
+                    CURLOPT_TIMEOUT => 45,
                 ]);
             } else {
                 updateScheduleRow($conn, (int)$row['id'], "UPDATE jadwal_pesan_grup SET status = 'gagal' WHERE id = ?", 'media tidak ditemukan');

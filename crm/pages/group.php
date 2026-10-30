@@ -41,7 +41,7 @@ COUNT(DISTINCT j.id_grup) AS total_grup
 FROM jadwal_pesan_grup j
 LEFT JOIN wa_grup w ON j.id_grup = w.id_grup
 WHERE j.status = 'pending'
-GROUP BY j.pesan, COALESCE(j.jadwal_kirim, ''), COALESCE(j.jam_harian, ''), COALESCE(j.hari_rutin, ''), j.tipe_jadwal, COALESCE(j.media_path, '')
+GROUP BY j.pesan, j.jadwal_kirim, j.jam_harian, j.hari_rutin, j.tipe_jadwal, j.media_path
 ORDER BY MAX(j.id) DESC
 LIMIT 12";
 $jadwalResult = $conn->query($jadwalQuery);
@@ -119,7 +119,7 @@ function crmGroupDays(string $value): string {
                     <span>Hari</span>
                     <div>
                         <?php foreach ([1=>'Sen',2=>'Sel',3=>'Rab',4=>'Kam',5=>'Jum',6=>'Sab',7=>'Min'] as $value => $label): ?>
-                            <label><input type="checkbox" name="groupDays[]" value="<?= $value ?>"><b><?= $label ?></b></label>
+                            <label><input type="checkbox" name="groupDays[]" class="crm-group-day" value="<?= $value ?>"><b><?= $label ?></b></label>
                         <?php endforeach; ?>
                     </div>
                 </div>
@@ -266,7 +266,15 @@ function crmGroupDays(string $value): string {
         list.scrollTop = 0;
     });
 
-    const endpoint = '../kirimgrup.php';
+    // Endpoint backend pengiriman grup (kompatibel legacy ../kirimgrup.php)
+    const endpoint = (() => {
+        const path = window.location.pathname;
+        const crmIdx = path.lastIndexOf('/crm');
+        if (crmIdx !== -1) {
+            return path.substring(0, crmIdx) + '/kirimgrup.php';
+        }
+        return '../kirimgrup.php';
+    })();
     const form = document.getElementById('crmGroupForm');
     const message = document.getElementById('crmGroupMessage');
     const image = document.getElementById('crmGroupImage');
@@ -380,12 +388,13 @@ function crmGroupDays(string $value): string {
         if (mode === 'sekali' && !document.getElementById('groupOnceTime').value) return alert('Pilih tanggal dan waktu.');
         if (mode === 'harian') {
             if (!document.getElementById('groupDailyTime').value) return alert('Pilih jam rutin.');
-            if (!document.querySelector('input[name="groupDays[]"]:checked')) return alert('Pilih minimal satu hari.');
+            if (!document.querySelector('.crm-group-day:checked')) return alert('Pilih minimal satu hari.');
         }
 
         loader.hidden = false;
         loadingTitle.textContent = mode === 'sekarang' ? 'Mengirim ke grup...' : 'Menyimpan jadwal...';
         let savedImagePath = null;
+        let savedMediaId = null;
         progressBar.style.width = '5%';
         progressText.textContent = '0 / ' + groups.length;
 
@@ -396,12 +405,21 @@ function crmGroupDays(string $value): string {
                 uploadData.append('ajax_upload_image', '1');
                 uploadData.append('promo_image', file);
                 const uploadResponse = await fetch(endpoint, {method:'POST', body:uploadData});
-                const uploadJson = await uploadResponse.json();
-                if (uploadJson.status !== 'success') throw new Error(uploadJson.msg || 'Gagal upload gambar.');
+                const uploadRaw = await uploadResponse.text();
+                let uploadJson;
+                try {
+                    uploadJson = JSON.parse(uploadRaw);
+                } catch (parseError) {
+                    throw new Error(uploadRaw.trim().slice(0, 160) || 'Respons upload server bukan JSON yang valid.');
+                }
+                if (!uploadResponse.ok || uploadJson.status !== 'success') {
+                    throw new Error(uploadJson.msg || ('Gagal upload gambar (HTTP ' + uploadResponse.status + ')'));
+                }
                 savedImagePath = uploadJson.path;
+                savedMediaId = uploadJson.media_id || null;
             }
 
-            const days = [...document.querySelectorAll('input[name="groupDays[]"]:checked')].map(x => x.value).join(',');
+            const days = [...document.querySelectorAll('.crm-group-day:checked')].map(x => x.value).join(',');
             let ok = 0;
             for (let index = 0; index < groups.length; index++) {
                 const group = groups[index];
@@ -415,6 +433,7 @@ function crmGroupDays(string $value): string {
                 data.append('jam_harian', mode === 'harian' ? document.getElementById('groupDailyTime').value : '');
                 data.append('hari_rutin', days);
                 if (savedImagePath) data.append('saved_image_path', savedImagePath);
+                if (savedMediaId) data.append('media_id', savedMediaId);
 
                 try {
                     const response = await fetch(endpoint, {method:'POST', body:data});
@@ -446,6 +465,7 @@ function crmGroupDays(string $value): string {
             progressStatus.textContent = ok + ' berhasil · ' + (groups.length - ok) + ' gagal';
             setTimeout(() => window.location.reload(), 1200);
         } catch (error) {
+            console.error('Group broadcast error:', error);
             loadingTitle.textContent = 'Terjadi kendala';
             progressStatus.textContent = error.message || 'Koneksi gagal.';
             progressBar.style.width = '100%';

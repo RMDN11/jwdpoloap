@@ -1,52 +1,121 @@
 <?php
-session_start();
-require_once 'config.php';
-require_once 'auth_checkwa.php';
+require_once __DIR__ . '/crm/config/session.php';
+crmSessionInit();
+require_once __DIR__ . '/config.php';
+
+// Cek autentikasi sesi CRM
+if (empty($_SESSION['logged_in'])) {
+    if (isset($conn) && $conn instanceof mysqli) {
+        crmRememberSessionCheck($conn);
+    }
+}
+
+if (empty($_SESSION['logged_in'])) {
+    if (isset($_POST['ajax_upload_image']) || isset($_POST['ajax_kirim_grup']) || isset($_POST['ajax_manual_trigger'])) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'msg' => 'Sesi login telah berakhir. Silakan login kembali ke CRM.']);
+        exit;
+    }
+    header('Location: crm/login.php');
+    exit;
+}
 
 // =================================================================
-// FUNGSI API (DIPERBARUI: MENDUKUNG PATH STRING & ARRAY $_FILES)
+// HELPER: UPLOAD MEDIA KE ONESENDER API V2 (/api/v1/media)
 // =================================================================
-function kirimPesanGrupCanggih($groupId, $message, $imagePath, $apiUrl, $apiToken, $conn) {
-    $textApiUrl = $apiUrl;
-    $mediaApiUrl = $apiUrl;
+function uploadOneSenderMedia(string $localFilePath, string $apiUrl, string $apiToken): ?string {
+    if (!file_exists($localFilePath)) {
+        return null;
+    }
+    $mediaApiUrl = (strpos($apiUrl, '/v1/messages') !== false) 
+        ? str_replace('/v1/messages', '/v1/media', $apiUrl) 
+        : rtrim($apiUrl, '/') . '/media';
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mimeType = (string)$finfo->file($localFilePath) ?: 'image/jpeg';
+    $fileBytes = file_get_contents($localFilePath);
+    if ($fileBytes === false || $fileBytes === '') {
+        return null;
+    }
+
+    $ch = curl_init($mediaApiUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $fileBytes,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $apiToken,
+            'Content-Type: ' . $mimeType,
+        ],
+        CURLOPT_TIMEOUT => 60,
+        CURLOPT_CONNECTTIMEOUT => 15,
+    ]);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode >= 200 && $httpCode < 300) {
+        $json = json_decode((string)$response, true);
+        if (isset($json['data']['id']) && !empty($json['data']['id'])) {
+            return (string)$json['data']['id'];
+        }
+    }
+    return null;
+}
+
+// =================================================================
+// FUNGSI API PENGIRIMAN PESAN GRUP (ONESENDER V2)
+// =================================================================
+function kirimPesanGrupCanggih($groupId, $message, $imagePath, $apiUrl, $apiToken, $conn, $cachedMediaId = null) {
     $returnPayload = ['sent_message' => $message];
-    
     $hasImage = false;
-    $cfile = null;
+    $localImagePath = null;
 
-    // Cek apakah $imagePath adalah string (path lokal) atau array ($_FILES)
     if (is_string($imagePath) && !empty($imagePath)) {
-        $fullPath = __DIR__ . '/' . $imagePath;
-        if (file_exists($fullPath)) {
+        $candidatePath = __DIR__ . '/' . ltrim($imagePath, '/');
+        if (file_exists($candidatePath)) {
             $hasImage = true;
-            $cfile = new CURLFile($fullPath, mime_content_type($fullPath), basename($fullPath));
+            $localImagePath = $candidatePath;
         }
     } elseif (is_array($imagePath) && isset($imagePath['error']) && $imagePath['error'] == UPLOAD_ERR_OK) {
         $hasImage = true;
-        $cfile = new CURLFile($imagePath['tmp_name'], $imagePath['type'], $imagePath['name']);
+        $localImagePath = $imagePath['tmp_name'];
     }
 
-    if ($hasImage) {
-        if (strpos($apiUrl, '/v1/messages') !== false) {
-            $mediaApiUrl = str_replace('/v1/messages', '/message', $apiUrl);
-        } else {
-            $mediaApiUrl = rtrim($apiUrl, '/') . '/message';
+    if ($hasImage && $localImagePath) {
+        $mediaId = $cachedMediaId;
+        if (empty($mediaId)) {
+            $mediaId = uploadOneSenderMedia($localImagePath, $apiUrl, $apiToken);
         }
-        $postData = [
+
+        if (empty($mediaId)) {
+            $returnPayload['status'] = 'GAGAL';
+            $returnPayload['message'] = "Gagal mengunggah media ke API OneSender.";
+            return $returnPayload;
+        }
+
+        $payload = [
+            'recipient_type' => 'group',
+            'to' => $groupId,
             'type' => 'image',
-            'phone' => $groupId,
-            'message' => $message,
-            'attachment' => $cfile
+            'image' => [
+                'id' => (string)$mediaId,
+                'caption' => (string)$message
+            ]
         ];
-        $ch = curl_init();
+
+        $ch = curl_init($apiUrl);
         curl_setopt_array($ch, [
-            CURLOPT_URL => $mediaApiUrl,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $postData,
-            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $apiToken],
+            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $apiToken
+            ],
             CURLOPT_TIMEOUT => 60,
-            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_CONNECTTIMEOUT => 15,
         ]);
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -58,12 +127,18 @@ function kirimPesanGrupCanggih($groupId, $message, $imagePath, $apiUrl, $apiToke
             $returnPayload['message'] = "cURL Error (Media): " . $curlError;
             return $returnPayload;
         }
-        $responseData = json_decode($response, true);
-        if ($httpCode >= 200 && $httpCode < 300) {
+
+        $responseData = json_decode((string)$response, true);
+        $isSuccess = ($httpCode >= 200 && $httpCode < 300);
+        if ($isSuccess && isset($responseData['code']) && (int)$responseData['code'] !== 200) {
+            $isSuccess = false;
+        }
+
+        if ($isSuccess) {
             $returnPayload['status'] = 'TERKIRIM';
             $returnPayload['message'] = "Pesan media berhasil dikirim.";
         } else {
-            $errorMessage = isset($responseData['message']) ? $responseData['message'] : "Unknown error.";
+            $errorMessage = $responseData['message'] ?? (isset($responseData['errors']) ? json_encode($responseData['errors']) : "Unknown error.");
             $returnPayload['status'] = 'GAGAL';
             $returnPayload['message'] = "Gagal (Media). Code: {$httpCode}. Pesan API: " . $errorMessage;
         }
@@ -73,10 +148,10 @@ function kirimPesanGrupCanggih($groupId, $message, $imagePath, $apiUrl, $apiToke
             'recipient_type' => 'group',
             'to' => $groupId,
             'type' => 'text',
-            'text' => ['body' => $message]
+            'text' => ['body' => (string)$message]
         ];
         $jsonData = json_encode($payload, JSON_UNESCAPED_UNICODE);
-        $ch = curl_init($textApiUrl);
+        $ch = curl_init($apiUrl);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
@@ -95,12 +170,17 @@ function kirimPesanGrupCanggih($groupId, $message, $imagePath, $apiUrl, $apiToke
             $returnPayload['message'] = "cURL Error (Teks): " . $curlError;
             return $returnPayload;
         }
-        $responseData = json_decode($response, true);
-        if ($httpCode >= 200 && $httpCode < 300) {
+        $responseData = json_decode((string)$response, true);
+        $isSuccess = ($httpCode >= 200 && $httpCode < 300);
+        if ($isSuccess && isset($responseData['code']) && (int)$responseData['code'] !== 200) {
+            $isSuccess = false;
+        }
+
+        if ($isSuccess) {
             $returnPayload['status'] = 'TERKIRIM';
             $returnPayload['message'] = "Pesan teks berhasil dikirim.";
         } else {
-            $errorMessage = isset($responseData['message']) ? $responseData['message'] : "Unknown error.";
+            $errorMessage = $responseData['message'] ?? (isset($responseData['errors']) ? json_encode($responseData['errors']) : "Unknown error.");
             $returnPayload['status'] = 'GAGAL';
             $returnPayload['message'] = "Gagal (Teks). Code: {$httpCode}. Pesan API: " . $errorMessage;
         }
@@ -112,20 +192,26 @@ function kirimPesanGrupCanggih($groupId, $message, $imagePath, $apiUrl, $apiToke
 // 1. TANGKAP REQUEST UPLOAD GAMBAR TERPISAH (AGAR TIDAK DIULANG)
 // =================================================================
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_upload_image'])) {
-    header('Content-Type: application/json');
+    header('Content-Type: application/json; charset=utf-8');
     $imageFile = $_FILES['promo_image'] ?? null;
     if ($imageFile && $imageFile['error'] == UPLOAD_ERR_OK) {
         $uploadDir = __DIR__ . '/uploads/';
         if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-        $fileName = time() . '_' . rand(100,999) . '_' . basename($imageFile['name']);
+        $cleanName = preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($imageFile['name']));
+        $fileName = time() . '_' . rand(100,999) . '_' . $cleanName;
         $savedPath = $uploadDir . $fileName;
         if (move_uploaded_file($imageFile['tmp_name'], $savedPath)) {
-            echo json_encode(['status' => 'success', 'path' => 'uploads/' . $fileName]);
+            $mediaId = uploadOneSenderMedia($savedPath, $apiUrl, $apiToken);
+            echo json_encode([
+                'status' => 'success',
+                'path' => 'uploads/' . $fileName,
+                'media_id' => $mediaId
+            ]);
         } else {
-            echo json_encode(['status' => 'error', 'msg' => 'Gagal menyimpan file']);
+            echo json_encode(['status' => 'error', 'msg' => 'Gagal menyimpan file di direktori server']);
         }
     } else {
-        echo json_encode(['status' => 'error', 'msg' => 'File gambar tidak valid']);
+        echo json_encode(['status' => 'error', 'msg' => 'File gambar tidak valid atau melebihi batas ukuran']);
     }
     exit;
 }
@@ -134,7 +220,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_upload_image'])) 
 // 2. TANGKAP REQUEST AJAX: EKSEKUSI MANUAL JADWAL
 // =================================================================
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_manual_trigger'])) {
-    header('Content-Type: application/json');
+    header('Content-Type: application/json; charset=utf-8');
     $idJadwalList = $_POST['id_jadwal'] ?? '';
     $ids = array_map('intval', explode(',', $idJadwalList));
     $idsString = implode(',', $ids);
@@ -159,9 +245,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_manual_trigger'])
             
             $imageArg = null;
             if (!empty($mediaPath)) {
-                $localFile = __DIR__ . '/' . $mediaPath;
+                $localFile = __DIR__ . '/' . ltrim($mediaPath, '/');
                 if (file_exists($localFile)) {
-                    $imageArg = $mediaPath; // Kirim sebagai string path
+                    $imageArg = $mediaPath;
                 }
             }
 
@@ -191,11 +277,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_manual_trigger'])
 // 3. TANGKAP REQUEST AJAX KIRIM GRUP (STANDARD)
 // =================================================================
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_grup'])) {
-    header('Content-Type: application/json');
-    $groupId = $_POST['group_id'] ?? '';
+    header('Content-Type: application/json; charset=utf-8');
+    $groupId = trim($_POST['group_id'] ?? '');
     $pesan = trim($_POST['pesan'] ?? '');
     $imageFile = (isset($_FILES['promo_image']) && $_FILES['promo_image']['error'] == UPLOAD_ERR_OK) ? $_FILES['promo_image'] : null;
-    $savedImagePath = $_POST['saved_image_path'] ?? null; // Path dari upload terpisah
+    $savedImagePath = $_POST['saved_image_path'] ?? null;
+    $mediaId = $_POST['media_id'] ?? null;
     
     $tipeJadwal = $_POST['tipe_jadwal'] ?? 'sekarang';
     $waktuJadwal = trim($_POST['waktu_jadwal'] ?? '');
@@ -213,12 +300,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_grup'])) {
         } elseif ($imageFile) {
             $uploadDir = __DIR__ . '/uploads/';
             if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-            $fileName = time() . '_' . rand(100,999) . '_' . basename($imageFile['name']);
+            $cleanName = preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($imageFile['name']));
+            $fileName = time() . '_' . rand(100,999) . '_' . $cleanName;
             $finalImagePath = 'uploads/' . $fileName;
             move_uploaded_file($imageFile['tmp_name'], $uploadDir . $fileName);
         }
 
         $waktuKirimSekali = ($tipeJadwal === 'sekali') ? $waktuJadwal : null;
+        if (!empty($waktuKirimSekali)) {
+            $waktuKirimSekali = str_replace('T', ' ', $waktuKirimSekali);
+            if (strlen($waktuKirimSekali) === 16) {
+                $waktuKirimSekali .= ':00';
+            }
+        }
         $waktuKirimHarian = ($tipeJadwal === 'harian') ? $jamHarian : null;
         $statusAwal = 'pending';
         $terakhirDikirim = null;
@@ -248,7 +342,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_kirim_grup'])) {
 
     // Prioritaskan path string, jika tidak ada baru pakai $_FILES
     $imageArg = $savedImagePath ? $savedImagePath : $imageFile;
-    $result = kirimPesanGrupCanggih($groupId, $pesan, $imageArg, $apiUrl, $apiToken, $conn);
+    $result = kirimPesanGrupCanggih($groupId, $pesan, $imageArg, $apiUrl, $apiToken, $conn, $mediaId);
 
     $logMessage = "[" . $result['status'] . "] [GRUP] " . $result['message'];
     if ($imageArg) $logMessage .= " (dengan gambar)";
