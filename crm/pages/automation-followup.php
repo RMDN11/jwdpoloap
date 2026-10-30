@@ -645,46 +645,57 @@ if ($tab !== 'queue') {
                                                     <i class="fa-regular fa-clock"></i> <?= date('d/m/Y H:i', strtotime($item['last_trigger_at'])) ?>
                                                 </span>
                                             </div>
-                                            <?php if (!empty($item['last_message'])): ?>
-                                                <div class="crm-msg-quote" title="<?= htmlspecialchars($item['last_message']) ?>">
-                                                    &ldquo;<?= htmlspecialchars(mb_strimwidth($item['last_message'], 0, 85, '...')) ?>&rdquo;
-                                                </div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($item['first_trigger_msg']) && $item['first_trigger_msg'] !== $item['last_message']): ?>
-                                                <div style="font-size: 0.68rem; color: #94a3b8; font-style: italic; margin-top: -2px;" title="<?= htmlspecialchars($item['first_trigger_msg']) ?>">
-                                                    Pemicu awal: &ldquo;<?= htmlspecialchars(mb_strimwidth($item['first_trigger_msg'], 0, 60, '...')) ?>&rdquo;
-                                                </div>
+                                            <?php if (!empty($item['last_message']) || !empty($item['first_trigger_msg'])): ?>
+                                                <details class="crm-msg-details">
+                                                    <summary class="crm-msg-toggle" title="Klik untuk membuka/membaca detail pesan WhatsApp">
+                                                        <i class="fa-regular fa-comment-dots"></i>
+                                                        <span>Buka Pesan</span>
+                                                        <i class="fa-solid fa-chevron-down crm-msg-arrow"></i>
+                                                    </summary>
+                                                    <div class="crm-msg-expanded">
+                                                        <?php if (!empty($item['last_message'])): ?>
+                                                            <div class="crm-msg-quote" title="<?= htmlspecialchars($item['last_message']) ?>">
+                                                                &ldquo;<?= htmlspecialchars($item['last_message']) ?>&rdquo;
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($item['first_trigger_msg']) && $item['first_trigger_msg'] !== $item['last_message']): ?>
+                                                            <div style="font-size: 0.68rem; color: #64748b; margin-top: 0.35rem; font-style: italic;" title="<?= htmlspecialchars($item['first_trigger_msg']) ?>">
+                                                                <strong>Pemicu awal:</strong> &ldquo;<?= htmlspecialchars($item['first_trigger_msg']) ?>&rdquo;
+                                                            </div>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </details>
                                             <?php endif; ?>
                                         </div>
                                     </td>
                                     <td>
-                                        <div style="display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start;">
+                                        <div class="crm-finance-cell">
                                             <?php if ($item['has_payment']): ?>
-                                                <span class="badge-status badge-sent" title="Status: Sudah isi/terdata di Finance">
-                                                    <i class="fa-solid fa-file-invoice-dollar"></i> Terdata Finance
+                                                <span class="badge-icon-finance badge-finance-paid" title="Terdata Finance">
+                                                    <i class="fa-solid fa-file-invoice-dollar"></i>
                                                 </span>
-                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
+                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: inline-flex;">
                                                     <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                                                     <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                                                     <input type="hidden" name="action" value="toggle_finance_status">
                                                     <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
                                                     <input type="hidden" name="status" value="unpaid">
-                                                    <button type="submit" class="btn-secondary" style="font-size: 0.68rem; padding: 0.15rem 0.45rem; height: 22px; display: inline-flex; align-items: center; gap: 0.25rem; color: #64748b;" onclick="return confirm('Ubah status finance kontak ini menjadi Belum Diisi Finance?');" title="Kembalikan status menjadi Belum">
-                                                        <i class="fa-solid fa-rotate-left"></i> Ke Belum
+                                                    <button type="submit" class="btn-icon-finance btn-finance-undo" onclick="return confirm('Ubah status finance kontak ini menjadi Belum Diisi Finance?');" title="Kembalikan status menjadi Belum Diisi Finance" aria-label="Ke Belum">
+                                                        <i class="fa-solid fa-rotate-left"></i>
                                                     </button>
                                                 </form>
                                             <?php else: ?>
-                                                <span class="badge-status badge-pending" title="Status: Belum ada data Finance">
-                                                    <i class="fa-solid fa-clock"></i> Belum Finance
+                                                <span class="badge-icon-finance badge-finance-unpaid" title="Belum Diisi Finance">
+                                                    <i class="fa-regular fa-clock"></i>
                                                 </span>
-                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0;">
+                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: inline-flex;">
                                                     <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                                                     <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
                                                     <input type="hidden" name="action" value="toggle_finance_status">
                                                     <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
                                                     <input type="hidden" name="status" value="paid">
-                                                    <button type="submit" class="btn-secondary" style="font-size: 0.68rem; padding: 0.15rem 0.5rem; height: 24px; display: inline-flex; align-items: center; gap: 0.3rem; background: #ecfdf5; border-color: #a7f3d0; color: #047857; font-weight: 600;" onclick="return confirm('Ubah status finance kontak ini menjadi Sudah? Antrean follow up pending akan dihentikan otomatis.');" title="Ubah status menjadi Sudah Diisi Finance">
-                                                        <i class="fa-solid fa-circle-check"></i> Tandai Sudah
+                                                    <button type="submit" class="btn-icon-finance btn-finance-mark" onclick="return confirm('Ubah status finance kontak ini menjadi Sudah? Antrean follow up pending akan dihentikan otomatis.');" title="Tandai Sudah Diisi Finance" aria-label="Tandai Sudah">
+                                                        <i class="fa-solid fa-circle-check"></i>
                                                     </button>
                                                 </form>
                                             <?php endif; ?>
@@ -771,8 +782,6 @@ if ($tab !== 'queue') {
             $prospectPaginationParams = ['page' => 'automation-followup', 'tab' => 'prospects', 'cfilter' => $cfilter, 'pfilter' => $pfilter, 'qfilter' => $qfilter];
             if ($search !== '') {
                 $prospectPaginationParams['search'] = $search;
-            }
-            ?>
             }
             ?>
             <?= crmRenderPagination($pageProspects, $totalPagesProspects, $totalProspects, $perPage, $prospectPaginationParams) ?>
