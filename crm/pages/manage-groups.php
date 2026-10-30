@@ -10,10 +10,12 @@ if (isset($conn) && $conn instanceof mysqli) {
     }
 }
 
-function crmGroupManageRedirect(): never
-{
-    header('Location: index.php?page=manage-groups');
-    exit;
+if (!function_exists('crmGroupManageRedirect')) {
+    function crmGroupManageRedirect(): never
+    {
+        header('Location: index.php?page=manage-groups');
+        exit;
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -760,6 +762,18 @@ $categoryCount = count($categoryStats);
                 body: formData,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
+
+            if (!res.ok) {
+                const text = await res.text();
+                try {
+                    const errJson = JSON.parse(text);
+                    alert(errJson.message || ('Error ' + res.status));
+                } catch {
+                    alert('Gagal memproses (Status ' + res.status + '). Coba muat ulang halaman.');
+                }
+                return;
+            }
+
             const json = await res.json();
 
             if (json && json.status === 'success') {
@@ -800,7 +814,7 @@ $categoryCount = count($categoryStats);
             }
         } catch (err) {
             console.error('Error toggling category status:', err);
-            alert('Terjadi kesalahan jaringan.');
+            alert('Koneksi terganggu atau sesi berakhir. Silakan muat ulang halaman.');
         } finally {
             if (triggerButton) {
                 triggerButton.disabled = false;
@@ -898,6 +912,18 @@ $categoryCount = count($categoryStats);
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
 
+            if (!res.ok) {
+                const text = await res.text();
+                try {
+                    const errJson = JSON.parse(text);
+                    alert(errJson.message || ('Error ' + res.status));
+                } catch {
+                    alert('Gagal memproses (Status ' + res.status + '). Coba muat ulang halaman.');
+                }
+                btn.innerHTML = origHtml;
+                return;
+            }
+
             const json = await res.json();
             if (json && json.status === 'success') {
                 const nowActive = json.is_active === 1;
@@ -936,7 +962,7 @@ $categoryCount = count($categoryStats);
         } catch (err) {
             console.error('Error toggling group status:', err);
             btn.innerHTML = origHtml;
-            alert('Terjadi kesalahan koneksi.');
+            alert('Koneksi terganggu atau sesi berakhir. Silakan muat ulang halaman.');
         } finally {
             btn.disabled = false;
         }

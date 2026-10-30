@@ -20,6 +20,10 @@ if ($page === 'auto-reply' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_P
 if ($page === 'automation-followup' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     require __DIR__ . '/actions/automation-followup.php';
 }
+if ($page === 'manage-groups' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    require __DIR__ . '/pages/manage-groups.php';
+    exit;
+}
 
 $pageFile = __DIR__ . '/pages/' . $page . '.php';
 $crmMaxLogId = 0;
