@@ -380,6 +380,27 @@ def run_sequence_name_test(base_dir: str):
 
     print("automation-followup-sequence-name-test: OK")
 
+def run_unscheduled_filter_test(base_dir):
+    page_path = os.path.join(base_dir, "crm/pages/automation-followup.php")
+    css_path  = os.path.join(base_dir, "crm/assets/css/automation-followup.css")
+
+    if not os.path.exists(page_path) or not os.path.exists(css_path):
+        raise AssertionError("Missing page or css file for unscheduled filter test.")
+
+    with open(page_path, "r", encoding="utf-8") as f:
+        page = f.read()
+    with open(css_path, "r", encoding="utf-8") as f:
+        css = f.read()
+
+    assert "$qfilter = (string)($_GET['qfilter'] ?? 'all');" in page, "Missing $qfilter parameter initialization"
+    assert "$qfilter === 'unscheduled' && $isScheduled" in page, "Missing unscheduled queue filter condition"
+    assert "$qfilter === 'scheduled' && !$isScheduled" in page, "Missing scheduled queue filter condition"
+    assert "$countProspectsUnscheduled" in page and "$countProspectsScheduled" in page, "Missing prospect count tracking"
+    assert "badge-unscheduled" in page and ".badge-unscheduled" in css, "Missing badge-unscheduled class"
+    assert "qfilter' => 'unscheduled'" in page and "Belum Terjadwal" in page, "Missing Belum Terjadwal filter button"
+    assert "'qfilter' => $qfilter" in page, "Missing qfilter in prospectPaginationParams"
+    print("automation-followup-unscheduled-filter-test: OK")
+
 def run_finance_scheduling_test(base_dir: str):
     cfg_path = os.path.join(base_dir, 'crm/config/automation-followup.php')
     with open(cfg_path, 'r', encoding='utf-8') as f:
@@ -742,6 +763,8 @@ def main():
         run_sequence_name_test(base_dir)
     if test_name in ["automation-followup-finance-scheduling-test", "finance-scheduling", "all"]:
         run_finance_scheduling_test(base_dir)
+    if test_name in ["automation-followup-unscheduled-filter-test", "unscheduled-filter", "all"]:
+        run_unscheduled_filter_test(base_dir)
     if test_name in ["reminder-pembayaran-suite", "reminder-pembayaran", "all"]:
         run_reminder_pembayaran_suite(base_dir)
     if test_name in ["reminder-schedule-suite", "reminder-schedule", "all"]:
