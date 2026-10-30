@@ -84,6 +84,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         crmGroupManageRedirect();
     }
 
+    if ($action === 'toggle_category') {
+        $category = trim((string)($_POST['category'] ?? ''));
+        $targetStatus = isset($_POST['is_active']) ? (int)$_POST['is_active'] : null;
+
+        if ($category === '') {
+            $category = 'Tanpa Kategori';
+        }
+
+        if ($targetStatus === null) {
+            if ($category === 'Tanpa Kategori') {
+                $chk = $conn->query("SELECT SUM(CASE WHEN COALESCE(is_active, 1) = 1 THEN 1 ELSE 0 END) AS active_cnt FROM wa_grup WHERE kategori IS NULL OR TRIM(kategori) = '' OR kategori = 'Tanpa Kategori'");
+            } else {
+                $stmtChk = $conn->prepare("SELECT SUM(CASE WHEN COALESCE(is_active, 1) = 1 THEN 1 ELSE 0 END) AS active_cnt FROM wa_grup WHERE kategori = ?");
+                $stmtChk->bind_param('s', $category);
+                $stmtChk->execute();
+                $chk = $stmtChk->get_result();
+            }
+            $activeCnt = 0;
+            if ($chk) {
+                $r = $chk->fetch_assoc();
+                $activeCnt = (int)($r['active_cnt'] ?? 0);
+            }
+            $targetStatus = ($activeCnt > 0) ? 0 : 1;
+        } else {
+            $targetStatus = ($targetStatus === 1) ? 1 : 0;
+        }
+
+        if ($category === 'Tanpa Kategori') {
+            $stmt = $conn->prepare("UPDATE wa_grup SET is_active = ? WHERE kategori IS NULL OR TRIM(kategori) = '' OR kategori = 'Tanpa Kategori'");
+            $stmt->bind_param('i', $targetStatus);
+        } else {
+            $stmt = $conn->prepare("UPDATE wa_grup SET is_active = ? WHERE kategori = ?");
+            $stmt->bind_param('is', $targetStatus, $category);
+        }
+
+        $ok = $stmt ? $stmt->execute() : false;
+        $affected = $stmt ? $stmt->affected_rows : 0;
+        if ($stmt) $stmt->close();
+
+        if (!empty($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'status' => $ok ? 'success' : 'error',
+                'category' => $category,
+                'is_active' => $targetStatus,
+                'affected' => $affected,
+                'message' => $ok
+                    ? ($targetStatus === 1 ? "Semua grup di kategori '{$category}' berhasil diaktifkan." : "Semua grup di kategori '{$category}' berhasil dinonaktifkan.")
+                    : 'Gagal memperbarui status kategori.'
+            ]);
+            exit;
+        }
+
+        $_SESSION['crm_flash'] = [
+            'type' => $ok ? 'success' : 'error',
+            'message' => $ok
+                ? ($targetStatus === 1 ? "Semua grup di kategori '{$category}' berhasil diaktifkan." : "Semua grup di kategori '{$category}' berhasil dinonaktifkan.")
+                : 'Gagal memperbarui status kategori.',
+        ];
+        crmGroupManageRedirect();
+    }
+
     if ($action === 'mass_add') {
         $data = trim((string)($_POST['data_grup'] ?? ''));
         $category = trim((string)($_POST['kategori_massal'] ?? ''));
@@ -219,18 +281,30 @@ if ($result) {
 }
 
 $categories = [];
+$categoryStats = [];
 $activeCount = 0;
 $inactiveCount = 0;
 foreach ($groups as $group) {
     $category = trim((string)$group['kategori']) ?: 'Tanpa Kategori';
     $categories[$category] = true;
+    if (!isset($categoryStats[$category])) {
+        $categoryStats[$category] = [
+            'name' => $category,
+            'total' => 0,
+            'active' => 0,
+            'inactive' => 0,
+        ];
+    }
+    $categoryStats[$category]['total']++;
     if ((int)$group['is_active'] === 1) {
         $activeCount++;
+        $categoryStats[$category]['active']++;
     } else {
         $inactiveCount++;
+        $categoryStats[$category]['inactive']++;
     }
 }
-$categoryCount = count($categories);
+$categoryCount = count($categoryStats);
 ?>
 
 <div class="crm-workspace-page">
@@ -302,12 +376,62 @@ $categoryCount = count($categories);
                     <button type="button" class="group-filter-btn" data-filter="active">Aktif (<span id="tabCountActive"><?= $activeCount ?></span>)</button>
                     <button type="button" class="group-filter-btn" data-filter="inactive">Nonaktif (<span id="tabCountInactive"><?= $inactiveCount ?></span>)</button>
                 </div>
+                <select id="groupCategorySelect" class="group-category-select" title="Pilih kategori grup">
+                    <option value="all">Semua Kategori (<?= count($groups) ?>)</option>
+                    <?php foreach ($categoryStats as $c): ?>
+                        <option value="<?= htmlspecialchars($c['name'], ENT_QUOTES) ?>"><?= htmlspecialchars($c['name']) ?> (<?= $c['active'] ?>/<?= $c['total'] ?> aktif)</option>
+                    <?php endforeach; ?>
+                </select>
                 <label class="group-manage-search">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="search" id="groupManageSearch" placeholder="Cari grup...">
+                    <input type="search" id="groupManageSearch" placeholder="Cari nama / ID / kategori...">
                 </label>
             </div>
         </div>
+
+        <?php if ($categoryCount > 0): ?>
+            <div class="group-category-strip" id="groupCategoryStrip">
+                <span class="group-category-strip-label"><i class="fa-solid fa-layer-group"></i> Kategori:</span>
+                <button type="button" class="group-cat-chip is-all is-selected" data-category="all" id="catChipAll">
+                    Semua Kategori (<span id="catStripTotalAll"><?= count($groups) ?></span>)
+                </button>
+                <?php foreach ($categoryStats as $c): ?>
+                    <?php $hasActive = $c['active'] > 0; ?>
+                    <div class="group-cat-chip" data-category="<?= htmlspecialchars($c['name'], ENT_QUOTES) ?>" data-active="<?= $c['active'] ?>" data-total="<?= $c['total'] ?>">
+                        <button type="button" class="group-cat-filter-btn" data-category="<?= htmlspecialchars($c['name'], ENT_QUOTES) ?>" title="Filter kategori <?= htmlspecialchars($c['name'], ENT_QUOTES) ?>">
+                            <i class="fa-regular fa-folder"></i>
+                            <span class="cat-name"><?= htmlspecialchars($c['name']) ?></span>
+                            <span class="cat-stat"><?= $c['active'] ?>/<?= $c['total'] ?></span>
+                        </button>
+                        <button type="button"
+                                class="group-cat-power-btn <?= $hasActive ? 'is-on' : 'is-off' ?>"
+                                data-category="<?= htmlspecialchars($c['name'], ENT_QUOTES) ?>"
+                                data-action-target="<?= $hasActive ? '0' : '1' ?>"
+                                title="<?= $hasActive ? 'Nonaktifkan semua grup di kategori ' . htmlspecialchars($c['name'], ENT_QUOTES) : 'Aktifkan semua grup di kategori ' . htmlspecialchars($c['name'], ENT_QUOTES) ?>"
+                                aria-label="Toggle status kategori <?= htmlspecialchars($c['name'], ENT_QUOTES) ?>">
+                            <i class="fa-solid <?= $hasActive ? 'fa-toggle-on' : 'fa-toggle-off' ?>"></i>
+                        </button>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="group-category-action-bar" id="groupCategoryActionBar" hidden>
+                <div>
+                    <i class="fa-solid fa-folder-open"></i> Kategori: <strong id="catBarName">-</strong> · <span id="catBarStats">0 aktif, 0 nonaktif</span>
+                </div>
+                <div class="group-category-action-tools">
+                    <button type="button" class="cat-action-btn cat-action-off" id="btnCatTurnOff">
+                        <i class="fa-solid fa-circle-pause"></i> Nonaktifkan Kategori
+                    </button>
+                    <button type="button" class="cat-action-btn cat-action-on" id="btnCatTurnOn">
+                        <i class="fa-solid fa-circle-check"></i> Aktifkan Kategori
+                    </button>
+                    <button type="button" class="cat-action-btn cat-action-reset" id="btnCatReset" title="Tampilkan semua kategori">
+                        <i class="fa-solid fa-xmark"></i> Tutup Filter
+                    </button>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <?php if (!$groups): ?>
             <div class="crm-workspace-empty group-empty group-manage-empty">
@@ -336,6 +460,7 @@ $categoryCount = count($categories);
                             <tr class="<?= $isActive ? '' : 'is-inactive-row' ?>"
                                 data-search="<?= htmlspecialchars(strtolower($group['nama_grup'] . ' ' . $group['id_grup'] . ' ' . $category . ' ' . ($isActive ? 'aktif' : 'nonaktif')), ENT_QUOTES) ?>"
                                 data-status="<?= $isActive ? 'active' : 'inactive' ?>"
+                                data-category="<?= htmlspecialchars($category, ENT_QUOTES) ?>"
                                 data-id="<?= (int)$group['id'] ?>">
                                 <td>
                                     <div class="group-manage-name">
@@ -344,7 +469,12 @@ $categoryCount = count($categories);
                                     </div>
                                 </td>
                                 <td><code><?= htmlspecialchars($group['id_grup']) ?></code></td>
-                                <td><span class="group-manage-category"><?= htmlspecialchars($category) ?></span></td>
+                                <td>
+                                    <button type="button" class="group-manage-category" data-category="<?= htmlspecialchars($category, ENT_QUOTES) ?>" title="Filter kategori <?= htmlspecialchars($category, ENT_QUOTES) ?>">
+                                        <i class="fa-regular fa-folder"></i>
+                                        <span><?= htmlspecialchars($category) ?></span>
+                                    </button>
+                                </td>
                                 <td>
                                     <button type="button"
                                             class="group-status-toggle <?= $isActive ? 'is-active' : 'is-inactive' ?>"
@@ -444,28 +574,293 @@ $categoryCount = count($categories);
     const tableBody = document.getElementById('groupManageTable');
     const noResults = document.getElementById('groupManageNoResults');
     const filterButtons = document.querySelectorAll('.group-filter-btn');
+    const categorySelect = document.getElementById('groupCategorySelect');
+    const categoryStrip = document.getElementById('groupCategoryStrip');
+    const catActionBar = document.getElementById('groupCategoryActionBar');
+    const catBarName = document.getElementById('catBarName');
+    const catBarStats = document.getElementById('catBarStats');
+    const btnCatTurnOff = document.getElementById('btnCatTurnOff');
+    const btnCatTurnOn = document.getElementById('btnCatTurnOn');
+    const btnCatReset = document.getElementById('btnCatReset');
     const csrfToken = document.getElementById('groupManageCsrf')?.value || '';
 
     let currentFilter = 'all';
+    let currentCategory = 'all';
+
+    function getRows() {
+        return [...document.querySelectorAll('#groupManageTable tr')];
+    }
 
     function applyFilterAndSearch() {
         const query = search ? search.value.trim().toLowerCase() : '';
-        const rows = [...document.querySelectorAll('#groupManageTable tr')];
+        const rows = getRows();
         let visible = 0;
 
         rows.forEach(row => {
             const matchesSearch = !query || (row.dataset.search || '').includes(query);
             const status = row.dataset.status || 'active';
-            const matchesTab = (currentFilter === 'all') || (currentFilter === status);
+            const matchesStatus = (currentFilter === 'all') || (currentFilter === status);
+            const rowCat = (row.dataset.category || 'Tanpa Kategori').trim().toLowerCase();
+            const matchesCat = (currentCategory === 'all') || (rowCat === currentCategory.trim().toLowerCase());
 
-            const isShown = matchesSearch && matchesTab;
+            const isShown = matchesSearch && matchesStatus && matchesCat;
             row.hidden = !isShown;
             if (isShown) visible++;
         });
 
         if (noResults) noResults.hidden = visible > 0;
+        updateCategoryBarStats();
     }
 
+    function updateCategoryBarStats() {
+        if (!catActionBar) return;
+        if (currentCategory === 'all') {
+            catActionBar.hidden = true;
+            return;
+        }
+
+        catActionBar.hidden = false;
+        if (catBarName) catBarName.textContent = currentCategory;
+
+        const rows = getRows().filter(r => (r.dataset.category || 'Tanpa Kategori').trim().toLowerCase() === currentCategory.trim().toLowerCase());
+        let act = 0;
+        let inact = 0;
+        rows.forEach(r => {
+            if (r.dataset.status === 'active') act++;
+            else inact++;
+        });
+
+        if (catBarStats) {
+            catBarStats.textContent = `${act} aktif, ${inact} nonaktif (${rows.length} total)`;
+        }
+    }
+
+    function setCategory(catName) {
+        currentCategory = (catName || 'all').trim();
+
+        // Sync dropdown
+        if (categorySelect) {
+            categorySelect.value = currentCategory;
+            // Fallback if value not exact match (case insensitive)
+            if (categorySelect.value !== currentCategory && currentCategory !== 'all') {
+                for (let i = 0; i < categorySelect.options.length; i++) {
+                    if (categorySelect.options[i].value.toLowerCase() === currentCategory.toLowerCase()) {
+                        categorySelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Sync chip highlights
+        const chips = document.querySelectorAll('.group-cat-chip');
+        chips.forEach(chip => {
+            const chipCat = chip.dataset.category || '';
+            const isMatch = (currentCategory === 'all' && chipCat === 'all') ||
+                            (currentCategory.toLowerCase() === chipCat.toLowerCase());
+            chip.classList.toggle('is-selected', isMatch);
+        });
+
+        applyFilterAndSearch();
+    }
+
+    function recalculateCounts() {
+        const rows = getRows();
+        const total = rows.length;
+        let active = 0;
+        let inactive = 0;
+
+        const catMap = {};
+
+        rows.forEach(r => {
+            const st = r.dataset.status || 'active';
+            const cat = (r.dataset.category || 'Tanpa Kategori').trim();
+
+            if (st === 'active') active++;
+            else inactive++;
+
+            if (!catMap[cat]) catMap[cat] = { total: 0, active: 0, inactive: 0 };
+            catMap[cat].total++;
+            if (st === 'active') catMap[cat].active++;
+            else catMap[cat].inactive++;
+        });
+
+        const tabAll = document.getElementById('tabCountAll');
+        const tabAct = document.getElementById('tabCountActive');
+        const tabInact = document.getElementById('tabCountInactive');
+        const statAct = document.querySelector('#statActiveCount strong');
+        const statInact = document.querySelector('#statInactiveCount strong');
+        const totalBadge = document.getElementById('totalGroupCountBadge');
+        const stripTotalAll = document.getElementById('catStripTotalAll');
+
+        if (tabAll) tabAll.textContent = String(total);
+        if (tabAct) tabAct.textContent = String(active);
+        if (tabInact) tabInact.textContent = String(inactive);
+        if (statAct) statAct.textContent = String(active);
+        if (statInact) statInact.textContent = String(inactive);
+        if (totalBadge) totalBadge.textContent = String(total);
+        if (stripTotalAll) stripTotalAll.textContent = String(total);
+
+        // Update category chips
+        document.querySelectorAll('.group-cat-chip[data-category]').forEach(chip => {
+            const cat = chip.dataset.category;
+            if (!cat || cat === 'all') return;
+            const data = catMap[cat] || { total: 0, active: 0, inactive: 0 };
+
+            const statSpan = chip.querySelector('.cat-stat');
+            if (statSpan) statSpan.textContent = `${data.active}/${data.total}`;
+
+            const pwr = chip.querySelector('.group-cat-power-btn');
+            if (pwr) {
+                const hasActive = data.active > 0;
+                pwr.className = `group-cat-power-btn ${hasActive ? 'is-on' : 'is-off'}`;
+                pwr.dataset.actionTarget = hasActive ? '0' : '1';
+                pwr.title = hasActive ? `Nonaktifkan semua grup di kategori ${cat}` : `Aktifkan semua grup di kategori ${cat}`;
+                pwr.innerHTML = `<i class="fa-solid ${hasActive ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>`;
+            }
+        });
+
+        // Update select options text
+        if (categorySelect) {
+            for (let i = 0; i < categorySelect.options.length; i++) {
+                const opt = categorySelect.options[i];
+                if (opt.value === 'all') {
+                    opt.textContent = `Semua Kategori (${total})`;
+                } else if (catMap[opt.value]) {
+                    const d = catMap[opt.value];
+                    opt.textContent = `${opt.value} (${d.active}/${d.total} aktif)`;
+                }
+            }
+        }
+
+        updateCategoryBarStats();
+    }
+
+    // Toggle Category Status (AJAX)
+    async function toggleCategory(categoryName, targetStatus, triggerButton = null) {
+        if (!categoryName || categoryName === 'all') return;
+
+        let origHtml = '';
+        if (triggerButton) {
+            triggerButton.disabled = true;
+            origHtml = triggerButton.innerHTML;
+            triggerButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        }
+
+        const formData = new FormData();
+        formData.append('manage_group_action', 'toggle_category');
+        formData.append('csrf_token', csrfToken);
+        formData.append('category', categoryName);
+        formData.append('is_active', String(targetStatus));
+        formData.append('ajax', '1');
+
+        try {
+            const res = await fetch('index.php?page=manage-groups', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const json = await res.json();
+
+            if (json && json.status === 'success') {
+                const nowActive = Number(json.is_active) === 1;
+                const rows = getRows().filter(r => (r.dataset.category || 'Tanpa Kategori').trim().toLowerCase() === categoryName.trim().toLowerCase());
+
+                rows.forEach(row => {
+                    row.dataset.status = nowActive ? 'active' : 'inactive';
+                    row.classList.toggle('is-inactive-row', !nowActive);
+
+                    const nameIcon = row.querySelector('.group-manage-row-icon i');
+                    if (nameIcon) {
+                        nameIcon.className = `fa-solid ${nowActive ? 'fa-users' : 'fa-users-slash'}`;
+                    }
+
+                    const toggleBtn = row.querySelector('.group-status-toggle');
+                    if (toggleBtn) {
+                        toggleBtn.dataset.status = nowActive ? '1' : '0';
+                        toggleBtn.className = 'group-status-toggle ' + (nowActive ? 'is-active' : 'is-inactive');
+                        toggleBtn.title = nowActive ? 'Klik untuk nonaktifkan grup' : 'Klik untuk aktifkan kembali';
+                        toggleBtn.setAttribute('aria-label', nowActive ? 'Status aktif, klik untuk nonaktifkan' : 'Status nonaktif, klik untuk aktifkan');
+                        toggleBtn.innerHTML = `<i class="fa-solid ${nowActive ? 'fa-circle-check' : 'fa-circle-pause'}"></i> <span>${nowActive ? 'Aktif' : 'Nonaktif'}</span>`;
+                    }
+
+                    const editBtn = row.querySelector('.group-manage-edit');
+                    if (editBtn) editBtn.dataset.isActive = nowActive ? '1' : '0';
+
+                    const name = row.querySelector('.group-manage-name strong')?.textContent || '';
+                    const gid = row.querySelector('code')?.textContent || '';
+                    const cat = row.querySelector('.group-manage-category span')?.textContent || '';
+                    row.dataset.search = (name + ' ' + gid + ' ' + cat + ' ' + (nowActive ? 'aktif' : 'nonaktif')).toLowerCase();
+                });
+
+                recalculateCounts();
+                applyFilterAndSearch();
+            } else {
+                alert(json?.message || 'Gagal memperbarui status kategori.');
+            }
+        } catch (err) {
+            console.error('Error toggling category status:', err);
+            alert('Terjadi kesalahan jaringan.');
+        } finally {
+            if (triggerButton) {
+                triggerButton.disabled = false;
+                triggerButton.innerHTML = origHtml;
+            }
+        }
+    }
+
+    // Category Strip Interactions
+    categoryStrip?.addEventListener('click', (event) => {
+        const powerBtn = event.target.closest('.group-cat-power-btn');
+        if (powerBtn) {
+            event.stopPropagation();
+            const cat = powerBtn.dataset.category;
+            const target = Number(powerBtn.dataset.actionTarget ?? '0');
+            toggleCategory(cat, target, powerBtn);
+            return;
+        }
+
+        const filterBtn = event.target.closest('.group-cat-filter-btn') || event.target.closest('.group-cat-chip.is-all');
+        if (filterBtn) {
+            const cat = filterBtn.dataset.category || 'all';
+            setCategory(cat);
+        }
+    });
+
+    // Category Select Dropdown
+    categorySelect?.addEventListener('change', () => {
+        setCategory(categorySelect.value);
+    });
+
+    // Category Action Bar Buttons
+    btnCatTurnOff?.addEventListener('click', () => {
+        if (currentCategory && currentCategory !== 'all') {
+            toggleCategory(currentCategory, 0, btnCatTurnOff);
+        }
+    });
+
+    btnCatTurnOn?.addEventListener('click', () => {
+        if (currentCategory && currentCategory !== 'all') {
+            toggleCategory(currentCategory, 1, btnCatTurnOn);
+        }
+    });
+
+    btnCatReset?.addEventListener('click', () => {
+        setCategory('all');
+    });
+
+    // Click on table row category badge filters by that category
+    tableBody?.addEventListener('click', (event) => {
+        const catBtn = event.target.closest('.group-manage-category');
+        if (catBtn) {
+            const cat = catBtn.dataset.category;
+            if (cat) {
+                setCategory(cat);
+            }
+        }
+    });
+
+    // Search and Status Tabs
     search?.addEventListener('input', applyFilterAndSearch);
 
     filterButtons.forEach(btn => {
@@ -477,33 +872,7 @@ $categoryCount = count($categories);
         });
     });
 
-    function recalculateCounts() {
-        const rows = [...document.querySelectorAll('#groupManageTable tr')];
-        const total = rows.length;
-        let active = 0;
-        let inactive = 0;
-
-        rows.forEach(r => {
-            if (r.dataset.status === 'active') active++;
-            else inactive++;
-        });
-
-        const tabAll = document.getElementById('tabCountAll');
-        const tabAct = document.getElementById('tabCountActive');
-        const tabInact = document.getElementById('tabCountInactive');
-        const statAct = document.querySelector('#statActiveCount strong');
-        const statInact = document.querySelector('#statInactiveCount strong');
-        const totalBadge = document.getElementById('totalGroupCountBadge');
-
-        if (tabAll) tabAll.textContent = String(total);
-        if (tabAct) tabAct.textContent = String(active);
-        if (tabInact) tabInact.textContent = String(inactive);
-        if (statAct) statAct.textContent = String(active);
-        if (statInact) statInact.textContent = String(inactive);
-        if (totalBadge) totalBadge.textContent = String(total);
-    }
-
-    // Toggle status handler
+    // Toggle individual group status handler
     tableBody?.addEventListener('click', async (event) => {
         const btn = event.target.closest('.group-status-toggle');
         if (!btn || btn.disabled) return;
@@ -552,10 +921,9 @@ $categoryCount = count($categories);
                         editBtn.dataset.isActive = nowActive ? '1' : '0';
                     }
 
-                    // Update search string
                     const name = row.querySelector('.group-manage-name strong')?.textContent || '';
                     const gid = row.querySelector('code')?.textContent || '';
-                    const cat = row.querySelector('.group-manage-category')?.textContent || '';
+                    const cat = row.querySelector('.group-manage-category span')?.textContent || '';
                     row.dataset.search = (name + ' ' + gid + ' ' + cat + ' ' + (nowActive ? 'aktif' : 'nonaktif')).toLowerCase();
                 }
 

@@ -691,14 +691,22 @@ def run_manage_groups_test(base_dir):
         raise AssertionError("bootstrap.php must contain auto-migration for is_active")
     if "toggle_status" not in page_code:
         raise AssertionError("manage-groups.php must support toggle_status action")
+    if "toggle_category" not in page_code:
+        raise AssertionError("manage-groups.php must support toggle_category action")
     if "group-filter-tabs" not in page_code or "group-filter-btn" not in page_code:
         raise AssertionError("manage-groups.php must include filter tabs")
     if "group-status-toggle" not in page_code:
         raise AssertionError("manage-groups.php must include status toggle buttons")
+    if "group-category-strip" not in page_code or "groupCategorySelect" not in page_code:
+        raise AssertionError("manage-groups.php must include category management strip and select")
+    if "groupCategoryActionBar" not in page_code:
+        raise AssertionError("manage-groups.php must include category action bar")
     if "WHERE COALESCE(is_active, 1) = 1" not in gp_code:
         raise AssertionError("group.php must only query active groups")
     if ".group-status-toggle" not in css_code or ".is-inactive-row" not in css_code:
         raise AssertionError("manage-groups.css must include status styling")
+    if ".group-category-strip" not in css_code or ".group-cat-chip" not in css_code:
+        raise AssertionError("manage-groups.css must include category styling")
 
     print("manage-groups-test: OK")
 
