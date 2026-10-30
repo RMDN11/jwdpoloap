@@ -2,7 +2,7 @@
 $crmTitle = 'Grup';
 
 $groupsByCategory = [];
-$groupResult = $conn->query("SELECT id, nama_grup, id_grup, kategori FROM wa_grup ORDER BY kategori, nama_grup");
+$groupResult = $conn->query("SELECT id, nama_grup, id_grup, kategori FROM wa_grup WHERE COALESCE(is_active, 1) = 1 ORDER BY kategori, nama_grup");
 if ($groupResult) {
     while ($row = $groupResult->fetch_assoc()) {
         $category = trim((string)$row['kategori']) ?: 'Tanpa Kategori';

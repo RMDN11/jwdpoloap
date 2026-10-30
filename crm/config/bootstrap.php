@@ -47,6 +47,11 @@ $conn->query("CREATE TABLE IF NOT EXISTS crm_prospect_triggers (
     INDEX idx_crm_trigger_active (active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
+$colGrupActive = $conn->query("SHOW COLUMNS FROM wa_grup LIKE 'is_active'");
+if ($colGrupActive && $colGrupActive->num_rows === 0) {
+    $conn->query("ALTER TABLE wa_grup ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1");
+}
+
 $defaultTriggers = [
     ['bingung mau pilih program', 'Bingung'],
     ['saya bingung', 'Bingung'],

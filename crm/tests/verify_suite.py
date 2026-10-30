@@ -670,6 +670,38 @@ def run_group_broadcast_test(base_dir):
 
     print("group-broadcast-test: OK")
 
+def run_manage_groups_test(base_dir):
+    page_path = os.path.join(base_dir, "crm/pages/manage-groups.php")
+    css_path = os.path.join(base_dir, "crm/assets/css/manage-groups.css")
+    bootstrap_path = os.path.join(base_dir, "crm/config/bootstrap.php")
+    group_page_path = os.path.join(base_dir, "crm/pages/group.php")
+
+    with open(page_path, "r", encoding="utf-8") as f:
+        page_code = f.read()
+    with open(css_path, "r", encoding="utf-8") as f:
+        css_code = f.read()
+    with open(bootstrap_path, "r", encoding="utf-8") as f:
+        boot_code = f.read()
+    with open(group_page_path, "r", encoding="utf-8") as f:
+        gp_code = f.read()
+
+    if "<style>" in page_code:
+        raise AssertionError("manage-groups.php must not contain inline style blocks")
+    if "is_active" not in boot_code:
+        raise AssertionError("bootstrap.php must contain auto-migration for is_active")
+    if "toggle_status" not in page_code:
+        raise AssertionError("manage-groups.php must support toggle_status action")
+    if "group-filter-tabs" not in page_code or "group-filter-btn" not in page_code:
+        raise AssertionError("manage-groups.php must include filter tabs")
+    if "group-status-toggle" not in page_code:
+        raise AssertionError("manage-groups.php must include status toggle buttons")
+    if "WHERE COALESCE(is_active, 1) = 1" not in gp_code:
+        raise AssertionError("group.php must only query active groups")
+    if ".group-status-toggle" not in css_code or ".is-inactive-row" not in css_code:
+        raise AssertionError("manage-groups.css must include status styling")
+
+    print("manage-groups-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -722,6 +754,8 @@ def main():
         run_cek_lanjut_test(base_dir)
     if test_name in ["group-broadcast-test", "group-broadcast", "kirimgrup", "all"]:
         run_group_broadcast_test(base_dir)
+    if test_name in ["manage-groups-test", "manage-groups", "group-toggle", "all"]:
+        run_manage_groups_test(base_dir)
 
 if __name__ == "__main__":
     try:

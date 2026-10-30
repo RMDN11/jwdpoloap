@@ -3,6 +3,13 @@ declare(strict_types=1);
 
 $crmTitle = 'Kelola Grup';
 
+if (isset($conn) && $conn instanceof mysqli) {
+    $colCheck = $conn->query("SHOW COLUMNS FROM wa_grup LIKE 'is_active'");
+    if ($colCheck && $colCheck->num_rows === 0) {
+        $conn->query("ALTER TABLE wa_grup ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1");
+    }
+}
+
 function crmGroupManageRedirect(): never
 {
     header('Location: index.php?page=manage-groups');
@@ -14,7 +21,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $csrf = (string)($_POST['csrf_token'] ?? '');
 
     if (!crmVerifyCsrf($csrf)) {
+        if (!empty($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => 'Sesi keamanan tidak valid. Muat ulang halaman lalu coba lagi.']);
+            exit;
+        }
         $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Sesi keamanan tidak valid. Muat ulang halaman lalu coba lagi.'];
+        crmGroupManageRedirect();
+    }
+
+    if ($action === 'toggle_status') {
+        $id = (int)($_POST['group_id'] ?? 0);
+        $status = isset($_POST['is_active']) ? (int)$_POST['is_active'] : null;
+
+        if ($id <= 0) {
+            if (!empty($_POST['ajax'])) {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => 'error', 'message' => 'ID grup tidak valid.']);
+                exit;
+            }
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'ID grup tidak valid.'];
+            crmGroupManageRedirect();
+        }
+
+        if ($status !== null) {
+            $newActive = $status === 1 ? 1 : 0;
+            $stmt = $conn->prepare('UPDATE wa_grup SET is_active = ? WHERE id = ?');
+            $stmt->bind_param('ii', $newActive, $id);
+        } else {
+            $stmt = $conn->prepare('UPDATE wa_grup SET is_active = IF(COALESCE(is_active, 1) = 1, 0, 1) WHERE id = ?');
+            $stmt->bind_param('i', $id);
+        }
+
+        $ok = $stmt ? $stmt->execute() : false;
+        if ($stmt) $stmt->close();
+
+        $newStatus = 1;
+        $chk = $conn->prepare('SELECT COALESCE(is_active, 1) AS is_active FROM wa_grup WHERE id = ? LIMIT 1');
+        if ($chk) {
+            $chk->bind_param('i', $id);
+            $chk->execute();
+            $r = $chk->get_result()->fetch_assoc();
+            $chk->close();
+            if ($r) $newStatus = (int)$r['is_active'];
+        }
+
+        if (!empty($_POST['ajax'])) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'status' => $ok ? 'success' : 'error',
+                'is_active' => $newStatus,
+                'message' => $newStatus === 1 ? 'Grup berhasil diaktifkan kembali.' : 'Grup dinonaktifkan sementara.'
+            ]);
+            exit;
+        }
+
+        $_SESSION['crm_flash'] = [
+            'type' => $ok ? 'success' : 'error',
+            'message' => $ok ? ($newStatus === 1 ? 'Grup berhasil diaktifkan kembali.' : 'Grup berhasil dinonaktifkan.') : 'Gagal memperbarui status grup.',
+        ];
         crmGroupManageRedirect();
     }
 
@@ -29,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $stmt = $conn->prepare(
-            'INSERT INTO wa_grup (nama_grup, id_grup, kategori) VALUES (?, ?, ?)
+            'INSERT INTO wa_grup (nama_grup, id_grup, kategori, is_active) VALUES (?, ?, ?, 1)
              ON DUPLICATE KEY UPDATE nama_grup = VALUES(nama_grup), kategori = VALUES(kategori)'
         );
 
@@ -90,19 +156,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $groupId = trim((string)($_POST['id_grup'] ?? ''));
         $category = trim((string)($_POST['kategori'] ?? ''));
         $category = $category !== '' ? $category : 'Tanpa Kategori';
+        $isActive = isset($_POST['is_active']) ? ((int)$_POST['is_active'] === 1 ? 1 : 0) : 1;
 
         if ($id <= 0 || $name === '' || $groupId === '') {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Data grup tidak lengkap.'];
             crmGroupManageRedirect();
         }
 
-        $stmt = $conn->prepare('UPDATE wa_grup SET nama_grup = ?, id_grup = ?, kategori = ? WHERE id = ?');
+        $stmt = $conn->prepare('UPDATE wa_grup SET nama_grup = ?, id_grup = ?, kategori = ?, is_active = ? WHERE id = ?');
         if (!$stmt) {
             $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menyiapkan perubahan grup: ' . $conn->error];
             crmGroupManageRedirect();
         }
 
-        $stmt->bind_param('sssi', $name, $groupId, $category, $id);
+        $stmt->bind_param('sssii', $name, $groupId, $category, $isActive, $id);
         $ok = $stmt->execute();
         $error = $stmt->error;
         $stmt->close();
@@ -146,15 +213,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $groups = [];
-$result = $conn->query('SELECT id, nama_grup, id_grup, kategori FROM wa_grup ORDER BY kategori ASC, nama_grup ASC');
+$result = $conn->query('SELECT id, nama_grup, id_grup, kategori, COALESCE(is_active, 1) AS is_active FROM wa_grup ORDER BY is_active DESC, kategori ASC, nama_grup ASC');
 if ($result) {
     $groups = $result->fetch_all(MYSQLI_ASSOC);
 }
 
 $categories = [];
+$activeCount = 0;
+$inactiveCount = 0;
 foreach ($groups as $group) {
     $category = trim((string)$group['kategori']) ?: 'Tanpa Kategori';
     $categories[$category] = true;
+    if ((int)$group['is_active'] === 1) {
+        $activeCount++;
+    } else {
+        $inactiveCount++;
+    }
 }
 $categoryCount = count($categories);
 ?>
@@ -167,10 +241,12 @@ $categoryCount = count($categories);
     <div class="crm-workspace-header-main">
         <span class="crm-workspace-kicker">Management</span>
         <h1>Kelola Grup</h1>
-        <p>Tambah, ubah, dan rapikan daftar grup WhatsApp dari satu workspace.</p>
+        <p>Tambah, ubah, atur status aktif/nonaktif, dan rapikan daftar grup WhatsApp.</p>
     </div>
     <div class="crm-workspace-stats group-manage-stats">
         <span class="crm-workspace-stat"><strong><?= count($groups) ?></strong> grup</span>
+        <span class="crm-workspace-stat" id="statActiveCount"><strong><?= $activeCount ?></strong> aktif</span>
+        <span class="crm-workspace-stat" id="statInactiveCount"><strong><?= $inactiveCount ?></strong> nonaktif</span>
         <span class="crm-workspace-stat"><strong><?= $categoryCount ?></strong> kategori</span>
     </div>
 </section>
@@ -218,12 +294,19 @@ $categoryCount = count($categories);
         <div class="crm-workspace-card-head group-manage-list-head">
             <div>
                 <span class="crm-workspace-card-kicker">Library</span>
-                <h2>Grup Tersimpan <small><?= count($groups) ?></small></h2>
+                <h2>Grup Tersimpan <small id="totalGroupCountBadge"><?= count($groups) ?></small></h2>
             </div>
-            <label class="group-manage-search">
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="search" id="groupManageSearch" placeholder="Cari grup...">
-            </label>
+            <div class="group-manage-filter-row">
+                <div class="group-filter-tabs" role="tablist">
+                    <button type="button" class="group-filter-btn is-active" data-filter="all">Semua (<span id="tabCountAll"><?= count($groups) ?></span>)</button>
+                    <button type="button" class="group-filter-btn" data-filter="active">Aktif (<span id="tabCountActive"><?= $activeCount ?></span>)</button>
+                    <button type="button" class="group-filter-btn" data-filter="inactive">Nonaktif (<span id="tabCountInactive"><?= $inactiveCount ?></span>)</button>
+                </div>
+                <label class="group-manage-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search" id="groupManageSearch" placeholder="Cari grup...">
+                </label>
+            </div>
         </div>
 
         <?php if (!$groups): ?>
@@ -240,21 +323,39 @@ $categoryCount = count($categories);
                             <th>Nama Grup</th>
                             <th>ID Grup</th>
                             <th>Kategori</th>
+                            <th>Status</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="groupManageTable">
                         <?php foreach ($groups as $group): ?>
-                            <?php $category = trim((string)$group['kategori']) ?: 'Tanpa Kategori'; ?>
-                            <tr data-search="<?= htmlspecialchars(strtolower($group['nama_grup'] . ' ' . $group['id_grup'] . ' ' . $category), ENT_QUOTES) ?>">
+                            <?php
+                            $category = trim((string)$group['kategori']) ?: 'Tanpa Kategori';
+                            $isActive = (int)$group['is_active'] === 1;
+                            ?>
+                            <tr class="<?= $isActive ? '' : 'is-inactive-row' ?>"
+                                data-search="<?= htmlspecialchars(strtolower($group['nama_grup'] . ' ' . $group['id_grup'] . ' ' . $category . ' ' . ($isActive ? 'aktif' : 'nonaktif')), ENT_QUOTES) ?>"
+                                data-status="<?= $isActive ? 'active' : 'inactive' ?>"
+                                data-id="<?= (int)$group['id'] ?>">
                                 <td>
                                     <div class="group-manage-name">
-                                        <span class="group-manage-row-icon"><i class="fa-solid fa-users"></i></span>
+                                        <span class="group-manage-row-icon"><i class="fa-solid <?= $isActive ? 'fa-users' : 'fa-users-slash' ?>"></i></span>
                                         <strong><?= htmlspecialchars($group['nama_grup']) ?></strong>
                                     </div>
                                 </td>
                                 <td><code><?= htmlspecialchars($group['id_grup']) ?></code></td>
                                 <td><span class="group-manage-category"><?= htmlspecialchars($category) ?></span></td>
+                                <td>
+                                    <button type="button"
+                                            class="group-status-toggle <?= $isActive ? 'is-active' : 'is-inactive' ?>"
+                                            data-id="<?= (int)$group['id'] ?>"
+                                            data-status="<?= $isActive ? '1' : '0' ?>"
+                                            title="<?= $isActive ? 'Klik untuk nonaktifkan grup' : 'Klik untuk aktifkan kembali' ?>"
+                                            aria-label="<?= $isActive ? 'Status aktif, klik untuk nonaktifkan' : 'Status nonaktif, klik untuk aktifkan' ?>">
+                                        <i class="fa-solid <?= $isActive ? 'fa-circle-check' : 'fa-circle-pause' ?>"></i>
+                                        <span><?= $isActive ? 'Aktif' : 'Nonaktif' ?></span>
+                                    </button>
+                                </td>
                                 <td>
                                     <div class="group-manage-actions">
                                         <button type="button"
@@ -263,6 +364,7 @@ $categoryCount = count($categories);
                                                 data-name="<?= htmlspecialchars($group['nama_grup'], ENT_QUOTES) ?>"
                                                 data-group-id="<?= htmlspecialchars($group['id_grup'], ENT_QUOTES) ?>"
                                                 data-category="<?= htmlspecialchars($category, ENT_QUOTES) ?>"
+                                                data-is-active="<?= $isActive ? '1' : '0' ?>"
                                                 title="Edit grup"
                                                 aria-label="Edit grup">
                                             <i class="fa-solid fa-pen"></i>
@@ -304,7 +406,7 @@ $categoryCount = count($categories);
         </div>
 
         <form method="post">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(crmCsrfToken(), ENT_QUOTES) ?>">
+            <input type="hidden" name="csrf_token" id="groupManageCsrf" value="<?= htmlspecialchars(crmCsrfToken(), ENT_QUOTES) ?>">
             <input type="hidden" name="manage_group_action" value="edit">
             <input type="hidden" name="group_id" id="groupManageId">
 
@@ -320,6 +422,13 @@ $categoryCount = count($categories);
                 <span>Kategori</span>
                 <input type="text" name="kategori" id="groupManageCategory" maxlength="100">
             </label>
+            <label class="crm-workspace-field">
+                <span>Status Grup</span>
+                <select name="is_active" id="groupManageIsActive">
+                    <option value="1">Aktif (Dapat menerima broadcast)</option>
+                    <option value="0">Nonaktif (Diarsipkan sementara)</option>
+                </select>
+            </label>
 
             <div class="group-manage-modal-actions">
                 <button type="button" class="group-manage-secondary" id="groupManageCancel">Batal</button>
@@ -329,32 +438,149 @@ $categoryCount = count($categories);
     </div>
 </div>
 
-
-
 <script>
 (() => {
     const search = document.getElementById('groupManageSearch');
-    const rows = [...document.querySelectorAll('#groupManageTable tr')];
+    const tableBody = document.getElementById('groupManageTable');
     const noResults = document.getElementById('groupManageNoResults');
+    const filterButtons = document.querySelectorAll('.group-filter-btn');
+    const csrfToken = document.getElementById('groupManageCsrf')?.value || '';
 
-    search?.addEventListener('input', () => {
-        const query = search.value.trim().toLowerCase();
+    let currentFilter = 'all';
+
+    function applyFilterAndSearch() {
+        const query = search ? search.value.trim().toLowerCase() : '';
+        const rows = [...document.querySelectorAll('#groupManageTable tr')];
         let visible = 0;
 
         rows.forEach(row => {
-            const match = !query || (row.dataset.search || '').includes(query);
-            row.hidden = !match;
-            if (match) visible++;
+            const matchesSearch = !query || (row.dataset.search || '').includes(query);
+            const status = row.dataset.status || 'active';
+            const matchesTab = (currentFilter === 'all') || (currentFilter === status);
+
+            const isShown = matchesSearch && matchesTab;
+            row.hidden = !isShown;
+            if (isShown) visible++;
         });
 
         if (noResults) noResults.hidden = visible > 0;
+    }
+
+    search?.addEventListener('input', applyFilterAndSearch);
+
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterButtons.forEach(b => b.classList.remove('is-active'));
+            btn.classList.add('is-active');
+            currentFilter = btn.dataset.filter || 'all';
+            applyFilterAndSearch();
+        });
     });
 
+    function recalculateCounts() {
+        const rows = [...document.querySelectorAll('#groupManageTable tr')];
+        const total = rows.length;
+        let active = 0;
+        let inactive = 0;
+
+        rows.forEach(r => {
+            if (r.dataset.status === 'active') active++;
+            else inactive++;
+        });
+
+        const tabAll = document.getElementById('tabCountAll');
+        const tabAct = document.getElementById('tabCountActive');
+        const tabInact = document.getElementById('tabCountInactive');
+        const statAct = document.querySelector('#statActiveCount strong');
+        const statInact = document.querySelector('#statInactiveCount strong');
+        const totalBadge = document.getElementById('totalGroupCountBadge');
+
+        if (tabAll) tabAll.textContent = String(total);
+        if (tabAct) tabAct.textContent = String(active);
+        if (tabInact) tabInact.textContent = String(inactive);
+        if (statAct) statAct.textContent = String(active);
+        if (statInact) statInact.textContent = String(inactive);
+        if (totalBadge) totalBadge.textContent = String(total);
+    }
+
+    // Toggle status handler
+    tableBody?.addEventListener('click', async (event) => {
+        const btn = event.target.closest('.group-status-toggle');
+        if (!btn || btn.disabled) return;
+
+        const row = btn.closest('tr');
+        const groupId = btn.dataset.id;
+        if (!groupId) return;
+
+        btn.disabled = true;
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        const formData = new FormData();
+        formData.append('manage_group_action', 'toggle_status');
+        formData.append('csrf_token', csrfToken);
+        formData.append('group_id', groupId);
+        formData.append('ajax', '1');
+
+        try {
+            const res = await fetch('index.php?page=manage-groups', {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            const json = await res.json();
+            if (json && json.status === 'success') {
+                const nowActive = json.is_active === 1;
+                btn.dataset.status = nowActive ? '1' : '0';
+                btn.className = 'group-status-toggle ' + (nowActive ? 'is-active' : 'is-inactive');
+                btn.title = nowActive ? 'Klik untuk nonaktifkan grup' : 'Klik untuk aktifkan kembali';
+                btn.setAttribute('aria-label', nowActive ? 'Status aktif, klik untuk nonaktifkan' : 'Status nonaktif, klik untuk aktifkan');
+                btn.innerHTML = `<i class="fa-solid ${nowActive ? 'fa-circle-check' : 'fa-circle-pause'}"></i> <span>${nowActive ? 'Aktif' : 'Nonaktif'}</span>`;
+
+                if (row) {
+                    row.dataset.status = nowActive ? 'active' : 'inactive';
+                    row.classList.toggle('is-inactive-row', !nowActive);
+
+                    const nameIcon = row.querySelector('.group-manage-row-icon i');
+                    if (nameIcon) {
+                        nameIcon.className = `fa-solid ${nowActive ? 'fa-users' : 'fa-users-slash'}`;
+                    }
+
+                    const editBtn = row.querySelector('.group-manage-edit');
+                    if (editBtn) {
+                        editBtn.dataset.isActive = nowActive ? '1' : '0';
+                    }
+
+                    // Update search string
+                    const name = row.querySelector('.group-manage-name strong')?.textContent || '';
+                    const gid = row.querySelector('code')?.textContent || '';
+                    const cat = row.querySelector('.group-manage-category')?.textContent || '';
+                    row.dataset.search = (name + ' ' + gid + ' ' + cat + ' ' + (nowActive ? 'aktif' : 'nonaktif')).toLowerCase();
+                }
+
+                recalculateCounts();
+                applyFilterAndSearch();
+            } else {
+                alert(json?.message || 'Gagal mengubah status grup.');
+                btn.innerHTML = origHtml;
+            }
+        } catch (err) {
+            console.error('Error toggling group status:', err);
+            btn.innerHTML = origHtml;
+            alert('Terjadi kesalahan koneksi.');
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // Modal Edit handler
     const modal = document.getElementById('groupManageModal');
     const id = document.getElementById('groupManageId');
     const name = document.getElementById('groupManageName');
     const groupId = document.getElementById('groupManageGroupId');
     const category = document.getElementById('groupManageCategory');
+    const isActiveSelect = document.getElementById('groupManageIsActive');
 
     function closeModal() {
         modal?.classList.remove('is-open');
@@ -363,13 +589,14 @@ $categoryCount = count($categories);
 
     document.querySelectorAll('.group-manage-edit').forEach(button => {
         button.addEventListener('click', () => {
-            id.value = button.dataset.id || '';
-            name.value = button.dataset.name || '';
-            groupId.value = button.dataset.groupId || '';
-            category.value = button.dataset.category || '';
+            if (id) id.value = button.dataset.id || '';
+            if (name) name.value = button.dataset.name || '';
+            if (groupId) groupId.value = button.dataset.groupId || '';
+            if (category) category.value = button.dataset.category || '';
+            if (isActiveSelect) isActiveSelect.value = button.dataset.isActive || '1';
             modal?.classList.add('is-open');
             modal?.setAttribute('aria-hidden', 'false');
-            setTimeout(() => name.focus(), 30);
+            setTimeout(() => name?.focus(), 30);
         });
     });
 
