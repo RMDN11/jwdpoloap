@@ -436,6 +436,60 @@ def run_finance_scheduling_test(base_dir: str):
 
     print("automation-followup-finance-scheduling-test: OK")
 
+def run_smart_modal_and_loader_test(base_dir: str):
+    page_path = os.path.join(base_dir, "crm/pages/automation-followup.php")
+    css_path  = os.path.join(base_dir, "crm/assets/css/automation-followup.css")
+    cfg_path  = os.path.join(base_dir, "crm/config/automation-followup.php")
+    act_path  = os.path.join(base_dir, "crm/actions/automation-followup.php")
+
+    for p in [page_path, css_path, cfg_path, act_path]:
+        if not os.path.exists(p):
+            raise AssertionError(f"File missing for smart modal test: {p}")
+
+    with open(page_path, "r", encoding="utf-8") as f:
+        page = f.read()
+    with open(css_path, "r", encoding="utf-8") as f:
+        css = f.read()
+    with open(cfg_path, "r", encoding="utf-8") as f:
+        cfg = f.read()
+    with open(act_path, "r", encoding="utf-8") as f:
+        act = f.read()
+
+    # 1. Smart Modal Elements & Anti-Salah Tindakan
+    assert 'id="smartScheduleModal"' in page, "Missing #smartScheduleModal"
+    assert 'id="smartModalTitle"' in page, "Missing #smartModalTitle"
+    assert 'id="smartModalAlert"' in page, "Missing #smartModalAlert"
+    assert 'id="smartScheduleForm"' in page, "Missing #smartScheduleForm"
+    assert 'name="start_step"' in page, "Missing start_step radio inputs"
+    assert 'id="smartDirectWaBtn"' in page, "Missing #smartDirectWaBtn"
+    assert 'id="smartSubmitBtn"' in page, "Missing #smartSubmitBtn"
+    assert 'openSmartScheduleModal(this)' in page, "Table button must call openSmartScheduleModal(this)"
+    assert 'function openSmartScheduleModal(' in page, "Missing openSmartScheduleModal function"
+    assert 'function closeSmartScheduleModal(' in page, "Missing closeSmartScheduleModal function"
+    assert 'function selectSmartStep(' in page, "Missing selectSmartStep function"
+
+    # 2. Anti-Freeze Global Loader Elements & Handlers
+    assert 'id="crmGlobalLoader"' in page, "Missing #crmGlobalLoader"
+    assert 'class="crm-spinner-ring"' in page, "Missing .crm-spinner-ring in page"
+    assert 'function showCrmLoader(' in page, "Missing showCrmLoader function"
+    assert 'function hideCrmLoader(' in page, "Missing hideCrmLoader function"
+    assert 'showCrmLoader(loaderTitle, loaderSubtitle);' in page, "Submit handler must trigger showCrmLoader"
+
+    # 3. CSS Classes
+    assert '.crm-smart-modal-backdrop' in css, "Missing .crm-smart-modal-backdrop CSS"
+    assert '.crm-smart-modal-box' in css, "Missing .crm-smart-modal-box CSS"
+    assert '.crm-global-loader' in css, "Missing .crm-global-loader CSS"
+    assert '.crm-spinner-ring' in css, "Missing .crm-spinner-ring CSS"
+    assert '.smart-alert' in css, "Missing .smart-alert CSS"
+    assert '.smart-step-option' in css, "Missing .smart-step-option CSS"
+
+    # 4. Config & Action flexible start step
+    assert 'int $startStep = 1' in cfg, "crmAutomationScheduleSequence must accept $startStep parameter"
+    assert 'start_step' in act, "actions must parse start_step parameter"
+    assert '$startStep' in act, "actions must pass $startStep to crmAutomationScheduleSequence"
+
+    print("automation-followup-smart-modal-loader-test: OK")
+
 def run_reminder_pembayaran_suite(base_dir: str):
     import reminder_pembayaran_test
     reminder_pembayaran_test.test_bulan_pembayaran_query(base_dir)
@@ -765,6 +819,8 @@ def main():
         run_finance_scheduling_test(base_dir)
     if test_name in ["automation-followup-unscheduled-filter-test", "unscheduled-filter", "all"]:
         run_unscheduled_filter_test(base_dir)
+    if test_name in ["automation-followup-smart-modal-loader-test", "smart-modal", "loader", "all"]:
+        run_smart_modal_and_loader_test(base_dir)
     if test_name in ["reminder-pembayaran-suite", "reminder-pembayaran", "all"]:
         run_reminder_pembayaran_suite(base_dir)
     if test_name in ["reminder-schedule-suite", "reminder-schedule", "all"]:

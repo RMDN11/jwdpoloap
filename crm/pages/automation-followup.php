@@ -731,24 +731,34 @@ if ($tab !== 'queue') {
                                             <span style="color: #047857; font-size: 0.75rem; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Peserta Terdaftar</span>
                                         <?php else: ?>
                                             <div class="crm-action-group">
-                                                <!-- Primary: Jadwalkan Alur (6 Tahap) -->
-                                                <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
-                                                    <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
-                                                    <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
-                                                    <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
-                                                    <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
-                                                    <input type="hidden" name="action" value="schedule_sequence">
-                                                    <input type="hidden" name="template_id" value="0">
-                                                    <button type="submit" class="btn-schedule-sequence" title="Jadwalkan Alur (6 Tahap) follow up otomatis" onclick="return confirm('Jadwalkan alur follow-up untuk kontak ini?');">
+                                                <!-- Primary: Jadwalkan Alur (6 Tahap) via Smart Modal -->
+                                                <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
+                                                    <button type="button" class="btn-schedule-sequence" title="Jadwalkan Alur (6 Tahap) follow up otomatis"
+                                                        data-nowa="<?= htmlspecialchars($item['nowa']) ?>"
+                                                        data-nama="<?= htmlspecialchars($item['nama'] ?? '') ?>"
+                                                        data-scheduled="<?= $item['is_scheduled'] ? '1' : '0' ?>"
+                                                        data-qstatus="<?= htmlspecialchars((string)($item['queue']['status'] ?? '')) ?>"
+                                                        data-qsource="<?= htmlspecialchars((string)($item['queue']['trigger_source'] ?? '')) ?>"
+                                                        data-category="<?= htmlspecialchars($item['category']['label'] ?? '') ?>"
+                                                        data-paid="<?= $item['has_payment'] ? '1' : '0' ?>"
+                                                        data-lastmsg="<?= htmlspecialchars(mb_substr($item['last_message'] ?? '', 0, 160)) ?>"
+                                                        onclick="openSmartScheduleModal(this)">
                                                         <i class="fa-solid fa-calendar-check"></i>
                                                         <span>Jadwalkan Alur (6 Tahap)</span>
                                                     </button>
                                                     <?php if ($item['is_scheduled']): ?>
-                                                        <button type="submit" name="action" value="stop_prospect" class="btn-danger" style="padding: 0.35rem 0.55rem; font-size: 0.72rem;" title="Hentikan dan batalkan semua jadwal follow-up kontak ini" onclick="return confirm('Hentikan semua jadwal follow-up untuk kontak ini?');">
-                                                            <i class="fa-solid fa-ban"></i> Stop
-                                                        </button>
+                                                        <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: inline-flex;">
+                                                            <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                                                            <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
+                                                            <input type="hidden" name="nowa" value="<?= htmlspecialchars($item['nowa']) ?>">
+                                                            <input type="hidden" name="nama" value="<?= htmlspecialchars($item['nama']) ?>">
+                                                            <input type="hidden" name="action" value="stop_prospect">
+                                                            <button type="submit" class="btn-danger" style="padding: 0.35rem 0.55rem; font-size: 0.72rem;" title="Hentikan dan batalkan semua jadwal follow-up kontak ini" onclick="return confirm('Hentikan semua jadwal follow-up untuk kontak ini?');">
+                                                                <i class="fa-solid fa-ban"></i> Stop
+                                                            </button>
+                                                        </form>
                                                     <?php endif; ?>
-                                                </form>
+                                                </div>
 
                                                 <!-- Secondary: Kirim / Antre 1 Template Tertentu -->
                                                 <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: flex; gap: 0.25rem; align-items: center; flex-wrap: wrap;">
@@ -1296,6 +1306,147 @@ if ($tab !== 'queue') {
         </div>
     </div>
 
+    <!-- Smart Schedule Modal (Anti-Salah Tindakan) -->
+    <div id="smartScheduleModal" class="crm-smart-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="smartModalTitle">
+        <div class="crm-smart-modal-box">
+            <div class="crm-smart-modal-header">
+                <div>
+                    <h3 class="crm-smart-modal-title" id="smartModalTitle">
+                        <i class="fa-solid fa-shield-halved" style="color: #166534;"></i>
+                        <span>Konfirmasi Penjadwalan Alur</span>
+                    </h3>
+                    <p class="crm-smart-modal-subtitle">Sistem memeriksa status kontak agar alur pesan follow-up tepat sasaran.</p>
+                </div>
+                <button type="button" class="crm-smart-modal-close" onclick="closeSmartScheduleModal()" aria-label="Tutup">&times;</button>
+            </div>
+
+            <!-- Contact Card -->
+            <div class="smart-contact-card">
+                <div class="smart-contact-left">
+                    <div style="width: 38px; height: 38px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 1rem; color: #475569;">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div class="smart-contact-meta">
+                        <span class="smart-contact-name" id="smartContactNama">-</span>
+                        <a href="#" target="_blank" rel="noopener" class="smart-contact-phone" id="smartContactNowa">
+                            <i class="fa-brands fa-whatsapp"></i> <span>-</span>
+                        </a>
+                    </div>
+                </div>
+                <div id="smartContactBadge"></div>
+            </div>
+
+            <!-- Dynamic Context Alert -->
+            <div id="smartModalAlert"></div>
+
+            <!-- Step Selection Form -->
+            <form id="smartScheduleForm" action="index.php?page=automation-followup" method="POST" style="margin: 0; display: flex; flex-direction: column; gap: 1rem;">
+                <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
+                <input type="hidden" name="return_url" value="<?= $currentUrl ?>">
+                <input type="hidden" name="action" value="schedule_sequence">
+                <input type="hidden" name="template_id" value="0">
+                <input type="hidden" name="nowa" id="smartFormNowa" value="">
+                <input type="hidden" name="nama" id="smartFormNama" value="">
+
+                <div class="smart-step-section" id="smartStepSection">
+                    <div class="smart-step-label">
+                        <span><i class="fa-solid fa-route"></i> Pilih Tahap Mulai Follow-Up:</span>
+                        <span style="font-weight: 500; font-size: 0.72rem; color: #64748b;">Akan dijadwalkan hingga Tahap 6</span>
+                    </div>
+                    <div class="smart-step-list">
+                        <label class="smart-step-option" id="stepOpt1" onclick="selectSmartStep(1)">
+                            <input type="radio" name="start_step" value="1" class="smart-step-radio" checked>
+                            <div class="smart-step-body">
+                                <div class="smart-step-title">
+                                    <span>Tahap 1 &mdash; Instant Welcome (2 Menit)</span>
+                                    <span class="smart-step-tag-rec" id="recBadge1" style="display:none;">Rekomendasi</span>
+                                </div>
+                                <div class="smart-step-desc">Sapaan awal ramah & kualifikasi kebutuhan (Cocok untuk prospek baru).</div>
+                            </div>
+                        </label>
+
+                        <label class="smart-step-option" id="stepOpt2" onclick="selectSmartStep(2)">
+                            <input type="radio" name="start_step" value="2" class="smart-step-radio">
+                            <div class="smart-step-body">
+                                <div class="smart-step-title">
+                                    <span>Tahap 2 &mdash; Follow Up 2 (45 Menit)</span>
+                                    <span class="smart-step-tag-rec" id="recBadge2" style="display:none;">Rekomendasi</span>
+                                </div>
+                                <div class="smart-step-desc">Penawaran solusi program privat intensif & fleksibel.</div>
+                            </div>
+                        </label>
+
+                        <label class="smart-step-option" id="stepOpt3" onclick="selectSmartStep(3)">
+                            <input type="radio" name="start_step" value="3" class="smart-step-radio">
+                            <div class="smart-step-body">
+                                <div class="smart-step-title">
+                                    <span>Tahap 3 &mdash; Follow Up 3 (4 Jam)</span>
+                                    <span class="smart-step-tag-rec" id="recBadge3" style="display:none;">Rekomendasi</span>
+                                </div>
+                                <div class="smart-step-desc">Tanya kendala santai & konsultasi jadwal/usia peserta (Ideal jika pernah membalas).</div>
+                            </div>
+                        </label>
+
+                        <label class="smart-step-option" id="stepOpt4" onclick="selectSmartStep(4)">
+                            <input type="radio" name="start_step" value="4" class="smart-step-radio">
+                            <div class="smart-step-body">
+                                <div class="smart-step-title">
+                                    <span>Tahap 4 &mdash; Follow Up 4 (H+1 Pagi)</span>
+                                    <span class="smart-step-tag-rec" id="recBadge4" style="display:none;">Rekomendasi</span>
+                                </div>
+                                <div class="smart-step-desc">Reminder sopan & penawaran slot jam favorit.</div>
+                            </div>
+                        </label>
+
+                        <label class="smart-step-option" id="stepOpt5" onclick="selectSmartStep(5)">
+                            <input type="radio" name="start_step" value="5" class="smart-step-radio">
+                            <div class="smart-step-body">
+                                <div class="smart-step-title">
+                                    <span>Tahap 5 &mdash; Follow Up 5 (H+3 Pagi)</span>
+                                    <span class="smart-step-tag-rec" id="recBadge5" style="display:none;">Rekomendasi</span>
+                                </div>
+                                <div class="smart-step-desc">Social proof & testimoni keberhasilan santri Jawwada.</div>
+                            </div>
+                        </label>
+
+                        <label class="smart-step-option" id="stepOpt6" onclick="selectSmartStep(6)">
+                            <input type="radio" name="start_step" value="6" class="smart-step-radio">
+                            <div class="smart-step-body">
+                                <div class="smart-step-title">
+                                    <span>Tahap 6 &mdash; Follow Up 6 (H+7 Siang)</span>
+                                    <span class="smart-step-tag-rec" id="recBadge6" style="display:none;">Rekomendasi</span>
+                                </div>
+                                <div class="smart-step-desc">Pesan penutup silaturahmi & izin simpan nomor.</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="crm-smart-modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeSmartScheduleModal()">Batal</button>
+                    <a href="#" id="smartDirectWaBtn" target="_blank" rel="noopener" class="btn-chat-wa" style="display:none;">
+                        <i class="fa-brands fa-whatsapp"></i> Chat WhatsApp Manual
+                    </a>
+                    <button type="submit" id="smartSubmitBtn" class="btn-primary" style="padding: 0.5rem 1.1rem;">
+                        <i class="fa-solid fa-calendar-check"></i>
+                        <span id="smartSubmitText">Jadwalkan Alur (6 Tahap)</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Global Loader (Anti-Freeze Feedback) -->
+    <div id="crmGlobalLoader" class="crm-global-loader" style="display: none;" role="status" aria-live="polite">
+        <div class="crm-loader-card">
+            <div class="crm-spinner-ring"></div>
+            <div class="crm-loader-content">
+                <h4 class="crm-loader-title" id="crmLoaderTitle">Memproses Permintaan...</h4>
+                <p class="crm-loader-subtitle" id="crmLoaderSubtitle">Mohon tunggu sebentar, sistem sedang memperbarui data.</p>
+            </div>
+        </div>
+    </div>
+
     <script>
     var sleepModal = document.getElementById('sleepSettingsModal');
     var btnOpenSleep = document.getElementById('btnOpenSleepModal');
@@ -1479,15 +1630,260 @@ if ($tab !== 'queue') {
         document.body.removeChild(ta);
     }
 
-    // Preserve & Restore Scroll Position on Form Submit + Debounce Spinner
+    // Helper Format WA & HTML Escape
+    function normalizeWaNumber(phone) {
+        if (!phone) return '';
+        var clean = phone.replace(/\D/g, '');
+        if (clean.startsWith('0')) {
+            clean = '62' + clean.substring(1);
+        } else if (clean.startsWith('8')) {
+            clean = '62' + clean;
+        }
+        return clean;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // Smart Pop-up Modal (Anti-Salah Tindakan)
+    function openSmartScheduleModal(btn) {
+        var modal = document.getElementById('smartScheduleModal');
+        if (!modal) return;
+
+        var nowa = btn.getAttribute('data-nowa') || '';
+        var nama = btn.getAttribute('data-nama') || 'Prospek';
+        var isScheduled = btn.getAttribute('data-scheduled') === '1';
+        var qStatus = btn.getAttribute('data-qstatus') || '';
+        var category = btn.getAttribute('data-category') || 'Umum';
+        var isPaid = btn.getAttribute('data-paid') === '1';
+        var lastMsg = btn.getAttribute('data-lastmsg') || '';
+
+        // Isi form hidden fields
+        var formNowa = document.getElementById('smartFormNowa');
+        var formNama = document.getElementById('smartFormNama');
+        if (formNowa) formNowa.value = nowa;
+        if (formNama) formNama.value = nama;
+
+        // Tampilkan info kontak
+        var nameEl = document.getElementById('smartContactNama');
+        if (nameEl) nameEl.textContent = nama ? nama : 'Tanpa Nama';
+
+        var cleanWa = normalizeWaNumber(nowa);
+        var phoneLink = document.getElementById('smartContactNowa');
+        if (phoneLink) {
+            phoneLink.href = 'https://wa.me/' + cleanWa;
+            var phoneText = phoneLink.querySelector('span');
+            if (phoneText) phoneText.textContent = nowa;
+        }
+
+        // Tampilkan badge kategori dan status antrean kontak
+        var badgeContainer = document.getElementById('smartContactBadge');
+        if (badgeContainer) {
+            var badgeHtml = '<span class="crm-cat-pill" style="font-size:0.7rem;padding:0.2rem 0.55rem;">' + escapeHtml(category) + '</span>';
+            if (isScheduled) {
+                badgeHtml += ' <span class="badge-status badge-pending" style="font-size:0.7rem;"><i class="fa-solid fa-calendar-check"></i> Terjadwal</span>';
+            } else if (qStatus === 'sent') {
+                badgeHtml += ' <span class="badge-status badge-sent" style="font-size:0.7rem;"><i class="fa-solid fa-check-double"></i> Terkirim</span>';
+            } else if (qStatus.indexOf('cancelled') !== -1) {
+                badgeHtml += ' <span class="badge-status badge-cancelled" style="font-size:0.7rem;">' + escapeHtml(qStatus.replace('cancelled_', '')) + '</span>';
+            } else {
+                badgeHtml += ' <span class="badge-status badge-unscheduled" style="font-size:0.7rem;"><i class="fa-regular fa-circle-dot"></i> Belum Terjadwal</span>';
+            }
+            badgeContainer.innerHTML = badgeHtml;
+        }
+
+        // Tombol WhatsApp manual
+        var directWaBtn = document.getElementById('smartDirectWaBtn');
+        if (directWaBtn) {
+            directWaBtn.href = 'https://wa.me/' + cleanWa;
+            directWaBtn.style.display = 'inline-flex';
+        }
+
+        var alertContainer = document.getElementById('smartModalAlert');
+        var stepSection = document.getElementById('smartStepSection');
+        var submitBtn = document.getElementById('smartSubmitBtn');
+        var submitText = document.getElementById('smartSubmitText');
+
+        // Reset badge rekomendasi
+        for (var i = 1; i <= 6; i++) {
+            var recEl = document.getElementById('recBadge' + i);
+            if (recEl) recEl.style.display = 'none';
+        }
+
+        // Deteksi Kondisi Anti-Salah Tindakan
+        var isReplied = (qStatus === 'replied' || qStatus === 'cancelled_replied');
+
+        if (isPaid) {
+            // Kasus 1: Sudah Lunas / Peserta Terdaftar
+            alertContainer.innerHTML = '<div class="smart-alert smart-alert-danger">' +
+                '<i class="fa-solid fa-circle-xmark smart-alert-icon"></i>' +
+                '<div><strong>Peserta Sudah Terdaftar (Lunas Finance)!</strong>' +
+                '<p>Kontak ini sudah tercatat sebagai santri aktif Jawwada. Alur follow-up promosi dinonaktifkan agar tidak mengganggu proses belajar peserta.</p></div>' +
+                '</div>';
+            if (stepSection) stepSection.style.display = 'none';
+            if (submitBtn) submitBtn.style.display = 'none';
+        } else if (isReplied) {
+            // Kasus 2: Kontak Sudah Pernah Membalas Pesan (Anti-Salah Tindakan Utama!)
+            var quoteHtml = lastMsg ? '<div style="margin-top:0.35rem;padding:0.35rem 0.6rem;background:rgba(254,243,199,0.7);border-radius:6px;font-style:italic;font-size:0.75rem;color:#78350f;">&ldquo;' + escapeHtml(lastMsg) + '&rdquo;</div>' : '';
+            alertContainer.innerHTML = '<div class="smart-alert smart-alert-warning">' +
+                '<i class="fa-solid fa-triangle-exclamation smart-alert-icon"></i>' +
+                '<div><strong>Perhatian: Prospek Pernah Membalas / Chat Balik!</strong>' +
+                '<p>Antrean otomatis dihentikan karena prospek sudah merespons. <strong>Hindari mengulang Tahap 1 (Instant Welcome)</strong> agar tidak terkesan spam atau robot.' + quoteHtml + '</p>' +
+                '<p style="margin-top:0.35rem;font-weight:600;">Direkomendasikan: Mulai dari <strong>Tahap 3 (Tanya Kendala & Konsultasi)</strong> atau chat langsung via WhatsApp.</p></div>' +
+                '</div>';
+            if (stepSection) stepSection.style.display = 'flex';
+            if (submitBtn) {
+                submitBtn.style.display = 'inline-flex';
+                submitText.textContent = 'Jadwalkan Mulai Tahap 3';
+            }
+            var rec3 = document.getElementById('recBadge3');
+            if (rec3) rec3.style.display = 'inline-block';
+            selectSmartStep(3);
+        } else if (isScheduled) {
+            // Kasus 3: Sedang memiliki antrean pending aktif
+            alertContainer.innerHTML = '<div class="smart-alert smart-alert-info">' +
+                '<i class="fa-solid fa-circle-info smart-alert-icon"></i>' +
+                '<div><strong>Kontak Sedang Memiliki Antrean Aktif</strong>' +
+                '<p>Prospek ini sedang menunggu jadwal kirim follow up. Menjadwalkan ulang akan <strong>mereset antrean pending lama</strong> dan memulai urutan baru dari tahap yang Anda pilih.</p></div>' +
+                '</div>';
+            if (stepSection) stepSection.style.display = 'flex';
+            if (submitBtn) {
+                submitBtn.style.display = 'inline-flex';
+                submitText.textContent = 'Reset & Jadwalkan Ulang Alur';
+            }
+            var rec2 = document.getElementById('recBadge2');
+            if (rec2) rec2.style.display = 'inline-block';
+            selectSmartStep(2);
+        } else {
+            // Kasus 4: Prospek Baru / Belum Terjadwal
+            alertContainer.innerHTML = '<div class="smart-alert smart-alert-neutral">' +
+                '<i class="fa-solid fa-calendar-check smart-alert-icon" style="color:#166534;"></i>' +
+                '<div><strong>Siap Dijadwalkan Alur Otomatis (6 Tahap)</strong>' +
+                '<p>Kontak ini belum memiliki antrean aktif. Sistem akan menjadwalkan alur follow-up lengkap 6 tahap mulai dari Instant Welcome (±2 menit). Antrean otomatis berhenti jika prospek membalas pesan atau lunas.</p></div>' +
+                '</div>';
+            if (stepSection) stepSection.style.display = 'flex';
+            if (submitBtn) {
+                submitBtn.style.display = 'inline-flex';
+                submitText.textContent = 'Jadwalkan Alur (6 Tahap)';
+            }
+            var rec1 = document.getElementById('recBadge1');
+            if (rec1) rec1.style.display = 'inline-block';
+            selectSmartStep(1);
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    function closeSmartScheduleModal() {
+        var modal = document.getElementById('smartScheduleModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function selectSmartStep(stepNum) {
+        stepNum = parseInt(stepNum, 10) || 1;
+        for (var i = 1; i <= 6; i++) {
+            var opt = document.getElementById('stepOpt' + i);
+            if (!opt) continue;
+            var radio = opt.querySelector('input[type=radio]');
+            if (i === stepNum) {
+                opt.classList.add('active');
+                if (radio) radio.checked = true;
+            } else {
+                opt.classList.remove('active');
+                if (radio) radio.checked = false;
+            }
+        }
+    }
+
+    // Global Loader Feedback (Anti-Freeze)
+    function showCrmLoader(title, subtitle) {
+        var loader = document.getElementById('crmGlobalLoader');
+        if (!loader) return;
+        var titleEl = document.getElementById('crmLoaderTitle');
+        var subtitleEl = document.getElementById('crmLoaderSubtitle');
+        if (titleEl && title) titleEl.textContent = title;
+        if (subtitleEl && subtitle) subtitleEl.textContent = subtitle;
+        loader.style.display = 'flex';
+    }
+
+    function hideCrmLoader() {
+        var loader = document.getElementById('crmGlobalLoader');
+        if (loader) loader.style.display = 'none';
+    }
+
+    // Tutup modal dengan tombol Escape atau klik di luar box
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeSmartScheduleModal();
+            hideSleepModal();
+        }
+    });
+
+    var smartBackdrop = document.getElementById('smartScheduleModal');
+    if (smartBackdrop) {
+        smartBackdrop.addEventListener('click', function(e) {
+            if (e.target === smartBackdrop) {
+                closeSmartScheduleModal();
+            }
+        });
+    }
+
+    // Loading Animation on Any Form Submit (Anti-Freeze Feedback) + Preserve Scroll
     document.addEventListener('submit', function(e) {
+        if (e.defaultPrevented) return;
         var form = e.target;
         if (!form || !form.closest('.crm-auto-workspace')) return;
+
         try {
             sessionStorage.setItem('crm_scroll_y', window.scrollY.toString());
         } catch (err) {}
 
-        // Debounce submit button to avoid double-clicks
+        // Tentukan pesan kontekstual berdasarkan action form
+        var actionInput = form.querySelector('input[name=action]');
+        var actionVal = actionInput ? actionInput.value : '';
+
+        var loaderTitle = 'Memproses Permintaan...';
+        var loaderSubtitle = 'Mohon tunggu sebentar, sistem sedang memperbarui data.';
+
+        if (actionVal === 'schedule_sequence') {
+            loaderTitle = 'Menjadwalkan Alur Follow-Up...';
+            loaderSubtitle = 'Sistem sedang mendaftarkan urutan pesan follow-up ke database antrean...';
+        } else if (actionVal === 'send_prospect_now') {
+            loaderTitle = 'Mengirim Pesan Segera...';
+            loaderSubtitle = 'Sistem sedang memproses pengiriman pesan follow-up...';
+        } else if (actionVal === 'toggle_finance_status') {
+            loaderTitle = 'Memperbarui Status Finance...';
+            loaderSubtitle = 'Menyinkronkan status data pembayaran prospek...';
+        } else if (actionVal === 'stop_prospect' || actionVal === 'cancel_queue') {
+            loaderTitle = 'Membatalkan Antrean...';
+            loaderSubtitle = 'Sedang menghentikan dan membersihkan jadwal pesan...';
+        } else if (actionVal === 'save_template') {
+            loaderTitle = 'Menyimpan Template...';
+            loaderSubtitle = 'Menyimpan konten dan variabel template ke database...';
+        } else if (actionVal === 'save_rule') {
+            loaderTitle = 'Menyimpan Pola Pemicu...';
+            loaderSubtitle = 'Menyimpan konfigurasi kata kunci pemicu...';
+        } else if (actionVal === 'save_sleep_settings') {
+            loaderTitle = 'Menyimpan Jam Istirahat...';
+            loaderSubtitle = 'Memperbarui konfigurasi jam istirahat malam...';
+        } else if (actionVal === 'clean_conflicts') {
+            loaderTitle = 'Membersihkan Jadwal Bentrok...';
+            loaderSubtitle = 'Menyesuaikan jadwal antrean yang bertumpuk...';
+        } else if (form.classList.contains('crm-search-form')) {
+            loaderTitle = 'Mencari Data...';
+            loaderSubtitle = 'Menyaring daftar prospek dan antrean follow-up...';
+        }
+
+        showCrmLoader(loaderTitle, loaderSubtitle);
+
+        // Debounce submit button to avoid double-clicks and animate spinner
         var submitBtn = form.querySelector('button[type=submit]');
         if (submitBtn && !submitBtn.disabled) {
             setTimeout(function() {

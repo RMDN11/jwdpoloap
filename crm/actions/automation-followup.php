@@ -238,6 +238,7 @@ switch ($action) {
             $nama = null;
         }
         $templateId = (int)($_POST['template_id'] ?? 0);
+        $startStep = max(1, min(6, (int)($_POST['start_step'] ?? 1)));
         $prospectAnchor = $nowa !== '' ? 'row-p-' . preg_replace('/\D/', '', $nowa) : null;
 
         if ($nowa === '') {
@@ -260,7 +261,7 @@ switch ($action) {
             $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
         }
 
-        $res = crmAutomationScheduleSequence($conn, $nowa, $nama, $templateId, $keyword);
+        $res = crmAutomationScheduleSequence($conn, $nowa, $nama, $templateId, $keyword, 'manual', $startStep);
         if (!empty($res['success'])) {
             $_SESSION['crm_flash'] = ['type' => 'success', 'message' => $res['message']];
         } else {

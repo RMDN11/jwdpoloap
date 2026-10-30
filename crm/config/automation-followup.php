@@ -1207,7 +1207,8 @@ function crmAutomationScheduleSequence(
     ?string $nama,
     int $startTemplateId = 0,
     string $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada',
-    string $triggerSource = 'manual'
+    string $triggerSource = 'manual',
+    int $startStep = 1
 ): array {
     crmAutomationEnsureTables($conn);
 
@@ -1356,8 +1357,8 @@ function crmAutomationScheduleSequence(
         ];
     }
 
-    // Tentukan tahap mulai jika startTemplateId dipilih atau jika dipanggil dari auto_webhook
-    $startStepNum = 1;
+    // Tentukan tahap mulai jika startStep atau startTemplateId dipilih atau jika dipanggil dari auto_webhook
+    $startStepNum = ($startStep >= 1 && $startStep <= 6) ? $startStep : 1;
     if ($startTemplateId > 0) {
         foreach ($resolvedSteps as $num => $stepData) {
             if ($stepData['template_id'] === $startTemplateId) {
@@ -1365,7 +1366,7 @@ function crmAutomationScheduleSequence(
                 break;
             }
         }
-    } elseif ($triggerSource === 'auto_webhook') {
+    } elseif ($triggerSource === 'auto_webhook' && $startStep <= 1) {
         // Karena auto-reply engine sudah membalas chat pertama secara instan (sapaan & kualifikasi),
         // tahap 1 (Instant Welcome) tidak perlu diduplikasi. Alur webhook otomatis dimulai dari Follow Up 2 (45 menit).
         $startStepNum = 2;
@@ -1435,11 +1436,12 @@ function crmAutomationScheduleSequence(
     }
 
     if ($count > 0) {
+        $startStepLabel = ($startStepNum > 1) ? " (mulai dari Tahap {$startStepNum})" : "";
         return [
             'success' => true,
             'count' => $count,
             'reason' => 'ok',
-            'message' => "Alur follow-up berhasil dijadwalkan secara berurutan untuk kontak {$nowa} ({$count} tahap pesan). Pesan pertama (Instant Welcome) akan mulai dikirim dalam ±2 menit.",
+            'message' => "Alur follow-up berhasil dijadwalkan secara berurutan untuk kontak {$nowa} ({$count} tahap pesan{$startStepLabel}). Pesan pertama akan mulai dikirim dalam ±2 menit.",
         ];
     }
 
