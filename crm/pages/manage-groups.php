@@ -24,7 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!crmVerifyCsrf($csrf)) {
         if (!empty($_POST['ajax'])) {
-            header('Content-Type: application/json');
+            while (ob_get_level() > 0) { ob_end_clean(); }
+            header('Content-Type: application/json; charset=utf-8');
             http_response_code(403);
             echo json_encode(['status' => 'error', 'message' => 'Sesi keamanan tidak valid. Muat ulang halaman lalu coba lagi.']);
             exit;
@@ -39,7 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($id <= 0) {
             if (!empty($_POST['ajax'])) {
-                header('Content-Type: application/json');
+                while (ob_get_level() > 0) { ob_end_clean(); }
+                header('Content-Type: application/json; charset=utf-8');
                 echo json_encode(['status' => 'error', 'message' => 'ID grup tidak valid.']);
                 exit;
             }
@@ -70,7 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!empty($_POST['ajax'])) {
-            header('Content-Type: application/json');
+            while (ob_get_level() > 0) { ob_end_clean(); }
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
                 'status' => $ok ? 'success' : 'error',
                 'is_active' => $newStatus,
@@ -117,8 +120,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare("UPDATE wa_grup SET is_active = ? WHERE kategori IS NULL OR TRIM(kategori) = '' OR kategori = 'Tanpa Kategori'");
             $stmt->bind_param('i', $targetStatus);
         } else {
-            $stmt = $conn->prepare("UPDATE wa_grup SET is_active = ? WHERE kategori = ?");
-            $stmt->bind_param('is', $targetStatus, $category);
+            $stmt = $conn->prepare("UPDATE wa_grup SET is_active = ? WHERE TRIM(kategori) = ? OR kategori = ?");
+            $stmt->bind_param('iss', $targetStatus, $category, $category);
         }
 
         $ok = $stmt ? $stmt->execute() : false;
@@ -126,7 +129,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt) $stmt->close();
 
         if (!empty($_POST['ajax'])) {
-            header('Content-Type: application/json');
+            while (ob_get_level() > 0) { ob_end_clean(); }
+            header('Content-Type: application/json; charset=utf-8');
             echo json_encode([
                 'status' => $ok ? 'success' : 'error',
                 'category' => $category,
@@ -584,7 +588,12 @@ $categoryCount = count($categoryStats);
     const btnCatTurnOff = document.getElementById('btnCatTurnOff');
     const btnCatTurnOn = document.getElementById('btnCatTurnOn');
     const btnCatReset = document.getElementById('btnCatReset');
-    const csrfToken = document.getElementById('groupManageCsrf')?.value || '';
+
+    function getCsrfToken() {
+        return document.getElementById('groupManageCsrf')?.value ||
+               (document.querySelector('input[name="csrf_token"]')?.value) ||
+               '';
+    }
 
     let currentFilter = 'all';
     let currentCategory = 'all';
@@ -751,7 +760,7 @@ $categoryCount = count($categoryStats);
 
         const formData = new FormData();
         formData.append('manage_group_action', 'toggle_category');
-        formData.append('csrf_token', csrfToken);
+        formData.append('csrf_token', getCsrfToken());
         formData.append('category', categoryName);
         formData.append('is_active', String(targetStatus));
         formData.append('ajax', '1');
@@ -901,7 +910,7 @@ $categoryCount = count($categoryStats);
 
         const formData = new FormData();
         formData.append('manage_group_action', 'toggle_status');
-        formData.append('csrf_token', csrfToken);
+        formData.append('csrf_token', getCsrfToken());
         formData.append('group_id', groupId);
         formData.append('ajax', '1');
 

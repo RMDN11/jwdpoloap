@@ -15,6 +15,13 @@ if (!hash_equals($expectedToken, $providedToken)) {
 
 header('Content-Type: text/plain; charset=utf-8');
 
+if (function_exists('opcache_reset')) {
+    $res = opcache_reset();
+    echo "OPcache reset: " . ($res ? "SUCCESS\n" : "FAILED\n");
+} else {
+    echo "OPcache reset: function not available\n";
+}
+
 $repoDir = dirname(__DIR__, 2);
 chdir($repoDir);
 

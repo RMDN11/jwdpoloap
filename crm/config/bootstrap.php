@@ -22,6 +22,8 @@ if (empty($_SESSION['logged_in'])) {
 
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
 
 $conn->set_charset('utf8mb4');
 
