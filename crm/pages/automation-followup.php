@@ -85,6 +85,8 @@ if ($tab === 'prospects') {
                                  OR LOWER(message) LIKE '%penguatan hafalan%'
                                  OR LOWER(message) LIKE '%tahfidz private%'
                                  OR LOWER(message) LIKE '%tanya detail program tahfidz%'
+                                 OR LOWER(message) LIKE '%ingin bergabung dengan program%'
+                                 OR LOWER(message) LIKE '%ingin bergabung%'
                                THEN message
                                ELSE NULL
                            END
@@ -98,7 +100,7 @@ if ($tab === 'prospects') {
                            WHEN LOWER(message) LIKE '%tahfidz cilik%' THEN 'cilik'
                            WHEN LOWER(message) LIKE '%menghafal pemula%' THEN 'pemula'
                            WHEN LOWER(message) LIKE '%menghafal lanjutan%' OR LOWER(message) LIKE '%penguatan hafalan%' THEN 'lanjutan'
-                           WHEN LOWER(message) LIKE '%daftar program%' OR LOWER(message) LIKE '%daftar sekarang%' THEN 'cta'
+                           WHEN LOWER(message) LIKE '%daftar program%' OR LOWER(message) LIKE '%daftar sekarang%' OR LOWER(message) LIKE '%ingin bergabung%' THEN 'cta'
                            WHEN LOWER(message) LIKE 'bismillah%perkenalkan nama saya%' OR LOWER(message) LIKE '%perkenalkan nama saya%' THEN 'form_lead'
                            WHEN LOWER(message) LIKE '%tahfidz private%' OR LOWER(message) LIKE '%tanya detail%' THEN 'hero'
                            ELSE NULL

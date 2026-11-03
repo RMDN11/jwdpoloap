@@ -186,6 +186,8 @@ def run_e2e_test(base_dir):
         'Penguatan Hafalan',
         'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada',
         'Bismillah, perkenalkan nama saya',
+        "Assalamu'alaikum Admin, saya ingin bergabung dengan program Tahfidz Private Online",
+        'ingin bergabung dengan program Tahfidz Private Online',
     ]
     for trig in lp_triggers:
         assert trig in config, f"config must seed default LP trigger: {trig}"

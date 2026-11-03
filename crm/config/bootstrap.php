@@ -67,6 +67,10 @@ $defaultTriggers = [
     ['kak, mau', 'Ekspresi Minat'],
     ['mau ikut', 'Ekspresi Minat'],
     ['minat', 'Ekspresi Minat'],
+    ['ingin bergabung dengan program', 'Tahfidz Private'],
+    ['ingin bergabung', 'Ekspresi Minat'],
+    ['tahfidz private online', 'Tahfidz Private'],
+    ['tahfidz private', 'Tahfidz Private'],
 ];
 
 $triggerSeed = $conn->prepare("INSERT IGNORE INTO crm_prospect_triggers (keyword, category) VALUES (?, ?)");

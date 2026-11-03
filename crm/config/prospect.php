@@ -76,6 +76,10 @@ function crmProspectClassifyMessage(?string $message, ?mysqli $conn = null): str
         ['keyword'=>'kak, mau','category'=>'Ekspresi Minat'],
         ['keyword'=>'mau ikut','category'=>'Ekspresi Minat'],
         ['keyword'=>'minat','category'=>'Ekspresi Minat'],
+        ['keyword'=>'ingin bergabung dengan program','category'=>'Tahfidz Private'],
+        ['keyword'=>'ingin bergabung','category'=>'Ekspresi Minat'],
+        ['keyword'=>'tahfidz private online','category'=>'Tahfidz Private'],
+        ['keyword'=>'tahfidz private','category'=>'Tahfidz Private'],
     ];
     $triggers = $conn instanceof mysqli ? crmGetProspectTriggers($conn) : $fallback;
 

@@ -46,6 +46,8 @@ $lpTriggers = [
     'Penguatan Hafalan',
     'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada',
     'Bismillah, perkenalkan nama saya',
+    'Assalamu\'alaikum Admin, saya ingin bergabung dengan program Tahfidz Private Online',
+    'ingin bergabung dengan program Tahfidz Private Online',
 ];
 foreach ($lpTriggers as $trig) {
     assert(str_contains($config, $trig), "config must seed default LP trigger: {$trig}");

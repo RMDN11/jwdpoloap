@@ -481,6 +481,27 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
             'delay' => 2,
             'cat' => 'cta',
         ],
+        [
+            'name' => 'Tahfidz Private Online (Gabung Program)',
+            'kw' => "Assalamu'alaikum Admin, saya ingin bergabung dengan program Tahfidz Private Online",
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
+            'cat' => 'general',
+        ],
+        [
+            'name' => 'Gabung Program Tahfidz Private (Keyword)',
+            'kw' => 'ingin bergabung dengan program Tahfidz Private Online',
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
+            'cat' => 'general',
+        ],
+        [
+            'name' => 'Gabung Program Tahfidz (Keyword Pendek)',
+            'kw' => 'ingin bergabung dengan program',
+            'tpl' => 'Follow Up 1 (Instant Welcome - Sapaan Akrab & Tanya Kebutuhan)',
+            'delay' => 2,
+            'cat' => 'general',
+        ],
     ];
 
     // Cek apakah pola variasi LP sudah pernah di-seed agar rule yang dihapus admin tidak muncul kembali
@@ -671,8 +692,60 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         $conn->query("INSERT INTO crm_automation_meta (meta_key, meta_value) VALUES ('schema_v4_antiban_spintax_staggering', '1') ON DUPLICATE KEY UPDATE meta_value = '1'");
     }
 
+    // Migration v5: Pemicu Format Chat Baru 'Assalamu\'alaikum Admin, saya ingin bergabung dengan program Tahfidz Private Online'
+    $metaV5 = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v5_tahfidz_private_online_trigger' LIMIT 1");
+    if (!$metaV5 || $metaV5->num_rows === 0) {
+        $newRules = [
+            [
+                'name' => 'Tahfidz Private Online (Gabung Program)',
+                'kw' => "Assalamu'alaikum Admin, saya ingin bergabung dengan program Tahfidz Private Online",
+                'cat' => 'general',
+                'delay' => 2,
+            ],
+            [
+                'name' => 'Gabung Program Tahfidz Private (Keyword)',
+                'kw' => 'ingin bergabung dengan program Tahfidz Private Online',
+                'cat' => 'general',
+                'delay' => 2,
+            ],
+            [
+                'name' => 'Gabung Program Tahfidz (Keyword Pendek)',
+                'kw' => 'ingin bergabung dengan program',
+                'cat' => 'general',
+                'delay' => 2,
+            ],
+        ];
+
+        $targetTplId = 1;
+        $tplLookup = $conn->query("SELECT id FROM crm_automation_templates WHERE name LIKE 'Follow Up 1%' ORDER BY id ASC LIMIT 1");
+        if ($tplLookup && ($rowT = $tplLookup->fetch_assoc())) {
+            $targetTplId = (int)$rowT['id'];
+        }
+
+        foreach ($newRules as $nr) {
+            $stmtCheck = $conn->prepare("SELECT id FROM crm_automation_rules WHERE trigger_keyword = ? LIMIT 1");
+            if ($stmtCheck) {
+                $stmtCheck->bind_param('s', $nr['kw']);
+                $stmtCheck->execute();
+                $exists = $stmtCheck->get_result()->fetch_assoc();
+                $stmtCheck->close();
+
+                if (!$exists) {
+                    $stmtIns = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, category, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, ?, 1)");
+                    if ($stmtIns) {
+                        $stmtIns->bind_param('sssii', $nr['name'], $nr['kw'], $nr['cat'], $targetTplId, $nr['delay']);
+                        $stmtIns->execute();
+                        $stmtIns->close();
+                    }
+                }
+            }
+        }
+
+        $conn->query("INSERT INTO crm_automation_meta (meta_key, meta_value) VALUES ('schema_v5_tahfidz_private_online_trigger', '1') ON DUPLICATE KEY UPDATE meta_value = '1'");
+    }
+
     // Fast path: jika skema dan seed sudah lengkap, hindari DDL dan query berulang pada webhook
-    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v4_antiban_spintax_staggering' LIMIT 1");
+    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v5_tahfidz_private_online_trigger' LIMIT 1");
     if ($metaEnsured && $metaEnsured->num_rows > 0) {
         $ensured = true;
         return true;
