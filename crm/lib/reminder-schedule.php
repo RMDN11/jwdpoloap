@@ -65,8 +65,9 @@ function crmEnsureReminderScheduleTables(mysqli $conn): void
         $conn->query("ALTER TABLE crm_reminder_campaign_queue ADD COLUMN template_num INT UNSIGNED NULL AFTER group_order");
     }
 
-    // Pastikan kampanye peserta aktif di hari kerja Senin-Jumat
+    // Pastikan kampanye peserta aktif di hari kerja Senin-Jumat, dan kampanye pembayaran aktif setiap hari (1-7)
     $conn->query("UPDATE crm_reminder_campaigns SET allowed_days = '1,2,3,4,5' WHERE campaign_type = 'peserta' AND (allowed_days = '1,2,3,4,5,6,7' OR allowed_days IS NULL)");
+    $conn->query("UPDATE crm_reminder_campaigns SET allowed_days = '1,2,3,4,5,6,7' WHERE campaign_type = 'pembayaran'");
 }
 
 function crmAdjustTimestampToAllowedDays(int $timestamp, array $allowedDays, int $hour = 8, int $minute = 0): int
@@ -197,7 +198,13 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
     $allowedDaysStr = implode(',', $allowedDays);
 
     $rotationTemplates = [];
-    if ($isRotating) {
+    if (!empty($params['rotation_templates']) && is_array($params['rotation_templates'])) {
+        $rotationTemplates = $params['rotation_templates'];
+        $isRotating = true;
+        if ($rotationTemplates) {
+            $templateId = (int)($rotationTemplates[0]['id'] ?? 1);
+        }
+    } elseif ($isRotating) {
         $res = $conn->query("SELECT id, name, content FROM reminder_templates WHERE name IN ('1','2','3','4','5','6') ORDER BY CAST(name AS UNSIGNED) ASC");
         if ($res) {
             while ($row = $res->fetch_assoc()) $rotationTemplates[] = $row;
@@ -439,8 +446,13 @@ function crmProcessPendingReminderQueue(mysqli $conn, string $apiUrl, string $ap
         $queueId = (int)$item['id'];
         $campaignId = (int)$item['campaign_id'];
 
-        $campAllowedStr = (string)($item['allowed_days'] ?? '1,2,3,4,5');
-        $campAllowedList = array_map('intval', explode(',', $campAllowedStr));
+        // Kampanye pembayaran aktif setiap hari (1-7), tanpa batasan hari kerja
+        if (($item['campaign_type'] ?? '') === 'pembayaran') {
+            $campAllowedList = [1, 2, 3, 4, 5, 6, 7];
+        } else {
+            $campAllowedStr = (string)($item['allowed_days'] ?? '1,2,3,4,5');
+            $campAllowedList = array_map('intval', explode(',', $campAllowedStr));
+        }
         $todayN = (int)date('N'); // 1 = Senin ... 7 = Ahad
         if ($campAllowedList && !in_array($todayN, $campAllowedList, true)) {
             // Hari ini bukan hari aktif (misal Sabtu atau Ahad), tunda ke hari aktif berikutnya
@@ -624,4 +636,168 @@ function crmGetActiveCampaigns(mysqli $conn, int $limit = 5, ?string $campaignTy
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
     return $rows;
+}
+
+/**
+ * Mengambil semua target peserta pembayaran yang cocok dengan kriteria filter (tanpa limit pagination).
+ * Digunakan untuk mode "Pilih Semua Peserta" (lintas halaman) pada antrean jadwal otomasi.
+ */
+function crmReminderGetMatchingPaymentTargets(mysqli $conn, array $filters): array
+{
+    require_once __DIR__ . '/reminder-csv.php';
+
+    $search = trim((string)($filters['q'] ?? ''));
+    $halaqohRaw = $filters['halaqoh'] ?? '';
+    $bulan = trim((string)($filters['bulan'] ?? ''));
+    $csvFile = basename(trim((string)($filters['csv_file'] ?? '')));
+    $statusBayar = (string)($filters['status_bayar'] ?? 'belum_lunas');
+    $statusPeserta = (string)($filters['status_peserta'] ?? 'proses');
+
+    $halaqohList = [];
+    if (is_array($halaqohRaw)) {
+        foreach ($halaqohRaw as $h) {
+            $ht = trim((string)$h);
+            if ($ht !== '') $halaqohList[] = $ht;
+        }
+    } elseif (is_string($halaqohRaw) && trim($halaqohRaw) !== '') {
+        foreach (explode(',', $halaqohRaw) as $h) {
+            $ht = trim($h);
+            if ($ht !== '') $halaqohList[] = $ht;
+        }
+    }
+    $halaqohList = array_values(array_unique($halaqohList));
+
+    $csvParticipantIds = [];
+    $csvTargetByPesertaId = [];
+
+    if ($csvFile !== '') {
+        try {
+            $csvRows = crmReminderCsvRead($csvFile);
+            $waMap = [];
+            $res = $conn->query("SELECT id, nowa FROM peserta WHERE nowa IS NOT NULL AND nowa <> ''");
+            if ($res) {
+                while ($p = $res->fetch_assoc()) {
+                    $norm = crmReminderCsvNormalizeWa((string)$p['nowa']);
+                    if ($norm === '') continue;
+                    if (array_key_exists($norm, $waMap)) $waMap[$norm] = 0;
+                    else $waMap[$norm] = (int)$p['id'];
+                }
+            }
+
+            foreach ($csvRows as $row) {
+                if (crmReminderCsvNormalizeStatus((string)$row['status_siswa']) !== 'ON') continue;
+                $norm = (string)$row['normalized_wa'];
+                if ($norm === '' || !array_key_exists($norm, $waMap) || $waMap[$norm] === 0) continue;
+                $pId = (int)$waMap[$norm];
+                $csvParticipantIds[$pId] = true;
+                $csvTargetByPesertaId[$pId] = [
+                    'wa' => crmReminderCsvNormalizeWa((string)$row['whatsapp_wali']),
+                    'halaqoh' => (string)($row['kelas_grup'] ?? $row['program'] ?? '')
+                ];
+            }
+        } catch (Throwable $e) {
+            error_log('crmReminderGetMatchingPaymentTargets CSV error: ' . $e->getMessage());
+            $csvParticipantIds = [];
+            $csvTargetByPesertaId = [];
+        }
+    }
+
+    $where = ["p.nowa IS NOT NULL", "p.nowa <> ''"];
+    $params = [];
+    $types = '';
+
+    if ($csvFile !== '') {
+        $ids = array_map('intval', array_keys($csvParticipantIds));
+        if (!$ids) return [];
+        $where[] = 'p.id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
+        foreach ($ids as $id) {
+            $params[] = $id;
+            $types .= 'i';
+        }
+    }
+
+    if ($search !== '') {
+        $where[] = "(p.nama_lengkap LIKE ? OR p.nowa LIKE ?)";
+        $like = '%' . $search . '%';
+        $params[] = $like;
+        $params[] = $like;
+        $types .= 'ss';
+    }
+
+    if ($halaqohList) {
+        if (count($halaqohList) === 1) {
+            $where[] = "p.halaqoh = ?";
+            $params[] = $halaqohList[0];
+            $types .= 's';
+        } else {
+            $where[] = "p.halaqoh IN (" . implode(',', array_fill(0, count($halaqohList), '?')) . ")";
+            foreach ($halaqohList as $hlItem) {
+                $params[] = $hlItem;
+                $types .= 's';
+            }
+        }
+    }
+
+    if ($statusPeserta !== '' && $statusPeserta !== 'semua') {
+        $where[] = "p.status = ?";
+        $params[] = $statusPeserta;
+        $types .= 's';
+    }
+
+    $paymentJoin = '';
+    if ($bulan !== '') {
+        $paymentJoin = " LEFT JOIN (SELECT DISTINCT peserta_id FROM pembayaran WHERE bulan_pembayaran = ?) bp ON bp.peserta_id = p.id ";
+        array_unshift($params, $bulan);
+        $types = 's' . $types;
+
+        if ($statusBayar === 'lunas') {
+            $where[] = "bp.peserta_id IS NOT NULL";
+        } elseif ($statusBayar === 'belum_lunas') {
+            $where[] = "bp.peserta_id IS NULL";
+        }
+    } elseif ($statusBayar === 'belum_lunas') {
+        $where[] = "NOT EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id)";
+    } elseif ($statusBayar === 'lunas') {
+        $where[] = "EXISTS (SELECT 1 FROM pembayaran px WHERE px.peserta_id = p.id)";
+    }
+
+    $sql = "SELECT p.id, p.nama_lengkap, p.nowa, p.halaqoh FROM peserta p {$paymentJoin} WHERE " . implode(' AND ', $where) . " ORDER BY p.halaqoh, p.nama_lengkap";
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) return [];
+
+    if ($params) {
+        $refs = [];
+        foreach ($params as $k => $v) $refs[$k] = &$params[$k];
+        call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
+    }
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $targets = [];
+    while ($row = $res->fetch_assoc()) {
+        $pId = (int)$row['id'];
+        $tWa = (string)$row['nowa'];
+        $tHal = (string)($row['halaqoh'] ?? '');
+
+        if ($csvFile !== '' && isset($csvTargetByPesertaId[$pId])) {
+            if ($csvTargetByPesertaId[$pId]['wa'] !== '') {
+                $tWa = $csvTargetByPesertaId[$pId]['wa'];
+            }
+            if ($csvTargetByPesertaId[$pId]['halaqoh'] !== '') {
+                $tHal = $csvTargetByPesertaId[$pId]['halaqoh'];
+            }
+        }
+
+        $nowaNorm = preg_replace('/\D+/', '', $tWa);
+        if ($nowaNorm === '') continue;
+        if (str_starts_with($nowaNorm, '0')) $nowaNorm = '62' . substr($nowaNorm, 1);
+
+        $targets[] = [
+            'id' => $pId,
+            'name' => trim((string)$row['nama_lengkap']) ?: 'Kak',
+            'nowa' => $nowaNorm,
+            'halaqoh' => $tHal !== '' ? $tHal : 'Umum',
+        ];
+    }
+    $stmt->close();
+    return $targets;
 }

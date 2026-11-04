@@ -17,7 +17,21 @@ if (!empty($activeCampaigns) && !empty($cronApiUrl) && !empty($cronApiToken)) {
 
 $crmTitle = 'Reminder Pembayaran';
 $search = trim((string)($_GET['q'] ?? ''));
-$halaqoh = trim((string)($_GET['halaqoh'] ?? ''));
+$halaqohRaw = $_GET['halaqoh'] ?? '';
+$halaqohSelected = [];
+if (is_array($halaqohRaw)) {
+    foreach ($halaqohRaw as $h) {
+        $ht = trim((string)$h);
+        if ($ht !== '') $halaqohSelected[] = $ht;
+    }
+} elseif (is_string($halaqohRaw) && trim($halaqohRaw) !== '') {
+    foreach (explode(',', $halaqohRaw) as $h) {
+        $ht = trim($h);
+        if ($ht !== '') $halaqohSelected[] = $ht;
+    }
+}
+$halaqohSelected = array_values(array_unique($halaqohSelected));
+$halaqoh = implode(',', $halaqohSelected);
 $bulan = trim((string)($_GET['bulan'] ?? ''));
 $csvFile = basename(trim((string)($_GET['csv_file'] ?? '')));
 $statusBayar = (string)($_GET['status_bayar'] ?? 'belum_lunas');
@@ -106,10 +120,18 @@ if ($search !== '') {
     $types .= 'ss';
 }
 
-if ($halaqoh !== '') {
-    $where[] = "p.halaqoh = ?";
-    $params[] = $halaqoh;
-    $types .= 's';
+if ($halaqohSelected) {
+    if (count($halaqohSelected) === 1) {
+        $where[] = "p.halaqoh = ?";
+        $params[] = $halaqohSelected[0];
+        $types .= 's';
+    } else {
+        $where[] = "p.halaqoh IN (" . implode(',', array_fill(0, count($halaqohSelected), '?')) . ")";
+        foreach ($halaqohSelected as $hlItem) {
+            $params[] = $hlItem;
+            $types .= 's';
+        }
+    }
 }
 
 if ($statusPeserta !== '' && $statusPeserta !== 'semua') {
@@ -285,13 +307,14 @@ $formatReminderHistory = static function (int $count, ?string $lastAt): string {
     return $count . 'x · ' . $date;
 };
 
-$buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, $bulan, $csvFile, $statusBayar, $statusPeserta): string {
+$buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh = null) use ($search, $halaqoh, $bulan, $csvFile, $statusBayar, $statusPeserta): string {
     $queryArgs = [
         'page' => 'reminder-pembayaran',
         'p' => $targetPage,
     ];
     if ($search !== '') $queryArgs['q'] = $search;
-    if ($halaqoh !== '') $queryArgs['halaqoh'] = $halaqoh;
+    $targetHal = $customHalaqoh !== null ? $customHalaqoh : $halaqoh;
+    if ($targetHal !== '') $queryArgs['halaqoh'] = $targetHal;
     if ($bulan !== '') $queryArgs['bulan'] = $bulan;
     if ($csvFile !== '') $queryArgs['csv_file'] = $csvFile;
     if ($statusBayar !== '') $queryArgs['status_bayar'] = $statusBayar;
@@ -442,6 +465,33 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                     <?php endif; ?>
                 </div>
 
+                <?php if ($halaqohList): ?>
+                    <div class="reminder-halaqoh-bar" style="display:flex;align-items:center;gap:6px;overflow-x:auto;padding:8px 0;margin-bottom:10px;scrollbar-width:thin">
+                        <span style="font-size:11px;font-weight:700;color:#65756d;white-space:nowrap">
+                            <i class="fa-solid fa-graduation-cap" style="color:#168044"></i> Pilih Halaqoh:
+                        </span>
+                        <a href="<?= htmlspecialchars($buildPaginationUrl(1, '')) ?>" class="reminder-quick-chip <?= empty($halaqohSelected) ? 'active' : '' ?>" style="white-space:nowrap">
+                            Semua halaqoh
+                        </a>
+                        <?php foreach (array_slice($halaqohList, 0, 15) as $hItem): ?>
+                            <?php
+                            $isActive = in_array($hItem, $halaqohSelected, true);
+                            $toggled = $halaqohSelected;
+                            if ($isActive) {
+                                $toggled = array_values(array_diff($toggled, [$hItem]));
+                            } else {
+                                $toggled[] = $hItem;
+                            }
+                            $toggledStr = implode(',', $toggled);
+                            $chipUrl = $buildPaginationUrl(1, $toggledStr);
+                            ?>
+                            <a href="<?= htmlspecialchars($chipUrl) ?>" class="reminder-quick-chip <?= $isActive ? 'active' : '' ?>" style="white-space:nowrap">
+                                <?= $isActive ? '✓ ' : '' ?><?= htmlspecialchars($hItem) ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+
                 <form class="reminder-filters reminder-filter-box" method="get">
                     <input type="hidden" name="page" value="reminder-pembayaran">
 
@@ -478,11 +528,16 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                     </label>
 
                     <label>
-                        <span>Halaqoh</span>
+                        <span>Halaqoh <?= count($halaqohSelected) > 1 ? '(' . count($halaqohSelected) . ' terpilih)' : '' ?></span>
                         <select name="halaqoh">
                             <option value="">Semua halaqoh</option>
+                            <?php if (count($halaqohSelected) > 1): ?>
+                                <option value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>" selected>
+                                    Multi-Halaqoh (<?= count($halaqohSelected) ?> dipilih: <?= htmlspecialchars(implode(', ', array_slice($halaqohSelected, 0, 2))) ?>...)
+                                </option>
+                            <?php endif; ?>
                             <?php foreach ($halaqohList as $item): ?>
-                                <option value="<?= htmlspecialchars($item) ?>" <?= $halaqoh === $item ? 'selected' : '' ?>><?= htmlspecialchars($item) ?></option>
+                                <option value="<?= htmlspecialchars($item) ?>" <?= (count($halaqohSelected) === 1 && $halaqohSelected[0] === $item) ? 'selected' : '' ?>><?= htmlspecialchars($item) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </label>
@@ -523,6 +578,23 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                                 <i class="fa-solid fa-xmark"></i> Batal pilih
                             </button>
                             <span>Halaman <?= $pageNumber ?> dari <?= $totalPages ?> (<?= count($participants) ?> dari <?= $totalPeserta ?> peserta)</span>
+                        </div>
+                    </div>
+
+                    <div id="reminderSelectAllMatchingBanner" class="reminder-select-matching-banner" style="display:none">
+                        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:9px 14px;background:#fefce8;border:1px solid #fde047;border-radius:10px;margin:8px 0 12px;font-size:12px;color:#854d0e">
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <i class="fa-solid fa-circle-info" style="color:#ca8a04"></i>
+                                <span id="selectAllMatchingText"><?= count($participants) ?> peserta di halaman ini telah dipilih.</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <button type="button" id="selectAllMatchingBtn" style="background:#ca8a04;color:#fff;border:0;border-radius:7px;padding:6px 12px;font-weight:700;font-size:11px;cursor:pointer">
+                                    Pilih semua <?= (int)$totalPeserta ?> peserta yang cocok (semua halaman)
+                                </button>
+                                <button type="button" id="clearSelectAllMatchingBtn" style="display:none;background:#fff;color:#854d0e;border:1px solid #ca8a04;border-radius:7px;padding:6px 12px;font-weight:700;font-size:11px;cursor:pointer">
+                                    Batalkan seleksi semua
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -616,6 +688,7 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
                 <input type="hidden" name="mode" value="participants">
                 <input type="hidden" name="selected" id="reminderSelectedInput" value="[]">
+                <input type="hidden" name="select_all_matching" id="reminderSelectAllMatchingInput" value="0">
                 <input type="hidden" name="p" value="<?= (int)$pageNumber ?>">
                 <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
                 <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
@@ -684,6 +757,7 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
             <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
             <input type="hidden" name="action" value="create">
             <input type="hidden" name="selected" id="reminderScheduleSelectedInput" value="[]">
+            <input type="hidden" name="select_all_matching" id="scheduleSelectAllMatchingInput" value="0">
             <input type="hidden" name="p" value="<?= (int)$pageNumber ?>">
             <input type="hidden" name="q" value="<?= htmlspecialchars($search, ENT_QUOTES) ?>">
             <input type="hidden" name="bulan" value="<?= htmlspecialchars($bulan, ENT_QUOTES) ?>">
@@ -699,6 +773,20 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                 </label>
 
                 <div class="reminder-field">
+                    <span>Mode Template</span>
+                    <div style="display:flex;gap:14px;align-items:center;margin:6px 0;flex-wrap:wrap">
+                        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700">
+                            <input type="radio" name="template_mode" value="single" checked style="accent-color:#168044">
+                            1 Template Tunggal
+                        </label>
+                        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700">
+                            <input type="radio" name="template_mode" value="rolling" style="accent-color:#168044">
+                            🔄 Rotasi Rolling S-1 s/d S-10 (Bisa Dipilih)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="reminder-field" id="scheduleSingleTemplateBox">
                     <span>Template Pesan</span>
                     <select name="template_id" id="scheduleTemplateSelect" required>
                         <option value="">Pilih template...</option>
@@ -708,6 +796,40 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
                             </option>
                         <?php endforeach; ?>
                     </select>
+                </div>
+
+                <div class="reminder-field" id="scheduleRollingTemplateBox" style="display:none;background:#f8fbf9;border:1px solid #dcebe1;border-radius:12px;padding:12px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                        <span style="font-size:11px;font-weight:800;color:#166534">
+                            <i class="fa-solid fa-shuffle"></i> Pilih Template yang Dirotasi (S-1 s/d S-10)
+                        </span>
+                        <div style="display:flex;gap:6px">
+                            <button type="button" id="scheduleRollingSelectAll" style="background:#fff;border:1px solid #cbd5e1;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer">Pilih Semua</button>
+                            <button type="button" id="scheduleRollingReset" style="background:#fff;border:1px solid #cbd5e1;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer">Reset</button>
+                        </div>
+                    </div>
+                    <div style="display:grid;gap:6px;max-height:180px;overflow-y:auto;padding-right:4px">
+                        <?php
+                        $tplLimit = min(10, count($templates));
+                        for ($tIdx = 0; $tIdx < $tplLimit; $tIdx++):
+                            $tItem = $templates[$tIdx];
+                            $slotName = 'S-' . ($tIdx + 1);
+                        ?>
+                            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:11px">
+                                <input type="checkbox" name="rolling_templates[]" value="<?= (int)$tItem['id'] ?>" class="schedule-rolling-check" checked style="accent-color:#168044">
+                                <span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:6px;font-weight:800;font-size:10px"><?= $slotName ?></span>
+                                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<?= htmlspecialchars($tItem['title']) ?>">
+                                    <?= htmlspecialchars($tItem['title']) ?>
+                                </span>
+                            </label>
+                        <?php endfor; ?>
+                        <?php if ($tplLimit === 0): ?>
+                            <div style="color:#64748b;font-size:11px;text-align:center;padding:10px">Belum ada template pada wa_templates.</div>
+                        <?php endif; ?>
+                    </div>
+                    <small style="color:#64748b;font-size:10px;display:block;margin-top:6px">
+                        Pesan akan otomatis dirotasi bergantian (S-1, S-2, S-3...) antar peserta dalam tiap halaqoh agar terhindar dari deteksi spam/banned WhatsApp.
+                    </small>
                 </div>
 
                 <div style="background:#f8fbf9;border:1px solid #dcebe1;border-radius:14px;padding:14px">
@@ -822,6 +944,15 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
     const template = document.getElementById('reminderTemplate');
     const preview = document.getElementById('reminderPreview');
 
+    const totalPesertaCount = <?= (int)$totalPeserta ?>;
+    let selectAllMatching = false;
+    const matchingBanner = document.getElementById('reminderSelectAllMatchingBanner');
+    const matchingText = document.getElementById('selectAllMatchingText');
+    const selectAllMatchingBtn = document.getElementById('selectAllMatchingBtn');
+    const clearSelectAllMatchingBtn = document.getElementById('clearSelectAllMatchingBtn');
+    const reminderSelectAllMatchingInput = document.getElementById('reminderSelectAllMatchingInput');
+    const scheduleSelectAllMatchingInput = document.getElementById('scheduleSelectAllMatchingInput');
+
     const scheduleBtn = document.getElementById('openScheduleModalBtn');
     const scheduleModal = document.getElementById('reminderScheduleModal');
     const closeScheduleModal = document.getElementById('closeReminderScheduleModal');
@@ -834,6 +965,13 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
     const scheduleStartDatetime = document.getElementById('scheduleStartDatetime');
     const scheduleCounts = [...document.querySelectorAll('.scheduleSelectedCount')];
     const startTypeRadios = [...document.querySelectorAll('input[name="start_type"]')];
+
+    const templateModeRadios = [...document.querySelectorAll('input[name="template_mode"]')];
+    const singleTplBox = document.getElementById('scheduleSingleTemplateBox');
+    const rollingTplBox = document.getElementById('scheduleRollingTemplateBox');
+    const rollingSelectAllBtn = document.getElementById('scheduleRollingSelectAll');
+    const rollingResetBtn = document.getElementById('scheduleRollingReset');
+    const rollingChecks = [...document.querySelectorAll('.schedule-rolling-check')];
 
     let activePreviewTarget = null;
 
@@ -848,22 +986,26 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
 
     function updateScheduleEstimation() {
         const items = selected();
-        const countVal = items.length;
+        const countVal = selectAllMatching ? totalPesertaCount : items.length;
         scheduleCounts.forEach(el => el.textContent = countVal);
 
         const groups = {};
-        items.forEach(it => {
-            const h = it.halaqoh || 'Umum';
-            groups[h] = (groups[h] || 0) + 1;
-        });
-        const numGroups = Object.keys(groups).length;
+        if (selectAllMatching) {
+            groups['Multi-Halaqoh'] = countVal;
+        } else {
+            items.forEach(it => {
+                const h = it.halaqoh || 'Umum';
+                groups[h] = (groups[h] || 0) + 1;
+            });
+        }
+        const numGroups = Math.max(1, Object.keys(groups).length);
 
         const elTargets = document.getElementById('scheduleEstimateTargets');
         const elHalaqoh = document.getElementById('scheduleEstimateHalaqoh');
         const elDuration = document.getElementById('scheduleEstimateDuration');
         const elEndTime = document.getElementById('scheduleEstimateEndTime');
 
-        if (elTargets) elTargets.textContent = countVal + ' orang';
+        if (elTargets) elTargets.textContent = countVal + ' orang' + (selectAllMatching ? ' (semua)' : '');
         if (elHalaqoh) elHalaqoh.textContent = numGroups + ' grup halaqoh';
 
         if (countVal === 0) {
@@ -921,23 +1063,65 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
 
     function refresh() {
         const items = selected();
-        count.textContent = items.length + ' dipilih';
-        sendCount.textContent = items.length;
+        if (selectAllMatching) {
+            count.textContent = totalPesertaCount + ' dipilih (semua)';
+            sendCount.textContent = totalPesertaCount;
+            scheduleCounts.forEach(el => el.textContent = totalPesertaCount);
+            if (reminderSelectAllMatchingInput) reminderSelectAllMatchingInput.value = '1';
+            if (scheduleSelectAllMatchingInput) scheduleSelectAllMatchingInput.value = '1';
+        } else {
+            count.textContent = items.length + ' dipilih';
+            sendCount.textContent = items.length;
+            scheduleCounts.forEach(el => el.textContent = items.length);
+            if (reminderSelectAllMatchingInput) reminderSelectAllMatchingInput.value = '0';
+            if (scheduleSelectAllMatchingInput) scheduleSelectAllMatchingInput.value = '0';
+        }
+
         input.value = JSON.stringify(items);
         if (all) all.checked = checks.length > 0 && items.length === checks.length;
-        if (clearBtn) clearBtn.style.display = items.length > 0 ? 'inline-flex' : 'none';
+        if (clearBtn) clearBtn.style.display = (items.length > 0 || selectAllMatching) ? 'inline-flex' : 'none';
+
+        if (matchingBanner) {
+            if (all && all.checked && totalPesertaCount > checks.length) {
+                matchingBanner.style.display = 'block';
+                if (selectAllMatching) {
+                    if (matchingText) matchingText.textContent = 'Seluruh ' + totalPesertaCount + ' peserta (semua halaman) telah dipilih.';
+                    if (selectAllMatchingBtn) selectAllMatchingBtn.style.display = 'none';
+                    if (clearSelectAllMatchingBtn) clearSelectAllMatchingBtn.style.display = 'inline-block';
+                } else {
+                    if (matchingText) matchingText.textContent = items.length + ' peserta di halaman ini telah dipilih.';
+                    if (selectAllMatchingBtn) selectAllMatchingBtn.style.display = 'inline-block';
+                    if (clearSelectAllMatchingBtn) clearSelectAllMatchingBtn.style.display = 'none';
+                }
+            } else if (!selectAllMatching) {
+                matchingBanner.style.display = 'none';
+            }
+        }
+
         updatePersonalizedPreview();
         updateScheduleEstimation();
     }
 
+    selectAllMatchingBtn?.addEventListener('click', () => {
+        selectAllMatching = true;
+        refresh();
+    });
+
+    clearSelectAllMatchingBtn?.addEventListener('click', () => {
+        selectAllMatching = false;
+        refresh();
+    });
+
     checks.forEach(x => x.addEventListener('change', () => {
         if (x.checked) activePreviewTarget = x;
+        selectAllMatching = false;
         refresh();
     }));
 
     all?.addEventListener('change', () => {
         checks.forEach(x => x.checked = all.checked);
         if (all.checked && checks.length > 0) activePreviewTarget = checks[0];
+        selectAllMatching = false;
         refresh();
     });
 
@@ -945,6 +1129,8 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
         checks.forEach(x => x.checked = false);
         if (all) all.checked = false;
         activePreviewTarget = null;
+        selectAllMatching = false;
+        if (matchingBanner) matchingBanner.style.display = 'none';
         refresh();
     });
 
@@ -1011,10 +1197,20 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
 
     form?.addEventListener('submit', event => {
         const items = selected();
+        const effectiveCount = selectAllMatching ? totalPesertaCount : items.length;
 
-        if (!items.length) {
+        if (!effectiveCount) {
             event.preventDefault();
             alert('Pilih minimal satu peserta terlebih dahulu.');
+            return;
+        }
+
+        if (selectAllMatching || effectiveCount > 20) {
+            event.preventDefault();
+            const proceed = confirm('⚠️ PROTEKSI ANTI-BANNED WHATSAPP:\n\nAnda memilih ' + effectiveCount + ' peserta. Mengirim pesan massal secara instan tanpa jeda sangat berisiko membuat nomor WhatsApp Anda DIBLOKIR/BANNED!\n\nDisarankan menggunakan tombol "Atur Jadwal Otomasi" agar pesan terkirim dengan jeda aman bertahap (2 menit per nomor).\n\nKlik OK untuk beralih ke "Atur Jadwal Otomasi" sekarang, atau Cancel untuk membatalkan.');
+            if (proceed) {
+                openScheduleManager();
+            }
             return;
         }
 
@@ -1024,7 +1220,7 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
             return;
         }
 
-        if (!confirm('Kirim reminder ke ' + items.length + ' peserta sekarang?')) {
+        if (!confirm('Kirim reminder ke ' + effectiveCount + ' peserta sekarang?')) {
             event.preventDefault();
             return;
         }
@@ -1038,7 +1234,8 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
 
     function openScheduleManager() {
         const items = selected();
-        if (!items.length) {
+        const effectiveCount = selectAllMatching ? totalPesertaCount : items.length;
+        if (!effectiveCount) {
             alert('Pilih minimal satu peserta terlebih dahulu.');
             return;
         }
@@ -1082,19 +1279,44 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
         });
     });
 
+    templateModeRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            const isRolling = radio.value === 'rolling' && radio.checked;
+            if (singleTplBox) singleTplBox.style.display = isRolling ? 'none' : 'block';
+            if (rollingTplBox) rollingTplBox.style.display = isRolling ? 'block' : 'none';
+            if (scheduleTemplateSelect) scheduleTemplateSelect.required = !isRolling;
+        });
+    });
+
+    rollingSelectAllBtn?.addEventListener('click', () => {
+        rollingChecks.forEach(ch => ch.checked = true);
+    });
+    rollingResetBtn?.addEventListener('click', () => {
+        rollingChecks.forEach(ch => ch.checked = false);
+    });
+
     scheduleDelayMessage?.addEventListener('input', updateScheduleEstimation);
     scheduleDelayHalaqoh?.addEventListener('input', updateScheduleEstimation);
     scheduleStartDatetime?.addEventListener('input', updateScheduleEstimation);
 
     scheduleForm?.addEventListener('submit', event => {
         const items = selected();
-        if (!items.length) {
+        const effectiveCount = selectAllMatching ? totalPesertaCount : items.length;
+        if (!effectiveCount) {
             event.preventDefault();
             alert('Pilih minimal satu peserta terlebih dahulu.');
             return;
         }
 
-        if (!scheduleTemplateSelect?.value) {
+        const isRollingMode = document.querySelector('input[name="template_mode"]:checked')?.value === 'rolling';
+        if (isRollingMode) {
+            const checkedRolling = document.querySelectorAll('.schedule-rolling-check:checked');
+            if (!checkedRolling.length) {
+                event.preventDefault();
+                alert('Pilih minimal satu template untuk rotasi rolling.');
+                return;
+            }
+        } else if (!scheduleTemplateSelect?.value) {
             event.preventDefault();
             alert('Pilih template reminder terlebih dahulu.');
             return;
@@ -1104,7 +1326,7 @@ $buildPaginationUrl = static function (int $targetPage) use ($search, $halaqoh, 
             scheduleSelectedInput.value = JSON.stringify(items);
         }
 
-        if (!confirm('Jadwalkan pengiriman reminder bertahap untuk ' + items.length + ' peserta?')) {
+        if (!confirm('Jadwalkan pengiriman reminder bertahap untuk ' + effectiveCount + ' peserta?')) {
             event.preventDefault();
             return;
         }

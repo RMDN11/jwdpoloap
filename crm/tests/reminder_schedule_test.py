@@ -22,7 +22,8 @@ def test_schema_and_library_functions(base_dir):
         "crmCreateReminderCampaign",
         "crmProcessPendingReminderQueue",
         "crmUpdateCampaignStatus",
-        "crmGetActiveCampaigns"
+        "crmGetActiveCampaigns",
+        "crmReminderGetMatchingPaymentTargets"
     ]
     for func in required_funcs:
         if f"function {func}" not in content:
@@ -54,6 +55,12 @@ def test_schedule_actions_and_cron(base_dir):
     if "create_campaign" not in act_content and "create" not in act_content:
         raise AssertionError("crm/actions/reminder-schedule.php must handle campaign creation")
 
+    if "select_all_matching" not in act_content:
+        raise AssertionError("crm/actions/reminder-schedule.php must support select_all_matching mode")
+
+    if "rolling_templates" not in act_content and "rotation_templates" not in act_content:
+        raise AssertionError("crm/actions/reminder-schedule.php must support rolling/rotation templates")
+
     with open(cron_path, "r", encoding="utf-8") as f:
         cron_content = f.read()
 
@@ -73,9 +80,18 @@ def test_ui_schedule_modal_and_filters(base_dir):
     if "reminderScheduleModal" not in content:
         raise AssertionError("crm/pages/reminder-pembayaran.php must render schedule modal (#reminderScheduleModal)")
 
-    for field in ["delay_message", "delay_halaqoh", "start_type"]:
+    for field in ["delay_message", "delay_halaqoh", "start_type", "template_mode"]:
         if f'name="{field}"' not in content:
             raise AssertionError(f"Schedule modal missing field: {field}")
+
+    if "scheduleRollingTemplateBox" not in content or "S-1" not in content:
+        raise AssertionError("crm/pages/reminder-pembayaran.php must render rolling template selector (S-1 s/d S-10)")
+
+    if "reminderSelectAllMatchingBanner" not in content or "selectAllMatchingBtn" not in content:
+        raise AssertionError("crm/pages/reminder-pembayaran.php must render two-tier select all matching banner")
+
+    if "reminder-halaqoh-bar" not in content:
+        raise AssertionError("crm/pages/reminder-pembayaran.php must render multi-halaqoh selection bar (.reminder-halaqoh-bar)")
 
     if "reminder-campaign-card" not in content and "reminder-campaigns" not in content:
         raise AssertionError("crm/pages/reminder-pembayaran.php must render active campaigns monitor")

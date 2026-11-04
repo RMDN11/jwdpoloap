@@ -65,9 +65,46 @@ if (!in_array($campaignType, ['pembayaran', 'peserta'], true)) {
     $campaignType = 'pembayaran';
 }
 
+$templateMode = (string)($_POST['template_mode'] ?? 'single');
 $rawTemplateId = (string)($_POST['template_id'] ?? '');
-$isRotating = ($rawTemplateId === 'rotate_1_6');
-$templateId = $isRotating ? 15 : (int)$rawTemplateId;
+$isRotating = ($rawTemplateId === 'rotate_1_6') || ($rawTemplateId === 'rotate_custom') || ($templateMode === 'rolling');
+$rotationTemplates = [];
+
+if ($isRotating && $campaignType === 'pembayaran') {
+    $rollingIds = array_map('intval', (array)($_POST['rolling_templates'] ?? []));
+    $rollingIds = array_values(array_filter($rollingIds, static fn($id) => $id > 0));
+    if ($rollingIds) {
+        $ph = implode(',', array_fill(0, count($rollingIds), '?'));
+        $types = str_repeat('i', count($rollingIds));
+        $fieldOrder = implode(',', $rollingIds);
+        $stmt = $conn->prepare("SELECT id, title AS name, content FROM wa_templates WHERE id IN ({$ph}) ORDER BY FIELD(id, {$fieldOrder})");
+        if ($stmt) {
+            $refs = [];
+            foreach ($rollingIds as $k => $v) $refs[$k] = &$rollingIds[$k];
+            call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
+            $stmt->execute();
+            $res = $stmt->get_result();
+            while ($row = $res->fetch_assoc()) {
+                $rotationTemplates[] = $row;
+            }
+            $stmt->close();
+        }
+    }
+    if (!$rotationTemplates) {
+        $res = $conn->query("SELECT id, title AS name, content FROM wa_templates ORDER BY id ASC LIMIT 10");
+        if ($res) {
+            while ($row = $res->fetch_assoc()) $rotationTemplates[] = $row;
+        }
+    }
+    if ($rotationTemplates) {
+        $templateId = (int)$rotationTemplates[0]['id'];
+    } else {
+        $templateId = 0;
+    }
+} else {
+    $templateId = ($rawTemplateId === 'rotate_1_6') ? 15 : (int)$rawTemplateId;
+}
+
 if ($templateId <= 0 && !$isRotating) {
     $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Template reminder belum dipilih.'];
     header('Location: ' . $redirectUrl);
@@ -86,8 +123,8 @@ $interMessageDelay = $delayMsgMin * 60;
 $delayHalMin = max(1, (int)($_POST['delay_halaqoh'] ?? 15));
 $interGroupDelay = $delayHalMin * 60;
 
-// Allowed days of week (1=Mon ... 7=Sun, default: Senin - Jumat)
-$allowedDays = $_POST['allowed_days'] ?? [1, 2, 3, 4, 5];
+// Allowed days of week (1=Mon ... 7=Sun, default: semua hari 1-7 untuk pembayaran, 1-5 untuk peserta)
+$allowedDays = $_POST['allowed_days'] ?? ($campaignType === 'peserta' ? [1, 2, 3, 4, 5] : [1, 2, 3, 4, 5, 6, 7]);
 $scheduleDays = max(1, min(14, (int)($_POST['schedule_days'] ?? 1)));
 
 $startType = (string)($_POST['start_type'] ?? 'now');
@@ -149,7 +186,19 @@ if ($campaignType === 'peserta') {
     }
 } else {
     // campaign_type === 'pembayaran'
-    if (is_array($raw)) {
+    $selectAllMatching = !empty($_POST['select_all_matching']) && (string)$_POST['select_all_matching'] === '1';
+
+    if ($selectAllMatching) {
+        $filters = [
+            'q' => trim((string)($_POST['q'] ?? '')),
+            'halaqoh' => $_POST['halaqoh'] ?? '',
+            'bulan' => trim((string)($_POST['bulan'] ?? '')),
+            'csv_file' => basename(trim((string)($_POST['csv_file'] ?? ''))),
+            'status_peserta' => (string)($_POST['status_peserta'] ?? 'proses'),
+            'status_bayar' => (string)($_POST['status_bayar'] ?? 'belum_lunas'),
+        ];
+        $targets = crmReminderGetMatchingPaymentTargets($conn, $filters);
+    } elseif (is_array($raw)) {
         $selectedIds = [];
         foreach ($raw as $item) {
             $id = (int)($item['id'] ?? 0);
@@ -259,6 +308,7 @@ try {
         'campaign_type' => $campaignType,
         'template_id' => $templateId,
         'is_rotating' => $isRotating,
+        'rotation_templates' => $rotationTemplates,
         'bulan' => $bulan,
         'inter_message_delay' => $interMessageDelay,
         'inter_group_delay' => $interGroupDelay,

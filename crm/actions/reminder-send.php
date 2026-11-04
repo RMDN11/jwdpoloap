@@ -42,8 +42,21 @@ if($mode==='request'){
     $stmt->bind_param('i',$requestId);$stmt->execute();$row=$stmt->get_result()->fetch_assoc();$stmt->close();
     if($row)$targets[]=['name'=>(string)$row['peserta_nama'],'nowa'=>(string)$row['peserta_nowa'],'halaqoh'=>(string)($row['halaqoh']??''),'request_id'=>$requestId];
 }else{
-    $raw=json_decode((string)($_POST['selected']??'[]'),true);
-    if(is_array($raw)){
+    $selectAllMatching = !empty($_POST['select_all_matching']) && (string)$_POST['select_all_matching'] === '1';
+    if ($selectAllMatching) {
+        require_once __DIR__ . '/../lib/reminder-schedule.php';
+        $filters = [
+            'q' => trim((string)($_POST['q'] ?? '')),
+            'halaqoh' => $_POST['halaqoh'] ?? '',
+            'bulan' => trim((string)($_POST['bulan'] ?? '')),
+            'csv_file' => basename(trim((string)($_POST['csv_file'] ?? ''))),
+            'status_peserta' => (string)($_POST['status_peserta'] ?? 'proses'),
+            'status_bayar' => (string)($_POST['status_bayar'] ?? 'belum_lunas'),
+        ];
+        $targets = crmReminderGetMatchingPaymentTargets($conn, $filters);
+    } else {
+        $raw=json_decode((string)($_POST['selected']??'[]'),true);
+        if(is_array($raw)){
         $selectedIds=[];
         foreach($raw as $item){ $id=(int)($item['id']??0); if($id>0)$selectedIds[$id]=true; }
 
@@ -148,6 +161,12 @@ if($mode==='request'){
 }
 if(!$targets){
     $_SESSION['crm_flash']=['type'=>'error','message'=>'Tidak ada target reminder yang valid.'];
+    header('Location: '.$redirectUrl);
+    exit;
+}
+
+if(count($targets) > 20){
+    $_SESSION['crm_flash']=['type'=>'error','message'=>'Proteksi Anti-Banned: Mengirim lebih dari 20 pesan sekaligus secara instan sangat berisiko membuat nomor WhatsApp diblokir. Harap gunakan tombol "Atur Jadwal Otomasi" agar pesan terkirim bertahap dengan jeda aman.'];
     header('Location: '.$redirectUrl);
     exit;
 }
