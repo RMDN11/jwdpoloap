@@ -305,21 +305,17 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
     $campaignId = (int)$stmt->insert_id;
     $stmt->close();
 
-    // Inisialisasi nomor template awal untuk tiap peserta
-    // Jika peserta sudah pernah dapat template X di hari sebelumnya, otomatis mulai dari X+1
-    // Jika belum pernah, beri template bergantian (1, 2, 3, 4, 5, 6, 1...) agar antar peserta beda pesan
+    // Template awal tiap peserta: dibagi bergantian di antara template yang DIPILIH
+    // (posisi 1..N pada $rotationTemplates), tidak lagi memakai riwayat kampanye lama
+    // yang nomor slotnya berasal dari set template berbeda.
     $participantBaseTpl = [];
     $pIdx = 0;
+    $rotCount = count($rotationTemplates);
     foreach ($grouped as $halName => $recipients) {
         foreach ($recipients as $recipient) {
             $key = $recipient['nowa'];
             if (!isset($participantBaseTpl[$key])) {
-                $lastNum = crmReminderGetLastTemplateNum($conn, $recipient['nowa'], $recipient['id']);
-                if ($lastNum > 0 && !empty($rotationTemplates)) {
-                    $participantBaseTpl[$key] = ($lastNum % count($rotationTemplates)) + 1;
-                } else {
-                    $participantBaseTpl[$key] = (!empty($rotationTemplates)) ? (($pIdx % count($rotationTemplates)) + 1) : 1;
-                }
+                $participantBaseTpl[$key] = $rotCount > 0 ? (($pIdx % $rotCount) + 1) : 1;
                 $pIdx++;
             }
         }

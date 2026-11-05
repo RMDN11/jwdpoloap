@@ -781,7 +781,7 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
                         </label>
                         <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700">
                             <input type="radio" name="template_mode" value="rolling" style="accent-color:#168044">
-                            🔄 Rotasi Rolling S-1 s/d S-10 (Bisa Dipilih)
+                            🔄 Rotasi Rolling (Pilih Template)
                         </label>
                     </div>
                 </div>
@@ -801,7 +801,7 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
                 <div class="reminder-field" id="scheduleRollingTemplateBox" style="display:none;background:#f8fbf9;border:1px solid #dcebe1;border-radius:12px;padding:12px">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
                         <span style="font-size:11px;font-weight:800;color:#166534">
-                            <i class="fa-solid fa-shuffle"></i> Pilih Template yang Dirotasi (S-1 s/d S-10)
+                            <i class="fa-solid fa-shuffle"></i> Pilih Template yang Dirotasi
                         </span>
                         <div style="display:flex;gap:6px">
                             <button type="button" id="scheduleRollingSelectAll" style="background:#fff;border:1px solid #cbd5e1;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer">Pilih Semua</button>
@@ -810,7 +810,7 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
                     </div>
                     <div style="display:grid;gap:6px;max-height:180px;overflow-y:auto;padding-right:4px">
                         <?php
-                        $tplLimit = min(10, count($templates));
+                        $tplLimit = count($templates);
                         for ($tIdx = 0; $tIdx < $tplLimit; $tIdx++):
                             $tItem = $templates[$tIdx];
                             $slotName = 'S-' . ($tIdx + 1);
@@ -907,9 +907,20 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
                     <button type="button" class="edit-reminder-template" data-id="<?= (int)$tpl['id'] ?>" data-category="<?= htmlspecialchars($tpl['category'], ENT_QUOTES) ?>" data-title="<?= htmlspecialchars($tpl['title'], ENT_QUOTES) ?>" data-content="<?= htmlspecialchars($tpl['content'], ENT_QUOTES) ?>" style="border:1px solid #dbe3ea;background:#fff;border-radius:9px;padding:7px 10px;cursor:pointer">
                         Edit
                     </button>
+                    <button type="button" class="delete-reminder-template" data-id="<?= (int)$tpl['id'] ?>" data-title="<?= htmlspecialchars($tpl['title'], ENT_QUOTES) ?>" style="border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:9px;padding:7px 10px;cursor:pointer">
+                        Hapus
+                    </button>
                 </div>
             <?php endforeach; ?>
         </div>
+
+        <form method="post" action="actions/reminder-template-delete.php" id="reminderTemplateDeleteForm" style="display:none">
+            <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
+            <input type="hidden" name="template_id" id="reminderTemplateDeleteId" value="">
+            <input type="hidden" name="return_query" value="<?= htmlspecialchars(http_build_query(array_filter([
+                'page'=>'reminder-pembayaran','q'=>$search,'bulan'=>$bulan,'csv_file'=>$csvFile,'halaqoh'=>$halaqoh,'status_peserta'=>$statusPeserta,'status_bayar'=>$statusBayar
+            ], static fn($v) => $v !== '')), ENT_QUOTES) ?>">
+        </form>
 
         <form method="post" action="actions/reminder-template-save.php" id="reminderTemplateForm">
             <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
@@ -1167,6 +1178,8 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
             templateCategory.value = edit.category || '';
             templateTitle.value = edit.title || '';
             templateContent.value = edit.content || '';
+            templateForm.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+            templateTitle.focus();
         } else {
             document.getElementById('templateModalTitle').textContent = 'Tambah template';
             templateForm.reset();
@@ -1193,6 +1206,14 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
             title: button.dataset.title,
             content: button.dataset.content
         }));
+    });
+
+    document.querySelectorAll('.delete-reminder-template').forEach(button => {
+        button.addEventListener('click', () => {
+            if (!confirm('Hapus template "' + (button.dataset.title || '') + '"? Tindakan ini tidak bisa dibatalkan.')) return;
+            document.getElementById('reminderTemplateDeleteId').value = button.dataset.id;
+            document.getElementById('reminderTemplateDeleteForm').submit();
+        });
     });
 
     form?.addEventListener('submit', event => {
