@@ -371,6 +371,24 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
             'content' => "{Bismillah, ahlan Bunda/Ayah! 😊|Assalamu'alaikum Bunda/Ayah! 😊}\n\nSenang sekali Bunda/Ayah berniat membimbing ananda dekat dengan Al-Qur'an sejak dini. Di Tahfidz Cilik, belajarnya privat 1-on-1 via Video Call WA dengan metode yang sabar & menyenangkan.\n\nBoleh tahu ananda saat ini usia berapa tahun dan apakah sudah mulai iqro atau juz 'amma? 🙏",
             'delay' => 30,
         ],
+        [
+            'name' => 'Closing Hari Ini 1 (Siang - Reminder Penutupan Pendaftaran & Kuota)',
+            'desc' => 'Follow-up siang hari H mengingatkan penutupan pendaftaran hari ini dan sisa slot pembimbing',
+            'content' => "{Bismillah, ahlan kak {nama}! 😊|Assalamu'alaikum kak {nama}! 🙏|Halo kak {nama}, salam kenal ya! ✨|Bismillah, halo kak {nama}! 😊}\n\n{Izin menginfokan kembali ya kak|Sekadar mengabarkan informasi penting ya kak|Izin menyapa kembali di hari ini ya kak {nama}}, {insyaAllah pendaftaran kelas Tahfidz Private Jawwada periode ini resmi kami tutup hari ini|hari ini adalah hari terakhir pendaftaran program Tahfidz Private Jawwada|kuota pendaftaran kelas Tahfidz Private periode ini akan kami tutup malam ini}.\n\n{Saat ini sisa slot pembimbing Hafidz/Hafidzoh 30 Juz tersisa sangat sedikit|Karena sistem belajarnya privat 1-on-1 via telepon WA, kuota pengajar yang tersisa tinggal beberapa saja|Jadwal belajar privat bersama ustadz/ustadzah pilihan hampir terisi penuh}.\n\n{Kira-kira kakak ada rencana melanjutkan pendaftarannya hari ini kak?|Apakah kakak berkenan kami bantu amankan slot belajarnya terlebih dahulu?|Biar tidak terlewat dan kehabisan kuota jadwalnya, mau kami bantu proses pendaftarannya sekarang kak? 🙏}\n\n{Semoga Allah Ta'ala mudahkan niat mulia kakak. Barakallahu fiik 🤲✨|Jazakallahu khairan atas kepercayaannya ya kak. Semoga berkah selalu 🙏|Terima kasih banyak ya kak, semoga Allah mudahkan segala urusan kakak ✨}",
+            'delay' => 15,
+        ],
+        [
+            'name' => 'Closing Hari Ini 2 (Sore - Tanya Kendala & Amankan Slot Sebelum Dialihkan)',
+            'desc' => 'Follow-up sore hari H menanyakan kendala pendaftaran dan amankan slot ustadz sebelum dialihkan ke antrean lain',
+            'content' => "{Assalamu'alaikum kak {nama}. 🙏|Bismillah kak {nama}, selamat sore. ✨|Ahlan kak {nama}! 😊|Halo kak {nama}, izin menyapa sore ini ya. 🙏}\n\n{Sebelum jadwal layanan CS kami tutup nanti malam|Mengingat penutupan pendaftaran tinggal beberapa jam lagi|Menjelang penutupan pendaftaran periode ini di sore hari ini}, {barangkali kemarin ada kendala dalam pemilihan jadwal belajar atau info biayanya kak?|barangkali masih ada hal yang ingin dikonsultasikan dulu terkait program belajarnya kak?|apakah ada yang masih ragu atau perlu kami bantu terkait proses pendaftarannya kak?}\n\n{Karena antrean calon santri baru cukup banyak, slot ustadz/ustadzah yang belum terkonfirmasi akan kami alihkan ke calon santri lain malam ini|Biar kuota pengajar pilihan kakak tidak tergeser oleh calon santri lainnya|Agar slot privat kakak tetap aman sebelum pendaftaran ditutup resmi}.\n\n{Jika kakak masih berminat, boleh kami bantu selesaikan konfirmasinya sekarang ya kak? 😊|Mau kami bantu simpankan slot belajarnya sekarang kak? 🙏|Bisa kami bantu pandu pendaftarannya sekarang ya kak? ✨}",
+            'delay' => 60,
+        ],
+        [
+            'name' => 'Closing Hari Ini 3 (Malam - Final Call Sebelum Penutupan Pukul 23.59)',
+            'desc' => 'Follow-up malam hari H konfirmasi terakhir beberapa jam sebelum penutupan resmi pukul 23.59',
+            'content' => "{Bismillah kak {nama}. 🙏|Assalamu'alaikum kak {nama}, selamat malam. 🙏|Ahlan kak {nama}! ✨|Bismillah, halo kak {nama}. 🙏}\n\n{Izin konfirmasi terakhir ya kak, pendaftaran kelas Tahfidz Private periode ini resmi kami tutup malam ini pukul 23.59 WIB|Izin memberikan final call ya kak, pendaftaran periode ini akan kami tutup malam ini|Sekadar konfirmasi penutupan data ya kak, malam ini adalah batas akhir pendaftaran santri baru}.\n\n{Jika kakak berniat bergabung untuk periode ini, ini kesempatan terakhir sebelum pendaftaran baru dibuka di periode berikutnya|Jika kakak ingin mulai bimbingan tahfidz pekan depan, ini kesempatan terakhir untuk bergabung|Setelah malam ini, data konsultasi akan kami arsipkan sementara waktu agar tidak mengganggu kesibukan kakak}.\n\n{Jika ingin bergabung, kakak cukup balas pesan ini ya kak. Semoga Allah Ta'ala berkahi setiap langkah kita. 🤲✨|Cukup balas chat ini ya kak jika ingin kami bantu selesaikan malam ini. Barakallahu fiik 🙏|Jika belum berjodoh saat ini tidak apa-apa ya kak, pintu Jawwada selalu terbuka sewaktu-waktu. Terima kasih banyak kak {nama} ✨}",
+            'delay' => 120,
+        ],
     ];
 
     foreach ($defaultTemplates as $tpl) {
@@ -1535,6 +1553,283 @@ function crmAutomationRegisterSequence(
 ): int {
     $res = crmAutomationScheduleSequence($conn, $nowa, $nama, 0, $keyword, $triggerSource);
     return (int)($res['count'] ?? 0);
+}
+
+/**
+ * Menjadwalkan Alur Khusus Closing Pendaftaran (Hari Ini)
+ *
+ * @param mysqli $conn
+ * @param string $nowa
+ * @param string|null $nama
+ * @param string $closingOption 'all' (Siang, Sore, Malam), 'step1', 'step2', 'step3', 'custom'
+ * @param string|null $customTime Format 'H:i' jika $closingOption === 'custom'
+ * @param int $customStep Tahap template (1, 2, atau 3) jika $closingOption === 'custom'
+ * @param string $triggerSource 'manual_closing'
+ * @return array{success: bool, count: int, reason: string, message: string}
+ */
+function crmAutomationScheduleClosingSequence(
+    mysqli $conn,
+    string $nowa,
+    ?string $nama,
+    string $closingOption = 'all',
+    ?string $customTime = null,
+    int $customStep = 1,
+    string $triggerSource = 'manual_closing'
+): array {
+    crmAutomationEnsureTables($conn);
+
+    if (crmAutomationIsOperationalNumber($nowa)) {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'operational_number',
+            'message' => "Nomor {$nowa} adalah nomor operasional internal Jawwada, tidak dapat dijadwalkan follow-up.",
+        ];
+    }
+
+    $normalized = crmProspectNormalizeNumber($nowa);
+    if ($normalized === '') {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'invalid_number',
+            'message' => 'Nomor WhatsApp tidak valid atau kosong.',
+        ];
+    }
+
+    if (crmAutomationIsOperationalNumber($normalized)) {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'operational_number',
+            'message' => "Nomor {$nowa} adalah nomor operasional internal Jawwada, tidak dapat dijadwalkan follow-up.",
+        ];
+    }
+
+    if (crmAutomationIsBlocked($conn, $normalized)) {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'blocked',
+            'message' => "Nomor {$nowa} terdaftar dalam daftar blokir peserta (blocked_peserta).",
+        ];
+    }
+
+    if (crmAutomationHasReceivedPayment($conn, $normalized)) {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'already_paid',
+            'message' => "Kontak {$nowa} sudah tercatat sebagai peserta aktif atau sudah menerima pesan Finance (pembayaran).",
+        ];
+    }
+
+    // 1. Batalkan semua antrean pending lama untuk nomor ini agar tidak tumpang tindih
+    crmAutomationCancelAllPendingForContact($conn, $normalized, 'cancelled_rescheduled');
+
+    // 2. Ambil ID template Closing dari database
+    $closingTemplates = [];
+    $stmtTpl = $conn->query("
+        SELECT id, name FROM crm_automation_templates 
+        WHERE name LIKE 'Closing Hari Ini %'
+        ORDER BY name ASC
+    ");
+    if ($stmtTpl) {
+        while ($row = $stmtTpl->fetch_assoc()) {
+            if (str_contains($row['name'], 'Closing Hari Ini 1')) {
+                $closingTemplates[1] = (int)$row['id'];
+            } elseif (str_contains($row['name'], 'Closing Hari Ini 2')) {
+                $closingTemplates[2] = (int)$row['id'];
+            } elseif (str_contains($row['name'], 'Closing Hari Ini 3')) {
+                $closingTemplates[3] = (int)$row['id'];
+            }
+        }
+    }
+
+    // Jika template belum tersedia, jalankan seeding dan ambil ulang
+    if (count($closingTemplates) < 3) {
+        crmAutomationSeedDefaultTemplates($conn);
+        $stmtTplRetry = $conn->query("
+            SELECT id, name FROM crm_automation_templates 
+            WHERE name LIKE 'Closing Hari Ini %'
+            ORDER BY name ASC
+        ");
+        if ($stmtTplRetry) {
+            while ($row = $stmtTplRetry->fetch_assoc()) {
+                if (str_contains($row['name'], 'Closing Hari Ini 1')) {
+                    $closingTemplates[1] = (int)$row['id'];
+                } elseif (str_contains($row['name'], 'Closing Hari Ini 2')) {
+                    $closingTemplates[2] = (int)$row['id'];
+                } elseif (str_contains($row['name'], 'Closing Hari Ini 3')) {
+                    $closingTemplates[3] = (int)$row['id'];
+                }
+            }
+        }
+    }
+
+    if (empty($closingTemplates)) {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'template_missing',
+            'message' => 'Template Closing Hari Ini belum tersedia di database.',
+        ];
+    }
+
+    // 3. Tentukan jadwal pengiriman untuk HARI INI (Asia/Jakarta)
+    date_default_timezone_set('Asia/Jakarta');
+    $todayYmd = date('Y-m-d');
+    $nowTs = time();
+
+    // Default target milestones hari ini:
+    // Siang: 11:30 WIB
+    $siangTarget = strtotime("{$todayYmd} 11:30:00");
+    if ($nowTs >= $siangTarget) {
+        $siangTs = $nowTs + rand(480, 900); // +8 s/d 15 menit jika sudah lewat
+    } else {
+        $siangTs = $siangTarget + rand(60, 360); // Jitter 1 s/d 6 menit
+    }
+
+    // Sore: 16:30 WIB
+    $soreTarget = strtotime("{$todayYmd} 16:30:00");
+    if ($nowTs >= $soreTarget) {
+        $soreTs = $nowTs + rand(900, 1800); // +15 s/d 30 menit jika sudah lewat
+    } else {
+        $soreTs = $soreTarget + rand(60, 360);
+    }
+
+    // Malam: 20:15 WIB (sebelum batas tidur 21:30 WIB)
+    $malamTarget = strtotime("{$todayYmd} 20:15:00");
+    $maxMalam = strtotime("{$todayYmd} 21:15:00");
+    if ($nowTs >= $malamTarget) {
+        $malamTs = min($maxMalam, $nowTs + rand(600, 1200));
+    } else {
+        $malamTs = min($maxMalam, $malamTarget + rand(60, 360));
+    }
+
+    // Tentukan langkah-langkah yang akan didaftarkan ke antrean
+    $stepsToQueue = []; // array of ['step' => int, 'ts' => int]
+
+    if ($closingOption === 'step1') {
+        if (isset($closingTemplates[1])) {
+            $stepsToQueue[] = ['step' => 1, 'ts' => $siangTs];
+        }
+    } elseif ($closingOption === 'step2') {
+        if (isset($closingTemplates[2])) {
+            $stepsToQueue[] = ['step' => 2, 'ts' => $soreTs];
+        }
+    } elseif ($closingOption === 'step3') {
+        if (isset($closingTemplates[3])) {
+            $stepsToQueue[] = ['step' => 3, 'ts' => $malamTs];
+        }
+    } elseif ($closingOption === 'custom' && !empty($customTime)) {
+        $cStep = in_array($customStep, [1, 2, 3], true) ? $customStep : 1;
+        $cleanTime = trim((string)$customTime);
+        $targetCustomTs = strtotime("{$todayYmd} {$cleanTime}:00");
+        if ($targetCustomTs !== false) {
+            if ($targetCustomTs < $nowTs) {
+                $targetCustomTs = $nowTs + rand(300, 600); // +5 s/d 10 menit jika jam custom sudah lewat
+            }
+            $targetCustomTs += rand(60, 240); // anti-clash jitter
+            if (isset($closingTemplates[$cStep])) {
+                $stepsToQueue[] = ['step' => $cStep, 'ts' => $targetCustomTs];
+            }
+        }
+    } else {
+        // Default: 'all' (Paket Lengkap Siang, Sore, Malam)
+        // Hanya jadwalkan tahap yang jadwalnya belum hangus / masih relevan hari ini
+        if (isset($closingTemplates[1]) && $siangTs > $nowTs) {
+            $stepsToQueue[] = ['step' => 1, 'ts' => $siangTs];
+        }
+        if (isset($closingTemplates[2]) && $soreTs > $nowTs) {
+            $stepsToQueue[] = ['step' => 2, 'ts' => $soreTs];
+        }
+        if (isset($closingTemplates[3]) && $malamTs > $nowTs) {
+            $stepsToQueue[] = ['step' => 3, 'ts' => $malamTs];
+        }
+        // Jika semua jam default sudah lewat (misal dijadwalkan sore/malam hari),
+        // minimal jadwalkan pesan closing terdekat hari ini
+        if (empty($stepsToQueue)) {
+            if (isset($closingTemplates[3]) && $malamTs <= $maxMalam) {
+                $stepsToQueue[] = ['step' => 3, 'ts' => min($maxMalam, $nowTs + 300)];
+            } elseif (isset($closingTemplates[2])) {
+                $stepsToQueue[] = ['step' => 2, 'ts' => $nowTs + 300];
+            }
+        }
+    }
+
+    if (empty($stepsToQueue)) {
+        return [
+            'success' => false,
+            'count' => 0,
+            'reason' => 'no_steps_applicable',
+            'message' => 'Tidak ada tahap closing yang dapat dijadwalkan pada waktu ini.',
+        ];
+    }
+
+    // Pastikan jadwal berurutan & ada jeda minimal 60 menit antar-pesan closing
+    usort($stepsToQueue, function ($a, $b) {
+        return $a['ts'] <=> $b['ts'];
+    });
+
+    $lastTs = 0;
+    $count = 0;
+    foreach ($stepsToQueue as $st) {
+        $stepNum = $st['step'];
+        $ts = $st['ts'];
+        $tplId = $closingTemplates[$stepNum] ?? 0;
+        if ($tplId <= 0) continue;
+
+        if ($lastTs > 0 && ($ts - $lastTs) < 3600) {
+            // Beri jeda minimal 1 jam jika berdekatan
+            $ts = $lastTs + rand(3600, 5400);
+        }
+
+        // Anti-clash dengan antrean kontak lain di menit yang sama
+        $schedCheck = date('Y-m-d H:i:s', $ts);
+        $resClash = $conn->query("
+            SELECT COUNT(*) AS clash_count FROM crm_automation_queue
+            WHERE status = 'pending'
+              AND scheduled_at BETWEEN DATE_SUB('{$schedCheck}', INTERVAL 1 MINUTE) AND DATE_ADD('{$schedCheck}', INTERVAL 1 MINUTE)
+        ");
+        if ($resClash && ($rowC = $resClash->fetch_assoc())) {
+            if ((int)($rowC['clash_count'] ?? 0) > 0) {
+                $ts += rand(120, 360);
+            }
+        }
+
+        $ts = crmAutomationAdjustForSleep($conn, $ts);
+        $schedStr = date('Y-m-d H:i:s', $ts);
+
+        $ins = $conn->prepare("
+            INSERT INTO crm_automation_queue (rule_id, template_id, nowa, nama, trigger_source, status, scheduled_at, created_at)
+            VALUES (0, ?, ?, ?, ?, 'pending', ?, NOW())
+        ");
+        if ($ins) {
+            $ins->bind_param('issss', $tplId, $normalized, $nama, $triggerSource, $schedStr);
+            if ($ins->execute()) {
+                $count++;
+                $lastTs = $ts;
+            }
+            $ins->close();
+        }
+    }
+
+    if ($count > 0) {
+        return [
+            'success' => true,
+            'count' => $count,
+            'reason' => 'ok',
+            'message' => "Alur Closing Pendaftaran (Hari Ini) berhasil dijadwalkan untuk kontak {$nowa} ({$count} pesan hari ini).",
+        ];
+    }
+
+    return [
+        'success' => false,
+        'count' => 0,
+        'reason' => 'queue_failed',
+        'message' => "Gagal memasukkan jadwal closing ke antrean database untuk kontak {$nowa}.",
+    ];
 }
 
 /**

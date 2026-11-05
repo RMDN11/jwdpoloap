@@ -256,16 +256,25 @@ switch ($action) {
             crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         }
 
-        $keyword = trim((string)($_POST['keyword'] ?? ''));
-        if ($keyword === '') {
-            $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
+        $workflowType = trim((string)($_POST['workflow_type'] ?? 'standard'));
+
+        if ($workflowType === 'closing_today') {
+            $closingOption = trim((string)($_POST['closing_option'] ?? 'all'));
+            $customTime = trim((string)($_POST['custom_time'] ?? ''));
+            $customStep = max(1, min(3, (int)($_POST['custom_step'] ?? 1)));
+            $res = crmAutomationScheduleClosingSequence($conn, $nowa, $nama, $closingOption, $customTime, $customStep, 'manual_closing');
+        } else {
+            $keyword = trim((string)($_POST['keyword'] ?? ''));
+            if ($keyword === '') {
+                $keyword = 'Bismillah, kak mau tanya detail program Tahfidz Private Online Jawwada';
+            }
+            $res = crmAutomationScheduleSequence($conn, $nowa, $nama, $templateId, $keyword, 'manual', $startStep);
         }
 
-        $res = crmAutomationScheduleSequence($conn, $nowa, $nama, $templateId, $keyword, 'manual', $startStep);
         if (!empty($res['success'])) {
             $_SESSION['crm_flash'] = ['type' => 'success', 'message' => $res['message']];
         } else {
-            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan sequence: ' . ($res['message'] ?? 'Nomor diblokir atau aturan belum tersedia.')];
+            $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Gagal menjadwalkan alur: ' . ($res['message'] ?? 'Nomor diblokir atau aturan belum tersedia.')];
         }
         crmAutoRedirect('prospects', $returnUrl, $prospectAnchor);
         break;

@@ -411,6 +411,28 @@ if ($tab !== 'queue') {
         </div>
     </div>
 
+    <!-- Alert Banner: Mode Closing Pendaftaran Hari Ini -->
+    <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #fde68a; border-radius: 10px; padding: 10px 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: #d97706; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;">
+                <i class="fa-solid fa-bullhorn"></i>
+            </div>
+            <div>
+                <div style="font-size: 13px; font-weight: 700; color: #92400e;">
+                    Pendaftaran Ditutup Hari Ini &mdash; Alur Closing Spesial Siap Digunakan!
+                </div>
+                <div style="font-size: 11.5px; color: #b45309;">
+                    Gunakan tombol <span style="background: #fef08a; padding: 1px 6px; border-radius: 4px; font-weight: 600; color: #854d0e;"><i class="fa-solid fa-bolt" style="color:#d97706;"></i> Atur Jadwal Follow-Up</span> pada prospek untuk menjadwalkan pesan closing (Siang, Sore, Malam) dengan Anti-Ban Spintax berbobot tinggi.
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 11px; font-weight: 700; color: #92400e; background: #fff; border: 1px solid #fde68a; padding: 4px 10px; border-radius: 20px;">
+                <i class="fa-solid fa-shield-halved" style="color: #16a34a;"></i> 100% Anti-Banned Safe
+            </span>
+        </div>
+    </div>
+
     <!-- Minimalist Pipeline Bar -->
     <div class="crm-pipeline-bar">
         <div class="crm-pipeline-steps">
@@ -733,9 +755,9 @@ if ($tab !== 'queue') {
                                             <span style="color: #047857; font-size: 0.75rem; font-weight: 600;"><i class="fa-solid fa-circle-check"></i> Peserta Terdaftar</span>
                                         <?php else: ?>
                                             <div class="crm-action-group">
-                                                <!-- Primary: Jadwalkan Alur (6 Tahap) via Smart Modal -->
+                                                <!-- Primary: Atur Jadwal Follow Up (Closing Hari Ini / Standar) via Smart Modal -->
                                                 <div style="display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
-                                                    <button type="button" class="btn-schedule-sequence" title="Jadwalkan Alur (6 Tahap) follow up otomatis"
+                                                    <button type="button" class="btn-schedule-sequence" title="Atur Jadwal Follow-Up (Closing Hari Ini / Standar)"
                                                         data-nowa="<?= htmlspecialchars($item['nowa']) ?>"
                                                         data-nama="<?= htmlspecialchars($item['nama'] ?? '') ?>"
                                                         data-scheduled="<?= $item['is_scheduled'] ? '1' : '0' ?>"
@@ -745,8 +767,8 @@ if ($tab !== 'queue') {
                                                         data-paid="<?= $item['has_payment'] ? '1' : '0' ?>"
                                                         data-lastmsg="<?= htmlspecialchars(mb_substr($item['last_message'] ?? '', 0, 160)) ?>"
                                                         onclick="openSmartScheduleModal(this)">
-                                                        <i class="fa-solid fa-calendar-check"></i>
-                                                        <span>Jadwalkan Alur (6 Tahap)</span>
+                                                        <i class="fa-solid fa-bolt" style="color: #fbbf24;"></i>
+                                                        <span>Atur Jadwal Follow-Up</span>
                                                     </button>
                                                     <?php if ($item['is_scheduled']): ?>
                                                         <form action="index.php?page=automation-followup" method="POST" style="margin: 0; display: inline-flex;">
@@ -977,6 +999,7 @@ if ($tab !== 'queue') {
                         <button type="button" class="crm-var-chip" onclick="insertTplVar('{nama}')">{nama}</button>
                         <button type="button" class="crm-var-chip" onclick="insertTplVar('{sapaan}')">{sapaan}</button>
                         <button type="button" class="crm-var-chip" onclick="insertTplVar('{program}')">{program}</button>
+                        <button type="button" class="crm-var-chip" onclick="insertTplVar('{halo|hai|assalamu\'alaikum}')" title="Variasi Kata Anti-Banned (Spintax)">{spintax}</button>
                     </div>
                     <textarea name="content" id="tplContent" class="form-control" rows="6" placeholder="Ketik draf pesan WhatsApp..." oninput="updateTplCharCount()" required></textarea>
                 </div>
@@ -1349,8 +1372,105 @@ if ($tab !== 'queue') {
                 <input type="hidden" name="template_id" value="0">
                 <input type="hidden" name="nowa" id="smartFormNowa" value="">
                 <input type="hidden" name="nama" id="smartFormNama" value="">
+                <input type="hidden" name="workflow_type" id="smartWorkflowType" value="closing_today">
 
-                <div class="smart-step-section" id="smartStepSection">
+                <!-- Workflow Type Switcher -->
+                <div class="smart-workflow-tabs">
+                    <button type="button" class="smart-workflow-tab active" id="tabWorkflowClosing" onclick="switchWorkflowMode('closing_today')">
+                        <i class="fa-solid fa-bolt" style="color:#d97706;"></i>
+                        <span>Alur Closing Hari Ini</span>
+                        <span class="smart-badge-closing">Ditutup Hari Ini</span>
+                    </button>
+                    <button type="button" class="smart-workflow-tab tab-standard" id="tabWorkflowStandard" onclick="switchWorkflowMode('standard')">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Alur Standar (7 Hari)</span>
+                    </button>
+                </div>
+
+                <!-- SECTION 1: Closing Hari Ini -->
+                <div class="smart-closing-section" id="smartClosingSection">
+                    <div class="smart-step-label">
+                        <span><i class="fa-solid fa-clock"></i> Pilih Jadwal Hubungi Hari Ini:</span>
+                        <span style="font-weight: 600; font-size: 0.72rem; color: #d97706;"><i class="fa-solid fa-shield-halved"></i> Anti-Ban Spintax Aktif</span>
+                    </div>
+                    <div class="smart-closing-list">
+                        <label class="smart-closing-option active" id="closeOptAll" onclick="selectClosingOption('all')">
+                            <input type="radio" name="closing_option" value="all" class="smart-closing-radio" checked>
+                            <div class="smart-step-body">
+                                <div class="smart-step-title">
+                                    <span>☀️ ⛅ 🌙 Paket Lengkap (Siang, Sore, Malam)</span>
+                                    <span class="smart-step-tag-rec">Rekomendasi</span>
+                                </div>
+                                <div class="smart-step-desc">Otomatis jadwalkan 3 pengingat di jam strategis (Siang 11.30, Sore 16.30, Malam 20.15 WIB) sebelum penutupan.</div>
+                            </div>
+                        </label>
+
+                        <label class="smart-closing-option" id="closeOptStep1" onclick="selectClosingOption('step1')">
+                            <input type="radio" name="closing_option" value="step1" class="smart-closing-radio">
+                            <div class="smart-step-body">
+                                <div class="smart-step-title">
+                                    <span>☀️ Hanya Siang &mdash; Reminder Penutupan & Kuota (~11.30 WIB)</span>
+                                </div>
+                                <div class="smart-step-desc">Mengabarkan pendaftaran resmi ditutup hari ini & kuota pengajar hampir habis.</div>
+                            </div>
+                        </label>
+
+                        <label class="smart-closing-option" id="closeOptStep2" onclick="selectClosingOption('step2')">
+                            <input type="radio" name="closing_option" value="step2" class="smart-closing-radio">
+                            <div class="smart-step-body">
+                                <div class="smart-step-title">
+                                    <span>⛅ Hanya Sore &mdash; Tanya Kendala & Amankan Slot (~16.30 WIB)</span>
+                                </div>
+                                <div class="smart-step-desc">Menanyakan kendala pendaftaran dan amankan slot ustadz sebelum dialihkan ke antrean lain.</div>
+                            </div>
+                        </label>
+
+                        <label class="smart-closing-option" id="closeOptStep3" onclick="selectClosingOption('step3')">
+                            <input type="radio" name="closing_option" value="step3" class="smart-closing-radio">
+                            <div class="smart-step-body">
+                                <div class="smart-step-title">
+                                    <span>🌙 Hanya Malam &mdash; Final Call Penutupan Pukul 23.59 (~20.15 WIB)</span>
+                                </div>
+                                <div class="smart-step-desc">Konfirmasi kesempatan terakhir sebelum pendaftaran ditutup resmi pukul 23.59 WIB.</div>
+                            </div>
+                        </label>
+
+                        <label class="smart-closing-option" id="closeOptCustom" onclick="selectClosingOption('custom')">
+                            <input type="radio" name="closing_option" value="custom" class="smart-closing-radio">
+                            <div class="smart-step-body" style="width: 100%;">
+                                <div class="smart-step-title">
+                                    <span>⏰ Atur Jam Spesifik Hari Ini</span>
+                                </div>
+                                <div class="smart-step-desc" style="margin-bottom: 0.35rem;">Tentukan jam pengiriman hari ini beserta pesan yang dipilih:</div>
+                                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                                    <input type="time" name="custom_time" id="smartCustomTime" class="form-control" style="width: 110px; padding: 0.25rem 0.5rem; font-size: 0.78rem;" value="<?= date('H:i', strtotime('+30 minutes')) ?>" onchange="selectClosingOption('custom')">
+                                    <select name="custom_step" id="smartCustomStep" class="form-control" style="width: 190px; padding: 0.25rem 0.5rem; font-size: 0.78rem;" onchange="selectClosingOption('custom')">
+                                        <option value="1">Pesan 1 (Siang - Kuota)</option>
+                                        <option value="2">Pesan 2 (Sore - Kendala)</option>
+                                        <option value="3">Pesan 3 (Malam - Final Call)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Anti-Ban Spintax Live Preview -->
+                    <div class="smart-spintax-preview-box">
+                        <div class="smart-preview-header">
+                            <span><i class="fa-solid fa-wand-magic-sparkles" style="color:#d97706;"></i> Contoh Variasi Pesan Anti-Banned:</span>
+                            <button type="button" class="btn-reroll-spintax" onclick="rerollSpintaxPreview()">
+                                <i class="fa-solid fa-dice"></i> Acak Variasi
+                            </button>
+                        </div>
+                        <div class="smart-preview-text" id="smartSpintaxSample">Memuat variasi pesan...</div>
+                        <div class="smart-preview-badge">
+                            <i class="fa-solid fa-shield-check"></i> Setiap pesan digenerate dinamis dengan ratusan variasi kata agar aman dari deteksi spam WhatsApp.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: Standard 6-Step Workflow -->
+                <div class="smart-step-section" id="smartStepSection" style="display: none;">
                     <div class="smart-step-label">
                         <span><i class="fa-solid fa-route"></i> Pilih Tahap Mulai Follow-Up:</span>
                         <span style="font-weight: 500; font-size: 0.72rem; color: #64748b;">Akan dijadwalkan hingga Tahap 6</span>
@@ -1429,9 +1549,9 @@ if ($tab !== 'queue') {
                     <a href="#" id="smartDirectWaBtn" target="_blank" rel="noopener" class="btn-chat-wa" style="display:none;">
                         <i class="fa-brands fa-whatsapp"></i> Chat WhatsApp Manual
                     </a>
-                    <button type="submit" id="smartSubmitBtn" class="btn-primary" style="padding: 0.5rem 1.1rem;">
+                    <button type="submit" id="smartSubmitBtn" class="btn-primary" style="padding: 0.5rem 1.1rem; background: #d97706; border-color: #b45309;">
                         <i class="fa-solid fa-calendar-check"></i>
-                        <span id="smartSubmitText">Jadwalkan Alur (6 Tahap)</span>
+                        <span id="smartSubmitText">Jadwalkan Alur Closing Hari Ini</span>
                     </button>
                 </div>
             </form>
@@ -1654,6 +1774,133 @@ if ($tab !== 'queue') {
             .replace(/'/g, '&#039;');
     }
 
+    // Template Spintax Anti-Ban Client-Side Resolver
+    var closingSpintaxTemplates = {
+        1: "{Assalamu'alaikum|Bismillah, assalamu'alaikum|Salam silaturahim} {Bapak/Ibu|Kak} {nama}.. 🙏\n\n{Sekadar mengingatkan|Menginfokan kembali|Izin memberikan info penting}, pendaftaran program privat tahfidz/tahsin Jawwada untuk periode ini {resmi ditutup hari ini|terakhir dibuka hari ini|berakhir malam ini pukul 23.59 WIB}.\n\n{Saat ini kuota pengajar kami tersisa sangat terbatas|Slot bimbingan ustadz/ustadzah pilihan tinggal beberapa kursi lagi}. {Apakah ingin dibantu amankan jadwal belajarnya hari ini?|Boleh kami bantu proses pendaftarannya sebelum kuota ditutup?|Apakah ada info jadwal atau program yang ingin dikonfirmasi terlebih dahulu?}\n\n{Terima kasih banyak|Jazakumullah khairan} atas perhatiannya.. 😊",
+        2: "{Assalamu'alaikum|Bismillah, selamat sore} {Bapak/Ibu|Kak} {nama}.. 🙏\n\n{Menyambung informasi sebelumnya|Semoga aktivitas sore ini berkah}, pendaftaran program Al-Qur'an Jawwada {akan segera ditutup beberapa jam lagi|sisa waktu pendaftaran tinggal hari ini}.\n\n{Apakah ada kendala saat pendaftaran|Apakah ada hal yang masih ingin ditanyakan mengenai jadwal atau teknis belajar|Boleh kami tahu apakah ada kendala dalam proses registrasi kemarin}?\n\n{Jika ingin kami bantu amankan slot sebelum dialihkan ke antrean lain, silakan balas pesan ini ya|Slot pengajar favorit masih kami tahan untuk Bapak/Ibu/Kakak hingga malam ini, silakan kabari jika ingin dikunci}.\n\n{Jazakumullah khairan|Terima kasih banyak}.. 🌿",
+        3: "{Bismillah, assalamu'alaikum|Assalamu'alaikum warahmatullah} {Bapak/Ibu|Kak} {nama}.. 🙏\n\n{Mohon maaf mengganggu waktu istirahatnya sebentar|Izin menyampaikan kabar penting di malam ini}.\n\nPukul 23.59 WIB malam ini pendaftaran bimbingan privat Qur'an Jawwada {resmi ditutup total|akan ditutup untuk periode batch ini}.\n\n{Apakah berkenan bergabung di periode ini|Apakah slot bimbingannya ingin difinalisasi malam ini|Masih ada kesempatan beberapa jam terakhir untuk mengamankan slot bimbingan}?\n\n{Cukup balas pesan ini jika ingin dibantu proses cepatnya|Silakan konfirmasi jika ingin kami bantu aktivasi jadwalnya malam ini}.\n\n{Jazakumullahu khairan katsiran|Terima kasih banyak atas kepercayaannya}.. 🌙"
+    };
+
+    function resolveSpintaxText(text) {
+        if (!text) return '';
+        var regex = /\{([^{}]+)\}/;
+        while (regex.test(text)) {
+            text = text.replace(regex, function(match, group) {
+                var choices = group.split('|');
+                return choices[Math.floor(Math.random() * choices.length)];
+            });
+        }
+        return text;
+    }
+
+    function rerollSpintaxPreview() {
+        var previewEl = document.getElementById('smartSpintaxSample');
+        if (!previewEl) return;
+
+        var formNama = document.getElementById('smartFormNama');
+        var rawName = formNama && formNama.value ? formNama.value.trim() : '';
+        var nama = rawName || 'Bapak/Ibu/Kakak';
+
+        var activeRadio = document.querySelector('input[name=closing_option]:checked');
+        var optVal = activeRadio ? activeRadio.value : 'all';
+
+        var stepNum = 1;
+        var timeBadge = '☀️ Siang (~11.30 WIB)';
+        if (optVal === 'step1') {
+            stepNum = 1;
+            timeBadge = '☀️ Siang (~11.30 WIB)';
+        } else if (optVal === 'step2') {
+            stepNum = 2;
+            timeBadge = '⛅ Sore (~16.30 WIB)';
+        } else if (optVal === 'step3') {
+            stepNum = 3;
+            timeBadge = '🌙 Malam (~20.15 WIB)';
+        } else if (optVal === 'custom') {
+            var customStep = document.getElementById('smartCustomStep');
+            stepNum = customStep ? parseInt(customStep.value, 10) : 1;
+            var customTime = document.getElementById('smartCustomTime');
+            var jam = customTime ? customTime.value : '';
+            timeBadge = '⏰ Custom Jam ' + (jam || 'Hari Ini');
+        } else {
+            // Paket Lengkap: acak salah satu untuk melihat variasi
+            var steps = [1, 2, 3];
+            stepNum = steps[Math.floor(Math.random() * steps.length)];
+            if (stepNum === 1) timeBadge = '☀️ Paket Lengkap &bull; Contoh Siang (~11.30 WIB)';
+            else if (stepNum === 2) timeBadge = '⛅ Paket Lengkap &bull; Contoh Sore (~16.30 WIB)';
+            else timeBadge = '🌙 Paket Lengkap &bull; Contoh Malam (~20.15 WIB)';
+        }
+
+        var rawTpl = closingSpintaxTemplates[stepNum] || closingSpintaxTemplates[1];
+        var rendered = resolveSpintaxText(rawTpl).replace(/\{nama\}/g, nama);
+
+        previewEl.style.opacity = '0.35';
+        setTimeout(function() {
+            var badgeHtml = '<div style="font-size:0.7rem;font-weight:700;color:#92400e;margin-bottom:0.35rem;text-transform:uppercase;letter-spacing:0.5px;"><i class="fa-solid fa-clock"></i> ' + escapeHtml(timeBadge) + '</div>';
+            previewEl.innerHTML = badgeHtml + escapeHtml(rendered).replace(/\n/g, '<br>');
+            previewEl.style.opacity = '1';
+        }, 100);
+    }
+
+    function switchWorkflowMode(mode) {
+        var modal = document.getElementById('smartScheduleModal');
+        var workflowInput = document.getElementById('smartWorkflowType');
+        var tabClosing = document.getElementById('tabWorkflowClosing');
+        var tabStandard = document.getElementById('tabWorkflowStandard');
+        var closingSec = document.getElementById('smartClosingSection');
+        var stepSec = document.getElementById('smartStepSection');
+        var submitBtn = document.getElementById('smartSubmitBtn');
+        var submitText = document.getElementById('smartSubmitText');
+
+        if (workflowInput) workflowInput.value = mode;
+
+        var isScheduled = modal ? (modal.getAttribute('data-is-scheduled') === '1') : false;
+        var isReplied = modal ? (modal.getAttribute('data-is-replied') === '1') : false;
+
+        if (mode === 'closing_today') {
+            if (tabClosing) tabClosing.classList.add('active');
+            if (tabStandard) tabStandard.classList.remove('active');
+            if (closingSec) closingSec.style.display = 'block';
+            if (stepSec) stepSec.style.display = 'none';
+            if (submitBtn) {
+                submitBtn.style.background = '#d97706';
+                submitBtn.style.borderColor = '#b45309';
+            }
+            if (submitText) {
+                submitText.textContent = isScheduled ? 'Reset & Jadwalkan Closing Hari Ini' : 'Jadwalkan Alur Closing Hari Ini';
+            }
+            rerollSpintaxPreview();
+        } else {
+            if (tabClosing) tabClosing.classList.remove('active');
+            if (tabStandard) tabStandard.classList.add('active');
+            if (closingSec) closingSec.style.display = 'none';
+            if (stepSec) stepSec.style.display = 'block';
+            if (submitBtn) {
+                submitBtn.style.background = '#166534';
+                submitBtn.style.borderColor = '#14532d';
+            }
+            if (submitText) {
+                submitText.textContent = isReplied ? 'Jadwalkan Mulai Tahap 3' : (isScheduled ? 'Reset & Jadwalkan Ulang Alur' : 'Jadwalkan Alur Standar (6 Tahap)');
+            }
+        }
+    }
+
+    function selectClosingOption(opt) {
+        var options = ['all', 'step1', 'step2', 'step3', 'custom'];
+        options.forEach(function(key) {
+            var elId = 'closeOpt' + key.charAt(0).toUpperCase() + key.slice(1);
+            var el = document.getElementById(elId);
+            var radio = document.querySelector('input[name=closing_option][value="' + key + '"]');
+            if (key === opt) {
+                if (el) el.classList.add('active');
+                if (radio) radio.checked = true;
+            } else {
+                if (el) el.classList.remove('active');
+                if (radio) radio.checked = false;
+            }
+        });
+        rerollSpintaxPreview();
+    }
+
     // Smart Pop-up Modal (Anti-Salah Tindakan)
     function openSmartScheduleModal(btn) {
         var modal = document.getElementById('smartScheduleModal');
@@ -1666,6 +1913,11 @@ if ($tab !== 'queue') {
         var category = btn.getAttribute('data-category') || 'Umum';
         var isPaid = btn.getAttribute('data-paid') === '1';
         var lastMsg = btn.getAttribute('data-lastmsg') || '';
+        var isReplied = (qStatus === 'replied' || qStatus === 'cancelled_replied');
+
+        // Simpan status ke dataset modal
+        modal.setAttribute('data-is-scheduled', isScheduled ? '1' : '0');
+        modal.setAttribute('data-is-replied', isReplied ? '1' : '0');
 
         // Isi form hidden fields
         var formNowa = document.getElementById('smartFormNowa');
@@ -1710,17 +1962,15 @@ if ($tab !== 'queue') {
 
         var alertContainer = document.getElementById('smartModalAlert');
         var stepSection = document.getElementById('smartStepSection');
+        var closingSection = document.getElementById('smartClosingSection');
+        var tabsContainer = document.querySelector('.smart-workflow-tabs');
         var submitBtn = document.getElementById('smartSubmitBtn');
-        var submitText = document.getElementById('smartSubmitText');
 
-        // Reset badge rekomendasi
+        // Reset badge rekomendasi standar
         for (var i = 1; i <= 6; i++) {
             var recEl = document.getElementById('recBadge' + i);
             if (recEl) recEl.style.display = 'none';
         }
-
-        // Deteksi Kondisi Anti-Salah Tindakan
-        var isReplied = (qStatus === 'replied' || qStatus === 'cancelled_replied');
 
         if (isPaid) {
             // Kasus 1: Sudah Lunas / Peserta Terdaftar
@@ -1729,55 +1979,54 @@ if ($tab !== 'queue') {
                 '<div><strong>Peserta Sudah Terdaftar (Lunas Finance)!</strong>' +
                 '<p>Kontak ini sudah tercatat sebagai santri aktif Jawwada. Alur follow-up promosi dinonaktifkan agar tidak mengganggu proses belajar peserta.</p></div>' +
                 '</div>';
+            if (tabsContainer) tabsContainer.style.display = 'none';
+            if (closingSection) closingSection.style.display = 'none';
             if (stepSection) stepSection.style.display = 'none';
             if (submitBtn) submitBtn.style.display = 'none';
         } else if (isReplied) {
-            // Kasus 2: Kontak Sudah Pernah Membalas Pesan (Anti-Salah Tindakan Utama!)
+            // Kasus 2: Kontak Sudah Pernah Membalas Pesan (Anti-Salah Tindakan)
+            if (tabsContainer) tabsContainer.style.display = 'flex';
             var quoteHtml = lastMsg ? '<div style="margin-top:0.35rem;padding:0.35rem 0.6rem;background:rgba(254,243,199,0.7);border-radius:6px;font-style:italic;font-size:0.75rem;color:#78350f;">&ldquo;' + escapeHtml(lastMsg) + '&rdquo;</div>' : '';
             alertContainer.innerHTML = '<div class="smart-alert smart-alert-warning">' +
                 '<i class="fa-solid fa-triangle-exclamation smart-alert-icon"></i>' +
                 '<div><strong>Perhatian: Prospek Pernah Membalas / Chat Balik!</strong>' +
-                '<p>Antrean otomatis dihentikan karena prospek sudah merespons. <strong>Hindari mengulang Tahap 1 (Instant Welcome)</strong> agar tidak terkesan spam atau robot.' + quoteHtml + '</p>' +
-                '<p style="margin-top:0.35rem;font-weight:600;">Direkomendasikan: Mulai dari <strong>Tahap 3 (Tanya Kendala & Konsultasi)</strong> atau chat langsung via WhatsApp.</p></div>' +
+                '<p>Antrean lama otomatis dihentikan karena prospek sudah merespons.' + quoteHtml + '</p>' +
+                '<p style="margin-top:0.35rem;font-weight:600;">Karena hari ini pendaftaran ditutup: Gunakan <strong>Alur Closing Hari Ini (Sore / Malam)</strong> untuk menanyakan kendala atau chat langsung via WA.</p></div>' +
                 '</div>';
-            if (stepSection) stepSection.style.display = 'flex';
-            if (submitBtn) {
-                submitBtn.style.display = 'inline-flex';
-                submitText.textContent = 'Jadwalkan Mulai Tahap 3';
-            }
+            if (submitBtn) submitBtn.style.display = 'inline-flex';
             var rec3 = document.getElementById('recBadge3');
             if (rec3) rec3.style.display = 'inline-block';
             selectSmartStep(3);
+            switchWorkflowMode('closing_today');
+            selectClosingOption('step2'); // Tanya kendala sore sangat relevan untuk yg pernah balas
         } else if (isScheduled) {
             // Kasus 3: Sedang memiliki antrean pending aktif
+            if (tabsContainer) tabsContainer.style.display = 'flex';
             alertContainer.innerHTML = '<div class="smart-alert smart-alert-info">' +
                 '<i class="fa-solid fa-circle-info smart-alert-icon"></i>' +
                 '<div><strong>Kontak Sedang Memiliki Antrean Aktif</strong>' +
-                '<p>Prospek ini sedang menunggu jadwal kirim follow up. Menjadwalkan ulang akan <strong>mereset antrean pending lama</strong> dan memulai urutan baru dari tahap yang Anda pilih.</p></div>' +
+                '<p>Prospek ini sedang menunggu jadwal kirim follow up. Menjadwalkan alur baru akan <strong>mereset antrean pending lama</strong> dan menggantinya dengan jadwal yang Anda pilih di bawah.</p></div>' +
                 '</div>';
-            if (stepSection) stepSection.style.display = 'flex';
-            if (submitBtn) {
-                submitBtn.style.display = 'inline-flex';
-                submitText.textContent = 'Reset & Jadwalkan Ulang Alur';
-            }
+            if (submitBtn) submitBtn.style.display = 'inline-flex';
             var rec2 = document.getElementById('recBadge2');
             if (rec2) rec2.style.display = 'inline-block';
             selectSmartStep(2);
+            switchWorkflowMode('closing_today');
+            selectClosingOption('all');
         } else {
             // Kasus 4: Prospek Baru / Belum Terjadwal
+            if (tabsContainer) tabsContainer.style.display = 'flex';
             alertContainer.innerHTML = '<div class="smart-alert smart-alert-neutral">' +
-                '<i class="fa-solid fa-calendar-check smart-alert-icon" style="color:#166534;"></i>' +
-                '<div><strong>Siap Dijadwalkan Alur Otomatis (6 Tahap)</strong>' +
-                '<p>Kontak ini belum memiliki antrean aktif. Sistem akan menjadwalkan alur follow-up lengkap 6 tahap mulai dari Instant Welcome (±2 menit). Antrean otomatis berhenti jika prospek membalas pesan atau lunas.</p></div>' +
+                '<i class="fa-solid fa-calendar-check smart-alert-icon" style="color:#d97706;"></i>' +
+                '<div><strong>Hari Ini Pendaftaran Ditutup &mdash; Siap Dijadwalkan!</strong>' +
+                '<p>Gunakan <strong>Alur Closing Hari Ini</strong> untuk menjadwalkan 3 pengingat strategis (Siang, Sore, Malam) dengan Anti-Ban Spintax berbobot tinggi. Antrean otomatis berhenti saat prospek merespons atau lunas.</p></div>' +
                 '</div>';
-            if (stepSection) stepSection.style.display = 'flex';
-            if (submitBtn) {
-                submitBtn.style.display = 'inline-flex';
-                submitText.textContent = 'Jadwalkan Alur (6 Tahap)';
-            }
+            if (submitBtn) submitBtn.style.display = 'inline-flex';
             var rec1 = document.getElementById('recBadge1');
             if (rec1) rec1.style.display = 'inline-block';
             selectSmartStep(1);
+            switchWorkflowMode('closing_today');
+            selectClosingOption('all');
         }
 
         modal.style.display = 'flex';
