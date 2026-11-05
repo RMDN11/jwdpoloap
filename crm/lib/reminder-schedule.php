@@ -70,6 +70,79 @@ function crmEnsureReminderScheduleTables(mysqli $conn): void
     $conn->query("UPDATE crm_reminder_campaigns SET allowed_days = '1,2,3,4,5,6,7' WHERE campaign_type = 'pembayaran'");
 }
 
+/**
+ * Anti-Ban Spintax Resolver: mengacak format {kata1|kata2|kata3}
+ */
+function crmResolveSpintax(string $text): string
+{
+    $maxIterations = 10;
+    while ($maxIterations-- > 0 && preg_match('/\{([^{}]+\|[^{}]+)\}/u', $text)) {
+        $text = (string)preg_replace_callback('/\{([^{}]+\|[^{}]+)\}/u', static function ($m) {
+            $parts = explode('|', $m[1]);
+            return $parts[array_rand($parts)];
+        }, $text);
+    }
+    return $text;
+}
+
+/**
+ * Deteksi Sapaan Waktu Otomatis WIB (Pagi / Siang / Sore / Malam)
+ */
+function crmGetTimeGreeting(): string
+{
+    $hour = (int)date('H');
+    if ($hour >= 4 && $hour < 11) {
+        return 'Pagi';
+    } elseif ($hour >= 11 && $hour < 15) {
+        return 'Siang';
+    } elseif ($hour >= 15 && $hour < 18) {
+        return 'Sore';
+    }
+    return 'Malam';
+}
+
+/**
+ * Resolver Lengkap Pesan Reminder: Variable Replacement + Spintax Anti-Ban
+ */
+function crmResolveReminderMessage(string $content, array $context = []): string
+{
+    $nama = trim((string)($context['nama'] ?? 'Kak'));
+    if ($nama === '') $nama = 'Kak';
+    $nowa = trim((string)($context['nowa'] ?? ''));
+    $bulan = trim((string)($context['bulan'] ?? 'periode ini'));
+    if ($bulan === '') $bulan = 'periode ini';
+    $halaqoh = trim((string)($context['halaqoh'] ?? '-'));
+    if ($halaqoh === '') $halaqoh = '-';
+
+    $sapaanWaktu = crmGetTimeGreeting();
+    $sapaanDefault = "{Assalamu'alaikum|Halo Kak|Selamat {$sapaanWaktu} Kak}";
+
+    $message = str_ireplace(
+        [
+            '{peserta_nama}', '{peserta_nowa}',
+            '{nama}', '{NAMA}', '[nama]', '[NAMA]',
+            '{bulan}', '{BULAN}', '[bulan]', '[BULAN]',
+            '{halaqoh}', '{HALAQOH}', '[halaqoh]', '[HALAQOH]',
+            '{sapaan_waktu}', '{SAPAAN_WAKTU}', '[sapaan_waktu]', '[SAPAAN_WAKTU]',
+            '{sapaan}', '{SAPAAN}', '[sapaan]', '[SAPAAN]'
+        ],
+        [
+            $nama, $nowa,
+            $nama, $nama, $nama, $nama,
+            $bulan, $bulan, $bulan, $bulan,
+            $halaqoh, $halaqoh, $halaqoh, $halaqoh,
+            $sapaanWaktu, $sapaanWaktu, $sapaanWaktu, $sapaanWaktu,
+            $sapaanDefault, $sapaanDefault, $sapaanDefault, $sapaanDefault
+        ],
+        $content
+    );
+
+    $message = crmResolveSpintax($message);
+    $message = (string)preg_replace('/[ \t]{2,}/', ' ', $message);
+
+    return trim($message);
+}
+
 function crmAdjustTimestampToAllowedDays(int $timestamp, array $allowedDays, int $hour = 8, int $minute = 0): int
 {
     if (!$allowedDays) return $timestamp;
@@ -360,27 +433,32 @@ function crmCreateReminderCampaign(mysqli $conn, array $params): int
                     $activeContent = (string)$chosen['content'];
                 }
 
-                $message = str_ireplace(
-                    ['{peserta_nama}', '{peserta_nowa}', '{nama}', '{NAMA}', '[nama]', '[NAMA]', '{bulan}', '{BULAN}', '[bulan]', '[BULAN]', '{halaqoh}', '{HALAQOH}', '[halaqoh]', '[HALAQOH]'],
-                    [$name, $nowa, $name, $name, $name, $name, $targetBulan, $targetBulan, $targetBulan, $targetBulan, $halName, $halName, $halName, $halName],
-                    $activeContent
-                );
-                $message = preg_replace('/ {2,}/', ' ', $message);
+                $message = crmResolveReminderMessage($activeContent, [
+                    'nama' => $name,
+                    'nowa' => $nowa,
+                    'bulan' => $targetBulan,
+                    'halaqoh' => $halName
+                ]);
 
-                $itemScheduleTime = crmAdjustTimestampToAllowedDays($scheduleTime, $allowedDays, $startHour, $startMinute);
+                // Humanized random jitter pada waktu pengiriman (-15 s/d +30 detik)
+                $jitter = rand(-15, 30);
+                $targetTs = max(time(), $scheduleTime + $jitter);
+                $itemScheduleTime = crmAdjustTimestampToAllowedDays($targetTs, $allowedDays, $startHour, $startMinute);
                 $scheduledAt = date('Y-m-d H:i:s', $itemScheduleTime);
 
                 $queueStmt->bind_param('iiisssiiss', $campaignId, $pesertaId, $requestId, $name, $nowa, $halName, $groupOrder, $assignedTplNum, $message, $scheduledAt);
                 $queueStmt->execute();
 
-                // Next message in this halaqoh
+                // Next message in this halaqoh: jeda acak natural (inter_message_delay ± 15 detik)
                 if ($idx < $countInGroup) {
-                    $scheduleTime += $interMessageDelay;
+                    $actualDelay = max(30, $interMessageDelay + rand(-15, 25));
+                    $scheduleTime += $actualDelay;
                 }
             }
 
-            // Delay between halaqohs
-            $scheduleTime += $interGroupDelay;
+            // Delay between halaqohs: jeda antar halaqoh + jitter (inter_group_delay ± 30 detik)
+            $actualGroupDelay = max(60, $interGroupDelay + rand(-30, 45));
+            $scheduleTime += $actualGroupDelay;
             $groupOrder++;
         }
     }
@@ -542,7 +620,8 @@ function crmProcessPendingReminderQueue(mysqli $conn, string $apiUrl, string $ap
                 $crmHistoryStmt->execute();
             }
         }
-        usleep(50000);
+        // Pacing aman antar antrean yang diproses (1.5 - 2.5 detik) agar tidak membanjiri gateway
+        usleep(rand(1500000, 2500000));
     }
 
     if ($updateQueueSuccess) $updateQueueSuccess->close();
@@ -721,16 +800,27 @@ function crmReminderGetMatchingPaymentTargets(mysqli $conn, array $filters): arr
     }
 
     if ($halaqohList) {
-        if (count($halaqohList) === 1) {
-            $where[] = "p.halaqoh = ?";
-            $params[] = $halaqohList[0];
-            $types .= 's';
-        } else {
-            $where[] = "p.halaqoh IN (" . implode(',', array_fill(0, count($halaqohList), '?')) . ")";
-            foreach ($halaqohList as $hlItem) {
-                $params[] = $hlItem;
+        $hasAkCategory = in_array('AK', $halaqohList, true);
+        $hasIkCategory = in_array('IK', $halaqohList, true);
+        $specificHalaqoh = array_values(array_filter($halaqohList, static fn($h) => $h !== 'AK' && $h !== 'IK'));
+
+        $halConditions = [];
+        if ($hasAkCategory) {
+            $halConditions[] = "(p.halaqoh LIKE 'AK %' OR p.halaqoh = 'AK')";
+        }
+        if ($hasIkCategory) {
+            $halConditions[] = "(p.halaqoh LIKE 'IK %' OR p.halaqoh = 'IK')";
+        }
+        if ($specificHalaqoh) {
+            $placeholders = implode(',', array_fill(0, count($specificHalaqoh), '?'));
+            $halConditions[] = "p.halaqoh IN ({$placeholders})";
+            foreach ($specificHalaqoh as $sh) {
+                $params[] = $sh;
                 $types .= 's';
             }
+        }
+        if ($halConditions) {
+            $where[] = '(' . implode(' OR ', $halConditions) . ')';
         }
     }
 

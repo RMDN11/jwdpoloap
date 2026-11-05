@@ -9,13 +9,52 @@ $cronApiUrl = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : (!empty($apiUrl
 $cronApiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : (!empty($apiToken) ? $apiToken : '');
 $activeCampaigns = crmGetActiveCampaigns($conn, 3);
 
-// Pemrosesan antrean yang jatuh tempo secara otomatis saat membuka halaman
-if (!empty($activeCampaigns) && !empty($cronApiUrl) && !empty($cronApiToken)) {
-    crmProcessPendingReminderQueue($conn, (string)$cronApiUrl, (string)$cronApiToken, 5);
+// Pemrosesan antrean yang jatuh tempo secara otomatis saat membuka halaman (dengan throttling aman)
+$lastQueueRun = (int)($_SESSION['crm_last_queue_check'] ?? 0);
+if ((time() - $lastQueueRun) >= 60 && !empty($activeCampaigns) && !empty($cronApiUrl) && !empty($cronApiToken)) {
+    $_SESSION['crm_last_queue_check'] = time();
+    crmProcessPendingReminderQueue($conn, (string)$cronApiUrl, (string)$cronApiToken, 2);
     $activeCampaigns = crmGetActiveCampaigns($conn, 3);
 }
 
 $crmTitle = 'Reminder Pembayaran';
+
+// Filter Persistence across CRM page navigation
+$filterKeys = ['q', 'halaqoh', 'bulan', 'csv_file', 'status_bayar', 'status_peserta', 'p'];
+$hasAnyFilterParam = false;
+foreach ($filterKeys as $k) {
+    if (isset($_GET[$k])) {
+        $hasAnyFilterParam = true;
+        break;
+    }
+}
+
+if (isset($_GET['reset']) && (string)$_GET['reset'] === '1') {
+    unset($_SESSION['crm_reminder_pembayaran_filters']);
+    $hasAnyFilterParam = false;
+}
+
+if ($hasAnyFilterParam) {
+    $_SESSION['crm_reminder_pembayaran_filters'] = [
+        'q' => (string)($_GET['q'] ?? ''),
+        'halaqoh' => is_array($_GET['halaqoh'] ?? null) ? implode(',', $_GET['halaqoh']) : (string)($_GET['halaqoh'] ?? ''),
+        'bulan' => (string)($_GET['bulan'] ?? ''),
+        'csv_file' => (string)($_GET['csv_file'] ?? ''),
+        'status_bayar' => (string)($_GET['status_bayar'] ?? 'belum_lunas'),
+        'status_peserta' => (string)($_GET['status_peserta'] ?? 'proses'),
+        'p' => (int)($_GET['p'] ?? 1),
+    ];
+} elseif (!empty($_SESSION['crm_reminder_pembayaran_filters'])) {
+    $savedFilters = $_SESSION['crm_reminder_pembayaran_filters'];
+    $_GET['q'] = $savedFilters['q'] ?? '';
+    $_GET['halaqoh'] = $savedFilters['halaqoh'] ?? '';
+    $_GET['bulan'] = $savedFilters['bulan'] ?? '';
+    $_GET['csv_file'] = $savedFilters['csv_file'] ?? '';
+    $_GET['status_bayar'] = $savedFilters['status_bayar'] ?? 'belum_lunas';
+    $_GET['status_peserta'] = $savedFilters['status_peserta'] ?? 'proses';
+    $_GET['p'] = $savedFilters['p'] ?? 1;
+}
+
 $search = trim((string)($_GET['q'] ?? ''));
 $halaqohRaw = $_GET['halaqoh'] ?? '';
 $halaqohSelected = [];
@@ -42,6 +81,40 @@ $halaqohList = [];
 $r = $conn->query("SELECT DISTINCT halaqoh FROM peserta WHERE halaqoh IS NOT NULL AND halaqoh <> '' ORDER BY halaqoh");
 if ($r) while ($row = $r->fetch_assoc()) $halaqohList[] = (string)$row['halaqoh'];
 
+$halaqohAk = [];
+$halaqohIk = [];
+foreach ($halaqohList as $h) {
+    if (preg_match('/^AK(\s|\b|$)/i', $h)) {
+        $halaqohAk[] = $h;
+    } elseif (preg_match('/^IK(\s|\b|$)/i', $h)) {
+        $halaqohIk[] = $h;
+    }
+}
+natsort($halaqohAk);
+natsort($halaqohIk);
+$halaqohAk = array_values($halaqohAk);
+$halaqohIk = array_values($halaqohIk);
+$halaqohList = array_merge($halaqohAk, $halaqohIk);
+
+// Active items & exclusion logic for AK and IK
+$isAkAllExplicit = in_array('AK', $halaqohSelected, true);
+$activeAkList = $isAkAllExplicit ? $halaqohAk : array_values(array_intersect($halaqohAk, $halaqohSelected));
+$isAllAkSelected = ($isAkAllExplicit || (!empty($halaqohAk) && count($activeAkList) === count($halaqohAk)));
+
+$isIkAllExplicit = in_array('IK', $halaqohSelected, true);
+$activeIkList = $isIkAllExplicit ? $halaqohIk : array_values(array_intersect($halaqohIk, $halaqohSelected));
+$isAllIkSelected = ($isIkAllExplicit || (!empty($halaqohIk) && count($activeIkList) === count($halaqohIk)));
+
+$otherNonAk = array_values(array_diff($halaqohSelected, array_merge(['AK'], $halaqohAk)));
+$otherNonIk = array_values(array_diff($halaqohSelected, array_merge(['IK'], $halaqohIk)));
+
+$defaultCatTab = 'all';
+if ($isAllAkSelected || !empty($activeAkList)) {
+    $defaultCatTab = 'ak';
+} elseif ($isAllIkSelected || !empty($activeIkList)) {
+    $defaultCatTab = 'ik';
+}
+
 $bulanList = [];
 $r = $conn->query("SELECT bulan_pembayaran FROM pembayaran WHERE bulan_pembayaran IS NOT NULL AND bulan_pembayaran <> '' GROUP BY bulan_pembayaran ORDER BY MAX(id) DESC");
 if ($r) while ($row = $r->fetch_assoc()) $bulanList[] = (string)$row['bulan_pembayaran'];
@@ -49,7 +122,7 @@ if ($r) while ($row = $r->fetch_assoc()) $bulanList[] = (string)$row['bulan_pemb
 $csvImports = crmReminderCsvList();
 
 $templates = [];
-$r = $conn->query("SELECT id, category, title, content FROM wa_templates ORDER BY category, title");
+$r = $conn->query("SELECT id, category, title, content FROM wa_templates ORDER BY id ASC");
 if ($r) $templates = $r->fetch_all(MYSQLI_ASSOC);
 
 $participants = [];
@@ -121,16 +194,27 @@ if ($search !== '') {
 }
 
 if ($halaqohSelected) {
-    if (count($halaqohSelected) === 1) {
-        $where[] = "p.halaqoh = ?";
-        $params[] = $halaqohSelected[0];
-        $types .= 's';
-    } else {
-        $where[] = "p.halaqoh IN (" . implode(',', array_fill(0, count($halaqohSelected), '?')) . ")";
-        foreach ($halaqohSelected as $hlItem) {
-            $params[] = $hlItem;
+    $hasAkCategory = in_array('AK', $halaqohSelected, true);
+    $hasIkCategory = in_array('IK', $halaqohSelected, true);
+    $specificHalaqoh = array_values(array_filter($halaqohSelected, static fn($h) => $h !== 'AK' && $h !== 'IK'));
+
+    $halConditions = [];
+    if ($hasAkCategory) {
+        $halConditions[] = "(p.halaqoh LIKE 'AK %' OR p.halaqoh = 'AK')";
+    }
+    if ($hasIkCategory) {
+        $halConditions[] = "(p.halaqoh LIKE 'IK %' OR p.halaqoh = 'IK')";
+    }
+    if ($specificHalaqoh) {
+        $placeholders = implode(',', array_fill(0, count($specificHalaqoh), '?'));
+        $halConditions[] = "p.halaqoh IN ({$placeholders})";
+        foreach ($specificHalaqoh as $sh) {
+            $params[] = $sh;
             $types .= 's';
         }
+    }
+    if ($halConditions) {
+        $where[] = '(' . implode(' OR ', $halConditions) . ')';
     }
 }
 
@@ -459,36 +543,152 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
                         <i class="fa-solid fa-users"></i> Semua aktif
                     </a>
                     <?php if ($hasFilter): ?>
-                        <a href="?page=reminder-pembayaran" class="reminder-quick-chip reset">
+                        <a href="?page=reminder-pembayaran&reset=1" class="reminder-quick-chip reset">
                             <i class="fa-solid fa-rotate-left"></i> Reset filter
                         </a>
                     <?php endif; ?>
                 </div>
 
                 <?php if ($halaqohList): ?>
-                    <div class="reminder-halaqoh-bar" style="display:flex;align-items:center;gap:6px;overflow-x:auto;padding:8px 0;margin-bottom:10px;scrollbar-width:thin">
-                        <span style="font-size:11px;font-weight:700;color:#65756d;white-space:nowrap">
-                            <i class="fa-solid fa-graduation-cap" style="color:#168044"></i> Pilih Halaqoh:
-                        </span>
-                        <a href="<?= htmlspecialchars($buildPaginationUrl(1, '')) ?>" class="reminder-quick-chip <?= empty($halaqohSelected) ? 'active' : '' ?>" style="white-space:nowrap">
-                            Semua halaqoh
-                        </a>
-                        <?php foreach (array_slice($halaqohList, 0, 15) as $hItem): ?>
-                            <?php
-                            $isActive = in_array($hItem, $halaqohSelected, true);
-                            $toggled = $halaqohSelected;
-                            if ($isActive) {
-                                $toggled = array_values(array_diff($toggled, [$hItem]));
-                            } else {
-                                $toggled[] = $hItem;
-                            }
-                            $toggledStr = implode(',', $toggled);
-                            $chipUrl = $buildPaginationUrl(1, $toggledStr);
-                            ?>
-                            <a href="<?= htmlspecialchars($chipUrl) ?>" class="reminder-quick-chip <?= $isActive ? 'active' : '' ?>" style="white-space:nowrap">
-                                <?= $isActive ? '✓ ' : '' ?><?= htmlspecialchars($hItem) ?>
-                            </a>
-                        <?php endforeach; ?>
+                    <div class="reminder-halaqoh-filter-box reminder-halaqoh-bar">
+                        <div class="reminder-halaqoh-top">
+                            <div class="reminder-halaqoh-title">
+                                <span class="halaqoh-title-badge"><i class="fa-solid fa-graduation-cap"></i></span>
+                                <strong>Pilih Halaqoh:</strong>
+                                <?php
+                                $selectedAkCount = count($activeAkList);
+                                $selectedIkCount = count($activeIkList);
+                                $totalSelectedCount = $selectedAkCount + $selectedIkCount;
+                                ?>
+                                <?php if ($totalSelectedCount > 0): ?>
+                                    <span class="halaqoh-selection-summary">
+                                        <?php if ($isAllAkSelected && $selectedIkCount === 0): ?>
+                                            Semua AK (<?= count($halaqohAk) ?>) dipilih
+                                        <?php elseif ($selectedAkCount > 0 && $selectedIkCount === 0): ?>
+                                            <?= $selectedAkCount ?> dari <?= count($halaqohAk) ?> AK dipilih
+                                        <?php elseif ($isAllIkSelected && $selectedAkCount === 0): ?>
+                                            Semua IK (<?= count($halaqohIk) ?>) dipilih
+                                        <?php elseif ($selectedIkCount > 0 && $selectedAkCount === 0): ?>
+                                            <?= $selectedIkCount ?> dari <?= count($halaqohIk) ?> IK dipilih
+                                        <?php else: ?>
+                                            <?= $totalSelectedCount ?> halaqoh dipilih
+                                        <?php endif; ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="reminder-halaqoh-tabs" role="tablist">
+                                <button type="button" class="reminder-halaqoh-tab <?= $defaultCatTab === 'all' ? 'active' : '' ?>" data-tab="all">
+                                    Semua (<?= count($halaqohList) ?>)
+                                </button>
+                                <button type="button" class="reminder-halaqoh-tab tab-ak <?= $defaultCatTab === 'ak' ? 'active' : '' ?>" data-tab="ak">
+                                    <i class="fa-solid fa-venus" style="color:#db2777"></i> AK · Akhwat (<?= count($halaqohAk) ?>)
+                                </button>
+                                <button type="button" class="reminder-halaqoh-tab tab-ik <?= $defaultCatTab === 'ik' ? 'active' : '' ?>" data-tab="ik">
+                                    <i class="fa-solid fa-mars" style="color:#2563eb"></i> IK · Ikhwan (<?= count($halaqohIk) ?>)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 1: KATEGORI AK (AKHWAT) -->
+                        <div class="reminder-halaqoh-panel" id="panel-halaqoh-ak" style="<?= $defaultCatTab === 'ak' ? '' : 'display:none' ?>">
+                            <div class="reminder-halaqoh-panel-chips">
+                                <?php
+                                if ($isAllAkSelected) {
+                                    $allAkUrl = $buildPaginationUrl(1, implode(',', $otherNonAk));
+                                } else {
+                                    $allAkUrl = $buildPaginationUrl(1, implode(',', array_merge($otherNonAk, ['AK'])));
+                                }
+                                ?>
+                                <a href="<?= htmlspecialchars($allAkUrl) ?>" class="reminder-quick-chip chip-category-all chip-ak <?= $isAllAkSelected ? 'active' : '' ?>" title="Pilih seluruh 28 halaqoh Akhwat sekaligus">
+                                    <i class="fa-solid fa-layer-group"></i> <?= $isAllAkSelected ? '✓ ' : '' ?>Pilih Semua AK (<?= count($halaqohAk) ?>)
+                                </a>
+
+                                <span class="chip-separator"></span>
+
+                                <?php foreach ($halaqohAk as $hItem): ?>
+                                    <?php
+                                    $isChipActive = $isAllAkSelected || in_array($hItem, $activeAkList, true);
+                                    if ($isChipActive) {
+                                        // User clicks active chip -> EXCLUDE this chip!
+                                        $newAk = array_values(array_diff($activeAkList, [$hItem]));
+                                    } else {
+                                        // User clicks inactive chip -> INCLUDE this chip!
+                                        $newAk = array_merge($activeAkList, [$hItem]);
+                                    }
+                                    if (count($newAk) === count($halaqohAk)) {
+                                        $targetHal = array_merge($otherNonAk, ['AK']);
+                                    } else {
+                                        $targetHal = array_merge($otherNonAk, $newAk);
+                                    }
+                                    $chipUrl = $buildPaginationUrl(1, implode(',', $targetHal));
+                                    ?>
+                                    <a href="<?= htmlspecialchars($chipUrl) ?>" class="reminder-quick-chip chip-item-ak <?= $isChipActive ? 'active' : '' ?>" title="<?= $isChipActive ? 'Klik untuk kecualikan ' . htmlspecialchars($hItem) : 'Klik untuk pilih ' . htmlspecialchars($hItem) ?>">
+                                        <?= $isChipActive ? '✓ ' : '' ?><?= htmlspecialchars($hItem) ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 2: KATEGORI IK (IKHWAN) -->
+                        <div class="reminder-halaqoh-panel" id="panel-halaqoh-ik" style="<?= $defaultCatTab === 'ik' ? '' : 'display:none' ?>">
+                            <div class="reminder-halaqoh-panel-chips">
+                                <?php
+                                if ($isAllIkSelected) {
+                                    $allIkUrl = $buildPaginationUrl(1, implode(',', $otherNonIk));
+                                } else {
+                                    $allIkUrl = $buildPaginationUrl(1, implode(',', array_merge($otherNonIk, ['IK'])));
+                                }
+                                ?>
+                                <a href="<?= htmlspecialchars($allIkUrl) ?>" class="reminder-quick-chip chip-category-all chip-ik <?= $isAllIkSelected ? 'active' : '' ?>" title="Pilih seluruh 12 halaqoh Ikhwan sekaligus">
+                                    <i class="fa-solid fa-layer-group"></i> <?= $isAllIkSelected ? '✓ ' : '' ?>Pilih Semua IK (<?= count($halaqohIk) ?>)
+                                </a>
+
+                                <span class="chip-separator"></span>
+
+                                <?php foreach ($halaqohIk as $hItem): ?>
+                                    <?php
+                                    $isChipActive = $isAllIkSelected || in_array($hItem, $activeIkList, true);
+                                    if ($isChipActive) {
+                                        // User clicks active chip -> EXCLUDE this chip!
+                                        $newIk = array_values(array_diff($activeIkList, [$hItem]));
+                                    } else {
+                                        // User clicks inactive chip -> INCLUDE this chip!
+                                        $newIk = array_merge($activeIkList, [$hItem]);
+                                    }
+                                    if (count($newIk) === count($halaqohIk)) {
+                                        $targetHal = array_merge($otherNonIk, ['IK']);
+                                    } else {
+                                        $targetHal = array_merge($otherNonIk, $newIk);
+                                    }
+                                    $chipUrl = $buildPaginationUrl(1, implode(',', $targetHal));
+                                    ?>
+                                    <a href="<?= htmlspecialchars($chipUrl) ?>" class="reminder-quick-chip chip-item-ik <?= $isChipActive ? 'active' : '' ?>" title="<?= $isChipActive ? 'Klik untuk kecualikan ' . htmlspecialchars($hItem) : 'Klik untuk pilih ' . htmlspecialchars($hItem) ?>">
+                                        <?= $isChipActive ? '✓ ' : '' ?><?= htmlspecialchars($hItem) ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <!-- PANEL 3: SEMUA / GABUNGAN -->
+                        <div class="reminder-halaqoh-panel" id="panel-halaqoh-all" style="<?= $defaultCatTab === 'all' ? '' : 'display:none' ?>">
+                            <div class="reminder-halaqoh-panel-chips">
+                                <a href="<?= htmlspecialchars($buildPaginationUrl(1, '')) ?>" class="reminder-quick-chip <?= empty($halaqohSelected) ? 'active' : '' ?>">
+                                    <i class="fa-solid fa-border-all"></i> Semua Halaqoh
+                                </a>
+                                <a href="<?= htmlspecialchars($buildPaginationUrl(1, $isAllAkSelected ? '' : 'AK')) ?>" class="reminder-quick-chip chip-category-all chip-ak <?= $isAllAkSelected ? 'active' : '' ?>">
+                                    <i class="fa-solid fa-venus"></i> <?= $isAllAkSelected ? '✓ ' : '' ?>Semua AK (Akhwat)
+                                </a>
+                                <a href="<?= htmlspecialchars($buildPaginationUrl(1, $isAllIkSelected ? '' : 'IK')) ?>" class="reminder-quick-chip chip-category-all chip-ik <?= $isAllIkSelected ? 'active' : '' ?>">
+                                    <i class="fa-solid fa-mars"></i> <?= $isAllIkSelected ? '✓ ' : '' ?>Semua IK (Ikhwan)
+                                </a>
+                                <?php if (!empty($halaqohSelected)): ?>
+                                    <a href="<?= htmlspecialchars($buildPaginationUrl(1, '')) ?>&reset=1" class="reminder-quick-chip reset">
+                                        <i class="fa-solid fa-rotate-left"></i> Reset halaqoh
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </div>
                 <?php endif; ?>
 
@@ -531,14 +731,34 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
                         <span>Halaqoh <?= count($halaqohSelected) > 1 ? '(' . count($halaqohSelected) . ' terpilih)' : '' ?></span>
                         <select name="halaqoh">
                             <option value="">Semua halaqoh</option>
-                            <?php if (count($halaqohSelected) > 1): ?>
+                            <option value="AK" <?= in_array('AK', $halaqohSelected, true) ? 'selected' : '' ?>>★ SEMUA AK (Akhwat - <?= count($halaqohAk) ?> Halaqoh)</option>
+                            <option value="IK" <?= in_array('IK', $halaqohSelected, true) ? 'selected' : '' ?>>★ SEMUA IK (Ikhwan - <?= count($halaqohIk) ?> Halaqoh)</option>
+                            <?php if (count($halaqohSelected) > 1 && !in_array('AK', $halaqohSelected, true) && !in_array('IK', $halaqohSelected, true)): ?>
                                 <option value="<?= htmlspecialchars($halaqoh, ENT_QUOTES) ?>" selected>
                                     Multi-Halaqoh (<?= count($halaqohSelected) ?> dipilih: <?= htmlspecialchars(implode(', ', array_slice($halaqohSelected, 0, 2))) ?>...)
                                 </option>
                             <?php endif; ?>
-                            <?php foreach ($halaqohList as $item): ?>
-                                <option value="<?= htmlspecialchars($item) ?>" <?= (count($halaqohSelected) === 1 && $halaqohSelected[0] === $item) ? 'selected' : '' ?>><?= htmlspecialchars($item) ?></option>
-                            <?php endforeach; ?>
+                            <?php if ($halaqohAk): ?>
+                                <optgroup label="── Halaqoh AK (Akhwat) ──">
+                                    <?php foreach ($halaqohAk as $item): ?>
+                                        <option value="<?= htmlspecialchars($item) ?>" <?= (count($halaqohSelected) === 1 && $halaqohSelected[0] === $item) ? 'selected' : '' ?>><?= htmlspecialchars($item) ?></option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endif; ?>
+                            <?php if ($halaqohIk): ?>
+                                <optgroup label="── Halaqoh IK (Ikhwan) ──">
+                                    <?php foreach ($halaqohIk as $item): ?>
+                                        <option value="<?= htmlspecialchars($item) ?>" <?= (count($halaqohSelected) === 1 && $halaqohSelected[0] === $item) ? 'selected' : '' ?>><?= htmlspecialchars($item) ?></option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endif; ?>
+                            <?php if ($halaqohOther): ?>
+                                <optgroup label="── Halaqoh Lainnya ──">
+                                    <?php foreach ($halaqohOther as $item): ?>
+                                        <option value="<?= htmlspecialchars($item) ?>" <?= (count($halaqohSelected) === 1 && $halaqohSelected[0] === $item) ? 'selected' : '' ?>><?= htmlspecialchars($item) ?></option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            <?php endif; ?>
                         </select>
                     </label>
 
@@ -620,8 +840,14 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
                                     <span class="reminder-person-body">
                                         <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
                                             <strong><?= htmlspecialchars($p['nama_lengkap']) ?></strong>
-                                            <span class="reminder-badge-halaqoh" title="Halaqoh: <?= htmlspecialchars($p['halaqoh'] ?: '-') ?>">
-                                                <i class="fa-solid fa-graduation-cap"></i> <?= htmlspecialchars($p['halaqoh'] ?: '-') ?>
+                                            <?php
+                                            $hVal = (string)($p['halaqoh'] ?: '-');
+                                            $badgeCatClass = '';
+                                            if (stripos($hVal, 'AK') === 0) $badgeCatClass = 'badge-ak';
+                                            elseif (stripos($hVal, 'IK') === 0) $badgeCatClass = 'badge-ik';
+                                            ?>
+                                            <span class="reminder-badge-halaqoh <?= $badgeCatClass ?>" title="Halaqoh: <?= htmlspecialchars($hVal) ?>">
+                                                <i class="fa-solid fa-graduation-cap"></i> <?= htmlspecialchars($hVal) ?>
                                             </span>
                                         </div>
                                         <small><?= htmlspecialchars($csvFile !== '' ? (($csvTargetByPesertaId[(int)$p['id']] ?? '') ?: $p['nowa']) : $p['nowa']) ?></small>
@@ -720,13 +946,18 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
                 </div>
 
                 <label class="reminder-field">
-                    <span>Preview pesan</span>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                        <span>Preview pesan</span>
+                        <button type="button" id="btnRerollSpintax" style="background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px" title="Uji acak variasi kata Spintax">
+                            <i class="fa-solid fa-dice"></i> Uji Acak Kata (Spintax)
+                        </button>
+                    </div>
                     <textarea id="reminderPreview" rows="9" readonly placeholder="Pilih template untuk melihat preview."></textarea>
                 </label>
 
                 <div class="reminder-helper">
-                    <i class="fa-solid fa-circle-info"></i>
-                    <span>Variabel <code>{nama}</code>, <code>{bulan}</code>, dan <code>{halaqoh}</code> akan otomatis diganti.</span>
+                    <i class="fa-solid fa-shield-halved" style="color:#16a34a"></i>
+                    <span>Dukungan Anti-Banned: Variabel <code>{nama}</code>, <code>{bulan}</code>, <code>{halaqoh}</code>, <code>{sapaan_waktu}</code>, serta Spintax <code>{opsi1|opsi2}</code> otomatis diacak per kontak.</span>
                 </div>
 
                 <button class="reminder-send-btn" type="submit" <?= !$templates ? 'disabled' : '' ?>>
@@ -743,14 +974,14 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
     </div>
 </div>
 
-<div id="reminderScheduleModal" hidden style="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.42);padding:20px;align-items:center;justify-content:center">
-    <div style="width:min(640px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;padding:22px;box-shadow:0 20px 60px rgba(15,23,42,.2)">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px">
+<div id="reminderScheduleModal" class="reminder-modal-overlay" hidden style="display:none">
+    <div class="reminder-modal-box">
+        <div class="reminder-modal-header">
             <div>
                 <span class="reminder-kicker">Otomasi Pengiriman</span>
-                <h2 style="margin:3px 0 0">Jadwal Reminder Bertahap</h2>
+                <h2 style="margin:2px 0 0;font-size:18px">Jadwal Reminder Bertahap</h2>
             </div>
-            <button type="button" id="closeReminderScheduleModal" aria-label="Tutup" style="border:0;background:#f1f5f9;border-radius:10px;width:36px;height:36px;cursor:pointer">×</button>
+            <button type="button" id="closeReminderScheduleModal" class="reminder-modal-close" aria-label="Tutup">×</button>
         </div>
 
         <form method="post" action="actions/reminder-schedule.php" id="reminderScheduleForm">
@@ -774,15 +1005,29 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
 
                 <div class="reminder-field">
                     <span>Mode Template</span>
-                    <div style="display:flex;gap:14px;align-items:center;margin:6px 0;flex-wrap:wrap">
-                        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700">
-                            <input type="radio" name="template_mode" value="single" checked style="accent-color:#168044">
-                            1 Template Tunggal
-                        </label>
-                        <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700">
-                            <input type="radio" name="template_mode" value="rolling" style="accent-color:#168044">
-                            🔄 Rotasi Rolling (Pilih Template)
-                        </label>
+                    <div class="template-mode-cards-grid">
+                        <div class="template-mode-card active" id="modeCardSingle" role="button" tabindex="0">
+                            <input type="radio" name="template_mode" value="single" class="mode-card-radio-hidden" checked>
+                            <div class="mode-radio-circle"></div>
+                            <div class="mode-card-body">
+                                <div class="mode-card-header">
+                                    <i class="fa-solid fa-file-lines" style="color:#168044"></i>
+                                    <strong>1 Template Tunggal</strong>
+                                </div>
+                                <small>Kirim 1 template yang sama ke semua peserta terpilih</small>
+                            </div>
+                        </div>
+                        <div class="template-mode-card" id="modeCardRolling" role="button" tabindex="0">
+                            <input type="radio" name="template_mode" value="rolling" class="mode-card-radio-hidden">
+                            <div class="mode-radio-circle"></div>
+                            <div class="mode-card-body">
+                                <div class="mode-card-header">
+                                    <i class="fa-solid fa-shuffle" style="color:#2563eb"></i>
+                                    <strong>Rotasi Rolling</strong>
+                                </div>
+                                <small>Rotasi dinamis bergantian template antar peserta</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -800,27 +1045,33 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
 
                 <div class="reminder-field" id="scheduleRollingTemplateBox" style="display:none;background:#f8fbf9;border:1px solid #dcebe1;border-radius:12px;padding:12px">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                        <span style="font-size:11px;font-weight:800;color:#166534">
-                            <i class="fa-solid fa-shuffle"></i> Pilih Template yang Dirotasi
-                        </span>
+                        <div>
+                            <span style="font-size:11px;font-weight:800;color:#166534">
+                                <i class="fa-solid fa-shuffle"></i> Pilih Template yang Dirotasi
+                            </span>
+                            <span id="scheduleRollingCountBadge" style="margin-left:6px;font-size:10px;font-weight:700;color:#0369a1;background:#e0f2fe;padding:1px 6px;border-radius:4px"></span>
+                        </div>
                         <div style="display:flex;gap:6px">
                             <button type="button" id="scheduleRollingSelectAll" style="background:#fff;border:1px solid #cbd5e1;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer">Pilih Semua</button>
                             <button type="button" id="scheduleRollingReset" style="background:#fff;border:1px solid #cbd5e1;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer">Reset</button>
                         </div>
                     </div>
-                    <div style="display:grid;gap:6px;max-height:180px;overflow-y:auto;padding-right:4px">
+                    <div id="scheduleRollingListContainer" style="display:grid;gap:6px;max-height:220px;overflow-y:auto;overflow-x:hidden;padding-right:4px;box-sizing:border-box">
                         <?php
                         $tplLimit = count($templates);
                         for ($tIdx = 0; $tIdx < $tplLimit; $tIdx++):
                             $tItem = $templates[$tIdx];
-                            $slotName = 'S-' . ($tIdx + 1);
+                            $snippet = mb_substr(preg_replace('/\s+/', ' ', (string)$tItem['content']), 0, 80);
                         ?>
-                            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:11px">
-                                <input type="checkbox" name="rolling_templates[]" value="<?= (int)$tItem['id'] ?>" class="schedule-rolling-check" checked style="accent-color:#168044">
-                                <span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:6px;font-weight:800;font-size:10px"><?= $slotName ?></span>
-                                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<?= htmlspecialchars($tItem['title']) ?>">
-                                    <?= htmlspecialchars($tItem['title']) ?>
-                                </span>
+                            <label class="schedule-rolling-card checked">
+                                <input type="checkbox" name="rolling_templates[]" value="<?= (int)$tItem['id'] ?>" class="schedule-rolling-check" checked>
+                                <div class="schedule-rolling-card-info">
+                                    <div class="schedule-rolling-card-head">
+                                        <div class="schedule-rolling-card-title"><?= htmlspecialchars((string)$tItem['title']) ?></div>
+                                        <span class="schedule-rolling-card-badge"><?= htmlspecialchars((string)($tItem['category'] ?: 'Pembayaran')) ?></span>
+                                    </div>
+                                    <div class="schedule-rolling-card-snippet"><?= htmlspecialchars($snippet) ?></div>
+                                </div>
                             </label>
                         <?php endfor; ?>
                         <?php if ($tplLimit === 0): ?>
@@ -828,16 +1079,21 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
                         <?php endif; ?>
                     </div>
                     <small style="color:#64748b;font-size:10px;display:block;margin-top:6px">
-                        Pesan akan otomatis dirotasi bergantian (S-1, S-2, S-3...) antar peserta dalam tiap halaqoh agar terhindar dari deteksi spam/banned WhatsApp.
+                        Pesan akan otomatis dirotasi bergantian antar peserta dalam tiap halaqoh menggunakan template yang Anda centang di atas.
                     </small>
                 </div>
 
                 <div style="background:#f8fbf9;border:1px solid #dcebe1;border-radius:14px;padding:14px">
-                    <span style="display:block;font-size:11px;font-weight:800;color:#166534;margin-bottom:10px">
-                        <i class="fa-solid fa-sliders"></i> Pengaturan Jeda & Waktu Otomasi
-                    </span>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+                        <span style="font-size:11px;font-weight:800;color:#166534">
+                            <i class="fa-solid fa-sliders"></i> Pengaturan Jeda & Waktu Otomasi
+                        </span>
+                        <span style="background:#ecfdf5;color:#166534;border:1px solid #bbf7d0;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700">
+                            <i class="fa-solid fa-shield-halved"></i> Spintax & Jitter Aktif
+                        </span>
+                    </div>
 
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                    <div class="reminder-modal-grid-2" style="margin-bottom:12px">
                         <label class="reminder-field" style="margin-top:0">
                             <span>Jeda Antar Pesan (menit)</span>
                             <input type="number" name="delay_message" id="scheduleDelayMessage" min="1" max="60" value="2" required>
@@ -852,7 +1108,7 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
 
                     <div class="reminder-field" style="margin-top:0">
                         <span>Waktu Mulai Pengiriman</span>
-                        <div style="display:flex;gap:16px;align-items:center;margin:6px 0">
+                        <div style="display:flex;gap:16px;align-items:center;margin:6px 0;flex-wrap:wrap">
                             <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700">
                                 <input type="radio" name="start_type" value="now" checked style="width:auto;height:auto;accent-color:#168044">
                                 Langsung Mulai Sekarang
@@ -877,7 +1133,7 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
                 </div>
             </div>
 
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+            <div class="reminder-modal-btn-group">
                 <button type="button" id="cancelScheduleModal" class="reminder-clear-btn" style="padding:10px 16px;font-size:11px;border-radius:10px">Tutup</button>
                 <button type="submit" class="reminder-send-btn" style="width:auto;padding:10px 18px;margin-top:0">
                     <i class="fa-solid fa-clock"></i> Simpan & Jadwalkan Otomasi
@@ -887,33 +1143,39 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
     </div>
 </div>
 
-<div id="reminderTemplateModal" hidden style="position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.42);padding:20px;align-items:center;justify-content:center">
-    <div style="width:min(680px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:20px;padding:22px;box-shadow:0 20px 60px rgba(15,23,42,.2)">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px">
+<div id="reminderTemplateModal" class="reminder-modal-overlay" hidden style="display:none">
+    <div id="reminderTemplateModalContent" class="reminder-modal-box template-manager-box">
+        <div class="reminder-modal-header">
             <div>
-                <span class="reminder-kicker">Kelola pesan</span>
-                <h2 id="templateModalTitle" style="margin:3px 0 0">Template WhatsApp</h2>
+                <span class="reminder-kicker" style="color:#16a34a;font-weight:700">Manajemen Template</span>
+                <h2 id="templateModalTitle" style="margin:2px 0 0;font-size:18px;color:#0f172a">Kelola Template WhatsApp</h2>
+                <small style="color:#64748b;font-size:11px">Edit judul/isi pesan, buat template baru, atau hapus template lama.</small>
             </div>
-            <button type="button" id="closeReminderTemplateModal" aria-label="Tutup" style="border:0;background:#f1f5f9;border-radius:10px;width:36px;height:36px;cursor:pointer">×</button>
+            <button type="button" id="closeReminderTemplateModal" class="reminder-modal-close" aria-label="Tutup">×</button>
         </div>
 
-        <div id="templateManagerList" style="display:grid;gap:8px;margin-bottom:16px">
-            <?php foreach ($templates as $tpl): ?>
-                <div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid #e2e8f0;border-radius:12px">
-                    <div style="flex:1;min-width:0">
-                        <strong style="display:block"><?= htmlspecialchars($tpl['title']) ?></strong>
-                        <small style="color:#64748b"><?= htmlspecialchars($tpl['category'] ?: 'Tanpa kategori') ?></small>
-                    </div>
-                    <button type="button" class="edit-reminder-template" data-id="<?= (int)$tpl['id'] ?>" data-category="<?= htmlspecialchars($tpl['category'], ENT_QUOTES) ?>" data-title="<?= htmlspecialchars($tpl['title'], ENT_QUOTES) ?>" data-content="<?= htmlspecialchars($tpl['content'], ENT_QUOTES) ?>" style="border:1px solid #dbe3ea;background:#fff;border-radius:9px;padding:7px 10px;cursor:pointer">
-                        Edit
-                    </button>
-                    <button type="button" class="delete-reminder-template" data-id="<?= (int)$tpl['id'] ?>" data-title="<?= htmlspecialchars($tpl['title'], ENT_QUOTES) ?>" style="border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:9px;padding:7px 10px;cursor:pointer">
-                        Hapus
-                    </button>
+        <div id="templateModalAlert" style="display:none;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:600"></div>
+
+        <!-- Section 1: Daftar Template Tersedia -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:12px;font-weight:800;color:#0f172a">
+                        <i class="fa-solid fa-list-check" style="color:#16a34a"></i> Daftar Template Tersedia
+                    </span>
+                    <span id="templateCountBadge" style="background:#e2e8f0;color:#334155;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700"><?= count($templates) ?></span>
                 </div>
-            <?php endforeach; ?>
+                <button type="button" id="btnResetToNewTemplate" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">
+                    <i class="fa-solid fa-plus"></i> Buat Baru
+                </button>
+            </div>
+
+            <div id="templateManagerList" style="display:grid;gap:8px;max-height:220px;overflow-y:auto;overflow-x:hidden;padding-right:4px;box-sizing:border-box">
+                <!-- Template list items rendered via JS -->
+            </div>
         </div>
 
+        <!-- Hidden Delete Form (fallback jika fetch gagal) -->
         <form method="post" action="actions/reminder-template-delete.php" id="reminderTemplateDeleteForm" style="display:none">
             <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
             <input type="hidden" name="template_id" id="reminderTemplateDeleteId" value="">
@@ -922,26 +1184,86 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
             ], static fn($v) => $v !== '')), ENT_QUOTES) ?>">
         </form>
 
-        <form method="post" action="actions/reminder-template-save.php" id="reminderTemplateForm">
+        <!-- Section 2: Form Editor (Tambah / Edit) -->
+        <form method="post" action="actions/reminder-template-save.php" id="reminderTemplateForm" class="template-editor-box">
             <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
             <input type="hidden" name="template_id" id="reminderTemplateId" value="">
             <input type="hidden" name="return_query" value="<?= htmlspecialchars(http_build_query(array_filter([
                 'page'=>'reminder-pembayaran','q'=>$search,'bulan'=>$bulan,'csv_file'=>$csvFile,'halaqoh'=>$halaqoh,'status_peserta'=>$statusPeserta,'status_bayar'=>$statusBayar
             ], static fn($v) => $v !== '')), ENT_QUOTES) ?>">
 
-            <div style="display:grid;gap:12px">
-                <label class="reminder-field"><span>Kategori</span><input type="text" name="category" id="reminderTemplateCategory" maxlength="100" placeholder="Pembayaran"></label>
-                <label class="reminder-field"><span>Judul template</span><input type="text" name="title" id="reminderTemplateTitle" maxlength="150" required placeholder="Reminder pembayaran"></label>
-                <label class="reminder-field"><span>Isi pesan</span><textarea name="content" id="reminderTemplateContent" rows="8" maxlength="5000" required placeholder="Assalamu'alaikum {nama}..."></textarea></label>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
+                <span id="formModeTitle" style="font-size:13px;font-weight:800;color:#0f172a">
+                    <i class="fa-solid fa-plus-circle" style="color:#16a34a"></i> Tambah Template Baru
+                </span>
+                <button type="button" id="btnCancelEditMode" style="display:none;background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
+                    ✕ Batal Edit
+                </button>
             </div>
 
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
-                <button type="button" id="newReminderTemplate" class="reminder-secondary-link" style="border:1px solid #dbe3ea;background:#fff;border-radius:9px;padding:9px 12px;cursor:pointer">+ Template baru</button>
-                <button type="submit" class="reminder-send-btn" style="width:auto;padding:10px 16px">Simpan template</button>
+            <div style="display:grid;gap:10px">
+                <div class="reminder-modal-grid-category-title">
+                    <label class="reminder-field" style="margin-top:0">
+                        <span style="font-size:11px;font-weight:700;color:#475569">Kategori</span>
+                        <input type="text" name="category" id="reminderTemplateCategory" maxlength="100" placeholder="Contoh: Pembayaran" value="Pembayaran" style="font-size:12px;padding:8px 10px">
+                    </label>
+                    <label class="reminder-field" style="margin-top:0">
+                        <span style="font-size:11px;font-weight:700;color:#475569">Judul Template <b style="color:#ef4444">*</b></span>
+                        <input type="text" name="title" id="reminderTemplateTitle" maxlength="150" required placeholder="Contoh: Reminder S-1 Tagihan" style="font-size:12px;padding:8px 10px">
+                    </label>
+                </div>
+
+                <label class="reminder-field" style="margin-top:0">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                        <span style="font-size:11px;font-weight:700;color:#475569">Isi Pesan WhatsApp <b style="color:#ef4444">*</b></span>
+                        <small style="color:#64748b;font-size:10px">Klik tombol variabel cepat untuk sisipkan</small>
+                    </div>
+                    <textarea name="content" id="reminderTemplateContent" rows="6" maxlength="5000" required placeholder="Assalamu'alaikum Kak {nama}... Kami ingin menginformasikan tagihan SPP bulan {bulan}..." style="font-size:12px;line-height:1.5;padding:10px;font-family:inherit"></textarea>
+                </label>
+
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:-4px">
+                    <span style="font-size:10px;font-weight:700;color:#64748b">Variabel Cepat:</span>
+                    <button type="button" class="btn-insert-variable" data-var="{nama}" style="background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 7px;border-radius:6px;font-size:10px;cursor:pointer">{nama}</button>
+                    <button type="button" class="btn-insert-variable" data-var="{bulan}" style="background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 7px;border-radius:6px;font-size:10px;cursor:pointer">{bulan}</button>
+                    <button type="button" class="btn-insert-variable" data-var="{halaqoh}" style="background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 7px;border-radius:6px;font-size:10px;cursor:pointer">{halaqoh}</button>
+                    <button type="button" class="btn-insert-variable" data-var="{sapaan_waktu}" style="background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 7px;border-radius:6px;font-size:10px;cursor:pointer" title="Pagi / Siang / Sore / Malam">{sapaan_waktu}</button>
+                    <button type="button" class="btn-insert-variable" data-var="{peserta_nowa}" style="background:#f1f5f9;border:1px solid #cbd5e1;padding:2px 7px;border-radius:6px;font-size:10px;cursor:pointer">{peserta_nowa}</button>
+                    <button type="button" class="btn-insert-variable" data-var="{Assalamu'alaikum|Halo Kak|Selamat {sapaan_waktu} Kak}" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer" title="Acak Variasi Sapaan">{sapaan acak}</button>
+                    <button type="button" class="btn-insert-variable" data-var="{opsi1|opsi2|opsi3}" style="background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer" title="Format Spintax Pengacak Kata">{spintax}</button>
+                </div>
+            </div>
+
+            <div class="reminder-modal-btn-group" style="margin-top:14px;border-top:1px solid #f1f5f9;padding-top:12px">
+                <button type="button" id="btnCancelEditModeFooter" class="reminder-clear-btn" style="display:none;padding:10px 16px;font-size:11px;border-radius:10px">Batal Edit</button>
+                <button type="submit" id="reminderTemplateSubmitBtn" class="reminder-send-btn" style="width:auto;padding:10px 20px;font-size:12px;display:inline-flex;align-items:center;gap:6px;margin-top:0">
+                    <i class="fa-solid fa-floppy-disk"></i> Simpan Template Baru
+                </button>
             </div>
         </form>
     </div>
 </div>
+
+<!-- Floating Quick Actions Bar on Mobile -->
+<div id="reminderMobileQuickBar" class="reminder-mobile-quick-actions" style="display:none">
+    <div style="display:flex;align-items:center;gap:8px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:rgba(34,197,94,0.2);color:#4ade80;font-size:12px">
+            <i class="fa-solid fa-check"></i>
+        </span>
+        <span style="font-size:13px;font-weight:700;letter-spacing:-0.01em"><span id="mobileQuickCount">0</span> dipilih</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+        <button type="button" class="btn-mobile-schedule" id="mobileQuickScheduleBtn">
+            <i class="fa-solid fa-clock"></i> Otomasi
+        </button>
+        <button type="button" class="btn-mobile-send" id="mobileQuickSendBtn">
+            <i class="fa-solid fa-paper-plane"></i> Kirim
+        </button>
+    </div>
+</div>
+
+<script id="crmTemplatesData" type="application/json">
+<?= json_encode($templates, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) ?>
+</script>
 
 <script>
 (() => {
@@ -963,6 +1285,8 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
     const clearSelectAllMatchingBtn = document.getElementById('clearSelectAllMatchingBtn');
     const reminderSelectAllMatchingInput = document.getElementById('reminderSelectAllMatchingInput');
     const scheduleSelectAllMatchingInput = document.getElementById('scheduleSelectAllMatchingInput');
+    const reminderMobileQuickBar = document.getElementById('reminderMobileQuickBar');
+    const mobileQuickCount = document.getElementById('mobileQuickCount');
 
     const scheduleBtn = document.getElementById('openScheduleModalBtn');
     const scheduleModal = document.getElementById('reminderScheduleModal');
@@ -1051,6 +1375,25 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
         if (elEndTime) elEndTime.textContent = timeFormatter.format(endDate);
     }
 
+    function resolveSpintaxClient(text) {
+        let maxIterations = 10;
+        while (maxIterations-- > 0 && /\{([^{}]+\|[^{}]+)\}/u.test(text)) {
+            text = text.replace(/\{([^{}]+\|[^{}]+)\}/gu, function(match, group) {
+                const parts = group.split('|');
+                return parts[Math.floor(Math.random() * parts.length)];
+            });
+        }
+        return text;
+    }
+
+    function getTimeGreetingClient() {
+        const h = new Date().getHours();
+        if (h >= 4 && h < 11) return 'Pagi';
+        if (h >= 11 && h < 15) return 'Siang';
+        if (h >= 15 && h < 18) return 'Sore';
+        return 'Malam';
+    }
+
     function updatePersonalizedPreview() {
         const option = template?.options[template.selectedIndex];
         let content = option?.dataset.content || '';
@@ -1060,15 +1403,21 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
         }
 
         const target = activePreviewTarget || checks.find(x => x.checked);
-        if (target) {
-            const name = target.dataset.name || 'Kak';
-            const hal = target.dataset.halaqoh || '-';
-            const bul = <?= json_encode($bulan !== '' ? $bulan : 'periode ini', JSON_UNESCAPED_UNICODE) ?>;
-            content = content
-                .replace(/{nama}|{NAMA}|\[nama\]|\[NAMA\]/g, name)
-                .replace(/{bulan}|{BULAN}|\[bulan\]|\[BULAN\]/g, bul)
-                .replace(/{halaqoh}|{HALAQOH}|\[halaqoh\]|\[HALAQOH\]/g, hal);
-        }
+        const name = target ? (target.dataset.name || 'Kak') : 'Kak Fulan';
+        const hal = target ? (target.dataset.halaqoh || '-') : 'IK 1';
+        const bul = <?= json_encode($bulan !== '' ? $bulan : 'periode ini', JSON_UNESCAPED_UNICODE) ?>;
+        const sapaanWaktu = getTimeGreetingClient();
+        const sapaanDefault = `{Assalamu'alaikum|Halo Kak|Selamat ${sapaanWaktu} Kak}`;
+
+        content = content
+            .replace(/{nama}|{NAMA}|\[nama\]|\[NAMA\]/g, name)
+            .replace(/{bulan}|{BULAN}|\[bulan\]|\[BULAN\]/g, bul)
+            .replace(/{halaqoh}|{HALAQOH}|\[halaqoh\]|\[HALAQOH\]/g, hal)
+            .replace(/{sapaan_waktu}|{SAPAAN_WAKTU}|\[sapaan_waktu\]|\[SAPAAN_WAKTU\]/g, sapaanWaktu)
+            .replace(/{sapaan}|{SAPAAN}|\[sapaan\]|\[SAPAAN\]/g, sapaanDefault);
+
+        content = resolveSpintaxClient(content);
+
         if (preview) preview.value = content;
     }
 
@@ -1111,6 +1460,12 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
 
         updatePersonalizedPreview();
         updateScheduleEstimation();
+
+        const effectiveCount = selectAllMatching ? totalPesertaCount : items.length;
+        if (mobileQuickCount) mobileQuickCount.textContent = effectiveCount;
+        if (reminderMobileQuickBar) {
+            reminderMobileQuickBar.style.display = (effectiveCount > 0 && window.innerWidth <= 768) ? 'flex' : 'none';
+        }
     }
 
     selectAllMatchingBtn?.addEventListener('click', () => {
@@ -1159,62 +1514,410 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
         updatePersonalizedPreview();
     });
 
+    const btnRerollSpintax = document.getElementById('btnRerollSpintax');
+    if (btnRerollSpintax) {
+        btnRerollSpintax.addEventListener('click', function(e) {
+            e.preventDefault();
+            updatePersonalizedPreview();
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => this.style.transform = 'none', 120);
+        });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    let templatesData = [];
+    try {
+        const rawTplScript = document.getElementById('crmTemplatesData');
+        if (rawTplScript) templatesData = JSON.parse(rawTplScript.textContent || '[]');
+    } catch (e) {
+        templatesData = [];
+    }
+
     const templateModal = document.getElementById('reminderTemplateModal');
+    const templateModalContent = document.getElementById('reminderTemplateModalContent');
     const manageTemplates = document.getElementById('manageReminderTemplates');
     const closeTemplateModal = document.getElementById('closeReminderTemplateModal');
-    const newTemplate = document.getElementById('newReminderTemplate');
+    const templateModalAlert = document.getElementById('templateModalAlert');
+    const templateManagerList = document.getElementById('templateManagerList');
+    const templateCountBadge = document.getElementById('templateCountBadge');
+    const btnResetToNewTemplate = document.getElementById('btnResetToNewTemplate');
+    const btnCancelEditMode = document.getElementById('btnCancelEditMode');
+    const btnCancelEditModeFooter = document.getElementById('btnCancelEditModeFooter');
+    const formModeTitle = document.getElementById('formModeTitle');
+    const reminderTemplateSubmitBtn = document.getElementById('reminderTemplateSubmitBtn');
     const templateForm = document.getElementById('reminderTemplateForm');
     const templateId = document.getElementById('reminderTemplateId');
     const templateCategory = document.getElementById('reminderTemplateCategory');
     const templateTitle = document.getElementById('reminderTemplateTitle');
     const templateContent = document.getElementById('reminderTemplateContent');
+    const scheduleRollingListContainer = document.getElementById('scheduleRollingListContainer');
+    const scheduleRollingCountBadge = document.getElementById('scheduleRollingCountBadge');
 
-    function openTemplateModal(edit = null) {
-        templateModal.hidden = false;
-        templateModal.style.display = 'flex';
-        if (edit) {
-            document.getElementById('templateModalTitle').textContent = 'Edit template';
-            templateId.value = edit.id || '';
-            templateCategory.value = edit.category || '';
-            templateTitle.value = edit.title || '';
-            templateContent.value = edit.content || '';
-            templateForm.scrollIntoView({behavior: 'smooth', block: 'nearest'});
-            templateTitle.focus();
+    let activeEditingId = null;
+
+    function showModalAlert(message, type = 'success') {
+        if (!templateModalAlert) return;
+        templateModalAlert.style.display = 'block';
+        if (type === 'success') {
+            templateModalAlert.style.background = '#dcfce7';
+            templateModalAlert.style.color = '#15803d';
+            templateModalAlert.style.border = '1px solid #86efac';
+            templateModalAlert.innerHTML = '<i class="fa-solid fa-circle-check"></i> ' + message;
         } else {
-            document.getElementById('templateModalTitle').textContent = 'Tambah template';
-            templateForm.reset();
-            templateId.value = '';
+            templateModalAlert.style.background = '#fee2e2';
+            templateModalAlert.style.color = '#b91c1c';
+            templateModalAlert.style.border = '1px solid #fca5a5';
+            templateModalAlert.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> ' + message;
+        }
+        setTimeout(() => {
+            if (templateModalAlert) templateModalAlert.style.display = 'none';
+        }, 5000);
+    }
+
+    function renderTemplateManagerList() {
+        if (!templateManagerList) return;
+        if (templateCountBadge) templateCountBadge.textContent = templatesData.length;
+
+        if (templatesData.length === 0) {
+            templateManagerList.innerHTML = '<div style="color:#64748b;font-size:12px;text-align:center;padding:14px">Belum ada template. Silakan buat template baru di form bawah.</div>';
+            return;
+        }
+
+        templateManagerList.innerHTML = templatesData.map(tpl => {
+            const isEditing = activeEditingId && Number(activeEditingId) === Number(tpl.id);
+            const cardBg = isEditing ? '#f0fdf4' : '#ffffff';
+            const cardBorder = isEditing ? '2px solid #22c55e' : '1px solid #e2e8f0';
+            const snippet = (tpl.content || '').replace(/\s+/g, ' ').slice(0, 70);
+
+            return `
+                <div class="template-item-card ${isEditing ? 'is-editing' : ''}" data-id="${tpl.id}" style="width:100%;box-sizing:border-box;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;background:${cardBg};border:${cardBorder};border-radius:10px;transition:all .15s ease">
+                    <div style="flex:1;min-width:0;overflow:hidden">
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;min-width:0">
+                            <strong style="font-size:12px;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${escapeHtml(tpl.title)}</strong>
+                            <span style="background:#e0f2fe;color:#0369a1;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;flex-shrink:0;white-space:nowrap">${escapeHtml(tpl.category || 'Pembayaran')}</span>
+                            ${isEditing ? '<span style="background:#22c55e;color:#fff;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;flex-shrink:0;white-space:nowrap">Sedang Diedit</span>' : ''}
+                        </div>
+                        <div style="color:#64748b;font-size:11px;line-height:1.4;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${escapeHtml(snippet)}</div>
+                    </div>
+                    <div class="card-actions" style="display:flex;gap:6px;flex-shrink:0">
+                        <button type="button" class="btn-action-edit-tpl" data-id="${tpl.id}" style="display:inline-flex;align-items:center;gap:4px;border:1px solid #cbd5e1;background:#fff;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;color:#334155">
+                            <i class="fa-solid fa-pen-to-square" style="color:#2563eb"></i> Edit
+                        </button>
+                        <button type="button" class="btn-action-del-tpl" data-id="${tpl.id}" data-title="${escapeHtml(tpl.title)}" style="display:inline-flex;align-items:center;gap:4px;border:1px solid #fecaca;background:#fff;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:600;cursor:pointer;color:#b91c1c">
+                            <i class="fa-solid fa-trash-can"></i> Hapus
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach edit & delete handlers
+        templateManagerList.querySelectorAll('.btn-action-edit-tpl').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.dataset.id, 10);
+                startEditTemplate(id);
+            });
+        });
+
+        templateManagerList.querySelectorAll('.btn-action-del-tpl').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = parseInt(btn.dataset.id, 10);
+                const title = btn.dataset.title || '';
+                deleteTemplate(id, title);
+            });
+        });
+    }
+
+    function updateRollingSelectedCount() {
+        const totalList = document.querySelectorAll('.schedule-rolling-check');
+        let count = 0;
+        totalList.forEach(ch => {
+            const card = ch.closest('.schedule-rolling-card');
+            if (ch.checked) {
+                count++;
+                if (card) card.classList.add('checked');
+            } else {
+                if (card) card.classList.remove('checked');
+            }
+        });
+        if (scheduleRollingCountBadge) {
+            scheduleRollingCountBadge.textContent = `${count} dari ${totalList.length} dipilih`;
         }
     }
 
-    function closeTemplateManager() {
-        templateModal.style.display = 'none';
-        templateModal.hidden = true;
+    function syncDropdowns() {
+        // Sync #reminderTemplate on main page
+        if (template) {
+            const curVal = template.value;
+            template.innerHTML = '<option value="">Pilih template...</option>' +
+                templatesData.map(t => `<option value="${t.id}" data-content="${escapeHtml(t.content)}">${escapeHtml(t.title)}${t.category ? ' · ' + escapeHtml(t.category) : ''}</option>`).join('');
+            if (curVal && templatesData.some(t => String(t.id) === String(curVal))) {
+                template.value = curVal;
+            }
+            template.disabled = templatesData.length === 0;
+            updatePersonalizedPreview();
+        }
+
+        // Sync #scheduleTemplateSelect in schedule modal
+        if (scheduleTemplateSelect) {
+            const curVal = scheduleTemplateSelect.value;
+            scheduleTemplateSelect.innerHTML = '<option value="">Pilih template...</option>' +
+                templatesData.map(t => `<option value="${t.id}">${escapeHtml(t.title)}${t.category ? ' · ' + escapeHtml(t.category) : ''}</option>`).join('');
+            if (curVal && templatesData.some(t => String(t.id) === String(curVal))) {
+                scheduleTemplateSelect.value = curVal;
+            }
+        }
+
+        // Sync rolling checkboxes in schedule modal
+        if (scheduleRollingListContainer) {
+            const previouslyChecked = new Set(
+                [...document.querySelectorAll('.schedule-rolling-check:checked')].map(c => c.value)
+            );
+            if (templatesData.length === 0) {
+                scheduleRollingListContainer.innerHTML = '<div style="color:#64748b;font-size:11px;text-align:center;padding:10px">Belum ada template pada wa_templates.</div>';
+            } else {
+                scheduleRollingListContainer.innerHTML = templatesData.map(tItem => {
+                    const isChecked = previouslyChecked.size > 0 ? previouslyChecked.has(String(tItem.id)) : true;
+                    const snippet = (tItem.content || '').replace(/\s+/g, ' ').slice(0, 80);
+                    return `
+                        <label class="schedule-rolling-card ${isChecked ? 'checked' : ''}">
+                            <input type="checkbox" name="rolling_templates[]" value="${tItem.id}" class="schedule-rolling-check" ${isChecked ? 'checked' : ''}>
+                            <div class="schedule-rolling-card-info">
+                                <div class="schedule-rolling-card-head">
+                                    <div class="schedule-rolling-card-title">${escapeHtml(tItem.title)}</div>
+                                    <span class="schedule-rolling-card-badge">${escapeHtml(tItem.category || 'Pembayaran')}</span>
+                                </div>
+                                <div class="schedule-rolling-card-snippet">${escapeHtml(snippet)}</div>
+                            </div>
+                        </label>
+                    `;
+                }).join('');
+            }
+            updateRollingSelectedCount();
+        }
     }
 
-    manageTemplates?.addEventListener('click', () => openTemplateModal());
+    function startEditTemplate(id) {
+        const tpl = templatesData.find(t => Number(t.id) === Number(id));
+        if (!tpl) return;
+
+        activeEditingId = tpl.id;
+        if (templateId) templateId.value = tpl.id;
+        if (templateCategory) templateCategory.value = tpl.category || 'Pembayaran';
+        if (templateTitle) templateTitle.value = tpl.title || '';
+        if (templateContent) templateContent.value = tpl.content || '';
+
+        if (templateForm) {
+            templateForm.classList.add('is-editing');
+        }
+
+        if (formModeTitle) {
+            formModeTitle.innerHTML = `<i class="fa-solid fa-pen-to-square" style="color:#2563eb"></i> Sedang Mengedit: <span style="color:#2563eb">${escapeHtml(tpl.title)}</span>`;
+        }
+        if (btnCancelEditMode) btnCancelEditMode.style.display = 'inline-block';
+        if (btnCancelEditModeFooter) btnCancelEditModeFooter.style.display = 'inline-block';
+        if (reminderTemplateSubmitBtn) {
+            reminderTemplateSubmitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Perbarui Template Ini';
+        }
+
+        renderTemplateManagerList();
+
+        if (templateForm) {
+            try {
+                templateForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch (e) {
+                if (templateModalContent) templateModalContent.scrollTop = templateForm.offsetTop - 20;
+            }
+        }
+        templateTitle?.focus();
+    }
+
+    function cancelEditTemplate() {
+        activeEditingId = null;
+        if (templateId) templateId.value = '';
+        if (templateForm) {
+            templateForm.reset();
+            templateForm.classList.remove('is-editing');
+        }
+        if (templateCategory) templateCategory.value = 'Pembayaran';
+
+        if (formModeTitle) {
+            formModeTitle.innerHTML = '<i class="fa-solid fa-plus-circle" style="color:#16a34a"></i> Tambah Template Baru';
+        }
+        if (btnCancelEditMode) btnCancelEditMode.style.display = 'none';
+        if (btnCancelEditModeFooter) btnCancelEditModeFooter.style.display = 'none';
+        if (reminderTemplateSubmitBtn) {
+            reminderTemplateSubmitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Template Baru';
+        }
+
+        renderTemplateManagerList();
+    }
+
+    async function deleteTemplate(id, title) {
+        if (!confirm(`Hapus template "${title}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+
+        const csrfToken = templateForm?.querySelector('input[name="csrf"]')?.value || '';
+        const formData = new FormData();
+        formData.append('csrf', csrfToken);
+        formData.append('template_id', id);
+        formData.append('ajax', '1');
+
+        try {
+            const resp = await fetch('actions/reminder-template-delete.php', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await resp.json();
+            if (data.success) {
+                templatesData = templatesData.filter(t => Number(t.id) !== Number(id));
+                if (activeEditingId && Number(activeEditingId) === Number(id)) {
+                    cancelEditTemplate();
+                } else {
+                    renderTemplateManagerList();
+                }
+                syncDropdowns();
+                showModalAlert(data.message || 'Template berhasil dihapus.', 'success');
+            } else {
+                showModalAlert(data.message || 'Gagal menghapus template.', 'error');
+            }
+        } catch (err) {
+            // Fallback: standard form submit
+            const delForm = document.getElementById('reminderTemplateDeleteForm');
+            const delId = document.getElementById('reminderTemplateDeleteId');
+            if (delForm && delId) {
+                delId.value = id;
+                delForm.submit();
+            } else {
+                showModalAlert('Terjadi kesalahan jaringan.', 'error');
+            }
+        }
+    }
+
+    templateForm?.addEventListener('submit', async event => {
+        event.preventDefault();
+
+        const tTitle = templateTitle?.value?.trim() || '';
+        const tContent = templateContent?.value?.trim() || '';
+        if (!tTitle || !tContent) {
+            showModalAlert('Judul dan isi template wajib diisi.', 'error');
+            return;
+        }
+
+        const submitBtn = reminderTemplateSubmitBtn;
+        const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+        }
+
+        const formData = new FormData(templateForm);
+        formData.append('ajax', '1');
+
+        try {
+            const resp = await fetch('actions/reminder-template-save.php', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+            const data = await resp.json();
+            if (data.success && data.template) {
+                const saved = data.template;
+                const idx = templatesData.findIndex(t => Number(t.id) === Number(saved.id));
+                if (idx >= 0) {
+                    templatesData[idx] = saved;
+                } else {
+                    templatesData.push(saved);
+                }
+                cancelEditTemplate();
+                syncDropdowns();
+                showModalAlert(data.message || 'Template berhasil disimpan.', 'success');
+            } else {
+                showModalAlert(data.message || 'Gagal menyimpan template.', 'error');
+            }
+        } catch (err) {
+            templateForm.submit();
+            return;
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnHtml;
+            }
+        }
+    });
+
+    document.querySelectorAll('.btn-insert-variable').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const varText = chip.dataset.var;
+            if (!templateContent || !varText) return;
+            const start = templateContent.selectionStart || templateContent.value.length;
+            const end = templateContent.selectionEnd || templateContent.value.length;
+            const val = templateContent.value;
+            templateContent.value = val.substring(0, start) + varText + val.substring(end);
+            templateContent.focus();
+            templateContent.selectionStart = templateContent.selectionEnd = start + varText.length;
+        });
+    });
+
+    function openTemplateModal() {
+        if (!templateModal) return;
+        if (reminderMobileQuickBar) reminderMobileQuickBar.style.display = 'none';
+        templateModal.hidden = false;
+        templateModal.style.display = 'flex';
+        renderTemplateManagerList();
+    }
+
+    function closeTemplateManager() {
+        if (!templateModal) return;
+        templateModal.style.display = 'none';
+        templateModal.hidden = true;
+        cancelEditTemplate();
+        const effectiveCount = selectAllMatching ? totalPesertaCount : selected().length;
+        if (reminderMobileQuickBar && effectiveCount > 0 && window.innerWidth <= 768) {
+            reminderMobileQuickBar.style.display = 'flex';
+        }
+    }
+
+    manageTemplates?.addEventListener('click', openTemplateModal);
     closeTemplateModal?.addEventListener('click', closeTemplateManager);
-    newTemplate?.addEventListener('click', () => openTemplateModal());
+    btnResetToNewTemplate?.addEventListener('click', () => {
+        cancelEditTemplate();
+        if (templateForm) {
+            try {
+                templateForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch (e) {
+                if (templateModalContent) templateModalContent.scrollTop = templateForm.offsetTop - 20;
+            }
+        }
+        templateTitle?.focus();
+    });
+    btnCancelEditMode?.addEventListener('click', cancelEditTemplate);
+    btnCancelEditModeFooter?.addEventListener('click', cancelEditTemplate);
     templateModal?.addEventListener('click', event => {
         if (event.target === templateModal) closeTemplateManager();
     });
 
-    document.querySelectorAll('.edit-reminder-template').forEach(button => {
-        button.addEventListener('click', () => openTemplateModal({
-            id: button.dataset.id,
-            category: button.dataset.category,
-            title: button.dataset.title,
-            content: button.dataset.content
-        }));
-    });
-
-    document.querySelectorAll('.delete-reminder-template').forEach(button => {
-        button.addEventListener('click', () => {
-            if (!confirm('Hapus template "' + (button.dataset.title || '') + '"? Tindakan ini tidak bisa dibatalkan.')) return;
-            document.getElementById('reminderTemplateDeleteId').value = button.dataset.id;
-            document.getElementById('reminderTemplateDeleteForm').submit();
-        });
-    });
+    if (new URLSearchParams(window.location.search).get('manage_templates') === '1') {
+        openTemplateModal();
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('manage_templates');
+        window.history.replaceState({}, '', newUrl.toString());
+    }
 
     form?.addEventListener('submit', event => {
         const items = selected();
@@ -1261,6 +1964,8 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
             return;
         }
 
+        if (reminderMobileQuickBar) reminderMobileQuickBar.style.display = 'none';
+
         if (scheduleTemplateSelect && template?.value) {
             scheduleTemplateSelect.value = template.value;
         }
@@ -1282,6 +1987,10 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
             scheduleModal.style.display = 'none';
             scheduleModal.hidden = true;
         }
+        const effectiveCount = selectAllMatching ? totalPesertaCount : selected().length;
+        if (reminderMobileQuickBar && effectiveCount > 0 && window.innerWidth <= 768) {
+            reminderMobileQuickBar.style.display = 'flex';
+        }
     }
 
     scheduleBtn?.addEventListener('click', openScheduleManager);
@@ -1300,21 +2009,59 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
         });
     });
 
+    const modeCardSingle = document.getElementById('modeCardSingle');
+    const modeCardRolling = document.getElementById('modeCardRolling');
+
+    function setTemplateMode(mode) {
+        const isRolling = mode === 'rolling';
+        const singleRadio = document.querySelector('input[name="template_mode"][value="single"]');
+        const rollingRadio = document.querySelector('input[name="template_mode"][value="rolling"]');
+        if (singleRadio) singleRadio.checked = !isRolling;
+        if (rollingRadio) rollingRadio.checked = isRolling;
+        if (singleTplBox) singleTplBox.style.display = isRolling ? 'none' : 'block';
+        if (rollingTplBox) rollingTplBox.style.display = isRolling ? 'block' : 'none';
+        if (scheduleTemplateSelect) scheduleTemplateSelect.required = !isRolling;
+        if (modeCardSingle) modeCardSingle.classList.toggle('active', !isRolling);
+        if (modeCardRolling) modeCardRolling.classList.toggle('active', isRolling);
+    }
+
+    modeCardSingle?.addEventListener('click', () => setTemplateMode('single'));
+    modeCardRolling?.addEventListener('click', () => setTemplateMode('rolling'));
+    modeCardSingle?.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTemplateMode('single'); } });
+    modeCardRolling?.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTemplateMode('rolling'); } });
+
     templateModeRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-            const isRolling = radio.value === 'rolling' && radio.checked;
-            if (singleTplBox) singleTplBox.style.display = isRolling ? 'none' : 'block';
-            if (rollingTplBox) rollingTplBox.style.display = isRolling ? 'block' : 'none';
-            if (scheduleTemplateSelect) scheduleTemplateSelect.required = !isRolling;
-        });
+        radio.addEventListener('change', () => setTemplateMode(radio.value));
     });
 
     rollingSelectAllBtn?.addEventListener('click', () => {
-        rollingChecks.forEach(ch => ch.checked = true);
+        document.querySelectorAll('.schedule-rolling-check').forEach(ch => ch.checked = true);
+        updateRollingSelectedCount();
     });
     rollingResetBtn?.addEventListener('click', () => {
-        rollingChecks.forEach(ch => ch.checked = false);
+        document.querySelectorAll('.schedule-rolling-check').forEach(ch => ch.checked = false);
+        updateRollingSelectedCount();
     });
+
+    document.addEventListener('change', event => {
+        if (event.target && event.target.classList && event.target.classList.contains('schedule-rolling-check')) {
+            updateRollingSelectedCount();
+        }
+    });
+
+    document.addEventListener('click', event => {
+        const card = event.target.closest('.schedule-rolling-card');
+        if (!card) return;
+        if (event.target.tagName !== 'INPUT') {
+            const chk = card.querySelector('.schedule-rolling-check');
+            if (chk) {
+                chk.checked = !chk.checked;
+                updateRollingSelectedCount();
+            }
+        }
+    });
+
+    updateRollingSelectedCount();
 
     scheduleDelayMessage?.addEventListener('input', updateScheduleEstimation);
     scheduleDelayHalaqoh?.addEventListener('input', updateScheduleEstimation);
@@ -1357,6 +2104,34 @@ $buildPaginationUrl = static function (int $targetPage, ?string $customHalaqoh =
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan Jadwal...';
         }
+    });
+
+    document.getElementById('mobileQuickScheduleBtn')?.addEventListener('click', () => {
+        openScheduleManager();
+    });
+    document.getElementById('mobileQuickSendBtn')?.addEventListener('click', () => {
+        if (form) {
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            template?.focus();
+        }
+    });
+    window.addEventListener('resize', () => {
+        const items = selected();
+        const effectiveCount = selectAllMatching ? totalPesertaCount : items.length;
+        if (reminderMobileQuickBar) {
+            reminderMobileQuickBar.style.display = (effectiveCount > 0 && window.innerWidth <= 768) ? 'flex' : 'none';
+        }
+    });
+
+    document.querySelectorAll('.reminder-halaqoh-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.tab;
+            document.querySelectorAll('.reminder-halaqoh-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('.reminder-halaqoh-panel').forEach(p => p.style.display = 'none');
+            const panel = document.getElementById('panel-halaqoh-' + target);
+            if (panel) panel.style.display = 'block';
+        });
     });
 
     refresh();

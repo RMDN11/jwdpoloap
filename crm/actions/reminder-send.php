@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../config/bootstrap.php';
+require_once __DIR__ . '/../lib/reminder-schedule.php';
 
 @set_time_limit(300);
 
@@ -186,12 +187,14 @@ foreach($targets as $target){
     $targetHalaqoh = !empty($target['halaqoh']) ? (string)$target['halaqoh'] : '-';
     $targetBulan = $bulan !== '' ? $bulan : 'periode ini';
 
-    $message = str_ireplace(
-        ['{nama}', '{NAMA}', '[nama]', '[NAMA]', '{bulan}', '{BULAN}', '[bulan]', '[BULAN]', '{halaqoh}', '{HALAQOH}', '[halaqoh]', '[HALAQOH]'],
-        [$name, $name, $name, $name, $targetBulan, $targetBulan, $targetBulan, $targetBulan, $targetHalaqoh, $targetHalaqoh, $targetHalaqoh, $targetHalaqoh],
-        (string)$template['content']
-    );
-    $message=preg_replace('/ {2,}/',' ',$message);
+    // Placeholder support: {nama}, {bulan}, [bulan], {halaqoh}, [halaqoh] serta Spintax anti-ban otomatis
+    $message = crmResolveReminderMessage((string)$template['content'], [
+        'nama' => $name,
+        'nowa' => $number,
+        'bulan' => $targetBulan,
+        'halaqoh' => $targetHalaqoh
+    ]);
+
     $payload=json_encode(['recipient_type'=>'individual','to'=>$number,'type'=>'text','text'=>['body'=>$message]],JSON_UNESCAPED_UNICODE);
     $ch=curl_init();
     curl_setopt_array($ch,[CURLOPT_URL=>$apiUrl,CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$payload,CURLOPT_HTTPHEADER=>['Content-Type: application/json','Authorization: Bearer '.$apiToken],CURLOPT_TIMEOUT=>15,CURLOPT_SSL_VERIFYPEER=>false]);
@@ -216,7 +219,8 @@ foreach($targets as $target){
             $crmHistoryStmt->execute();
         }
     }
-    usleep(100000);
+    // Jeda acak manusia per pesan (2.5 hingga 4.5 detik) untuk mencegah flag bot oleh Meta/WhatsApp
+    usleep(rand(2500000, 4500000));
 }
 if($logStmt)$logStmt->close();
 if($requestStmt)$requestStmt->close();

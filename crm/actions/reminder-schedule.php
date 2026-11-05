@@ -74,33 +74,20 @@ if ($isRotating && $campaignType === 'pembayaran') {
     $rollingIds = array_map('intval', (array)($_POST['rolling_templates'] ?? []));
     $rollingIds = array_values(array_filter($rollingIds, static fn($id) => $id > 0));
     if ($rollingIds) {
-        $ph = implode(',', array_fill(0, count($rollingIds), '?'));
-        $types = str_repeat('i', count($rollingIds));
-        $fieldOrder = implode(',', $rollingIds);
-        $stmt = $conn->prepare("SELECT id, title AS name, content FROM wa_templates WHERE id IN ({$ph}) ORDER BY FIELD(id, {$fieldOrder})");
-        if ($stmt) {
-            $refs = [];
-            foreach ($rollingIds as $k => $v) $refs[$k] = &$rollingIds[$k];
-            call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
-            $stmt->execute();
-            $res = $stmt->get_result();
+        $idList = implode(',', $rollingIds);
+        $res = $conn->query("SELECT id, title AS name, content FROM wa_templates WHERE id IN ({$idList}) ORDER BY FIELD(id, {$idList})");
+        if ($res) {
             while ($row = $res->fetch_assoc()) {
                 $rotationTemplates[] = $row;
             }
-            $stmt->close();
         }
     }
     if (!$rotationTemplates) {
-        $res = $conn->query("SELECT id, title AS name, content FROM wa_templates ORDER BY id ASC LIMIT 10");
-        if ($res) {
-            while ($row = $res->fetch_assoc()) $rotationTemplates[] = $row;
-        }
+        $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Pilih minimal satu template yang valid untuk rotasi rolling.'];
+        header('Location: ' . $redirectUrl);
+        exit;
     }
-    if ($rotationTemplates) {
-        $templateId = (int)$rotationTemplates[0]['id'];
-    } else {
-        $templateId = 0;
-    }
+    $templateId = (int)$rotationTemplates[0]['id'];
 } else {
     $templateId = ($rawTemplateId === 'rotate_1_6') ? 15 : (int)$rawTemplateId;
 }
@@ -150,15 +137,9 @@ if ($campaignType === 'peserta') {
     }
 
     if ($reqIds) {
-        $ph = implode(',', array_fill(0, count($reqIds), '?'));
-        $types = str_repeat('i', count($reqIds));
-        $stmt = $conn->prepare("SELECT id, peserta_id, peserta_nama, peserta_nowa, halaqoh FROM reminder_requests WHERE id IN ({$ph})");
-        if ($stmt) {
-            $refs = [];
-            foreach ($reqIds as $k => $v) $refs[$k] = &$reqIds[$k];
-            call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
-            $stmt->execute();
-            $res = $stmt->get_result();
+        $reqIdList = implode(',', $reqIds);
+        $res = $conn->query("SELECT id, peserta_id, peserta_nama, peserta_nowa, halaqoh FROM reminder_requests WHERE id IN ({$reqIdList})");
+        if ($res) {
             while ($row = $res->fetch_assoc()) {
                 $targets[] = [
                     'id' => (int)($row['peserta_id'] ?? 0),
@@ -168,7 +149,6 @@ if ($campaignType === 'peserta') {
                     'halaqoh' => (string)($row['halaqoh'] ?: 'Umum'),
                 ];
             }
-            $stmt->close();
         }
     } elseif (!empty($_POST['schedule_all_pending'])) {
         $res = $conn->query("SELECT id, peserta_id, peserta_nama, peserta_nowa, halaqoh FROM reminder_requests WHERE status = 'menunggu' ORDER BY created_at ASC");
@@ -234,50 +214,40 @@ if ($campaignType === 'peserta') {
                 }
 
                 $ids = array_map('intval', array_keys($selectedIds));
-                $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                $types = str_repeat('i', count($ids));
-                $stmt = $conn->prepare("SELECT id, nama_lengkap, nowa, halaqoh FROM peserta WHERE id IN ({$placeholders})");
-                if ($stmt) {
-                    $refs = [];
-                    foreach ($ids as $k => $v) $refs[$k] = &$ids[$k];
-                    call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
-                    $stmt->execute();
-                    $res = $stmt->get_result();
-                    while ($row = $res->fetch_assoc()) {
-                        $pId = (int)$row['id'];
-                        $tWa = isset($csvTargetByPesertaId[$pId]) ? $csvTargetByPesertaId[$pId]['wa'] : (string)$row['nowa'];
-                        $targets[] = [
-                            'id' => $pId,
-                            'name' => (string)$row['nama_lengkap'],
-                            'nowa' => $tWa,
-                            'halaqoh' => (string)($row['halaqoh'] ?: ($csvTargetByPesertaId[$pId]['halaqoh'] ?? 'Umum')),
-                        ];
+                if ($ids) {
+                    $idList = implode(',', $ids);
+                    $res = $conn->query("SELECT id, nama_lengkap, nowa, halaqoh FROM peserta WHERE id IN ({$idList})");
+                    if ($res) {
+                        while ($row = $res->fetch_assoc()) {
+                            $pId = (int)$row['id'];
+                            $tWa = isset($csvTargetByPesertaId[$pId]) ? $csvTargetByPesertaId[$pId]['wa'] : (string)$row['nowa'];
+                            $targets[] = [
+                                'id' => $pId,
+                                'name' => (string)$row['nama_lengkap'],
+                                'nowa' => $tWa,
+                                'halaqoh' => (string)($row['halaqoh'] ?: ($csvTargetByPesertaId[$pId]['halaqoh'] ?? 'Umum')),
+                            ];
+                        }
                     }
-                    $stmt->close();
                 }
             } catch (Throwable $e) {
                 error_log('CRM Schedule CSV read failed: ' . $e->getMessage());
             }
         } elseif ($selectedIds) {
             $ids = array_map('intval', array_keys($selectedIds));
-            $placeholders = implode(',', array_fill(0, count($ids), '?'));
-            $types = str_repeat('i', count($ids));
-            $stmt = $conn->prepare("SELECT id, nama_lengkap, nowa, halaqoh FROM peserta WHERE id IN ({$placeholders})");
-            if ($stmt) {
-                $refs = [];
-                foreach ($ids as $k => $v) $refs[$k] = &$ids[$k];
-                call_user_func_array([$stmt, 'bind_param'], array_merge([$types], $refs));
-                $stmt->execute();
-                $res = $stmt->get_result();
-                while ($row = $res->fetch_assoc()) {
-                    $targets[] = [
-                        'id' => (int)$row['id'],
-                        'name' => (string)$row['nama_lengkap'],
-                        'nowa' => (string)$row['nowa'],
-                        'halaqoh' => (string)($row['halaqoh'] ?: 'Umum'),
-                    ];
+            if ($ids) {
+                $idList = implode(',', $ids);
+                $res = $conn->query("SELECT id, nama_lengkap, nowa, halaqoh FROM peserta WHERE id IN ({$idList})");
+                if ($res) {
+                    while ($row = $res->fetch_assoc()) {
+                        $targets[] = [
+                            'id' => (int)$row['id'],
+                            'name' => (string)$row['nama_lengkap'],
+                            'nowa' => (string)$row['nowa'],
+                            'halaqoh' => (string)($row['halaqoh'] ?: 'Umum'),
+                        ];
+                    }
                 }
-                $stmt->close();
             }
         }
 
