@@ -90,11 +90,47 @@ $resolveSourceKey = static function (string $raw, array $availableOptions, array
     return '';
 };
 
-$rawA = (string)($_GET['source_a'] ?? $_GET['csv_a'] ?? '');
-$rawB = (string)($_GET['source_b'] ?? $_GET['csv_b'] ?? '');
+if (isset($_GET['reset']) && (string)$_GET['reset'] === '1') {
+    unset(
+        $_SESSION['crm_plotting_source_a'],
+        $_SESSION['crm_plotting_source_b'],
+        $_SESSION['crm_plotting_participant_threshold'],
+        $_SESSION['crm_plotting_salary_threshold'],
+        $_SESSION['crm_plotting_category'],
+        $_SESSION['crm_plotting_q'],
+        $_SESSION['crm_plotting_gender'],
+        $_SESSION['crm_plotting_halaqoh'],
+        $_SESSION['crm_plotting_show_salary']
+    );
+    header('Location: index.php?page=plotting');
+    exit;
+}
+
+$hasGetSourceA = isset($_GET['source_a']) || isset($_GET['csv_a']);
+$hasGetSourceB = isset($_GET['source_b']) || isset($_GET['csv_b']);
+
+$rawA = $hasGetSourceA
+    ? (string)($_GET['source_a'] ?? $_GET['csv_a'] ?? '')
+    : (string)($_SESSION['crm_plotting_source_a'] ?? '');
+
+$rawB = $hasGetSourceB
+    ? (string)($_GET['source_b'] ?? $_GET['csv_b'] ?? '')
+    : (string)($_SESSION['crm_plotting_source_b'] ?? '');
 
 $sourceA = $resolveSourceKey($rawA, $availableOptions, $csvFiles, $paymentSources);
 $sourceB = $resolveSourceKey($rawB, $availableOptions, $csvFiles, $paymentSources);
+
+if ($sourceA !== '') {
+    $_SESSION['crm_plotting_source_a'] = $sourceA;
+} elseif ($hasGetSourceA) {
+    unset($_SESSION['crm_plotting_source_a']);
+}
+
+if ($sourceB !== '') {
+    $_SESSION['crm_plotting_source_b'] = $sourceB;
+} elseif ($hasGetSourceB) {
+    unset($_SESSION['crm_plotting_source_b']);
+}
 
 $sourceLabel = static function (string $key) use ($availableOptions): string {
     if (isset($availableOptions[$key])) {
@@ -116,15 +152,50 @@ $sourceShortLabel = static function (string $key) use ($availableOptions): strin
     return $key !== '' ? $key : 'Batch';
 };
 
-$participantThreshold = max(0, (int)($_GET['participant_threshold'] ?? 10));
-$salaryThreshold = max(0, (int)($_GET['salary_threshold'] ?? 650000));
-$categoryParam = $_GET['category'] ?? [];
-$categories = is_array($categoryParam) ? $categoryParam : [$categoryParam];
-$categories = array_values(array_intersect(['belum_ada', 'peserta_dikit', 'gaji_rendah'], array_map('strval', $categories)));
-$searchTerm = trim((string)($_GET['q'] ?? ''));
-$genderFilter = trim((string)($_GET['gender'] ?? ''));
-$halaqohFilter = trim((string)($_GET['halaqoh'] ?? ''));
-$showSalary = ($_GET['show_salary'] ?? '1') !== '0';
+$participantThreshold = max(0, (int)($_GET['participant_threshold'] ?? $_SESSION['crm_plotting_participant_threshold'] ?? 10));
+$_SESSION['crm_plotting_participant_threshold'] = $participantThreshold;
+
+$salaryThreshold = max(0, (int)($_GET['salary_threshold'] ?? $_SESSION['crm_plotting_salary_threshold'] ?? 650000));
+$_SESSION['crm_plotting_salary_threshold'] = $salaryThreshold;
+
+if (isset($_GET['category'])) {
+    $categoryParam = $_GET['category'];
+    $categories = is_array($categoryParam) ? $categoryParam : [$categoryParam];
+    $categories = array_values(array_intersect(['belum_ada', 'peserta_dikit', 'gaji_rendah'], array_map('strval', $categories)));
+    $_SESSION['crm_plotting_category'] = $categories;
+} elseif (isset($_SESSION['crm_plotting_category']) && is_array($_SESSION['crm_plotting_category'])) {
+    $categories = $_SESSION['crm_plotting_category'];
+} else {
+    $categories = [];
+}
+
+if (isset($_GET['q'])) {
+    $searchTerm = trim((string)$_GET['q']);
+    $_SESSION['crm_plotting_q'] = $searchTerm;
+} else {
+    $searchTerm = trim((string)($_SESSION['crm_plotting_q'] ?? ''));
+}
+
+if (isset($_GET['gender'])) {
+    $genderFilter = trim((string)$_GET['gender']);
+    $_SESSION['crm_plotting_gender'] = $genderFilter;
+} else {
+    $genderFilter = trim((string)($_SESSION['crm_plotting_gender'] ?? ''));
+}
+
+if (isset($_GET['halaqoh'])) {
+    $halaqohFilter = trim((string)$_GET['halaqoh']);
+    $_SESSION['crm_plotting_halaqoh'] = $halaqohFilter;
+} else {
+    $halaqohFilter = trim((string)($_SESSION['crm_plotting_halaqoh'] ?? ''));
+}
+
+if (isset($_GET['show_salary'])) {
+    $showSalary = (string)$_GET['show_salary'] !== '0';
+    $_SESSION['crm_plotting_show_salary'] = $showSalary ? '1' : '0';
+} else {
+    $showSalary = (string)($_SESSION['crm_plotting_show_salary'] ?? '1') !== '0';
+}
 
 $rawLoadedA = $sourceA !== '' ? plottingLoadSourceRows($sourceA, $csvDir, $conn ?? null) : [];
 $rawLoadedB = $sourceB !== '' ? plottingLoadSourceRows($sourceB, $csvDir, $conn ?? null) : [];
@@ -162,10 +233,40 @@ $totalCurrentTc = array_sum(array_column($dataB, 'total_tc'));
 $totalCurrentNonTc = array_sum(array_column($dataB, 'total_non_tc'));
 $formatRupiah = static fn(int $value): string => 'Rp ' . number_format($value, 0, ',', '.');
 $formatPercent = static fn(float $value): string => rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',') . '%';
+
+$currentPlottingParams = [
+    'page' => 'plotting',
+    'csv_a' => $sourceA,
+    'csv_b' => $sourceB,
+    'participant_threshold' => $participantThreshold,
+    'salary_threshold' => $salaryThreshold,
+    'category' => $categories,
+    'q' => $searchTerm,
+    'gender' => $genderFilter,
+    'halaqoh' => $halaqohFilter,
+    'show_salary' => $showSalary ? 1 : 0,
+];
+$currentPlottingUrl = 'index.php?' . http_build_query($currentPlottingParams);
 ?>
 <div class="crm-workspace-page crm-plotting-page">
     <div class="crm-workspace-back"><a href="index.php?page=more" title="Kembali ke More" aria-label="Kembali ke More"><i class="fa-solid fa-arrow-left"></i></a></div>
-    <section class="crm-workspace-header"><div class="crm-workspace-header-main"><span class="crm-workspace-kicker">Data Comparison</span><h1>Plotting</h1><p>Bandingkan dua snapshot CSV atau batch Pembayaran (Tahfidz) untuk melihat retention dan kondisi halaqoh.</p></div></section>
+    <section class="crm-workspace-header">
+        <div class="crm-workspace-header-main">
+            <span class="crm-workspace-kicker">Data Comparison</span>
+            <h1>Plotting</h1>
+            <p>Bandingkan dua snapshot CSV atau batch Pembayaran (Tahfidz) untuk melihat retention dan kondisi halaqoh.</p>
+        </div>
+        <div class="crm-workspace-header-actions" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <a class="crm-workspace-action-btn crm-btn-refresh" href="<?= htmlspecialchars($currentPlottingUrl) ?>" title="Segarkan data terbaru tanpa mengubah pilihan batch" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;background:#fff;border:1px solid #d1d5db;color:#374151;text-decoration:none;">
+                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+            </a>
+            <?php if ($sourceA !== '' || $sourceB !== ''): ?>
+                <a class="crm-workspace-action-btn crm-btn-reset" href="index.php?page=plotting&reset=1" title="Reset pilihan batch & filter" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;background:#fff;border:1px solid #e5e7eb;color:#6b7280;text-decoration:none;">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </a>
+            <?php endif; ?>
+        </div>
+    </section>
 
     <section class="crm-workspace-card plotting-source-card">
         <div class="crm-workspace-card-head"><div class="crm-workspace-card-head-main"><span class="crm-workspace-card-kicker">Sumber Data</span><h2>Pilih batch yang dibandingkan</h2></div><span class="plotting-source-count"><?= (count($csvFiles) + count($paymentSources)) ?> sumber tersedia</span></div>
@@ -194,3 +295,19 @@ $formatPercent = static fn(float $value): string => rtrim(rtrim(number_format($v
         </section>
     <?php endif; ?>
 </div>
+
+<script>
+(() => {
+    // Keep browser URL query string synchronized so standard browser refresh (F5/Cmd+R) preserves all choices
+    if (window.history && window.history.replaceState) {
+        const targetUrl = <?= json_encode($currentPlottingUrl, JSON_UNESCAPED_SLASHES) ?>;
+        if (targetUrl) {
+            const currentSearch = window.location.search || '';
+            const targetSearch = targetUrl.substring(targetUrl.indexOf('?'));
+            if (currentSearch !== targetSearch) {
+                window.history.replaceState(null, '', targetUrl);
+            }
+        }
+    }
+})();
+</script>

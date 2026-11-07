@@ -5,10 +5,71 @@ require_once __DIR__ . '/../lib/reminder-retention.php';
 
 $crmTitle = 'Retention Rate';
 
-$previousSource = trim((string)($_GET['previous_source'] ?? ''));
-$currentSource = trim((string)($_GET['current_source'] ?? ''));
-$selectedAk = trim((string)($_GET['ak'] ?? ''));
-$analyze = (string)($_GET['analyze'] ?? '') === '1';
+if (isset($_GET['reset']) && (string)$_GET['reset'] === '1') {
+    unset(
+        $_SESSION['crm_retention_previous_source'],
+        $_SESSION['crm_retention_current_source'],
+        $_SESSION['crm_retention_ak'],
+        $_SESSION['crm_retention_analyze']
+    );
+    header('Location: index.php?page=reminder-retention');
+    exit;
+}
+
+$hasGetPrev = isset($_GET['previous_source']);
+$hasGetCurr = isset($_GET['current_source']);
+
+$previousSource = trim((string)(
+    $hasGetPrev
+        ? ($_GET['previous_source'] ?? '')
+        : ($_SESSION['crm_retention_previous_source'] ?? '')
+));
+
+$currentSource = trim((string)(
+    $hasGetCurr
+        ? ($_GET['current_source'] ?? '')
+        : ($_SESSION['crm_retention_current_source'] ?? '')
+));
+
+$selectedAk = trim((string)(
+    isset($_GET['ak'])
+        ? ($_GET['ak'] ?? '')
+        : ($_SESSION['crm_retention_ak'] ?? '')
+));
+
+if (isset($_GET['analyze'])) {
+    $analyze = (string)$_GET['analyze'] === '1';
+} else {
+    $analyze = ($previousSource !== '' && $currentSource !== '' && (string)($_SESSION['crm_retention_analyze'] ?? '1') === '1');
+}
+
+if ($previousSource !== '') {
+    $_SESSION['crm_retention_previous_source'] = $previousSource;
+} elseif ($hasGetPrev) {
+    unset($_SESSION['crm_retention_previous_source']);
+}
+
+if ($currentSource !== '') {
+    $_SESSION['crm_retention_current_source'] = $currentSource;
+} elseif ($hasGetCurr) {
+    unset($_SESSION['crm_retention_current_source']);
+}
+
+$_SESSION['crm_retention_ak'] = $selectedAk;
+$_SESSION['crm_retention_analyze'] = $analyze ? '1' : '0';
+
+$currentRetentionParams = [
+    'page' => 'reminder-retention',
+    'previous_source' => $previousSource,
+    'current_source' => $currentSource,
+    'ak' => $selectedAk,
+    'analyze' => $analyze ? '1' : '0',
+];
+if (!empty($_GET['open_groups'])) {
+    $currentRetentionParams['open_groups'] = (string)$_GET['open_groups'];
+}
+$currentRetentionUrl = 'index.php?' . http_build_query($currentRetentionParams);
+
 $threshold = 70.0;
 
 $csvImports = [];
@@ -200,6 +261,16 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
             <span class="reminder-kicker">Workspace Reminder</span>
             <h1>Retention Rate</h1>
             <p>Ukur berapa banyak peserta dari batch sebelumnya yang kembali lanjut di batch sekarang.</p>
+            <div class="crm-workspace-header-actions" style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <a class="crm-btn-refresh" href="<?= htmlspecialchars($currentRetentionUrl) ?>" title="Segarkan data terbaru tanpa mengubah pilihan batch" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;background:#fff;border:1px solid #d1d5db;color:#374151;text-decoration:none;">
+                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                </a>
+                <?php if ($previousSource !== '' || $currentSource !== ''): ?>
+                    <a class="crm-btn-reset" href="index.php?page=reminder-retention&reset=1" title="Reset pilihan batch" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;background:#fff;border:1px solid #e5e7eb;color:#6b7280;text-decoration:none;">
+                        <i class="fa-solid fa-rotate-left"></i> Reset
+                    </a>
+                <?php endif; ?>
+            </div>
         </div>
         <div class="retention-rule">
             <strong>Rumus</strong>
@@ -683,6 +754,22 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
             .replace(/\[nama\]/gi, selected[0].name);
     };
 
+    const targetStorageKey = 'crm_retention_targets_' + encodeURIComponent(<?= json_encode($previousSource . '__' . $currentSource) ?>);
+    try {
+        const savedRaw = sessionStorage.getItem(targetStorageKey);
+        if (savedRaw) {
+            const savedTargets = JSON.parse(savedRaw);
+            if (Array.isArray(savedTargets) && savedTargets.length > 0) {
+                const savedSet = new Set(savedTargets.map(String));
+                targets.forEach(chk => {
+                    if (savedSet.has(String(chk.value))) {
+                        chk.checked = true;
+                    }
+                });
+            }
+        }
+    } catch (_) {}
+
     const sync = () => {
         const selected = getSelected();
         const checked = targets.filter(item => item.checked);
@@ -695,7 +782,18 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
         selectedCount.textContent = selected.length + ' dipilih';
         sendButton.disabled = selected.length < 1 || !getTemplate();
         renderPreview();
+
+        try {
+            const checkedVals = targets.filter(t => t.checked).map(t => t.value);
+            if (checkedVals.length > 0) {
+                sessionStorage.setItem(targetStorageKey, JSON.stringify(checkedVals));
+            } else {
+                sessionStorage.removeItem(targetStorageKey);
+            }
+        } catch (_) {}
     };
+
+    sync();
 
     const showCopyFeedback = (button, message) => {
         if (!button) return;
@@ -775,6 +873,7 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
     });
 
     form.addEventListener('submit', event => {
+        try { sessionStorage.removeItem(targetStorageKey); } catch (_) {}
         sync();
         syncOpenGroups();
 
@@ -905,5 +1004,16 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
             });
         });
     });
+
+    if (window.history && window.history.replaceState) {
+        const targetUrl = <?= json_encode($currentRetentionUrl, JSON_UNESCAPED_SLASHES) ?>;
+        if (targetUrl) {
+            const currentSearch = window.location.search || '';
+            const targetSearch = targetUrl.substring(targetUrl.indexOf('?'));
+            if (currentSearch !== targetSearch) {
+                window.history.replaceState(null, '', targetUrl);
+            }
+        }
+    }
 })();
 </script>
