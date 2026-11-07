@@ -59,7 +59,10 @@ fputcsv($csvHandle, [
 fclose($csvHandle);
 
 set_error_handler(
-    static function (int $severity, string $message, string $file, int $line): never {
+    static function (int $severity, string $message, string $file, int $line): bool {
+        if ($severity === E_DEPRECATED || $severity === E_USER_DEPRECATED) {
+            return true;
+        }
         throw new ErrorException($message, 0, $severity, $file, $line);
     }
 );

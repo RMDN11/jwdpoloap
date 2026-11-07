@@ -163,7 +163,13 @@ function crmReminderCsvParse(string $filePath, int $maxRows = 5000, bool $dedupl
 
 function crmReminderCsvSafeFilename(string $filename): bool
 {
-    return preg_match('/^csv_[0-9]{8}_[0-9]{6}_[a-f0-9]{16}\.csv$/', $filename) === 1;
+    $base = basename($filename);
+    if ($base !== $filename || str_contains($filename, '..')) {
+        return false;
+    }
+
+    return preg_match('/^csv_[0-9]{8}_[0-9]{6}_[a-f0-9]{16}\.csv$/', $filename) === 1
+        || (preg_match('/^[a-zA-Z0-9_\-\.: ]+\.csv$/i', $filename) === 1 && !str_starts_with($filename, '.'));
 }
 
 function crmReminderCsvPath(string $filename): string
@@ -199,6 +205,7 @@ function crmReminderCsvList(): array
 {
     $dir = crmReminderCsvDir();
     $items = [];
+    $seenFiles = [];
 
     foreach (glob($dir . DIRECTORY_SEPARATOR . '*.json') ?: [] as $metaPath) {
         $raw = file_get_contents($metaPath);
@@ -212,6 +219,25 @@ function crmReminderCsvList(): array
 
         $meta['file'] = basename((string)$meta['file']);
         $items[] = $meta;
+        $seenFiles[$meta['file']] = true;
+    }
+
+    foreach (glob($dir . DIRECTORY_SEPARATOR . '*.csv') ?: [] as $csvPath) {
+        $file = basename($csvPath);
+        if (isset($seenFiles[$file]) || !crmReminderCsvSafeFilename($file)) {
+            continue;
+        }
+        $items[] = [
+            'file' => $file,
+            'label' => pathinfo($file, PATHINFO_FILENAME),
+            'source_filename' => $file,
+            'row_count' => 0,
+            'matched_count' => 0,
+            'unmatched_count' => 0,
+            'duplicate_count' => 0,
+            'imported_at' => date('Y-m-d H:i:s', filemtime($csvPath) ?: time()),
+        ];
+        $seenFiles[$file] = true;
     }
 
     usort($items, static function (array $a, array $b): int {
