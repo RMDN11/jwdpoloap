@@ -100,6 +100,7 @@ foreach ($files as $f) {
     $rawUrl = (string)($f['raw_url'] ?? "https://raw.githubusercontent.com/RMDN11/jwdpoloap/{$sha}/{$filename}");
     $c = curl_init($rawUrl);
     curl_setopt($c, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($c, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($c, CURLOPT_USERAGENT, 'JWD-Deploy-Engine');
     curl_setopt($c, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($c, CURLOPT_TIMEOUT, 15);
