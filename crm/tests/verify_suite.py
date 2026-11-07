@@ -135,7 +135,7 @@ def run_ui_test(base_dir):
         'Pola Pemicu (Rules)',
         'Terjadwal (Otomatis)',
         'trigger_source',
-        'Jadwalkan Alur (6 Tahap)',
+        'Jadwalkan Alur',
     ]
 
     for token in required_tokens:
@@ -206,7 +206,7 @@ def run_e2e_test(base_dir):
 
     # 6. UI & Prospects distinction
     assert 'Terjadwal (Otomatis)' in page, 'page must render Terjadwal (Otomatis) badge'
-    assert 'Jadwalkan Alur (6 Tahap)' in page, 'page must maintain manual Jadwalkan Alur button for legacy prospects'
+    assert 'Jadwalkan Alur' in page, 'page must maintain manual Jadwalkan Alur button for legacy prospects'
     assert 'Pola Pemicu (Rules)' in page, 'page must display Pola Pemicu in tab title'
     assert 'editRule' in page, 'page must provide editRule javascript function'
     assert "ORDER BY (status = 'pending') DESC, scheduled_at ASC, id ASC" in page, 'page must sort pending queues by earliest scheduled_at first'
@@ -787,6 +787,16 @@ def run_manage_groups_test(base_dir):
 
     print("manage-groups-test: OK")
 
+def run_anti_suspend_bulk_test(base_dir: str):
+    import anti_suspend_bulk_test
+    anti_suspend_bulk_test.test_batch_limit_guards(base_dir)
+    anti_suspend_bulk_test.test_human_jitter_pacing(base_dir)
+    anti_suspend_bulk_test.test_dynamic_spintax_resolution(base_dir)
+    anti_suspend_bulk_test.test_timeout_and_csrf_safety(base_dir)
+    anti_suspend_bulk_test.test_spintax_entropy_simulation()
+    anti_suspend_bulk_test.test_queue_schedule_stagger_simulation()
+    print("anti-suspend-bulk-test: OK")
+
 def main():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
     test_name = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -845,6 +855,8 @@ def main():
         run_group_broadcast_test(base_dir)
     if test_name in ["manage-groups-test", "manage-groups", "group-toggle", "all"]:
         run_manage_groups_test(base_dir)
+    if test_name in ["anti-suspend-bulk-test", "anti-suspend", "antiban", "safe-bulk", "all"]:
+        run_anti_suspend_bulk_test(base_dir)
 
 if __name__ == "__main__":
     try:

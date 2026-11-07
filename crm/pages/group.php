@@ -460,6 +460,12 @@ function crmGroupDays(string $value): string {
                 const percent = Math.round(((index + 1) / groups.length) * 100);
                 progressBar.style.width = percent + '%';
                 progressText.textContent = (index + 1) + ' / ' + groups.length;
+
+                // Anti-ban pacing delay antar grup (2.5 - 4.5 detik) untuk mencegah suspension
+                if (mode === 'sekarang' && index < groups.length - 1) {
+                    progressStatus.textContent = 'Jeda aman pengiriman grup...';
+                    await new Promise(r => setTimeout(r, 2500 + Math.floor(Math.random() * 2000)));
+                }
             }
             loadingTitle.textContent = mode === 'sekarang' ? 'Selesai' : 'Jadwal tersimpan';
             progressStatus.textContent = ok + ' berhasil · ' + (groups.length - ok) + ' gagal';

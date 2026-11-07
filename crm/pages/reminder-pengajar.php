@@ -439,6 +439,12 @@ function reminderPengajarTime(string $datetime): string {
             return;
         }
 
+        if (selected.length > 20) {
+            event.preventDefault();
+            alert('⚠️ PROTEKSI ANTI-BANNED WHATSAPP:\n\nAnda memilih ' + selected.length + ' pengajar. Pengiriman instan dibatasi maksimal 20 pengajar per batch demi mencegah pemblokiran nomor WhatsApp.');
+            return;
+        }
+
         if (!window.confirm('Kirim pesan ini ke ' + selected.length + ' pengajar?')) {
             event.preventDefault();
         }

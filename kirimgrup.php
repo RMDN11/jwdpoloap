@@ -263,6 +263,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['ajax_manual_trigger'])
             } else {
                 $failCount++;
             }
+
+            // Anti-ban pacing delay antar pengiriman manual grup
+            usleep(rand(2000000, 3500000));
         }
     }
 

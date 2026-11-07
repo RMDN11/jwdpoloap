@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../lib/reminder-retention.php';
+require_once __DIR__ . '/../lib/reminder-schedule.php';
+
+@set_time_limit(300);
 
 $redirectBase = '../index.php?page=reminder-retention';
 
@@ -84,6 +87,12 @@ Mohon dibantu follow up bila diperlukan. Jazakallahu khairan.";
         exit;
     }
 
+    if (count($targets) > 20) {
+        $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Proteksi Anti-Banned: Mengirim lebih dari 20 pesan pengajar sekaligus secara instan berisiko membuat nomor WhatsApp diblokir. Harap pilih maksimal 20 pengajar per batch.'];
+        header('Location: ' . $redirect);
+        exit;
+    }
+
     $logStmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, NOW())");
     $historyStmt = $conn->prepare("
         INSERT INTO crm_message_history (nowa, nama, template_id, template_name, message, sent_at, status)
@@ -104,11 +113,12 @@ Mohon dibantu follow up bila diperlukan. Jazakallahu khairan.";
             continue;
         }
 
-        $personalMessage = str_ireplace(
-            ['{nama}', '{NAMA}', '[nama]', '[NAMA]', '{halaqoh}', '{HALAQOH}', '[halaqoh]', '[HALAQOH]'],
-            [$name, $name, $name, $name, $retentionAk, $retentionAk, $retentionAk, $retentionAk],
-            $message
-        );
+        // Placeholder support & Spintax anti-ban otomatis
+        $personalMessage = crmResolveReminderMessage($message, [
+            'nama' => $name,
+            'nowa' => $number,
+            'halaqoh' => $retentionAk,
+        ]);
 
         $payload = json_encode([
             'recipient_type' => 'individual',
@@ -159,6 +169,9 @@ Mohon dibantu follow up bila diperlukan. Jazakallahu khairan.";
                 $logStmt->execute();
             }
         }
+
+        // Jeda acak manusia per pesan (2.5 hingga 4.5 detik) untuk mencegah flag bot Meta/WhatsApp
+        usleep(rand(2500000, 4500000));
     }
 
     if ($logStmt) $logStmt->close();

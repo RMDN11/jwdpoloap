@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/../config/bootstrap.php';
+require_once __DIR__ . '/../lib/reminder-schedule.php';
+
+@set_time_limit(300);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? null)) {
     http_response_code(403);
@@ -87,6 +90,10 @@ if($action==='send_one'){
     if(!$requests)rpRedirect('Tidak ada permintaan yang masih menunggu.','error');
 }
 
+if ($action === 'send_all' && count($requests) > 20) {
+    rpRedirect('Proteksi Anti-Banned: Mengirim lebih dari 20 pesan sekaligus secara instan sangat berisiko membuat nomor WhatsApp diblokir. Harap gunakan fitur "Atur Jadwal Otomasi" agar pesan terkirim bertahap dengan jeda aman.', 'error');
+}
+
 $logStmt=$conn->prepare('INSERT INTO log_wa (nowa,nama,message,created_at) VALUES (?,?,?,NOW())');
 $historyStmt=$conn->prepare("INSERT INTO crm_message_history (nowa,nama,template_id,template_name,message,sent_at,status) VALUES (?,?,?,?,?,NOW(),'sent')");
 $updateStmt=$conn->prepare("UPDATE reminder_requests SET status='terkirim',updated_at=NOW() WHERE id=?");
@@ -96,7 +103,14 @@ foreach($requests as $request){
     $name=trim((string)$request['peserta_nama'])?:'Peserta';
     $number=crmNormalizeNumber((string)$request['peserta_nowa']);
     if($number===''){ $failed++;$failedNames[]=$name;continue; }
-    $message=str_ireplace(['{peserta_nama}','{peserta_nowa}','{nama}','[nama]'],[$name,$number,$name,$name],(string)$template['content']);
+
+    // Placeholder support & Spintax anti-ban otomatis
+    $message = crmResolveReminderMessage((string)$template['content'], [
+        'nama' => $name,
+        'nowa' => $number,
+        'halaqoh' => (string)($request['halaqoh'] ?? '-')
+    ]);
+
     $send=rpSend($number,$message,$apiUrl,$apiToken);
     if($send['ok']){
         $success++;
@@ -108,6 +122,9 @@ foreach($requests as $request){
         $failed++;$failedNames[]=$name;$logged='[REMINDER] [PESERTA] [GAGAL] '.$message.' | '.$send['detail'];
         if($logStmt){$logStmt->bind_param('sss',$number,$name,$logged);$logStmt->execute();}
     }
+
+    // Jeda acak manusia per pesan (2.5 hingga 4.5 detik) untuk mencegah flag bot Meta/WhatsApp
+    usleep(rand(2500000, 4500000));
 }
 if($logStmt)$logStmt->close();if($historyStmt)$historyStmt->close();if($updateStmt)$updateStmt->close();
 $msg=($action==='send_all'?'':'Peserta: ').$success.' berhasil dikirimi reminder.';

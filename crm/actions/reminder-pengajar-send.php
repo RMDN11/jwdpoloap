@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
+require_once __DIR__ . '/../lib/reminder-schedule.php';
+
+@set_time_limit(300);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? null)) {
     http_response_code(403);
@@ -74,6 +77,12 @@ if (!$targets) {
     exit;
 }
 
+if (count($targets) > 20) {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Proteksi Anti-Banned: Mengirim lebih dari 20 pesan pengajar sekaligus secara instan sangat berisiko membuat nomor WhatsApp diblokir. Harap pilih maksimal 20 pengajar per pengiriman.'];
+    header('Location: ' . $redirect);
+    exit;
+}
+
 $logStmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, NOW())");
 $historyStmt = $conn->prepare("
     INSERT INTO crm_message_history (nowa, nama, template_id, template_name, message, sent_at, status)
@@ -95,11 +104,12 @@ foreach ($targets as $target) {
         continue;
     }
 
-    $personalMessage = str_ireplace(
-        ['{nama}', '{NAMA}', '[nama]', '[NAMA]', '{halaqoh}', '{HALAQOH}', '[halaqoh]', '[HALAQOH]'],
-        [$name, $name, $name, $name, $halaqoh, $halaqoh, $halaqoh, $halaqoh],
-        $message
-    );
+    // Placeholder support & Spintax anti-ban otomatis
+    $personalMessage = crmResolveReminderMessage($message, [
+        'nama' => $name,
+        'nowa' => $number,
+        'halaqoh' => $halaqoh,
+    ]);
 
     $payload = json_encode([
         'recipient_type' => 'individual',
@@ -151,6 +161,9 @@ foreach ($targets as $target) {
             $logStmt->execute();
         }
     }
+
+    // Jeda acak manusia per pesan (2.5 hingga 4.5 detik) untuk mencegah flag bot Meta/WhatsApp
+    usleep(rand(2500000, 4500000));
 }
 
 if ($logStmt) $logStmt->close();

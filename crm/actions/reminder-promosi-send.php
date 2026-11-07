@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/../config/bootstrap.php';
+require_once __DIR__.'/../lib/reminder-schedule.php';
 header('Content-Type: application/json; charset=utf-8');
 function promosiJson(array $p,int $s=200):never{http_response_code($s);echo json_encode($p,JSON_UNESCAPED_UNICODE);exit;}
 if($_SERVER['REQUEST_METHOD']!=='POST'||!crmVerifyCsrf($_POST['csrf']??null))promosiJson(['status'=>'error','message'=>'Permintaan tidak valid.'],403);
@@ -13,8 +14,7 @@ $finfo=new finfo(FILEINFO_MIME_TYPE);$mime=(string)$finfo->file($_FILES['promo_i
 $stmt=$conn->prepare("SELECT id,nama_lengkap,nowa FROM peserta WHERE id=? AND nowa IS NOT NULL AND nowa<>'' LIMIT 1");if(!$stmt)promosiJson(['status'=>'error','message'=>'Gagal menyiapkan peserta.'],500);$stmt->bind_param('i',$id);$stmt->execute();$target=$stmt->get_result()->fetch_assoc();$stmt->close();if(!$target)promosiJson(['status'=>'error','message'=>'Peserta tidak ditemukan.'],404);
 $number=crmNormalizeNumber((string)$target['nowa']);$name=trim((string)$target['nama_lengkap']);if($number==='')promosiJson(['status'=>'error','message'=>'Nomor WhatsApp tidak valid.'],422);
 $token=trim((string)($_POST['image_token']??''));$upload=$_SESSION['crm_promosi_uploads'][$token]??null;if($token===''||!is_array($upload)||empty($upload['path'])||!is_file($upload['path']))promosiJson(['status'=>'error','message'=>'File gambar campaign sudah tidak tersedia. Upload ulang gambar.'],422);if(time()-(int)($upload['created_at']??0)>3600){@unlink($upload['path']);unset($_SESSION['crm_promosi_uploads'][$token]);promosiJson(['status'=>'error','message'=>'File gambar sudah kedaluwarsa. Upload ulang gambar.'],422);}$mime=(string)$upload['mime'];$ext=(string)$upload['ext'];
-$final=str_ireplace(['{nama}','[nama]'],[$name,$name],$caption);if($link!=='')$final.="
-".$link;
+$final=crmResolveReminderMessage($caption,['nama'=>$name,'nowa'=>$number]);if($link!=='')$final.="\n".$link;
 $url=strpos($apiUrl,'/v1/messages')!==false?str_replace('/v1/messages','/message',$apiUrl):rtrim($apiUrl,'/').'/message';
 $post=['type'=>'image','phone'=>$number,'message'=>$final,'attachment'=>new CURLFile($upload['path'],$mime,'promosi.'.$ext)];
 $ch=curl_init();curl_setopt_array($ch,[CURLOPT_URL=>$url,CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$post,CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$apiToken],CURLOPT_TIMEOUT=>30,CURLOPT_CONNECTTIMEOUT=>10]);$response=curl_exec($ch);$code=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);$err=curl_error($ch);curl_close($ch);

@@ -790,6 +790,12 @@ $rateClass = $rate >= $threshold ? 'good' : 'bad';
             return;
         }
 
+        if (selected.length > 20) {
+            event.preventDefault();
+            alert('⚠️ PROTEKSI ANTI-BANNED WHATSAPP:\n\nAnda memilih ' + selected.length + ' peserta. Pengiriman instan dibatasi maksimal 20 peserta per batch demi mencegah pemblokiran nomor WhatsApp.');
+            return;
+        }
+
         if (!window.confirm('Kirim reminder ke ' + selected.length + ' peserta yang dipilih?')) {
             event.preventDefault();
             return;

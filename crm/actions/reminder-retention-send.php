@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/bootstrap.php';
 require_once __DIR__ . '/../lib/reminder-retention.php';
+require_once __DIR__ . '/../lib/reminder-schedule.php';
+
+@set_time_limit(300);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? null)) {
     http_response_code(403);
@@ -170,6 +173,12 @@ try {
     exit;
 }
 
+if (count($targets) > 20) {
+    $_SESSION['crm_flash'] = ['type' => 'error', 'message' => 'Proteksi Anti-Banned: Mengirim lebih dari 20 kontak retention sekaligus secara instan sangat berisiko membuat nomor WhatsApp diblokir. Harap pilih maksimal 20 kontak per pengiriman.'];
+    header('Location: ' . $redirect, true, 303);
+    exit;
+}
+
 $success = 0;
 $failed = 0;
 $errors = [];
@@ -183,12 +192,11 @@ foreach ($targets as $target) {
     $name = $target['name'] !== '' ? $target['name'] : 'Kak';
     $number = $target['nowa'];
 
-    $message = str_ireplace(
-        ['{nama}', '{NAMA}', '[nama]', '[NAMA]'],
-        $name,
-        (string)$template['content']
-    );
-    $message = preg_replace('/ {2,}/', ' ', $message) ?? $message;
+    // Placeholder support & Spintax anti-ban otomatis
+    $message = crmResolveReminderMessage((string)$template['content'], [
+        'nama' => $name,
+        'nowa' => $number,
+    ]);
 
     $payload = json_encode([
         'recipient_type' => 'individual',
@@ -232,6 +240,9 @@ foreach ($targets as $target) {
             $logStmt->execute();
         }
     }
+
+    // Jeda acak manusia per pesan (2.5 hingga 4.5 detik) untuk mencegah flag bot Meta/WhatsApp
+    usleep(rand(2500000, 4500000));
 }
 
 if ($logStmt) {

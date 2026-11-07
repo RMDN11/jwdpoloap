@@ -643,7 +643,16 @@ $previewMessage = ($selectedRequest && $defaultTemplate)
         if(!confirm('Hapus SEMUA permintaan reminder?')) e.preventDefault();
     });
     document.getElementById('sendAllPesertaForm')?.addEventListener('submit', e => {
-        if(!confirm('Kirim ke semua permintaan yang masih menunggu (' + <?= (int)$stats['pending'] ?> + ' peserta)?')) e.preventDefault();
+        const pendingCount = <?= (int)$stats['pending'] ?>;
+        if (pendingCount > 20) {
+            e.preventDefault();
+            const proceed = confirm('⚠️ PROTEKSI ANTI-BANNED WHATSAPP:\n\nAda ' + pendingCount + ' permintaan menunggu. Mengirim lebih dari 20 pesan sekaligus secara instan berisiko tinggi membuat nomor WhatsApp DIBLOKIR/BANNED!\n\nDisarankan menggunakan tombol "Atur Jadwal Otomasi" agar pesan terkirim secara bertahap dengan jeda aman.\n\nKlik OK untuk membuka "Atur Jadwal Otomasi" sekarang, atau Cancel untuk membatalkan.');
+            if (proceed) {
+                document.getElementById('openPesertaScheduleBtn')?.click();
+            }
+            return;
+        }
+        if(!confirm('Kirim ke semua permintaan yang masih menunggu (' + pendingCount + ' peserta)?')) e.preventDefault();
     });
 
     const tid = document.getElementById('templateId'),
