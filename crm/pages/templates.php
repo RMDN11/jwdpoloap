@@ -19,6 +19,13 @@ function crmTemplateRedirect(): never
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['manage_templates_action'])) {
+    if (!crmVerifyCsrf($_POST['csrf'] ?? $_POST['csrf_token'] ?? null)) {
+        $_SESSION['crm_template_flash'] = [
+            'type' => 'error',
+            'message' => 'Sesi keamanan tidak valid. Silakan muat ulang halaman.',
+        ];
+        crmTemplateRedirect();
+    }
     $action = (string)$_POST['manage_templates_action'];
 
     if ($action === 'add' || $action === 'edit') {
@@ -154,6 +161,7 @@ if ($stmt) {
         </div>
 
         <form method="post" id="templateForm">
+            <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
             <input type="hidden" name="manage_templates_action" id="templateAction" value="add">
             <input type="hidden" name="template_id" id="templateId" value="">
 
@@ -227,6 +235,7 @@ if ($stmt) {
                             </button>
 
                             <form method="post" class="template-delete-form" onsubmit="return confirm('Hapus template ini?');">
+                                <input type="hidden" name="csrf" value="<?= htmlspecialchars(crmCsrfToken()) ?>">
                                 <input type="hidden" name="manage_templates_action" value="delete">
                                 <input type="hidden" name="template_id" value="<?= (int)$template['id'] ?>">
                                 <button type="submit" class="crm-icon-btn crm-icon-btn-danger" title="Hapus template" aria-label="Hapus template">

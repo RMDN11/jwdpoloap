@@ -1,10 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../config/session.php';
-crmSessionInit();
-
-require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../config/bootstrap.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -79,6 +76,11 @@ if ($action === 'search') {
 
 // 2. Toggle Status (Ubah status 'ya' / 'tidak')
 if ($action === 'toggle' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!crmVerifyCsrf($_POST['csrf'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Token CSRF tidak valid']);
+        exit;
+    }
     $id = (int)($_POST['id'] ?? 0);
     $status_lanjut = (string)($_POST['status_lanjut'] ?? 'ya');
     if (!in_array($status_lanjut, ['ya', 'tidak'], true)) {
@@ -121,6 +123,11 @@ if ($action === 'get_list') {
 
 // 4. Update Alasan Tidak Lanjut
 if ($action === 'update_alasan' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!crmVerifyCsrf($_POST['csrf'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Token CSRF tidak valid']);
+        exit;
+    }
     $id = (int)($_POST['id'] ?? 0);
     $alasan = trim((string)($_POST['alasan'] ?? ''));
 

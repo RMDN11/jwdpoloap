@@ -67,7 +67,7 @@ assert(str_contains($actions, 'category'), 'actions must save category in save_r
 
 // 6. UI & Prospects distinction verification
 assert(str_contains($page, 'Terjadwal (Otomatis)'), 'page must render Terjadwal (Otomatis) badge');
-assert(str_contains($page, 'Jadwalkan Alur (6 Tahap)'), 'page must maintain manual Jadwalkan Alur button for legacy prospects');
+assert(str_contains($page, 'Atur Jadwal Follow-Up'), 'page must maintain manual Jadwalkan Alur button for legacy prospects');
 assert(str_contains($page, 'Pola Pemicu (Rules)'), 'page must display Pola Pemicu in tab title');
 assert(str_contains($page, 'editRule'), 'page must provide editRule javascript function');
 assert(str_contains($page, 'ORDER BY (status = \'pending\') DESC, scheduled_at ASC, id ASC'), 'page must sort pending queues by earliest scheduled_at first');

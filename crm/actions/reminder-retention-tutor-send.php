@@ -7,6 +7,9 @@ require_once __DIR__ . '/../lib/reminder-schedule.php';
 
 @set_time_limit(300);
 
+$apiUrl = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : ($apiUrl ?? '');
+$apiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : ($apiToken ?? '');
+
 $redirectBase = '../index.php?page=reminder-retention';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? null)) {

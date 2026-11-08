@@ -33,9 +33,11 @@ function crmChatRoutingNormalizedInternalNumbers(): array {
         $normalized = function_exists('crmProspectNormalizeNumber')
             ? crmProspectNormalizeNumber((string)$number)
             : crmChatNormalizeNumber((string)$number);
-        if ($normalized !== '') $numbers[$normalized] = true;
+        if ($normalized !== '' && !in_array((string)$normalized, $numbers, true)) {
+            $numbers[] = (string)$normalized;
+        }
     }
-    return array_keys($numbers);
+    return $numbers;
 }
 
 function crmChatRoutingInternalSql(string $alias = 'crm_conversations'): string {
@@ -144,8 +146,11 @@ function crmChatRoutingIsPaymentMessage(string $message): bool {
     $m = crmChatRoutingNormalizeMessage($message);
     if ($m === '') return false;
 
-    return str_contains($m, 'wajibsegeradiisi')
-        && str_contains($m, 'mohondiisiuntukpendataanfinancekami');
+    $hasMarker1 = str_contains($m, 'wajibsegeradiisi');
+    $hasMarker2 = str_contains($m, 'mohondiisiuntukpendataanfinancekami')
+        || (str_contains($m, 'mohondiisi') && str_contains($m, 'pendataanfinancekami'));
+
+    return $hasMarker1 && $hasMarker2;
 }
 
 function crmChatRoutingPaymentDetectedSql(string $alias = 'crm_conversations'): string {

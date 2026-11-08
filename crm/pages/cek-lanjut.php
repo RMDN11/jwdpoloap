@@ -97,6 +97,7 @@ if (isset($conn) && $conn instanceof mysqli) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const crmCsrf = '<?= htmlspecialchars(crmCsrfToken()) ?>';
     const searchInput = document.getElementById('searchInput');
     const halaqohFilter = document.getElementById('halaqohFilter');
     const searchResultContainer = document.getElementById('searchResultContainer');
@@ -203,6 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const statusLanjut = isChecked ? 'tidak' : 'ya';
 
         const formData = new FormData();
+        formData.append('csrf', crmCsrf);
         formData.append('id', String(id));
         formData.append('status_lanjut', statusLanjut);
         if (!isChecked) {
@@ -226,6 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 4. Update Alasan
     window.updateAlasan = function(id, alasan) {
         const formData = new FormData();
+        formData.append('csrf', crmCsrf);
         formData.append('id', String(id));
         formData.append('alasan', alasan);
 

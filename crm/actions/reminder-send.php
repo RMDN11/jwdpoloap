@@ -8,6 +8,8 @@ require_once __DIR__ . '/../lib/reminder-schedule.php';
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !crmVerifyCsrf($_POST['csrf'] ?? null)) { http_response_code(403); exit('Permintaan tidak valid.'); }
 
 $mode=(string)($_POST['mode'] ?? 'participants');
+$apiUrl = defined('ONESENDER_API_URL') ? ONESENDER_API_URL : ($apiUrl ?? '');
+$apiToken = defined('ONESENDER_API_TOKEN') ? ONESENDER_API_TOKEN : ($apiToken ?? '');
 $templateId=(int)($_POST['template_id'] ?? 0);
 $csvFile=basename(trim((string)($_POST['csv_file'] ?? '')));
 $bulan=trim((string)($_POST['bulan'] ?? ''));
@@ -159,6 +161,7 @@ if($mode==='request'){
             }
         }
     }
+}
 }
 if(!$targets){
     $_SESSION['crm_flash']=['type'=>'error','message'=>'Tidak ada target reminder yang valid.'];

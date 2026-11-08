@@ -1292,7 +1292,7 @@ if ($tab !== 'queue') {
                 <button type="button" id="btnCloseSleepModal" style="border:0;background:#f1f5f9;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px">×</button>
             </div>
 
-            <form action="actions/automation-followup.php" method="POST">
+            <form action="index.php?page=automation-followup" method="POST">
                 <input type="hidden" name="csrf" value="<?= htmlspecialchars($csrfToken) ?>">
                 <input type="hidden" name="action" value="save_sleep_settings">
                 <input type="hidden" name="tab" value="<?= htmlspecialchars($tab) ?>">

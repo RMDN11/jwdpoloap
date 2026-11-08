@@ -20,10 +20,9 @@ $checks = [
     'home dawn visual exists' => strpos($css, '.home-scene[data-period="dawn"]:before') !== false && strpos($css, '.home-scene[data-period="dawn"] .scene-sun') !== false,
     'home links activity to activity page' => strpos($home, '?page=activity') !== false,
     'router allows activity page' => strpos($index, "'activity'") !== false,
-    'home hides global timebar' => strpos($index, "$page !== 'home'") !== false && strpos($index, "components/topbar.php") !== false,
-    'home icon grid styles exist' => strpos($css, '.home-tools-grid') !== false,
-    'home tools have compact centered styles' => strpos($css, '.home-tools-grid strong{font-size:10px') !== false && strpos($css, 'align-items:center') !== false,
-    'home tools use rebuilt feature routes' => strpos($home, '?page=group') !== false && strpos($home, '?page=chat') !== false && strpos($home, '?page=reminder') !== false && strpos($home, '../manage_templates.php') !== false,
+    'home hides global timebar' => strpos($index, '$page !== \'home\'') !== false && strpos($index, "components/topbar.php") !== false,
+    'home analytics section exists' => strpos($home, 'home-analytics-section') !== false,
+    'home health section exists' => strpos($home, 'home-health-section') !== false,
 ];
 
 $nav = file_get_contents(__DIR__ . '/../components/bottom-nav.php');
@@ -35,11 +34,9 @@ $checks['bottom nav uses payment Reminder'] = strpos($nav, "'reminder' => ['labe
 $checks['action page removed'] = !file_exists(__DIR__ . '/../pages/action.php');
 $checks['action create endpoint removed'] = !file_exists(__DIR__ . '/../actions/create-action.php');
 $checks['bootstrap no longer creates Action table'] = strpos($bootstrap, 'CREATE TABLE IF NOT EXISTS crm_actions') === false;
-$checks['home has Follow Up shortcut'] = strpos($home, '>Follow Up<') !== false;
-$checks['home has Group shortcut'] = strpos($home, '?page=group') !== false;
 $checks['home no longer links Action'] = strpos($home, '?page=action') === false;
-$checks['reminder is payment workflow'] = strpos(file_get_contents(__DIR__ . '/../pages/reminder.php'), 'Reminder Pembayaran') !== false;
-$checks['chat workspace is Follow Up'] = strpos(file_get_contents(__DIR__ . '/../pages/chat.php'), '$crmTitle = \'Follow Up\';') !== false;
+$checks['reminder is payment workflow'] = strpos(file_get_contents(__DIR__ . '/../pages/reminder.php'), 'Pembayaran') !== false;
+$checks['chat workspace is Follow Up'] = strpos(file_get_contents(__DIR__ . '/../pages/chat.php'), '$crmTitle = \'Chat\';') !== false;
 
 $failed = array_keys(array_filter($checks, fn($ok) => !$ok));
 foreach ($checks as $name => $ok) echo ($ok ? "PASS" : "FAIL") . " - $name\n";

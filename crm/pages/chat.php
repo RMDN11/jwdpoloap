@@ -21,7 +21,8 @@ if (!in_array($status, ['all', 'new', 'read', 'followed'], true)) {
 if (!in_array($range, ['today', 'week', 'month', 'all'], true)) {
     $range = 'today';
 }
-if (!in_array($room, ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'], true)) {
+$allowedRooms = ['customer_baru', 'sudah_payment', 'peserta_pengajar', 'lainnya'];
+if (!in_array($room, $allowedRooms, true)) {
     $room = 'customer_baru';
 }
 

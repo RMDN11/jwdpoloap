@@ -12,8 +12,9 @@ function assertSameValue($expected, $actual, string $label): void {
     }
 }
 
-assertSameValue(true, crmChatRoutingIsPaymentMessage('⛔ Wajib segera diisi'), 'payment pattern');
-assertSameValue(true, crmChatRoutingIsPaymentMessage('Mohon diisi untuk pendataan Finance kami'), 'finance payment pattern');
+assertSameValue(true, crmChatRoutingIsPaymentMessage("⛔ Wajib segera diisi\nMohon diisi untuk pendataan Finance kami"), 'payment pattern');
+assertSameValue(false, crmChatRoutingIsPaymentMessage('⛔ Wajib segera diisi'), 'marker 2 required');
+assertSameValue(false, crmChatRoutingIsPaymentMessage('Mohon diisi untuk pendataan Finance kami'), 'marker 1 required');
 assertSameValue(false, crmChatRoutingIsPaymentMessage('Silakan hubungi Finance'), 'finance alone');
 assertSameValue(false, crmChatRoutingIsPaymentMessage('Wajib diisi'), 'partial payment phrase');
 

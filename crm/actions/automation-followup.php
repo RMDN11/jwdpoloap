@@ -18,8 +18,8 @@ $returnUrl = trim((string)($_POST['return_url'] ?? ''));
 
 function crmAutoRedirect(string $tab = 'rules', ?string $returnUrl = null, ?string $anchor = null): void
 {
-    // Location: index.php?page=automation-followup
-    $target = 'index.php?page=automation-followup&tab=' . urlencode($tab);
+    $basePrefix = str_contains($_SERVER['SCRIPT_NAME'] ?? '', '/actions/') ? '../' : '';
+    $target = $basePrefix . 'index.php?page=automation-followup&tab=' . urlencode($tab);
     if (!empty($returnUrl)) {
         $parsed = parse_url($returnUrl);
         $path = $parsed['path'] ?? '';
@@ -29,7 +29,7 @@ function crmAutoRedirect(string $tab = 'rules', ?string $returnUrl = null, ?stri
                 $query = $path;
             }
             if (!empty($query) && str_contains($query, 'page=automation-followup')) {
-                $target = 'index.php' . $query;
+                $target = $basePrefix . 'index.php' . $query;
             }
         }
     }
@@ -40,7 +40,11 @@ function crmAutoRedirect(string $tab = 'rules', ?string $returnUrl = null, ?stri
         $target = $base . '#' . $cleanAnchor;
     }
 
-    header('Location: ' . $target);
+    if ($basePrefix !== '') {
+        header('Location: ' . $target);
+    } else {
+        header('Location: index.php?page=automation-followup' . substr($target, strlen('index.php?page=automation-followup')));
+    }
     exit;
 }
 

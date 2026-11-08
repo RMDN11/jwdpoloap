@@ -78,7 +78,7 @@ if ($blocked) {
 
 $contact = null;
 $conversationStmt = $conn->prepare(
-    "SELECT nowa, nama
+    "SELECT id, nowa, nama
      FROM crm_conversations
      WHERE nowa = ? OR nowa = ?
      LIMIT 1"
@@ -125,12 +125,40 @@ if ($messageTemplate === '') {
 }
 
 $name = trim((string)($contact['nama'] ?? 'Kak'));
-$incomingMessage = (string)($contact['message'] ?? '');
+$incomingMessage = '';
 
-if (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?\s*\(/i', $incomingMessage, $m)) {
-    $name = trim($m[1]);
-} elseif (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?/i', $incomingMessage, $m)) {
-    $name = trim($m[1]);
+if ($name === '' || strtolower($name) === 'kak') {
+    if (crmChatTablesReady($conn) && !empty($contact['id'])) {
+        $msgStmt = $conn->prepare("SELECT message FROM crm_messages WHERE conversation_id = ? AND direction = 'in' ORDER BY id ASC LIMIT 1");
+        if ($msgStmt) {
+            $convId = (int)$contact['id'];
+            $msgStmt->bind_param('i', $convId);
+            $msgStmt->execute();
+            $msgRow = $msgStmt->get_result()->fetch_assoc();
+            $msgStmt->close();
+            if (!empty($msgRow['message'])) {
+                $incomingMessage = (string)$msgRow['message'];
+            }
+        }
+    }
+    if ($incomingMessage === '') {
+        $legacyMsgStmt = $conn->prepare("SELECT message FROM log_wa WHERE (nowa = ? OR nowa = ?) AND message IS NOT NULL AND message != '' AND message != 'Data CSV/Manual' ORDER BY id ASC LIMIT 1");
+        if ($legacyMsgStmt) {
+            $legacyMsgStmt->bind_param('ss', $contact['nowa'], $normalizedContact);
+            $legacyMsgStmt->execute();
+            $legRow = $legacyMsgStmt->get_result()->fetch_assoc();
+            $legacyMsgStmt->close();
+            if (!empty($legRow['message'])) {
+                $incomingMessage = (string)$legRow['message'];
+            }
+        }
+    }
+
+    if (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?\s*\(/i', $incomingMessage, $m)) {
+        $name = trim($m[1]);
+    } elseif (preg_match('/nama saya\s+\*?([^\*\(\n]+)\*?/i', $incomingMessage, $m)) {
+        $name = trim($m[1]);
+    }
 }
 if ($name === '' || strtolower($name) === 'kak') $name = 'Kak';
 

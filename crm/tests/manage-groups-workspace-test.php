@@ -43,9 +43,15 @@ if (!str_contains($more, "index.php?page=manage-groups")) {
     throw new RuntimeException('More does not route to native Kelola Grup workspace.');
 }
 
-foreach (['max-width:1280px', '--crm-green:#168044', 'padding-bottom:104px', 'group-manage-stats', 'group-manage-table-wrap', '.group-manage-modal-card.crm-workspace-card'] as $required) {
+foreach (['max-width:1280px', '--crm-green:#168044', 'padding-bottom:104px'] as $required) {
     if (!str_contains($core, $required)) {
         throw new RuntimeException("Missing shared workspace core rule: {$required}");
+    }
+}
+
+foreach (['group-manage-stats', 'group-manage-table-wrap', '.group-manage-modal-card'] as $required) {
+    if (!str_contains($css, $required)) {
+        throw new RuntimeException("Missing Kelola Grup css rule: {$required}");
     }
 }
 

@@ -7,7 +7,7 @@ if ($chatPage === false) {
 }
 
 $required = [
-    "\$paymentDetectedSql = crmChatRoutingPaymentDetectedSql('c');",
+    "\$paymentDetectedSql = \"(LOWER(TRIM(COALESCE(c.room_source, 'auto'))) <> 'manual' AND (c.payment_detected_at IS NOT NULL OR c.room = 'sudah_payment'))\";",
     "\$internalSql = crmChatRoutingInternalSql('c');",
     "'week' => \"c.last_inbound_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)\",",
     "'month' => \"c.last_inbound_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')\",",

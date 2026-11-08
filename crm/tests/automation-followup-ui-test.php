@@ -39,7 +39,7 @@ $requiredPageTokens = [
     'Pola Pemicu (Rules)',
     'Terjadwal (Otomatis)',
     'trigger_source',
-    'Jadwalkan Alur (6 Tahap)',
+    'Atur Jadwal Follow-Up',
 ];
 
 foreach ($requiredPageTokens as $token) {

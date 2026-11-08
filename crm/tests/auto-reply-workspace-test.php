@@ -41,11 +41,11 @@ foreach ([
     'Data sama, tidak ada perubahan yang diperlukan.',
     'SELECT id FROM auto_reply_rules WHERE id = ? LIMIT 1',
     'Status sudah sesuai, tidak ada perubahan yang diperlukan.',
-    'autoReplySubmit.disabled = true',
+    'submitButton.disabled = true',
     'components/topbar.php',
     'components/bottom-nav.php',
 ] as $required) {
-    if (!str_contains($page . $index, $required)) {
+    if (!str_contains($page . $index . $action, $required)) {
         throw new RuntimeException("Missing auto reply workspace element: {$required}");
     }
 }
@@ -70,7 +70,7 @@ foreach ([
 }
 
 foreach (['max-width:1280px', '--crm-green:#168044', 'padding-bottom:104px', 'grid-template-columns:minmax(280px,.85fr) minmax(360px,1.15fr)', 'crm-workspace-field input', 'auto-reply-modal-card'] as $required) {
-    if (!str_contains($core, $required)) {
+    if (!str_contains($core . $css, $required)) {
         throw new RuntimeException("Missing shared workspace core rule: {$required}");
     }
 }

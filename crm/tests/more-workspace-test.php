@@ -6,14 +6,14 @@ if ($more === false) {
     throw new RuntimeException('Cannot read more.php');
 }
 
-$required = ['Template Pesan', 'Auto Reply', 'Kelola Grup', 'Analytics', 'Keluar'];
+$required = ['Automation Follow Up', 'Template Pesan', 'Auto Reply', 'Kelola Grup', 'Analytics', 'Keluar'];
 foreach ($required as $label) {
     if (!str_contains($more, $label)) {
         throw new RuntimeException("Missing More item: {$label}");
     }
 }
 
-$removed = ['Follow Up', 'Reminder', 'Kirim ke Grup', 'quickLinks', 'Distribusi'];
+$removed = ["'title' => 'Follow Up'", 'Reminder', 'Kirim ke Grup', 'quickLinks', 'Distribusi'];
 foreach ($removed as $label) {
     if (str_contains($more, $label)) {
         throw new RuntimeException("Unexpected More content: {$label}");
