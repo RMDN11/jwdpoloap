@@ -5,6 +5,12 @@
   SecFilterScanPOST Off
 </IfModule>
 
+# Cegah timeout eksekusi pada web server LiteSpeed (cPanel)
+<IfModule Litespeed>
+  RewriteEngine On
+  RewriteRule .* - [E=noabort:1,E=noconntimeout:1]
+</IfModule>
+
 # Pengaturan error PHP dipindahkan ke blok pengaman cPanel
 <IfModule mod_php7.c>
   php_flag display_errors On

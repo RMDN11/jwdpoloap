@@ -314,6 +314,23 @@ function reminderPengajarTime(string $datetime): string {
                         Kirim WhatsApp
                     </button>
                 </form>
+
+                <section class="reminder-card reminder-pengajar-progress" id="pengajarProgressCard" hidden style="margin-top:16px;">
+                    <div class="reminder-card-head compact">
+                        <div>
+                            <span class="reminder-kicker">Progress</span>
+                            <h2 id="pengajarProgressTitle">Menyiapkan...</h2>
+                        </div>
+                        <span id="pengajarProgressCount" class="reminder-count">0 / 0</span>
+                    </div>
+                    <div class="reminder-progress-track"><span id="pengajarProgressBar"></span></div>
+                    <p id="pengajarProgressStatus" style="margin:9px 0 0;color:#65756d;font-size:10px;">Menyiapkan pengiriman.</p>
+                    <div class="reminder-progress-stats" style="display:flex;gap:12px;margin-top:8px;color:#829089;font-size:9px;">
+                        <span>✓ <b id="pengajarSuccessCount" style="color:#166534">0</b> berhasil</span>
+                        <span>× <b id="pengajarFailedCount" style="color:#991b1b">0</b> gagal</span>
+                        <span>◷ <b id="pengajarRemainingCount">0</b> tersisa</span>
+                    </div>
+                </section>
             </section>
 
             <section class="reminder-card reminder-history-card">
@@ -427,27 +444,123 @@ function reminderPengajarTime(string $datetime): string {
         });
     });
 
-    document.getElementById('reminderPengajarForm')?.addEventListener('submit', event => {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const form = document.getElementById('reminderPengajarForm');
+    const progressCard = document.getElementById('pengajarProgressCard');
+    const progressTitle = document.getElementById('pengajarProgressTitle');
+    const progressCount = document.getElementById('pengajarProgressCount');
+    const progressBar = document.getElementById('pengajarProgressBar');
+    const progressStatus = document.getElementById('pengajarProgressStatus');
+    const successEl = document.getElementById('pengajarSuccessCount');
+    const failedEl = document.getElementById('pengajarFailedCount');
+    const remainingEl = document.getElementById('pengajarRemainingCount');
+
+    async function sendOnePengajar(item, msg, csrf) {
+        const data = new FormData();
+        data.append('csrf', csrf);
+        data.append('message', msg);
+        data.append('target_id', String(item.id));
+        data.append('ajax', '1');
+
+        const res = await fetch('actions/reminder-pengajar-send.php', {
+            method: 'POST',
+            body: data,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json) {
+            throw new Error(json?.message || ('Gagal mengirim (HTTP ' + res.status + ')'));
+        }
+        return json;
+    }
+
+    form?.addEventListener('submit', async event => {
+        event.preventDefault();
+
         const scrollYInput = document.getElementById('pengajarScrollY');
         if (scrollYInput) {
             scrollYInput.value = String(Math.max(0, Math.round(window.scrollY || window.pageYOffset || 0)));
         }
 
         const selected = selectedItems();
-        if (!selected.length || !messageEl.value.trim()) {
-            event.preventDefault();
+        const msg = messageEl ? messageEl.value.trim() : '';
+        const csrf = form.querySelector('[name=csrf]')?.value || '';
+
+        if (!selected.length || !msg) {
             return;
         }
 
         if (selected.length > 20) {
-            event.preventDefault();
             alert('⚠️ PROTEKSI ANTI-BANNED WHATSAPP:\n\nAnda memilih ' + selected.length + ' pengajar. Pengiriman instan dibatasi maksimal 20 pengajar per batch demi mencegah pemblokiran nomor WhatsApp.');
             return;
         }
 
-        if (!window.confirm('Kirim pesan ini ke ' + selected.length + ' pengajar?')) {
-            event.preventDefault();
+        if (!window.confirm('Kirim pesan ini ke ' + selected.length + ' pengajar? Pengiriman akan diproses bertahap dengan jeda aman anti-banned.')) {
+            return;
         }
+
+        // Kunci input dan tombol selama pengiriman berlangsung
+        sendBtn.disabled = true;
+        messageEl.disabled = true;
+        checkboxes.forEach(cb => { cb.disabled = true; });
+        if (selectAll) selectAll.disabled = true;
+
+        if (progressCard) {
+            progressCard.hidden = false;
+            progressCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        let success = 0;
+        let failed = 0;
+        const total = selected.length;
+
+        for (let i = 0; i < total; i++) {
+            const item = selected[i];
+            if (progressTitle) progressTitle.textContent = 'Mengirim ke ' + item.name;
+            if (progressCount) progressCount.textContent = (i + 1) + ' / ' + total;
+            if (progressStatus) progressStatus.textContent = 'Menghubungi OneSender untuk ' + item.name + '...';
+            if (remainingEl) remainingEl.textContent = String(total - i);
+
+            try {
+                const res = await sendOnePengajar(item, msg, csrf);
+                if (res.status === 'success') {
+                    success++;
+                    if (progressStatus) progressStatus.textContent = '✓ ' + (res.message || 'Terkirim ke ' + item.name);
+                } else {
+                    failed++;
+                    if (progressStatus) progressStatus.textContent = '× ' + (res.message || 'Gagal mengirim ke ' + item.name);
+                }
+            } catch (err) {
+                failed++;
+                if (progressStatus) progressStatus.textContent = '× ' + (err.message || 'Gagal mengirim ke ' + item.name);
+            }
+
+            const pct = Math.round(((i + 1) / total) * 100);
+            if (progressBar) progressBar.style.width = pct + '%';
+            if (successEl) successEl.textContent = String(success);
+            if (failedEl) failedEl.textContent = String(failed);
+            if (remainingEl) remainingEl.textContent = String(total - (i + 1));
+
+            // Jeda acak manusia 2.5 - 4.5 detik antar pesan (kecuali pesan terakhir)
+            if (i < total - 1) {
+                const delayMs = 2500 + Math.floor(Math.random() * 2000);
+                const delaySec = (delayMs / 1000).toFixed(1);
+                if (progressStatus) progressStatus.textContent += ' · Jeda anti-banned ' + delaySec + ' detik...';
+                await sleep(delayMs);
+            }
+        }
+
+        if (progressTitle) progressTitle.textContent = 'Pengiriman Selesai';
+        if (progressStatus) {
+            progressStatus.textContent = success + ' pengajar berhasil dikirimi pesan' + (failed ? ', ' + failed + ' gagal.' : '. Memuat ulang...');
+        }
+
+        setTimeout(() => {
+            const scrollY = Math.max(0, Math.round(window.scrollY || window.pageYOffset || 0));
+            const url = new URL(window.location.href);
+            url.searchParams.set('scroll_y', String(scrollY));
+            window.location.href = url.toString();
+        }, 1800);
     });
 
     syncSelection();
