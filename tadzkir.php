@@ -688,7 +688,6 @@ unset($_SESSION['tadzkir_flash']);
             </div>
             <div class="header-content">
                 <h1>Form Tadzkir Pengajar</h1>
-                <p>Kirim nama santri yang perlu diingatkan (reminder) ke tim admin WhatsApp CRM.</p>
             </div>
         </div>
 
@@ -789,10 +788,6 @@ unset($_SESSION['tadzkir_flash']);
                 </button>
             </div>
         </form>
-
-        <div class="footer-note" style="padding-bottom: 20px;">
-            ReqraWA &bull; JWD Tadzkir Modern System
-        </div>
     </div>
 </div>
 
