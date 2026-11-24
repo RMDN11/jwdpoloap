@@ -114,6 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_tadzkir'])) {
 
     $successCount = 0;
     $errorCount = 0;
+    $sentNames = [];
 
     $stmtCheck = $conn->prepare("SELECT id, nama_lengkap, nowa FROM peserta WHERE id = ? AND halaqoh = ? LIMIT 1");
     $stmtInsert = $conn->prepare("
@@ -137,6 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_tadzkir'])) {
                 $stmtInsert->bind_param('sisss', $halaqoh, $pId, $pNama, $pNowa, $pesanPengajar);
                 if ($stmtInsert->execute()) {
                     $successCount++;
+                    $sentNames[] = $pNama;
                 } else {
                     $errorCount++;
                 }
@@ -153,11 +155,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_tadzkir'])) {
     $_SESSION['tadzkir_csrf_token'] = bin2hex(random_bytes(32));
 
     if ($successCount > 0) {
-        $msg = "Alhamdulillah! {$successCount} permintaan reminder berhasil dikirim ke Admin CRM.";
+        $msg = "Alhamdulillah! Sebanyak {$successCount} permintaan reminder berhasil diteruskan ke Admin CRM.";
         if ($errorCount > 0) {
             $msg .= " ({$errorCount} peserta gagal diproses).";
         }
-        $_SESSION['tadzkir_flash'] = ['type' => 'success', 'message' => $msg];
+        $_SESSION['tadzkir_flash'] = [
+            'type' => 'success',
+            'message' => $msg,
+            'halaqoh' => $halaqoh,
+            'names' => $sentNames,
+            'note' => $pesanPengajar
+        ];
     } else {
         $_SESSION['tadzkir_flash'] = [
             'type' => 'error',
@@ -321,14 +329,14 @@ unset($_SESSION['tadzkir_flash']);
 
         .flash-alert {
             margin: 16px 20px 0;
-            padding: 14px 16px;
+            padding: 16px 18px;
             border-radius: var(--radius-md);
             font-size: 13px;
-            font-weight: 500;
             display: flex;
             align-items: flex-start;
-            gap: 10px;
+            gap: 12px;
             animation: fadeIn 0.3s ease;
+            position: relative;
         }
 
         .flash-alert.success {
@@ -345,9 +353,107 @@ unset($_SESSION['tadzkir_flash']);
 
         .flash-icon {
             flex-shrink: 0;
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             margin-top: 1px;
+        }
+
+        .flash-names-card {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.75);
+            border: 1px solid rgba(22, 128, 68, 0.18);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .flash-names-card {
+                background: rgba(0, 0, 0, 0.28);
+                border-color: rgba(115, 223, 158, 0.2);
+            }
+        }
+
+        .flash-names-title {
+            font-size: 11px;
+            font-weight: 750;
+            margin-bottom: 8px;
+            color: var(--status-success-text);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .flash-names-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            gap: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .flash-name-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 7px 10px;
+            background: var(--surface-card);
+            border: 1px solid var(--surface-border-subtle);
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .flash-name-idx {
+            color: var(--text-muted);
+            font-size: 11px;
+            min-width: 18px;
+        }
+
+        .flash-name-val {
+            flex: 1;
+            color: var(--text-heading);
+            word-break: break-word;
+        }
+
+        .flash-name-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--brand-primary-soft);
+            color: var(--brand-primary);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .flash-names-note {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(22, 128, 68, 0.22);
+            font-size: 11px;
+            color: var(--text-body);
+            line-height: 1.45;
+        }
+
+        .flash-close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            color: inherit;
+            opacity: 0.6;
+            padding: 0 4px;
+            border-radius: 4px;
+            transition: opacity 0.15s;
+        }
+
+        .flash-close-btn:hover {
+            opacity: 1;
         }
 
         .card-body {
@@ -693,7 +799,7 @@ unset($_SESSION['tadzkir_flash']);
 
         <!-- Flash Notification -->
         <?php if (!empty($flash)): ?>
-        <div class="flash-alert <?= htmlspecialchars($flash['type']) ?>">
+        <div class="flash-alert <?= htmlspecialchars($flash['type']) ?>" id="flashNotification">
             <svg class="flash-icon" viewBox="0 0 20 20" fill="currentColor">
                 <?php if ($flash['type'] === 'success'): ?>
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
@@ -701,7 +807,43 @@ unset($_SESSION['tadzkir_flash']);
                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
                 <?php endif; ?>
             </svg>
-            <div><?= htmlspecialchars($flash['message']) ?></div>
+            <div class="flash-content" style="flex: 1; min-width: 0;">
+                <div style="font-weight: 750; font-size: 13.5px; margin-bottom: 3px;">
+                    <?= $flash['type'] === 'success' ? 'Permintaan Berhasil Terkirim ke Admin CRM' : 'Pemberitahuan' ?>
+                </div>
+                <div style="font-size: 12.5px; line-height: 1.45; opacity: 0.95;">
+                    <?= htmlspecialchars($flash['message']) ?>
+                </div>
+                <?php if (!empty($flash['names']) && is_array($flash['names'])): ?>
+                    <div class="flash-names-card">
+                        <div class="flash-names-title">
+                            Daftar santri yang terkirim (<?= count($flash['names']) ?> santri):
+                        </div>
+                        <ul class="flash-names-list">
+                            <?php foreach ($flash['names'] as $idx => $sName): ?>
+                                <li class="flash-name-item">
+                                    <span class="flash-name-idx"><?= $idx + 1 ?>.</span>
+                                    <span class="flash-name-val"><?= htmlspecialchars($sName) ?></span>
+                                    <span class="flash-name-badge">
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                        Terkirim
+                                    </span>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                        <?php if (!empty($flash['note'])): ?>
+                            <div class="flash-names-note">
+                                <strong>Catatan Pengajar:</strong> &ldquo;<?= htmlspecialchars($flash['note']) ?>&rdquo;
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <button type="button" class="flash-close-btn" onclick="document.getElementById('flashNotification').remove()" aria-label="Tutup notifikasi">
+                &times;
+            </button>
         </div>
         <?php endif; ?>
 
