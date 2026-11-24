@@ -15,6 +15,23 @@ if (!hash_equals($expectedToken, $providedToken)) {
 
 header('Content-Type: text/plain; charset=utf-8');
 
+if (isset($_GET['verify_reminder_requests'])) {
+    require_once __DIR__ . '/../../config.php';
+    if (isset($conn) && $conn instanceof mysqli) {
+        $res = $conn->query("SELECT id, halaqoh, peserta_id, peserta_nama, peserta_nowa, pesan_pengajar, status, created_at FROM reminder_requests ORDER BY id DESC LIMIT 5");
+        $rows = [];
+        if ($res) {
+            while ($row = $res->fetch_assoc()) {
+                $rows[] = $row;
+            }
+        }
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['status' => 'ok', 'requests' => $rows], JSON_PRETTY_PRINT);
+        exit;
+    }
+}
+
+
 if (function_exists('opcache_reset')) {
     $res = opcache_reset();
     echo "OPcache reset: " . ($res ? "SUCCESS\n" : "FAILED\n");
