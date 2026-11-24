@@ -196,7 +196,15 @@ $previewMessage = ($selectedRequest && $defaultTemplate)
             <h1>Pengingat Peserta</h1>
             <p>Kelola permintaan tadzkir peserta, kirim reminder WhatsApp, atur jadwal otomasi pesan per halaqoh dan hari aktif, serta pantau riwayat kontak peserta.</p>
         </div>
-        <span class="reminder-peserta-head-badge"><i class="fa-solid fa-clock"></i><?= $stats['pending'] ?> menunggu</span>
+        <div class="reminder-peserta-head-actions">
+            <a href="../tadzkir.php" target="_blank" class="reminder-peserta-action-btn" title="Buka Form Tadzkir Pengajar">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Buka Form Pengajar
+            </a>
+            <button type="button" class="reminder-peserta-action-btn" id="btnCopyTadzkirLink" title="Salin Link Form Pengajar">
+                <i class="fa-solid fa-copy"></i> Salin Link
+            </button>
+            <span class="reminder-peserta-head-badge"><i class="fa-solid fa-clock"></i><?= $stats['pending'] ?> menunggu</span>
+        </div>
     </div>
 
     <div class="reminder-peserta-stats">
@@ -949,5 +957,24 @@ $previewMessage = ($selectedRequest && $defaultTemplate)
             scheduleSelectedInput.value = JSON.stringify(targets);
         }
     });
+
+    /* Copy Tadzkir link button */
+    const btnCopyTadzkir = document.getElementById('btnCopyTadzkirLink');
+    if (btnCopyTadzkir) {
+        btnCopyTadzkir.addEventListener('click', () => {
+            const url = window.location.origin + window.location.pathname.replace(/\/crm\/.*$/, '') + '/tadzkir.php';
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(url).then(() => {
+                    const orig = btnCopyTadzkir.innerHTML;
+                    btnCopyTadzkir.innerHTML = '<i class="fa-solid fa-check"></i> Tersalin!';
+                    setTimeout(() => { btnCopyTadzkir.innerHTML = orig; }, 2000);
+                }).catch(() => {
+                    prompt('Salin tautan formulir pengajar:', url);
+                });
+            } else {
+                prompt('Salin tautan formulir pengajar:', url);
+            }
+        });
+    }
 })();
 </script>

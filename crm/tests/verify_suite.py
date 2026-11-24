@@ -531,6 +531,11 @@ def run_group_schedules_workflow_suite(base_dir: str):
     group_schedules_workflow_test.test_legacy_audit_checks(base_dir)
     print("group-schedules-workflow-suite: OK")
 
+def run_tadzkir_modern_suite(base_dir: str):
+    import tadzkir_modern_test
+    tadzkir_modern_test.run_all(base_dir)
+
+
 def run_session_persistence_test(base_dir: str):
     session_file = os.path.join(base_dir, "crm/config/session.php")
     bootstrap_file = os.path.join(base_dir, "crm/config/bootstrap.php")
@@ -857,6 +862,9 @@ def main():
         run_manage_groups_test(base_dir)
     if test_name in ["anti-suspend-bulk-test", "anti-suspend", "antiban", "safe-bulk", "all"]:
         run_anti_suspend_bulk_test(base_dir)
+    if test_name in ["tadzkir-modern-suite", "tadzkir-modern", "tadzkir", "all"]:
+        run_tadzkir_modern_suite(base_dir)
+
 
 if __name__ == "__main__":
     try:

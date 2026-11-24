@@ -991,3 +991,34 @@ body:has(.reminder-peserta-page) .content{max-width:1280px}
     }
 }
 
+/* Tadzkir Teacher Portal Share Buttons */
+.reminder-peserta-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.reminder-peserta-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid #d4e3db;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #18352a;
+    font-size: 11px;
+    font-weight: 750;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    box-shadow: 0 2px 6px rgba(24, 55, 41, 0.04);
+}
+.reminder-peserta-action-btn:hover {
+    border-color: #168044;
+    background: #f3faf5;
+    color: #168044;
+    transform: translateY(-1px);
+}
+
+
