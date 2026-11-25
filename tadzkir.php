@@ -732,6 +732,138 @@ unset($_SESSION['tadzkir_flash']);
             padding: 2px 7px;
             border-radius: 999px;
             min-width: 20px;
+            transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .badge-count.bump {
+            transform: scale(1.25);
+            background: #126b39;
+        }
+
+        /* Floating Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+            width: calc(100% - 28px);
+            max-width: 440px;
+        }
+
+        .toast-item {
+            pointer-events: auto;
+            background: #0f241a;
+            color: #f0f7f3;
+            padding: 12px 15px;
+            border-radius: var(--radius-md);
+            box-shadow: 0 14px 34px rgba(16, 35, 27, 0.28), 0 2px 6px rgba(0, 0, 0, 0.12);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            line-height: 1.4;
+            border: 1px solid rgba(37, 211, 102, 0.28);
+            border-left: 4px solid var(--brand-accent);
+            animation: toastPopDown 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transition: all 0.22s ease;
+        }
+
+        .toast-item.toast-info {
+            border-left-color: #3b82f6;
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .toast-item.toast-error {
+            border-left-color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .toast-item.toast-leave {
+            opacity: 0;
+            transform: translateY(-14px) scale(0.94);
+        }
+
+        .toast-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(37, 211, 102, 0.2);
+            color: var(--brand-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .toast-item.toast-info .toast-icon {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        .toast-item.toast-error .toast-icon {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .toast-content {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .toast-content b {
+            color: #55f19b;
+            font-weight: 700;
+        }
+
+        .toast-item.toast-info .toast-content b {
+            color: #93c5fd;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: rgba(240, 247, 243, 0.6);
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            padding: 0 4px;
+            display: flex;
+            align-items: center;
+            border-radius: 4px;
+            transition: color 0.15s;
+        }
+
+        .toast-close:hover {
+            color: #ffffff;
+        }
+
+        @keyframes toastPopDown {
+            from {
+                opacity: 0;
+                transform: translateY(-24px) scale(0.92);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes chipPopBounce {
+            0% { transform: scale(0.65); opacity: 0; }
+            60% { transform: scale(1.08); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .participant-chip.just-added {
+            animation: chipPopBounce 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: var(--brand-primary-soft);
+            border-color: var(--brand-primary);
+            color: var(--brand-primary-hover);
         }
 
         .form-textarea {
@@ -798,6 +930,9 @@ unset($_SESSION['tadzkir_flash']);
 </head>
 <body>
 
+<!-- Floating Toast Notifications -->
+<div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
 <div class="container">
     <div class="card">
         <!-- Card Header -->
@@ -851,6 +986,12 @@ unset($_SESSION['tadzkir_flash']);
                                 <strong>Catatan Pengajar:</strong> &ldquo;<?= htmlspecialchars($flash['note']) ?>&rdquo;
                             </div>
                         <?php endif; ?>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+                        <a href="tadzkir.php" style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--brand-primary); background: var(--surface-card); border: 1px solid var(--surface-border); padding: 5px 12px; border-radius: 6px; text-decoration: none; box-shadow: var(--shadow-subtle);">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Kirim Permintaan Baru
+                        </a>
                     </div>
                 <?php endif; ?>
             </div>
@@ -1087,6 +1228,55 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
+    // Toast Notification System
+    function showToast(messageHtml, type = 'success', duration = 2800) {
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `toast-item toast-${type}`;
+
+        let iconSvg = '';
+        if (type === 'success') {
+            iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        } else if (type === 'info') {
+            iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
+        } else {
+            iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`;
+        }
+
+        toast.innerHTML = `
+            <div class="toast-icon">${iconSvg}</div>
+            <div class="toast-content">${messageHtml}</div>
+            <button type="button" class="toast-close" aria-label="Tutup">&times;</button>
+        `;
+
+        const dismiss = () => {
+            if (toast.classList.contains('toast-leave')) return;
+            toast.classList.add('toast-leave');
+            setTimeout(() => {
+                if (toast.parentElement) toast.remove();
+            }, 240);
+        };
+
+        toast.querySelector('.toast-close').addEventListener('click', dismiss);
+        container.appendChild(toast);
+
+        setTimeout(dismiss, duration);
+    }
+
+    function triggerBadgeBump() {
+        countBadge.classList.remove('bump');
+        void countBadge.offsetWidth;
+        countBadge.classList.add('bump');
+        setTimeout(() => countBadge.classList.remove('bump'), 220);
+    }
+
     // Select All in Halaqoh
     btnSelectAllHalaqoh.addEventListener('click', () => {
         const curHalaqoh = halaqohSelect.value.trim();
@@ -1098,11 +1288,24 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data) && data.length > 0) {
+                    let addedCount = 0;
                     data.forEach(item => {
-                        addPeserta(item);
+                        if (addPeserta(item, true)) {
+                            addedCount++;
+                        }
                     });
                     closeDropdown();
+                    if (addedCount > 0) {
+                        showToast(`✓ Berhasil memasukkan <b>${addedCount} santri</b> ke daftar`, 'success');
+                    } else {
+                        showToast('Semua santri di halaqoh ini sudah ada di daftar', 'info');
+                    }
+                } else {
+                    showToast('Tidak ada data santri pada halaqoh ini', 'info');
                 }
+            })
+            .catch(() => {
+                showToast('Gagal memuat daftar santri', 'error');
             })
             .finally(() => {
                 btnSelectAllHalaqoh.innerHTML = `
@@ -1116,40 +1319,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Clear all
     btnClearAll.addEventListener('click', () => {
+        const count = selectedPeserta.length;
         selectedPeserta = [];
         renderSelectedChips();
+        showToast(`${count} santri dihapus dari daftar`, 'info', 2000);
         const currentHalaqoh = halaqohSelect.value.trim();
         if (currentHalaqoh && suggestionsDropdown.style.display === 'block') {
             fetchSearch(searchInput.value.trim(), currentHalaqoh);
         }
     });
 
-    function addPeserta(item) {
+    function addPeserta(item, silent = false) {
         const id = Number(item.id);
+        const name = item.nama_lengkap || item.nama || '';
         if (!selectedPeserta.some(s => Number(s.id) === id)) {
             selectedPeserta.push({
                 id: id,
-                nama_lengkap: item.nama_lengkap || item.nama || '',
+                nama_lengkap: name,
                 nowa: item.nowa || ''
             });
-            renderSelectedChips();
+            renderSelectedChips(id);
+            if (!silent) {
+                showToast(`✓ Santri <b>${escapeHtml(name)}</b> dimasukkan ke daftar`, 'success');
+            }
+            return true;
+        } else {
+            if (!silent) {
+                showToast(`Santri <b>${escapeHtml(name)}</b> sudah ada di dalam daftar`, 'info');
+            }
+            return false;
         }
     }
 
     function removePeserta(id) {
         const numId = Number(id);
+        const target = selectedPeserta.find(s => Number(s.id) === numId);
+        const targetName = target ? target.nama_lengkap : '';
         selectedPeserta = selectedPeserta.filter(s => Number(s.id) !== numId);
         renderSelectedChips();
+        if (targetName) {
+            showToast(`Santri <b>${escapeHtml(targetName)}</b> dihapus dari daftar`, 'info', 2000);
+        }
         const currentHalaqoh = halaqohSelect.value.trim();
         if (currentHalaqoh && suggestionsDropdown.style.display === 'block') {
             fetchSearch(searchInput.value.trim(), currentHalaqoh);
         }
     }
 
-    function renderSelectedChips() {
+    function renderSelectedChips(newlyAddedId = null) {
         selectedBox.innerHTML = '';
         const count = selectedPeserta.length;
         countBadge.textContent = `${count} dipilih`;
+        triggerBadgeBump();
 
         if (count === 0) {
             selectedBox.appendChild(emptyNotice);
@@ -1165,7 +1386,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             selectedPeserta.forEach(p => {
                 const chip = document.createElement('div');
-                chip.className = 'participant-chip';
+                const isJustAdded = newlyAddedId !== null && Number(p.id) === Number(newlyAddedId);
+                chip.className = 'participant-chip' + (isJustAdded ? ' just-added' : '');
                 chip.innerHTML = `
                     <span>${escapeHtml(p.nama_lengkap)}</span>
                     <button type="button" class="chip-remove" aria-label="Hapus ${escapeHtml(p.nama_lengkap)}">
@@ -1181,6 +1403,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 selectedBox.appendChild(chip);
             });
+
+            if (newlyAddedId !== null) {
+                selectedBox.scrollTop = selectedBox.scrollHeight;
+            }
         }
 
         selectedJsonInput.value = JSON.stringify(selectedPeserta);
