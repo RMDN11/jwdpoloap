@@ -52,6 +52,7 @@ def test_modern_ux_and_branding(base_dir):
     assert "searchTimeout" in content, "tadzkir.php must debounce live search queries"
     assert "flash-names-list" in content, "tadzkir.php must render list of sent participant names in notification"
     assert "sentNames" in content, "tadzkir.php must collect sent participant names for flash message"
+    assert "suggestion-nowa" not in content, "tadzkir.php must not display nowa in suggestions dropdown"
 
     print("test_modern_ux_and_branding: OK")
 

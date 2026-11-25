@@ -589,14 +589,11 @@ unset($_SESSION['tadzkir_flash']);
         }
 
         .suggestion-name {
-            font-size: 13px;
+            font-size: 13.5px;
             font-weight: 600;
             color: var(--text-heading);
-        }
-
-        .suggestion-nowa {
-            font-size: 11px;
-            color: var(--text-muted);
+            flex: 1;
+            word-break: break-word;
         }
 
         .suggestion-btn {
@@ -1037,10 +1034,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const row = document.createElement('div');
                     row.className = 'suggestion-item';
                     row.innerHTML = `
-                        <div>
-                            <div class="suggestion-name">${escapeHtml(item.nama_lengkap)}</div>
-                            <div class="suggestion-nowa">${escapeHtml(item.nowa || '-')}</div>
-                        </div>
+                        <div class="suggestion-name">${escapeHtml(item.nama_lengkap)}</div>
                         <button type="button" class="suggestion-btn">+ Pilih</button>
                     `;
                     row.addEventListener('click', () => {
