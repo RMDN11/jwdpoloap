@@ -115,10 +115,9 @@ class AutoReplyEngine
                 }
             }
 
-            // Jeda mengetik manusiawi tahap 1 (4 - 6 detik) agar tidak terkesan bot instan
-            $initialDelay = rand(4, 6);
-            $this->logToFile("Simulating human initial typing delay ({$initialDelay}s) for {$phone}");
-            sleep($initialDelay);
+            // Jeda pengiriman minimal 3 menit (180 detik) via OneSender schedule agar manusiawi
+            $baseDelay = rand(180, 210); // 3 menit s.d. 3.5 menit
+            $baseScheduledTimestamp = time() + $baseDelay;
 
             // Cek apakah balasan dipecah menjadi beberapa balon chat (penanda [SPLIT])
             if (str_contains($replyText, '[SPLIT]')) {
@@ -128,20 +127,18 @@ class AutoReplyEngine
             }
 
             $sent = true;
-            $firstBubble = true;
-            foreach ($bubbles as $bubbleText) {
+            foreach ($bubbles as $bubbleIndex => $bubbleText) {
                 if ($bubbleText === '') {
                     continue;
                 }
 
-                if (!$firstBubble) {
-                    // Jeda mengetik balon lanjutan (2 - 3 detik) sangat manusiawi
-                    $followupDelay = rand(2, 3);
-                    $this->logToFile("Simulating follow-up bubble typing delay ({$followupDelay}s) for {$phone}");
-                    sleep($followupDelay);
-                }
+                // Balon pertama terjadwal minimal 3 menit ke depan, balon berikutnya jeda 6-10 detik setelahnya
+                $bubbleTimestamp = $baseScheduledTimestamp + ($bubbleIndex * rand(6, 10));
+                $bubbleScheduleDate = date('Y-m-d H:i:s', $bubbleTimestamp);
 
-                $bubbleSent = $this->sendViaOneSender($phone, $bubbleText);
+                $this->logToFile("Scheduling auto-reply bubble #{$bubbleIndex} for {$phone} at {$bubbleScheduleDate} (delay: " . ($bubbleTimestamp - time()) . "s)");
+
+                $bubbleSent = $this->sendViaOneSender($phone, $bubbleText, $bubbleScheduleDate);
                 if (!$bubbleSent) {
                     $sent = false;
                 }
@@ -161,7 +158,7 @@ class AutoReplyEngine
                             'out',
                             'admin',
                             'auto_reply',
-                            date('Y-m-d H:i:s')
+                            $bubbleScheduleDate
                         );
 
                         if ($chatMessageId !== null && $chatMessageId > 0) {
@@ -181,7 +178,7 @@ class AutoReplyEngine
                                         $this->conn,
                                         (int)$conversation['id'],
                                         $bubbleText,
-                                        date('Y-m-d H:i:s')
+                                        $bubbleScheduleDate
                                     );
                                 }
                             }
@@ -190,8 +187,6 @@ class AutoReplyEngine
                         $this->logToFile("CHAT HISTORY ERROR: " . $e->getMessage());
                     }
                 }
-
-                $firstBubble = false;
             }
 
             $status = $sent ? 'sent' : 'failed';
@@ -277,17 +272,23 @@ class AutoReplyEngine
         return null;
     }
 
-    private function sendViaOneSender($phone, $text)
+    private function sendViaOneSender($phone, $text, $scheduleDate = null)
     {
         // Format payload sesuai dokumentasi OneSender
-        $payload = json_encode([
+        $payloadData = [
             "recipient_type" => "individual",
-            "to" => $phone,
-            "type" => "text",
-            "text" => [
+            "to"             => $phone,
+            "type"           => "text",
+            "text"           => [
                 "body" => $text
             ]
-        ], JSON_UNESCAPED_UNICODE);
+        ];
+
+        if (!empty($scheduleDate)) {
+            $payloadData["date"] = $scheduleDate;
+        }
+
+        $payload = json_encode($payloadData, JSON_UNESCAPED_UNICODE);
 
         $this->logToFile("Sending to API: {$this->apiUrl}");
         $this->logToFile("Payload: " . $payload);
