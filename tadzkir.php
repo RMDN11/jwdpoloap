@@ -20,25 +20,42 @@ if (isset($_GET['action']) && $_GET['action'] === 'search') {
     $term = trim((string)($_GET['term'] ?? ''));
     $halaqoh = trim((string)($_GET['halaqoh'] ?? ''));
 
-    if (mb_strlen($term) < 2 || $halaqoh === '') {
+    if ($halaqoh === '') {
         echo json_encode([]);
         exit;
     }
 
-    $searchTerm = '%' . $term . '%';
-    $stmt = $conn->prepare("
-        SELECT id, nama_lengkap, nowa 
-        FROM peserta 
-        WHERE nama_lengkap LIKE ? AND halaqoh = ? 
-        ORDER BY nama_lengkap ASC 
-        LIMIT 25
-    ");
+    if ($term === '') {
+        $stmt = $conn->prepare("
+            SELECT id, nama_lengkap, nowa 
+            FROM peserta 
+            WHERE halaqoh = ? OR TRIM(halaqoh) = TRIM(?)
+            ORDER BY nama_lengkap ASC 
+            LIMIT 60
+        ");
+        if ($stmt) {
+            $stmt->bind_param('ss', $halaqoh, $halaqoh);
+        }
+    } else {
+        $searchTerm = '%' . $term . '%';
+        $stmt = $conn->prepare("
+            SELECT id, nama_lengkap, nowa 
+            FROM peserta 
+            WHERE nama_lengkap LIKE ? AND (halaqoh = ? OR TRIM(halaqoh) = TRIM(?))
+            ORDER BY nama_lengkap ASC 
+            LIMIT 40
+        ");
+        if ($stmt) {
+            $stmt->bind_param('sss', $searchTerm, $halaqoh, $halaqoh);
+        }
+    }
+
     if (!$stmt) {
         http_response_code(500);
         echo json_encode(['error' => 'Database query error']);
         exit;
     }
-    $stmt->bind_param('ss', $searchTerm, $halaqoh);
+
     $stmt->execute();
     $result = $stmt->get_result();
     $pesertaList = $result->fetch_all(MYSQLI_ASSOC);
@@ -61,16 +78,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'list_all') {
     $stmt = $conn->prepare("
         SELECT id, nama_lengkap, nowa 
         FROM peserta 
-        WHERE halaqoh = ? 
+        WHERE halaqoh = ? OR TRIM(halaqoh) = TRIM(?)
         ORDER BY nama_lengkap ASC 
-        LIMIT 100
+        LIMIT 200
     ");
     if (!$stmt) {
         http_response_code(500);
         echo json_encode(['error' => 'Database query error']);
         exit;
     }
-    $stmt->bind_param('s', $halaqoh);
+    $stmt->bind_param('ss', $halaqoh, $halaqoh);
     $stmt->execute();
     $result = $stmt->get_result();
     $pesertaList = $result->fetch_all(MYSQLI_ASSOC);
@@ -87,12 +104,12 @@ if (empty($_SESSION['tadzkir_csrf_token'])) {
 $csrfToken = $_SESSION['tadzkir_csrf_token'];
 
 // 3. Handle Form Submission (POST)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_tadzkir'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $submittedToken = (string)($_POST['csrf_token'] ?? '');
     if (!hash_equals($csrfToken, $submittedToken)) {
         $_SESSION['tadzkir_flash'] = [
             'type' => 'error',
-            'message' => 'Sesi keamanan formulir kadaluarsa. Silakan muat ulang halaman.'
+            'message' => 'Sesi formulir kadaluarsa. Silakan muat ulang halaman.'
         ];
         header('Location: tadzkir.php');
         exit;
@@ -116,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_tadzkir'])) {
     $errorCount = 0;
     $sentNames = [];
 
-    $stmtCheck = $conn->prepare("SELECT id, nama_lengkap, nowa FROM peserta WHERE id = ? AND halaqoh = ? LIMIT 1");
+    $stmtCheck = $conn->prepare("SELECT id, nama_lengkap, nowa FROM peserta WHERE id = ? AND (halaqoh = ? OR TRIM(halaqoh) = TRIM(?)) LIMIT 1");
     $stmtInsert = $conn->prepare("
         INSERT INTO reminder_requests (halaqoh, peserta_id, peserta_nama, peserta_nowa, pesan_pengajar, status) 
         VALUES (?, ?, ?, ?, ?, 'menunggu')
@@ -127,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_tadzkir'])) {
         if ($pId <= 0) continue;
 
         if ($stmtCheck) {
-            $stmtCheck->bind_param('is', $pId, $halaqoh);
+            $stmtCheck->bind_param('iss', $pId, $halaqoh, $halaqoh);
             $stmtCheck->execute();
             $res = $stmtCheck->get_result();
             $valid = $res->fetch_assoc();
@@ -281,13 +298,17 @@ unset($_SESSION['tadzkir_flash']);
             border: 1px solid var(--surface-border);
             border-radius: var(--radius-lg);
             box-shadow: var(--shadow-card);
-            overflow: hidden;
+            overflow: visible;
+            position: relative;
             transition: border-color 0.2s ease;
         }
 
         .card-header {
             padding: 24px 24px 20px;
             border-bottom: 1px solid var(--surface-border-subtle);
+            border-top-left-radius: var(--radius-lg);
+            border-top-right-radius: var(--radius-lg);
+            background: var(--surface-card);
             display: flex;
             align-items: center;
             gap: 16px;
@@ -318,13 +339,6 @@ unset($_SESSION['tadzkir_flash']);
             color: var(--text-heading);
             letter-spacing: -0.02em;
             line-height: 1.25;
-        }
-
-        .header-content p {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 3px;
-            line-height: 1.4;
         }
 
         .flash-alert {
@@ -562,22 +576,23 @@ unset($_SESSION['tadzkir_flash']);
             background: var(--surface-card);
             border: 1px solid var(--surface-border);
             border-radius: var(--radius-md);
-            box-shadow: 0 12px 28px rgba(16, 35, 27, 0.12);
-            z-index: 50;
-            max-height: 240px;
+            box-shadow: 0 14px 34px rgba(16, 35, 27, 0.16);
+            z-index: 999;
+            max-height: 250px;
             overflow-y: auto;
             display: none;
         }
 
         .suggestion-item {
-            padding: 10px 14px;
+            padding: 11px 14px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
+            gap: 12px;
             border-bottom: 1px solid var(--surface-border-subtle);
             cursor: pointer;
             transition: background 0.15s ease;
+            user-select: none;
         }
 
         .suggestion-item:last-child {
@@ -601,11 +616,12 @@ unset($_SESSION['tadzkir_flash']);
             color: #ffffff;
             border: none;
             border-radius: 6px;
-            padding: 4px 8px;
+            padding: 5px 10px;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             flex-shrink: 0;
+            pointer-events: none; /* Let click bubble directly to .suggestion-item */
         }
 
         .suggestion-empty {
@@ -748,13 +764,6 @@ unset($_SESSION['tadzkir_flash']);
             box-shadow: none;
         }
 
-        .footer-note {
-            text-align: center;
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 14px;
-        }
-
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: translateY(0); }
@@ -846,6 +855,7 @@ unset($_SESSION['tadzkir_flash']);
 
         <!-- Form Body -->
         <form method="POST" action="tadzkir.php" class="card-body" id="tadzkirForm">
+            <input type="hidden" name="submit_tadzkir" value="1">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
             <input type="hidden" name="selected_peserta_json" id="selectedPesertaJson" value="[]">
 
@@ -875,7 +885,7 @@ unset($_SESSION['tadzkir_flash']);
                         <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
                         </svg>
-                        <input type="text" id="searchPeserta" class="form-input search-input" placeholder="Ketik nama santri..." autocomplete="off">
+                        <input type="text" id="searchPeserta" class="form-input search-input" placeholder="Ketik nama atau klik untuk lihat daftar..." autocomplete="off">
                         <button type="button" class="search-clear-btn" id="searchClearBtn" aria-label="Hapus pencarian">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -917,7 +927,7 @@ unset($_SESSION['tadzkir_flash']);
 
             <!-- Step 4: Submit Button -->
             <div id="submitSection" style="display: none; margin-top: 4px;">
-                <button type="submit" name="submit_tadzkir" id="submitBtn" class="submit-btn" disabled>
+                <button type="submit" id="submitBtn" class="submit-btn" disabled>
                     <span class="spinner" id="btnSpinner"></span>
                     <svg id="btnIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -964,12 +974,22 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedPeserta = [];
             renderSelectedChips();
             searchInput.value = '';
-            closeDropdown();
-            searchInput.focus();
+            searchClearBtn.style.display = 'none';
+            // Automatically pre-load dropdown with students in this halaqoh
+            fetchSearch('', hVal);
         } else {
             pesertaSection.style.display = 'none';
             noteSection.style.display = 'none';
             submitSection.style.display = 'none';
+            closeDropdown();
+        }
+    });
+
+    // When clicking or focusing the search box, show the halaqoh list immediately
+    searchInput.addEventListener('focus', () => {
+        const currentHalaqoh = halaqohSelect.value.trim();
+        if (currentHalaqoh) {
+            fetchSearch(searchInput.value.trim(), currentHalaqoh);
         }
     });
 
@@ -980,20 +1000,25 @@ document.addEventListener('DOMContentLoaded', () => {
         clearTimeout(searchTimeout);
 
         const currentHalaqoh = halaqohSelect.value.trim();
-        if (query.length < 2 || !currentHalaqoh) {
+        if (!currentHalaqoh) {
             closeDropdown();
             return;
         }
 
         searchTimeout = setTimeout(() => {
             fetchSearch(query, currentHalaqoh);
-        }, 220);
+        }, 150);
     });
 
     searchClearBtn.addEventListener('click', () => {
         searchInput.value = '';
         searchClearBtn.style.display = 'none';
-        closeDropdown();
+        const currentHalaqoh = halaqohSelect.value.trim();
+        if (currentHalaqoh) {
+            fetchSearch('', currentHalaqoh);
+        } else {
+            closeDropdown();
+        }
         searchInput.focus();
     });
 
@@ -1011,7 +1036,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function fetchSearch(term, halaqoh) {
         suggestionsDropdown.style.display = 'block';
-        suggestionsDropdown.innerHTML = '<div class="suggestion-empty">Mencari santri...</div>';
+        suggestionsDropdown.innerHTML = '<div class="suggestion-empty">Memuat daftar santri...</div>';
 
         fetch(`tadzkir.php?action=search&term=${encodeURIComponent(term)}&halaqoh=${encodeURIComponent(halaqoh)}`)
             .then(res => res.json())
@@ -1021,8 +1046,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // Filter out already selected
-                const unselected = data.filter(item => !selectedPeserta.some(s => s.id === item.id));
+                // Filter out already selected by numeric ID
+                const unselected = data.filter(item => !selectedPeserta.some(s => Number(s.id) === Number(item.id)));
 
                 if (unselected.length === 0) {
                     suggestionsDropdown.innerHTML = '<div class="suggestion-empty">Semua santri yang ditemukan sudah dipilih.</div>';
@@ -1034,16 +1059,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     const row = document.createElement('div');
                     row.className = 'suggestion-item';
                     row.innerHTML = `
-                        <div class="suggestion-name">${escapeHtml(item.nama_lengkap)}</div>
+                        <span class="suggestion-name">${escapeHtml(item.nama_lengkap)}</span>
                         <button type="button" class="suggestion-btn">+ Pilih</button>
                     `;
-                    row.addEventListener('click', () => {
+                    
+                    row.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                         addPeserta(item);
                         searchInput.value = '';
                         searchClearBtn.style.display = 'none';
-                        closeDropdown();
-                        searchInput.focus();
+                        // Re-fetch dropdown to update remaining unselected items
+                        fetchSearch('', halaqoh);
                     });
+                    
                     suggestionsDropdown.appendChild(row);
                 });
             })
@@ -1064,11 +1093,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 if (Array.isArray(data) && data.length > 0) {
                     data.forEach(item => {
-                        if (!selectedPeserta.some(s => s.id === item.id)) {
-                            selectedPeserta.push(item);
-                        }
+                        addPeserta(item);
                     });
-                    renderSelectedChips();
+                    closeDropdown();
                 }
             })
             .finally(() => {
@@ -1085,18 +1112,32 @@ document.addEventListener('DOMContentLoaded', () => {
     btnClearAll.addEventListener('click', () => {
         selectedPeserta = [];
         renderSelectedChips();
+        const currentHalaqoh = halaqohSelect.value.trim();
+        if (currentHalaqoh && suggestionsDropdown.style.display === 'block') {
+            fetchSearch(searchInput.value.trim(), currentHalaqoh);
+        }
     });
 
     function addPeserta(item) {
-        if (!selectedPeserta.some(s => s.id === item.id)) {
-            selectedPeserta.push(item);
+        const id = Number(item.id);
+        if (!selectedPeserta.some(s => Number(s.id) === id)) {
+            selectedPeserta.push({
+                id: id,
+                nama_lengkap: item.nama_lengkap || item.nama || '',
+                nowa: item.nowa || ''
+            });
             renderSelectedChips();
         }
     }
 
     function removePeserta(id) {
-        selectedPeserta = selectedPeserta.filter(s => s.id !== id);
+        const numId = Number(id);
+        selectedPeserta = selectedPeserta.filter(s => Number(s.id) !== numId);
         renderSelectedChips();
+        const currentHalaqoh = halaqohSelect.value.trim();
+        if (currentHalaqoh && suggestionsDropdown.style.display === 'block') {
+            fetchSearch(searchInput.value.trim(), currentHalaqoh);
+        }
     }
 
     function renderSelectedChips() {
@@ -1141,16 +1182,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Submit protection
     form.addEventListener('submit', (e) => {
-        if (selectedPeserta.length === 0) {
+        if (!selectedPeserta || selectedPeserta.length === 0) {
             e.preventDefault();
-            alert('Silakan pilih minimal satu santri/peserta.');
+            alert('Silakan pilih minimal satu santri/peserta terlebih dahulu.');
             return;
         }
 
-        submitBtn.disabled = true;
         btnText.textContent = 'Mengirim Permintaan...';
         btnIcon.style.display = 'none';
         btnSpinner.style.display = 'inline-block';
+
+        // Delay disable by 50ms so browser completes form serialization
+        setTimeout(() => {
+            submitBtn.disabled = true;
+        }, 50);
     });
 
     function escapeHtml(str) {
