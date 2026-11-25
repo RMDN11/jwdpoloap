@@ -584,7 +584,12 @@ unset($_SESSION['tadzkir_flash']);
         }
 
         .suggestion-item {
-            padding: 11px 14px;
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            text-align: left;
+            padding: 12px 14px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -593,14 +598,16 @@ unset($_SESSION['tadzkir_flash']);
             cursor: pointer;
             transition: background 0.15s ease;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .suggestion-item:last-child {
             border-bottom: none;
         }
 
-        .suggestion-item:hover, .suggestion-item.active {
+        .suggestion-item:hover, .suggestion-item:active, .suggestion-item:focus {
             background: var(--brand-primary-soft);
+            outline: none;
         }
 
         .suggestion-name {
@@ -614,14 +621,14 @@ unset($_SESSION['tadzkir_flash']);
         .suggestion-btn {
             background: var(--brand-primary);
             color: #ffffff;
-            border: none;
             border-radius: 6px;
             padding: 5px 10px;
             font-size: 11px;
             font-weight: 700;
-            cursor: pointer;
             flex-shrink: 0;
-            pointer-events: none; /* Let click bubble directly to .suggestion-item */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .suggestion-empty {
@@ -975,8 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderSelectedChips();
             searchInput.value = '';
             searchClearBtn.style.display = 'none';
-            // Automatically pre-load dropdown with students in this halaqoh
-            fetchSearch('', hVal);
+            closeDropdown();
         } else {
             pesertaSection.style.display = 'none';
             noteSection.style.display = 'none';
@@ -1056,11 +1062,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 suggestionsDropdown.innerHTML = '';
                 unselected.forEach(item => {
-                    const row = document.createElement('div');
+                    const row = document.createElement('button');
+                    row.type = 'button';
                     row.className = 'suggestion-item';
                     row.innerHTML = `
                         <span class="suggestion-name">${escapeHtml(item.nama_lengkap)}</span>
-                        <button type="button" class="suggestion-btn">+ Pilih</button>
+                        <span class="suggestion-btn">+ Pilih</span>
                     `;
                     
                     row.addEventListener('click', (e) => {
@@ -1069,8 +1076,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         addPeserta(item);
                         searchInput.value = '';
                         searchClearBtn.style.display = 'none';
-                        // Re-fetch dropdown to update remaining unselected items
-                        fetchSearch('', halaqoh);
+                        closeDropdown();
                     });
                     
                     suggestionsDropdown.appendChild(row);
