@@ -1527,7 +1527,7 @@ if ($tab !== 'queue') {
                                     <span>Tahap 5 &mdash; Follow Up 5 (H+3 Pagi)</span>
                                     <span class="smart-step-tag-rec" id="recBadge5" style="display:none;">Rekomendasi</span>
                                 </div>
-                                <div class="smart-step-desc">Social proof & testimoni keberhasilan santri Jawwada.</div>
+                                <div class="smart-step-desc">Social proof & testimoni keberhasilan peserta Jawwada.</div>
                             </div>
                         </label>
 
@@ -1977,7 +1977,7 @@ if ($tab !== 'queue') {
             alertContainer.innerHTML = '<div class="smart-alert smart-alert-danger">' +
                 '<i class="fa-solid fa-circle-xmark smart-alert-icon"></i>' +
                 '<div><strong>Peserta Sudah Terdaftar (Lunas Finance)!</strong>' +
-                '<p>Kontak ini sudah tercatat sebagai santri aktif Jawwada. Alur follow-up promosi dinonaktifkan agar tidak mengganggu proses belajar peserta.</p></div>' +
+                '<p>Kontak ini sudah tercatat sebagai peserta aktif Jawwada. Alur follow-up promosi dinonaktifkan agar tidak mengganggu proses belajar peserta.</p></div>' +
                 '</div>';
             if (tabsContainer) tabsContainer.style.display = 'none';
             if (closingSection) closingSection.style.display = 'none';
