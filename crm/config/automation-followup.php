@@ -325,9 +325,9 @@ function crmAutomationSeedDefaultTemplates(mysqli $conn): void
         ],
         [
             'name' => 'Follow Up 2 (45 Menit - Fleksibilitas & Biaya Terjangkau)',
-            'desc' => 'Edukasi privat 1-on-1 via telepon WA 10 menit, talaqqi pemula, & biaya terjangkau',
-            'content' => "{Sekadar info ya kak 😊|Izin menginfokan gambarannya ya kak ✨|Sebagai gambaran belajar di Jawwada ya kak 😊}\n\nBelajarnya sangat fleksibel, cukup 10-20 menit per hari via telepon WA, dengan biaya terjangkau mulai 135rb per bulan.\n\nUntuk pemula tidak perlu khawatir ya kak, karena ada tahap talaqqi dahulu, yaitu perbaikan bacaan, tajwid, dan makhroj ayat yang akan dihafal sebelum mulai disetor.\n\nKira-kira kakak biasanya lebih luang di waktu pagi, sore, atau malam hari kak? ✨",
-            'delay' => 45,
+            'desc' => 'Ringkasan 3 pilihan paket, tahap talaqqi pemula, & CTA pilih paket',
+            'content' => "{Sekadar info ya kak 😊|Izin menginfokan pilihan kelasnya ya kak ✨|Sebagai gambaran belajar di Jawwada ya kak 😊}\n\nBelajarnya privat 1-on-1 via telepon/VC WA yang fleksibel, cukup 10-20 menit per hari. Untuk pemula tidak perlu khawatir, ada tahap talaqqi dahulu (perbaikan bacaan, tajwid, & makhroj sebelum disetor):\n\n• Normal (1 sesi/hari, 20x/bln): Rp135rb/bln\n• Intensif (2 sesi/hari, 40x/bln): Rp245rb/bln\n• Tahfidz Cilik (anak 5-13 th, VC 3x/pekan): Rp155rb/bln\n\nKakak rencananya mau coba paket Normal, Intensif, atau Tahfidz Cilik? Cukup balas nama paketnya ya kak, nanti kami bantu cekkan jadwal ustadz/ustadzahnya. 🙏",
+            'delay' => 120,
         ],
         [
             'name' => 'Follow Up 3 (4 Jam - Reservasi Slot Terbatas)',
@@ -762,8 +762,55 @@ function crmAutomationEnsureTables(mysqli $conn): bool
         $conn->query("INSERT INTO crm_automation_meta (meta_key, meta_value) VALUES ('schema_v5_tahfidz_private_online_trigger', '1') ON DUPLICATE KEY UPDATE meta_value = '1'");
     }
 
+    // Migration v6: Optimasi Funnel Konversi (Perbarui Follow Up 2 dengan opsi 3 paket & tambah trigger organik yang terlewat)
+    $metaV6 = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v6_conversion_funnel_opt' LIMIT 1");
+    if (!$metaV6 || $metaV6->num_rows === 0) {
+        $fu2Content = "{Sekadar info ya kak 😊|Izin menginfokan pilihan kelasnya ya kak ✨|Sebagai gambaran belajar di Jawwada ya kak 😊}\n\nBelajarnya privat 1-on-1 via telepon/VC WA yang fleksibel, cukup 10-20 menit per hari. Untuk pemula tidak perlu khawatir, ada tahap talaqqi dahulu (perbaikan bacaan, tajwid, & makhroj sebelum disetor):\n\n• Normal (1 sesi/hari, 20x/bln): Rp135rb/bln\n• Intensif (2 sesi/hari, 40x/bln): Rp245rb/bln\n• Tahfidz Cilik (anak 5-13 th, VC 3x/pekan): Rp155rb/bln\n\nKakak rencananya mau coba paket Normal, Intensif, atau Tahfidz Cilik? Cukup balas nama paketnya ya kak, nanti kami bantu cekkan jadwal ustadz/ustadzahnya. 🙏";
+        $fu2Desc = 'Ringkasan 3 pilihan paket, tahap talaqqi pemula, & CTA pilih paket';
+        $uFu2 = $conn->prepare("UPDATE crm_automation_templates SET content = ?, description = ? WHERE name LIKE 'Follow Up 2 (%'");
+        if ($uFu2) {
+            $uFu2->bind_param('ss', $fu2Content, $fu2Desc);
+            $uFu2->execute();
+            $uFu2->close();
+        }
+
+        $targetTplId = 2;
+        $tplLookup = $conn->query("SELECT id FROM crm_automation_templates WHERE name LIKE 'Follow Up 1%' ORDER BY id ASC LIMIT 1");
+        if ($tplLookup && ($rowT = $tplLookup->fetch_assoc())) {
+            $targetTplId = (int)$rowT['id'];
+        }
+
+        $organicRules = [
+            ['name' => 'Tanya Program Tahfidz (Ingin Bertanya)', 'kw' => 'ingin bertanya mengenai program tahfidz private', 'cat' => 'general', 'delay' => 2],
+            ['name' => 'Tanya Info Tahfidz (Organik)', 'kw' => 'mohon info tahfidz', 'cat' => 'general', 'delay' => 2],
+            ['name' => 'Tanya Info Lengkap Tahfidz (Organik)', 'kw' => 'mohon info lengkap program tahfidz', 'cat' => 'general', 'delay' => 2],
+            ['name' => 'Tanya Program Tahfidz (Singkat)', 'kw' => 'tanya ttg program tahfidz', 'cat' => 'general', 'delay' => 2],
+            ['name' => 'Tanya Tentang Program Tahfidz', 'kw' => 'mau tanya tentang program tahfidz', 'cat' => 'general', 'delay' => 2],
+            ['name' => 'Daftar Tahfidz Private Online (CTA)', 'kw' => 'mau daftar Tahfidz Private Online', 'cat' => 'cta', 'delay' => 2],
+        ];
+        foreach ($organicRules as $or) {
+            $chk = $conn->prepare("SELECT id FROM crm_automation_rules WHERE trigger_keyword = ? LIMIT 1");
+            if ($chk) {
+                $chk->bind_param('s', $or['kw']);
+                $chk->execute();
+                $exists = $chk->get_result()->fetch_assoc();
+                $chk->close();
+                if (!$exists) {
+                    $ins = $conn->prepare("INSERT INTO crm_automation_rules (name, trigger_keyword, trigger_condition, category, template_id, delay_minutes, is_active) VALUES (?, ?, 'contains', ?, ?, ?, 1)");
+                    if ($ins) {
+                        $ins->bind_param('sssii', $or['name'], $or['kw'], $or['cat'], $targetTplId, $or['delay']);
+                        $ins->execute();
+                        $ins->close();
+                    }
+                }
+            }
+        }
+
+        $conn->query("INSERT INTO crm_automation_meta (meta_key, meta_value) VALUES ('schema_v6_conversion_funnel_opt', '1') ON DUPLICATE KEY UPDATE meta_value = '1'");
+    }
+
     // Fast path: jika skema dan seed sudah lengkap, hindari DDL dan query berulang pada webhook
-    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v5_tahfidz_private_online_trigger' LIMIT 1");
+    $metaEnsured = $conn->query("SELECT meta_value FROM crm_automation_meta WHERE meta_key = 'schema_v6_conversion_funnel_opt' LIMIT 1");
     if ($metaEnsured && $metaEnsured->num_rows > 0) {
         $ensured = true;
         return true;
@@ -1191,6 +1238,102 @@ function crmAutomationHasUserReplied(mysqli $conn, string $nowa, string $registe
     return $replied;
 }
 
+function crmAutomationGetReplySummary(mysqli $conn, string $nowa, string $registeredAt): array
+{
+    $normalized = crmProspectNormalizeNumber($nowa);
+    $variants = array_values(array_unique(array_filter([
+        $normalized,
+        $nowa,
+        str_starts_with($normalized, '62') ? '0' . substr($normalized, 2) : '',
+        '+' . $normalized,
+    ])));
+
+    $summary = [
+        'has_replied' => false,
+        'is_declined' => false,
+        'last_reply_at' => null,
+    ];
+
+    if (empty($variants)) {
+        return $summary;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($variants), '?'));
+    $declinePatterns = [
+        'niatnya mau tahsin', 'maunya tahsin', 'tahsin saja', 'info untuk tahsin',
+        'lowongan', 'loker', 'tim pengajar', 'menjadi pengajar',
+        'tahun depan', 'tidak jadi', 'ga jadi', 'gak jadi', 'batal', 'maaf salah', 'salah ternyata',
+        'sudah daftar', 'sudah transfer',
+    ];
+
+    $tableCheck = $conn->query("SHOW TABLES LIKE 'crm_messages'");
+    if ($tableCheck && $tableCheck->num_rows > 0) {
+        $stmtMsg = $conn->prepare("
+            SELECT message, created_at
+            FROM crm_messages
+            WHERE nowa IN ({$placeholders}) AND direction = 'in' AND created_at > ?
+            ORDER BY id ASC
+        ");
+        if ($stmtMsg) {
+            $types = str_repeat('s', count($variants)) . 's';
+            $params = array_merge($variants, [$registeredAt]);
+            $stmtMsg->bind_param($types, ...$params);
+            $stmtMsg->execute();
+            $res = $stmtMsg->get_result();
+            while ($r = $res->fetch_assoc()) {
+                $summary['has_replied'] = true;
+                $summary['last_reply_at'] = (string)$r['created_at'];
+                $lower = mb_strtolower((string)($r['message'] ?? ''), 'UTF-8');
+                foreach ($declinePatterns as $pat) {
+                    if (str_contains($lower, $pat)) {
+                        $summary['is_declined'] = true;
+                        break;
+                    }
+                }
+            }
+            $stmtMsg->close();
+        }
+    }
+
+    if (!$summary['has_replied']) {
+        $stmtLog = $conn->prepare("
+            SELECT message, created_at
+            FROM log_wa
+            WHERE nowa IN ({$placeholders})
+              AND created_at > ?
+              AND message NOT LIKE '[GRUP]%'
+              AND message NOT LIKE '[PROMOSI]%'
+              AND message NOT LIKE 'Ahlan kak%'
+              AND message NOT LIKE 'Bismillah, ahlan kak%'
+              AND message NOT LIKE 'Sekadar info%'
+              AND message NOT LIKE 'Assalamu%alaikum kak%'
+              AND message != 'Data CSV/Manual'
+            ORDER BY id ASC
+        ");
+        if ($stmtLog) {
+            $types = str_repeat('s', count($variants)) . 's';
+            $params = array_merge($variants, [$registeredAt]);
+            $stmtLog->bind_param($types, ...$params);
+            $stmtLog->execute();
+            $res = $stmtLog->get_result();
+            while ($r = $res->fetch_assoc()) {
+                $summary['has_replied'] = true;
+                $summary['last_reply_at'] = (string)$r['created_at'];
+                $lower = mb_strtolower((string)($r['message'] ?? ''), 'UTF-8');
+                foreach ($declinePatterns as $pat) {
+                    if (str_contains($lower, $pat)) {
+                        $summary['is_declined'] = true;
+                        break;
+                    }
+                }
+            }
+            $stmtLog->close();
+        }
+    }
+
+    return $summary;
+}
+
 function crmAutomationRegisterQueue(
     mysqli $conn,
     string $nowa,
@@ -1230,12 +1373,34 @@ function crmAutomationRegisterQueue(
         $templateId = (int)$ruleRow['template_id'];
     }
 
-    // Hitung waktu jadwal dengan memperhitungkan jam tidur malam (sleep hours)
+    // Hitung waktu jadwal dengan memperhitungkan jam tidur malam (sleep hours) terlebih dahulu
     date_default_timezone_set('Asia/Jakarta');
     $scheduledTs = time() + ($delayMinutes * 60);
+    $scheduledTs = crmAutomationAdjustForSleep($conn, $scheduledTs);
 
-    // Anti-clash: Jika ada antrean pending lain yang dijadwalkan tepat di menit yang sama (selisih < 2 menit)
+    // Anti-clash per kontak: jangan sampai 2 pesan untuk nomor yang sama menumpuk di rentang < 45 menit (misal pukul 07:30 pagi)
     $schedCheck = date('Y-m-d H:i:s', $scheduledTs);
+    $stmtSameClash = $conn->prepare("
+        SELECT MAX(scheduled_at) AS latest_same
+        FROM crm_automation_queue
+        WHERE nowa = ?
+          AND template_id <> ?
+          AND status = 'pending'
+          AND scheduled_at BETWEEN DATE_SUB(?, INTERVAL 30 MINUTE) AND DATE_ADD(?, INTERVAL 30 MINUTE)
+    ");
+    if ($stmtSameClash) {
+        $stmtSameClash->bind_param('siss', $normalized, $templateId, $schedCheck, $schedCheck);
+        $stmtSameClash->execute();
+        $rowSame = $stmtSameClash->get_result()->fetch_assoc();
+        $stmtSameClash->close();
+        if (!empty($rowSame['latest_same'])) {
+            $scheduledTs = max($scheduledTs, strtotime((string)$rowSame['latest_same'])) + rand(2700, 3600);
+            $scheduledTs = crmAutomationAdjustForSleep($conn, $scheduledTs);
+            $schedCheck = date('Y-m-d H:i:s', $scheduledTs);
+        }
+    }
+
+    // Anti-clash global: jika ada antrean pending kontak lain di menit yang sama (selisih < 2 menit)
     $resClash = $conn->query("
         SELECT COUNT(*) AS clash_count
         FROM crm_automation_queue
@@ -1247,10 +1412,10 @@ function crmAutomationRegisterQueue(
         if ($clashCount > 0) {
             // Geser sedikit dengan jeda acak 2-4 menit
             $scheduledTs += rand(120, 240);
+            $scheduledTs = crmAutomationAdjustForSleep($conn, $scheduledTs);
         }
     }
 
-    $scheduledTs = crmAutomationAdjustForSleep($conn, $scheduledTs);
     $scheduledAtStr = date('Y-m-d H:i:s', $scheduledTs);
 
     // Deduplikasi: Jika masih ada antrean berstatus pending untuk nomor dan template ini, perbarui jadwalnya
@@ -1355,8 +1520,8 @@ function crmAutomationScheduleSequence(
     // 2. Definisi 6 tahap follow up standar general dengan jeda waktu pasti dan berurutan
     $sequenceSteps = [
         1 => ['delay_from_now' => 2],      // 2 menit dari sekarang (Instant Welcome)
-        2 => ['delay_from_now' => 45],     // 45 menit dari sekarang
-        3 => ['delay_from_now' => 240],    // 4 jam (240 mnt) dari sekarang
+        2 => ['delay_from_now' => 120],    // 2 jam (120 mnt) dari sekarang (ringkasan 3 paket & talaqqi)
+        3 => ['delay_from_now' => 240],    // 4 jam (240 mnt) dari sekarang (untuk alur manual 6 tahap)
         4 => ['delay_from_now' => 1440],   // 24 jam / H+1 dari sekarang
         5 => ['delay_from_now' => 4320],   // 3 hari / H+3 dari sekarang
         6 => ['delay_from_now' => 10080],  // 7 hari / H+7 dari sekarang
@@ -1498,9 +1663,15 @@ function crmAutomationScheduleSequence(
             continue; // Lewati tahap sebelum tahap mulai yang dipilih
         }
 
+        // Untuk alur otomatis webhook: rampingkan menjadi 3 pesan bersih (2 jam -> H+1 -> H+3)
+        // agar H+0 tidak menumpuk (Step 3 sudah terwakili di Step 2) dan tidak mengirim H+7 pasif.
+        if ($triggerSource === 'auto_webhook' && in_array($num, [3, 6], true)) {
+            continue;
+        }
+
         if ($triggerSource === 'auto_webhook' && $startStepNum === 2) {
             // Untuk webhook otomatis, pertahankan delay alami sejak chat pertama masuk:
-            // Step 2: 45 mnt, Step 3: 240 mnt, dst. Ditambah jitter acak 1-3 mnt
+            // Step 2: 120 mnt (2 jam), Step 4: 1440 mnt (H+1), Step 5: 4320 mnt (H+3). Ditambah jitter acak 1-3 mnt
             $stepJitter = rand(1, 3);
             $relDelay = $stepData['base_delay'] + $staggerMinutes + $stepJitter;
         } elseif ($num === $startStepNum) {

@@ -122,8 +122,36 @@ function crmAutomationDispatchSingle(mysqli $conn, int $queueId, string $apiUrl 
 
     // 2. Periksa apakah peserta sudah membalas chat sebelum jadwal follow up
     if (crmAutomationHasUserReplied($conn, $nowa, $registeredAt)) {
-        crmAutomationCancelAllPendingForContact($conn, $nowa, 'cancelled_replied');
-        return ['status' => 'cancelled', 'reason' => 'cancelled_replied'];
+        $replySummary = function_exists('crmAutomationGetReplySummary')
+            ? crmAutomationGetReplySummary($conn, $nowa, $registeredAt)
+            : ['has_replied' => true, 'is_declined' => false, 'last_reply_at' => null];
+        $tplName = (string)($row['template_name'] ?? '');
+        $isSameDayStep = (
+            str_contains($tplName, 'Follow Up 1') ||
+            str_contains($tplName, 'Follow Up 2') ||
+            str_contains($tplName, 'Follow Up 3') ||
+            str_contains($tplName, 'Closing Hari Ini')
+        );
+
+        if (!empty($replySummary['is_declined'])) {
+            crmAutomationCancelAllPendingForContact($conn, $nowa, 'cancelled_replied');
+            return ['status' => 'cancelled', 'reason' => 'cancelled_replied'];
+        }
+
+        if ($isSameDayStep && function_exists('crmAutomationCancelQueueItem')) {
+            // Jangan menyela percakapan hari-H yang sedang aktif, tetapi biarkan H+1/H+3 tetap terjadwal
+            crmAutomationCancelQueueItem($conn, $queueId, 'cancelled_replied');
+            return ['status' => 'cancelled', 'reason' => 'cancelled_replied'];
+        }
+
+        $lastReplyTs = !empty($replySummary['last_reply_at']) ? strtotime((string)$replySummary['last_reply_at']) : 0;
+        $regTs = strtotime($registeredAt) ?: 0;
+        $repliedRecentlyOrLaterDay = ($lastReplyTs > 0) && ((time() - $lastReplyTs) < 10 * 3600 || ($lastReplyTs - $regTs) > 10 * 3600);
+
+        if ($lastReplyTs === 0 || $repliedRecentlyOrLaterDay) {
+            crmAutomationCancelAllPendingForContact($conn, $nowa, 'cancelled_replied');
+            return ['status' => 'cancelled', 'reason' => 'cancelled_replied'];
+        }
     }
 
     // 3. Periksa apakah peserta sudah menerima chat form payment finance / sudah terdaftar

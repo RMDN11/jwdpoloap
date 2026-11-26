@@ -115,9 +115,36 @@ class AutoReplyEngine
                 }
             }
 
-            // Jeda pengiriman minimal 3 menit (180 detik) via OneSender schedule agar manusiawi
-            $baseDelay = rand(180, 210); // 3 menit s.d. 3.5 menit
-            $baseScheduledTimestamp = time() + $baseDelay;
+            // Jeda 3 menit via OneSender schedule khusus untuk chat pembuka / greeting awal.
+            // Untuk balasan lanjutan di tengah chat (kualifikasi/tanya program/anak/teknis), balas cepat (3-5 detik) agar percakapan tidak putus.
+            $kwLower = strtolower((string)($rule['keyword'] ?? ''));
+            $isMidChatRule = (
+                str_contains($kwLower, 'anak usia') ||
+                str_contains($kwLower, 'setoran vn') ||
+                str_contains($kwLower, 'murojaah aja') ||
+                str_contains($kwLower, 'syaratnya') ||
+                str_contains($kwLower, 'brosur')
+            );
+            $isOpeningGreeting = !$isMidChatRule && (
+                (int)($rule['id'] ?? 0) >= 25 ||
+                str_contains($kwLower, 'tanya detail') ||
+                str_contains($kwLower, 'ingin bergabung') ||
+                str_contains($kwLower, 'ingin bertanya') ||
+                str_contains($kwLower, 'mau daftar program') ||
+                str_contains($kwLower, 'mohon info tahfidz') ||
+                str_contains($kwLower, 'tanya ttg program') ||
+                str_contains($kwLower, 'info selengkapnya')
+            );
+
+            $baseScheduledTimestamp = null;
+            if ($isOpeningGreeting) {
+                $baseDelay = rand(180, 210); // 3 menit s.d. 3.5 menit
+                $baseScheduledTimestamp = time() + $baseDelay;
+            } else {
+                $quickDelay = rand(3, 5);
+                $this->logToFile("Quick human typing delay ({$quickDelay}s) for {$phone} (mid-chat rule {$rule['id']})");
+                sleep($quickDelay);
+            }
 
             // Cek apakah balasan dipecah menjadi beberapa balon chat (penanda [SPLIT])
             if (str_contains($replyText, '[SPLIT]')) {
@@ -132,13 +159,20 @@ class AutoReplyEngine
                     continue;
                 }
 
-                // Balon pertama terjadwal minimal 3 menit ke depan, balon berikutnya jeda 6-10 detik setelahnya
-                $bubbleTimestamp = $baseScheduledTimestamp + ($bubbleIndex * rand(6, 10));
-                $bubbleScheduleDate = date('Y-m-d H:i:s', $bubbleTimestamp);
-
-                $this->logToFile("Scheduling auto-reply bubble #{$bubbleIndex} for {$phone} at {$bubbleScheduleDate} (delay: " . ($bubbleTimestamp - time()) . "s)");
-
-                $bubbleSent = $this->sendViaOneSender($phone, $bubbleText, $bubbleScheduleDate);
+                if ($baseScheduledTimestamp !== null) {
+                    // Balon pertama terjadwal minimal 3 menit ke depan, balon berikutnya jeda 6-10 detik setelahnya
+                    $bubbleTimestamp = $baseScheduledTimestamp + ($bubbleIndex * rand(6, 10));
+                    $bubbleScheduleDate = date('Y-m-d H:i:s', $bubbleTimestamp);
+                    $this->logToFile("Scheduling auto-reply bubble #{$bubbleIndex} for {$phone} at {$bubbleScheduleDate} (delay: " . ($bubbleTimestamp - time()) . "s)");
+                    $bubbleSent = $this->sendViaOneSender($phone, $bubbleText, $bubbleScheduleDate);
+                } else {
+                    if ($bubbleIndex > 0) {
+                        sleep(rand(2, 3));
+                    }
+                    $bubbleScheduleDate = date('Y-m-d H:i:s');
+                    $this->logToFile("Sending immediate auto-reply bubble #{$bubbleIndex} for {$phone}");
+                    $bubbleSent = $this->sendViaOneSender($phone, $bubbleText, null);
+                }
                 if (!$bubbleSent) {
                     $sent = false;
                 }

@@ -56,6 +56,10 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 $senderPhone = $data['sender_phone'] ?? $data['phone'] ?? $data['from'] ?? '';
 $messageText = $data['message_text'] ?? $data['text'] ?? $data['message'] ?? '';
 $externalMessageId = trim((string)($data['message_id'] ?? $data['messageId'] ?? $data['id'] ?? ''));
+$isFromMe = !empty($data['is_from_me']);
+$isGroup = !empty($data['is_group']);
+$rawChatJid = trim((string)($data['chat'] ?? ''));
+$rawSenderLid = trim((string)($data['sender_lid'] ?? ''));
 
 $senderPhone = trim($senderPhone);
 $messageText = trim($messageText);
@@ -101,24 +105,96 @@ $chatMessageId = null;
 $routingRoom = null;
 
 if ($dbConnected) {
-    try {
-        $stmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, ?)");
-        if ($stmt) {
-            $stmt->bind_param('ssss', $senderPhone, $senderName, $messageText, $timestamp);
-            if ($stmt->execute()) {
-                $savedToDB = true;
-                logx("✅ BERHASIL SIMPAN KE TABEL log_wa");
-            } else {
-                logx("❌ GAGAL SIMPAN DB (SQL Error): " . $stmt->error);
+    // Simpan peta sender_lid -> nowa agar balasan admin HP ke @lid juga bisa terhubung ke thread prospek
+    if (!$isFromMe && !$isGroup && $rawSenderLid !== '' && $senderPhone !== '') {
+        try {
+            $conn->query("CREATE TABLE IF NOT EXISTS crm_lid_map (
+                lid VARCHAR(64) PRIMARY KEY,
+                nowa VARCHAR(32) NOT NULL,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            $lidStmt = $conn->prepare("INSERT INTO crm_lid_map (lid, nowa) VALUES (?, ?) ON DUPLICATE KEY UPDATE nowa = VALUES(nowa)");
+            if ($lidStmt) {
+                $lidStmt->bind_param('ss', $rawSenderLid, $senderPhone);
+                $lidStmt->execute();
+                $lidStmt->close();
             }
-            $stmt->close();
+        } catch (Throwable $e) {
+            logx("LID MAP ERROR: " . $e->getMessage());
         }
-    } catch (Throwable $e) {
-        logx("❌ GAGAL SIMPAN DB (Exception): " . $e->getMessage());
+    }
+
+    // Jika pesan keluar dari admin HP (is_from_me = true & bukan grup), catat ke thread prospek di crm_messages
+    if ($isFromMe && !$isGroup && $senderPhone === '248232064090227' && $rawChatJid !== '') {
+        try {
+            $targetPhone = '';
+            if (str_ends_with($rawChatJid, '@s.whatsapp.net')) {
+                $targetPhone = preg_replace('/\D/', '', str_replace('@s.whatsapp.net', '', $rawChatJid));
+            } elseif (str_ends_with($rawChatJid, '@lid')) {
+                $lidLookup = $conn->prepare("SELECT nowa FROM crm_lid_map WHERE lid = ? LIMIT 1");
+                if ($lidLookup) {
+                    $lidLookup->bind_param('s', $rawChatJid);
+                    $lidLookup->execute();
+                    $lidRow = $lidLookup->get_result()->fetch_assoc();
+                    $lidLookup->close();
+                    if ($lidRow) {
+                        $targetPhone = (string)$lidRow['nowa'];
+                    }
+                }
+            }
+
+            if ($targetPhone !== '' && !crmAutomationIsOperationalNumber($targetPhone)) {
+                $adminMsgId = crmChatStoreMessage(
+                    $conn,
+                    $targetPhone,
+                    '',
+                    $messageText,
+                    'out',
+                    'admin',
+                    'wa_hp',
+                    $timestamp,
+                    $externalMessageId !== '' ? $externalMessageId : null
+                );
+                logx("ADMIN HP OUTBOUND LOGGED TO PROSPECT {$targetPhone}: msg_id=" . (string)$adminMsgId);
+                if (function_exists('crmChatRoutingIsPaymentMessage') && crmChatRoutingIsPaymentMessage($messageText)) {
+                    $convStmt = $conn->prepare("SELECT id FROM crm_conversations WHERE nowa = ? LIMIT 1");
+                    if ($convStmt) {
+                        $convStmt->bind_param('s', $targetPhone);
+                        $convStmt->execute();
+                        $cRow = $convStmt->get_result()->fetch_assoc();
+                        $convStmt->close();
+                        if ($cRow) {
+                            crmChatRoutingEvaluateConversation($conn, (int)$cRow['id'], $messageText);
+                        }
+                    }
+                    crmAutomationSetFinanceStatus($conn, $targetPhone, 'paid');
+                }
+            }
+        } catch (Throwable $e) {
+            logx("ADMIN HP OUTBOUND ERROR: " . $e->getMessage());
+        }
+    }
+
+    if (!$isFromMe) {
+        try {
+            $stmt = $conn->prepare("INSERT INTO log_wa (nowa, nama, message, created_at) VALUES (?, ?, ?, ?)");
+            if ($stmt) {
+                $stmt->bind_param('ssss', $senderPhone, $senderName, $messageText, $timestamp);
+                if ($stmt->execute()) {
+                    $savedToDB = true;
+                    logx("✅ BERHASIL SIMPAN KE TABEL log_wa");
+                } else {
+                    logx("❌ GAGAL SIMPAN DB (SQL Error): " . $stmt->error);
+                }
+                $stmt->close();
+            }
+        } catch (Throwable $e) {
+            logx("❌ GAGAL SIMPAN DB (Exception): " . $e->getMessage());
+        }
     }
 }
 
-if ($dbConnected) {
+if ($dbConnected && !$isFromMe) {
     try {
         $chatMessageId = crmChatStoreMessage(
             $conn,
@@ -166,7 +242,10 @@ if ($dbConnected) {
     }
 }
 
-if ($isTeacherContact) {
+if ($isFromMe) {
+    $autoReplyStatus = 'skipped_from_me';
+    logx("AUTO REPLY/TRIGGER SKIPPED: outbound echo (is_from_me)");
+} elseif ($isTeacherContact) {
     // Keep raw inbound message in log_wa/crm_messages, but never run prospect/auto-reply triggers for teachers.
     $autoReplyStatus = 'skipped_teacher';
     logx("AUTO REPLY/TRIGGER SKIPPED: known teacher contact");
